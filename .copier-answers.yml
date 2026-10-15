@@ -1,0 +1,12 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: 1e5ffc6
+_src_path: .
+include_prefix: smd
+library_name: encoding
+maintainer_email: sdowney@gmail.com
+maintainer_name: Steve Downey
+namespace: overload
+project_slug: overload
+project_title: Modelling C++ overload resolution in Lean
+sample_value: Steve
+test_framework: catch2
