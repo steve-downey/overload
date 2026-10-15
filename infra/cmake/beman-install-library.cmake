@@ -177,8 +177,7 @@ function(beman_install_library name)
             )
             foreach(_install_header_set IN LISTS _available_header_sets)
                 list(
-                    APPEND
-                    _install_header_set_args
+                    APPEND _install_header_set_args
                     FILE_SET
                     "${_install_header_set}"
                     COMPONENT

@@ -1,0 +1,134 @@
+# Probes
+
+Three hand-written C++ probes, run on GCC 13.3 and Clang 18.1 with
+`-std=c++23`, before any Lean existed. Two produced compiler disagreements
+and one produced the counterexample the step-order suspect predicted. The
+sources are in `probes/`, and `make probes` (or `probes/run.sh g++-13
+clang++-18`) reruns them and prints the table.
+
+The sources here are reconstructions from the plan's descriptions; the
+originals did not come with the plan. A reconstruction is accepted when it
+reproduces the plan's results table on the same compiler versions. Two cells
+did not reproduce at first and one still does not; both are recorded below.
+
+## Step-order probe
+
+A candidate with a defaulted constant template parameter whose default
+performs an instance lookup, where the lookup fails with a `static_assert`
+for the argument type, alongside a second candidate that should win.
+
+| Variant | Winning candidate | GCC | Clang |
+|---|---|---|---|
+| A | non-template, exact match | compiles | hard error |
+| B | as A, but the primary template is declared and never defined | compiles | compiles |
+| C | as A, with a requires-clause on the template guarding the lookup | compiles | hard error |
+| D | as A, soft design: `std::false_type` default, constrained on instance shape | compiles | compiles |
+| E | as A, lookup moved into a default function argument | compiles | compiles |
+| G | non-template, worse match, so the template competes | hard error | hard error |
+| H | as A, lookup in the return type instead of the default argument | compiles | hard error |
+| I | a more specialized template, exact match | hard error | hard error |
+
+Reproduced in full by `probes/step_order.cpp` on 15 October 2026.
+
+Findings:
+
+- **The hazard is real on both compilers.** Variant I is the counterexample:
+  a template candidate that loses on partial ordering still has its default
+  substituted, and the hard error poisons the call. Variant C confirms that
+  a requires-clause on the same template cannot guard the default, because
+  the default is substituted first.
+- **GCC and Clang disagree when a non-template exact match exists.** Variants
+  A, C and H compile on GCC and fail on Clang. GCC appears not to perform
+  deduction for template candidates at all when a non-template candidate is
+  a perfect match. The draft example in [temp.constr.atomic]/3 supports
+  Clang. Filed under test-oracle; the question is whether GCC's shortcut is
+  conforming, and the verdict below says it is not, under the C++26 text.
+- **The library's design is safe.** Variant D compiles and selects correctly
+  on both, which is what missing-instance predicted.
+- **Two further soft routes.** An undefined primary template (B) is treated
+  as a substitution failure by both, and a default function argument (E) is
+  not instantiated unless the candidate is selected. E is relevant to the
+  by-value explicit-instance route.
+- **The soft route of B depends on the spelling of the lookup**
+  (reconstruction finding, 15 October 2026). B reproduces when the default
+  names the class template's static member directly,
+  `functor_instance<T>::value`: an undefined primary used there is an
+  invalid expression in the immediate context. Routed through a variable
+  template, `functor<T>` whose initializer is `functor_instance<T>::value`,
+  the same undefined primary is a hard error on Clang, because the variable
+  template specialization is a separate instantiation and its failure is
+  outside the immediate context ([temp.deduct.general]/8 sentence 4).
+  `probes/step_order_variable.cpp` keeps that variant. The modelled library
+  looks up through a variable template, so for it only D and E are soft
+  routes.
+
+## Tie-break probe
+
+Two overloads where the second is more constrained, varying how the
+instance bound is written.
+
+| Variant | Difference between overloads | GCC | Clang |
+|---|---|---|---|
+| A | requires-clauses only | #2 wins | #2 wins |
+| B | #2 has an extra defaulted template parameter | ambiguous | ambiguous |
+| C | bound as a type-constraint on an `auto` constant parameter | ambiguous | #2 wins |
+| D | constant parameters of different concrete instance types | ambiguous | ambiguous |
+
+`probes/tie_break.cpp` reproduces A, B and D. Variant C does not reproduce:
+with the bound spelled `shape auto TC` by value, both compilers report
+ambiguity, and spelled `const shape auto& TC` Clang 18.1 rejects the
+declaration outright ("constrained placeholder types other than simple
+`auto` on non-type template parameters not supported yet"). The plan's
+Clang result for C needs the original source; until it is found, C is
+recorded as not reproduced and the verdict below stands on the text alone.
+
+Findings:
+
+- **B and D confirm the suspect.** A difference in parameter list length or
+  in constant parameter type switches the tie-break off, and the more
+  constrained overload loses to ambiguity.
+- **C is a compiler disagreement.** [temp.over.link]/6 says equivalence of
+  constant parameters ignores type-constraints on placeholder types, which
+  makes the parameters equivalent and the tie-break apply, so Clang matches
+  the working draft. GCC 13 does not implement it either way.
+
+## Constant-argument conversion probe
+
+A derived-class value supplied for a base-typed class-type constant
+template parameter.
+
+| Variant | Question | GCC | Clang |
+|---|---|---|---|
+| A | is the derived value accepted, with slicing | rejected: not a converted constant expression | accepted |
+| B | is the sliced argument the same specialization as the base value | rejected | same specialization |
+
+Reproduced in full by `probes/constant_conversion.cpp`.
+
+Findings:
+
+- **A third compiler disagreement.** Clang accepts the derived value, slices
+  it, and identifies the result with the equivalent base value. GCC rejects
+  it as a conversion not permitted in a converted constant expression.
+- **If Clang is right**, leak 4 under instance inheritance is live: a derived
+  instance passed as a literal template argument silently becomes its base.
+
+The disagreements are what the test-oracle decision anticipated: each is
+filed against a sentence, not settled by majority, and MSVC and EDG should
+be consulted through Compiler Explorer on all three.
+
+## Who is right, 15 October 2026
+
+Checked against the C++26 text at eel.is and the draft repository's
+history.
+
+| Divergence | Governing text | Verdict | Action |
+|---|---|---|---|
+| 1. Default argument substituted for a losing template candidate | [over.match.funcs.general]/8: candidate specializations are generated by deduction for each function template, with no exception for a non-template exact match | Clang follows the text. GCC's shortcut is the subject of P3606, polled with consensus in EWG in March 2025, forwarded to CWG for C++29 with weak consensus at Kona, and returned by CWG in June 2026 needing updates; R2 was posted in September 2026 | No report. Watch P3606. The model transcribes the text, and gains a switch for the P3606 behaviour once its wording settles (decisions.md#p3606-mode) |
+| 2. Constrained `auto` constant parameter and the tie-break | [temp.over.link]/6.3, introduced by P2113R0 in February 2020 and so C++20 text | Clang is correct. GCC implements P2113 for type parameters, per its test concepts-p2113a.C, but applies no carve-out for type-constraints on placeholder types | GCC bug report, after checking trunk |
+| 3. Derived value for a base-typed class constant parameter | [temp.arg.nontype]/1 and /3 as rewritten by P2308R1 in November 2023: for class type T the argument must make `constexpr T v = A;` valid, and the paper states that no restrictions are imposed on the conversion to the constructor parameter. The converted-constant-expression rule now applies only to non-class types | Clang is correct under C++26. GCC's diagnostic applies the pre-P2308 rule, which was the C++20 and C++23 text | GCC bug report, after checking trunk. Whether P2308R1 applies as a defect report to earlier modes is a question for the report |
+
+Consequence for the model: leak 4 under instance inheritance is live under
+C++26. A derived instance supplied as a literal template argument for a
+base-typed constant parameter is sliced and identified with the base value.
+The obligation that instances are taken at their deduced exact type now
+covers constant parameters as well as function parameters.

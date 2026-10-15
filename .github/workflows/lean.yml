@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+
+name: Lean model
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  model:
+    name: Build, test, cite, emit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build and test the model
+        uses: leanprover/lean-action@24581d74d674803a25a81b10b059c5c0cdd344c6 # v1.6.2
+        with:
+          test: true
+          lint: false
+          use-github-cache: true
+
+      - name: Check the citation index is current
+        run: make check-citations
+
+      - name: Check every citation against the pinned draft
+        run: make drift-check
+
+      - name: Install compilers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ clang
+
+      - name: Differential tests
+        run: make differential
+
+      - name: Probes
+        run: make probes

@@ -2,8 +2,8 @@
 #+OPTIONS: ':nil *:t -:t ::t <:t H:4 \n:nil ^:nil arch:headline author:t
 #+OPTIONS: email:nil f:t inline:t num:nil p:nil pri:nil prop:nil stat:t tags:t
 #+OPTIONS: tasks:t tex:t timestamp:t title:t toc:nil todo:t |:t
-#+TITLE: Transclusion Examples
-#+SUBTITLE: A Case Study
+#+TITLE: Modelling C++ overload resolution in Lean
+#+SUBTITLE: The encoding under study
 #+date: {{{modification-time(%Y-%m-%d, VC)}}}
 #+AUTHOR: Steve Downey
 #+EMAIL: sdowney@gmail.com
@@ -34,24 +34,22 @@
 #+LATEX_HEADER:
 #+STARTUP: showall
 
-* Examples of Transclusion
-** Declaration of the ~name~ function
+* The encoding under study
+** The canonical lookup and its default instance
 #+transclude: [[file:./src/smd/overload/encoding.hpp::44cc988c-7353-43aa-a7d3-8840f92371a6]]  :lines 2- :src cpp :end "44cc988c-7353-43aa-a7d3-8840f92371a6 end"
 
-** Definition of the ~name~ function
+** The operation object that resolves the instance at the call
+#+transclude: [[file:./src/smd/overload/encoding.hpp::5cdef435-de62-4973-91f4-a56dbef659f3]]  :lines 2- :src cpp :end "5cdef435-de62-4973-91f4-a56dbef659f3 end"
+
+** The draft pin, as the installed package reports it
 #+transclude: [[file:src/smd/overload/encoding.cpp::a66dec0e-e5cc-44b5-b9f1-bbed787c3d44]]  :lines 2- :src cpp :end "a66dec0e-e5cc-44b5-b9f1-bbed787c3d44 end"
 
-** Testing the ~name~ function
+** Testing the pin
 #+transclude: [[file:src/smd/overload/encoding.test.cpp::03013d1f-bcc1-4d3e-9701-3ed1a15c6370]]  :lines 2- :src cpp :end "03013d1f-bcc1-4d3e-9701-3ed1a15c6370 end"
 
-** Saying hello with the ~name~ function
+** Using the encoding
 #+transclude: [[file:src/examples/hello.cpp::710c39c6-c7e1-403f-a9f0-9f8ecf890dc9]]
 :lines 2- :src cpp :end "710c39c6-c7e1-403f-a9f0-9f8ecf890dc9 end"
-
-** The Transclusion for the example above
-#+begin_src org
-#+transclude: [[file:src/examples/hello.cpp::710c39c6-c7e1-403f-a9f0-9f8ecf890dc9]] :lines 2- :src cpp :end "710c39c6-c7e1-403f-a9f0-9f8ecf890dc9 end"
-#+end_src
 
 
 # Local Variables:

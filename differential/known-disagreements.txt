@@ -1,0 +1,3 @@
+# Emitted programs on which a compiler disagrees with the model, one per
+# line as `<file> <compiler>`, each filed as a finding against the cited
+# sentence in docs/findings.md before it is listed here.

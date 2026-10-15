@@ -5,6 +5,6 @@
 #include <smd/overload/encoding.hpp>
 
 int main() {
-    std::cout << "encoding: |" << overload::encoding() << '|' << '\n';
+    std::cout << "draft pin: |" << overload::draft_pin() << '|' << '\n';
     return 0;
 }

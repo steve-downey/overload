@@ -1,81 +1,87 @@
 # Modelling C++ overload resolution in Lean
 
-[![OpenSSF Baseline](https://www.bestpractices.dev/projects/12577/baseline)](https://www.bestpractices.dev/projects/12577)
+A Lean 4 model of the C++ selection mechanisms that the pure-library
+typeclass technique depends on: template argument deduction, substitution
+failure, constraints, partial ordering, partial specialization matching and
+overload resolution. The typeclass encoding of
+[beman.typeclass](https://github.com/bemanproject/typeclass) is defined on
+top of the model, and its properties are proved about that definition.
+The plan is in [`docs/plan.md`](docs/plan.md); it is the charter for the
+work and the phases are tracked there.
 
-This repo is my current set of best practices for C++ projects. It does evolve somewhat over time.
+Every rule in the model cites the sentence of the Standard it transcribes,
+as a checked attribute:
 
-This is a snapshot as of today, Sat Apr 11 05:26:37 PM BST 2026.
-
-The code is trivial so that I can repurpose the framework quickly. A library that returns my name, a test that confirms that works, and an example hello `encoding` that uses the library.
-
-The C++ src is all in the ./src directory, including the headers and tests. Take a look at [The Pitchfork Layout Spec](https://www.w3.org/publications/spec-generator/?type=bikeshed-spec&output=html&die-on=fatal&md-date=&url=https%3A%2F%2Fraw.githubusercontent.com%2Fvector-of-bool%2Fpitchfork%2Fdevelop%2Fdata%2Fspec.bs&file=) for some discussion about merged layouts. Short answer is that include directories are an install location, not a source location, but that the directory layouts must still be coherent. Tests are co-located because tests are important and the further away they are, the more they will be dropped.
-
-The CMake is contemporary, post-modern, so not just target oriented, it is also file set oriented.
-
-GitHub Actions are set up to make sure everything I expect to work actually does.
-
-There is a top-level Makefile to drive workflow. Its default is to build and run all tests for the project.
-
-The project levergages `uv` and PyPI to install the tools that it requires. It installs them into a local virtual environment so as not to make system wide changes.
-
-The repository also vendors a generic WG21 paper framework under `papers/wg21` via `git subtree`. It is intentionally generic rather than tied to any one proposal number. Use `make papers` to build the vendored papers, `make clean` to remove their generated outputs, and `make realclean` to remove the paper tool infrastructure as well.
-
-The [pre-commit](https://github.com/pre-commit/pre-commit) framework is used to drive linters both locally and in GitHub Actions. Clang format is enforced, as is a CMake format. I've given up doing this by hand. Yaml is even worse. Spellcheck, for code, also.
-
-The infra directory is vendored in from the [Beman Project](https://github.com/bemanproject/infra) supporting [infra](https://github.com/bemanproject/infra) project. Right now for install of the project. Many of the GitHub actions in .github/workflows/ also use Beman scripts and tools. The CMakePresets.txt exists largely to support those tools. I find the workflow [Makefile](./Makefile) easier to extend with less combanitorial explosion.
-
-Complers are expected to be available on PATH with versioned names, such as `g++-15` or `clang++-21`. Toolchains are in the ./etc/ directory.
-
-`make` by itself uses the system `c++` compiler. For others, e.g., `make TOOLCHAIN=gcc-15` will use the etc/gcc-15-toolchain.cmake toolchain, which sets CXX to be gcc-15. By default the build and test is address sanitized, plus some compatible sanitizers. Alternatives are specified with CONFIG, e.g. `make TOOLCHAIN=gcc-15 CONFIG=RelWithDebInfo`.
-
-
-# Building Presentations with Emacs and Org-Transclusion
-
-This example project uses [nobiot's org-transclusion](https://github.com/nobiot/org-transclusion) and org-export to produce an HTML file for use in presentations. This allows checking that the code is correct but also limited to what is useful.
-
-The export can be run by `make presentation`, which builds and runs the tests for the project and runs the org export afterwards.
-
-The `infra` directory is vendored in from the Beman Project via `git subtree`.
-
-The makefile provides a variety of tools. It will install most borrowing from PyPI as long as `uv` is available. The installation is in a local `.venv` so as not to mess up the rest of your environment.
-
-```shell
-(overload) sdowney@pwyll:~/src/surround/overload (main ±)
-$ make help
-clean                          Clean the build artifacts
-clean-reconf                   Delete the current configured build tree
-clean-venv                     Delete python virtual env
-compile                        Compile the project
-compile_commands.json          symlink the current compile commands db
-compile-headers                Compile the headers
-coverage                       Build and run the tests with the GCOV profile and process the results
-ctest                          Run CTest on current build
-dev-shell                      Shell with the venv activated
-docs                           Build the docs with Doxygen
-help                           Show this help.
-install                        Install the project
-install-uv                     install uv via `pipx install uv`
-lint                           Run all configured tools in pre-commit
-lint-manual                    Run all manual tools in pre-commit
-mrdocs                         Build the docs with MrDocs
-papers                         Build the vendored WG21 papers
-reconf                         Recreate the current configured build tree
-realclean                      Delete the generated build infrastructure
-show-venv                      Debugging target - show venv details
-test                           Rebuild and run tests
-testinstall                    Test the installed package
-venv                           Create python virtual env
-view-coverage                  View the coverage report
+```lean
+@[std rule "temp.deduct.type#4.sentence-4"]
+def allDeduced (arity : Nat) (σ : Bindings) : Bool := ...
 ```
 
-`docs` and `mrdocs` are not included in the example at the moment.
+A build fails when a rule is uncited or an axiom untagged. The index of
+what rests on each sentence is generated into
+[`docs/citations.md`](docs/citations.md), and `make drift-check` confirms
+every citation against the pinned draft (N5054, tag `n5054`).
 
-`lint` uses pre-commit to drive the various lint tools.
+## Status
 
-Use this project as you see fit.
+Phase 0 is closed and phase 1 is open; see the status note under *Phases*
+in `docs/plan.md`. Three probes, run before any Lean existed, are in
+`probes/` with their results and verdicts in
+[`docs/probes.md`](docs/probes.md). Decisions, open and settled, are in
+[`docs/decisions.md`](docs/decisions.md). Findings about the Standard, the
+compilers or the plan are in [`docs/findings.md`](docs/findings.md).
 
-The code in infra is Apache 2.0 licensed, see https://github.com/bemanproject/infra for more details. The CMakeLists.txt is derived from https://github.com/bemanproject/exemplar the purpose of which is to be a concrete but boring example of a well behaved CMake C++ project using the current tools and practices.
+## Layout
 
-The css in `etc/`  is exported from emacs based on the modus tinted themes via `org-html-htmlize-generate-css` .
+```txt
+Overload/            the model: Std (citation attribute), Syntax, Outcome,
+                     Deduction, Program, Emit (C++ emitter), Lint
+Overload.lean        imports everything and runs the citation lint and audits
+OverloadTest/        #guard tests, run by `lake test`
+Tools/               lake exe citations (the index), lake exe emit (the C++)
+src/smd/overload/    the typeclass encoding under study, as C++, with tests
+src/examples/        a runnable example of the encoding
+probes/              the hand-written C++ probes and their runner
+scripts/             drift-check.sh, differential.sh
+differential/        known compiler disagreements on emitted programs
+docs/                plan, decisions, probes, findings, citations
+papers/wg21          the vendored WG21 paper framework (git subtree)
+infra/               Beman CMake infrastructure (git subtree)
+```
 
-The Makefile that drives the workflow is mine, is Apache 2.0 licensed, and take what you need from it. No part of it is interesting enough to be protected.
+## Building
+
+The Lean side needs [elan](https://github.com/leanprover/elan); the
+toolchain is pinned in `lean-toolchain` and Batteries in `lakefile.toml`.
+The C++ side needs a C++23 compiler, CMake and Ninja, which `uv` installs
+into a local `.venv` (`make venv`); Catch2 is fetched at configure time.
+
+```shell
+make                  # configure, build and run every test, C++ and Lean
+make lean-test        # the Lean model and its tests only
+make citations        # regenerate docs/citations.md from the environment
+make drift-check      # every citation exists in the pinned draft
+make differential     # emit the model's C++ and compile it with g++ and clang++
+make probes           # rerun the hand-written probes
+make lint             # pre-commit: clang-format, gersemi, markdownlint, codespell, ...
+make help             # the rest
+```
+
+`PROBE_COMPILERS="g++-13 clang++-18" make differential probes` picks the
+compilers; `TOOLCHAIN=gcc-15` and `CONFIG=RelWithDebInfo` pick the C++
+toolchain and configuration as in the sibling projects.
+
+## Provenance
+
+The repository was generated from the
+[steve-downey/example](https://github.com/steve-downey/example) Copier
+template (`.copier-answers.yml`) and keeps its Makefile, CMake, pre-commit
+and CI conventions; `copier update` can pull later template changes. The
+reference implementation of what is modelled is
+[bemanproject/typeclass](https://github.com/bemanproject/typeclass).
+
+## License
+
+Apache-2.0 WITH LLVM-exception. The code in `infra/` is Apache 2.0 from the
+[Beman Project](https://github.com/bemanproject/infra); `papers/wg21` carries
+its own licence.

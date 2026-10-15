@@ -24,6 +24,10 @@ PRE_COMMIT := $(UV) run pre-commit
 
 EMACS := $(shell command -v emacs 2> /dev/null)
 
+# The Lean side. elan puts lake on PATH; override LAKE to point elsewhere.
+LAKE ?= lake
+PROBE_COMPILERS ?= g++ clang++
+
 .update-submodules:
 	git submodule update --init --recursive
 	touch .update-submodules
@@ -139,7 +143,45 @@ ctest_: compile
 	$(CTEST) --test-dir $(_build_path) --output-on-failure -C $(CONFIG)
 
 .PHONY: test
-test: ctest_ ## Rebuild and run tests
+test: ctest_ lean-test ## Rebuild and run tests, C++ and Lean
+
+.PHONY: lean-build
+lean-build: ## Build the Lean model and its tools
+	$(LAKE) build
+
+.PHONY: lean-test
+lean-test: lean-build ## Build and run the Lean tests
+	$(LAKE) test
+
+.PHONY: citations
+citations: lean-build ## Regenerate docs/citations.md from the compiled environment
+	$(LAKE) exe citations docs/citations.md
+
+.PHONY: check-citations
+check-citations: citations ## Fail if docs/citations.md is stale
+	git diff --exit-code -- docs/citations.md
+
+.PHONY: drift-check
+drift-check: lean-build ## Check every citation against the pinned draft
+	bash scripts/drift-check.sh
+
+.PHONY: drift-check-current
+drift-check-current: lean-build ## Also compare each cited paragraph with the draft's main
+	bash scripts/drift-check.sh --current
+
+.PHONY: probes
+probes: ## Run the hand-written C++ probes on each compiler
+	bash probes/run.sh $(PROBE_COMPILERS)
+
+.PHONY: differential
+differential: lean-build ## Emit the model's C++ programs and compile them with each compiler
+	bash scripts/differential.sh $(PROBE_COMPILERS)
+
+.PHONY: clean-lean
+clean-lean: ## Delete the Lake build outputs
+	-rm -rf .lake/build
+
+realclean: clean-lean
 
 .PHONY: cmake
 cmake: |  $(_build_path)
