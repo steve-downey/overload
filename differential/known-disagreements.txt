@@ -24,3 +24,17 @@ step_order_hazard_guarded.cpp g++-15
 draft_temp_deduct_general_5_step_order.cpp clang++
 draft_temp_deduct_general_5_step_order.cpp clang++-18
 draft_temp_deduct_general_5_step_order.cpp clang++-19
+#
+# The tie-break with a type-constraint on an auto constant parameter:
+# [temp.over.link]/6 says equivalence of constant template parameters
+# ignores type-constraints on placeholder types, so the parameter lists
+# are equivalent, [temp.func.order]/8 compares constraints, and the more
+# constrained overload wins. GCC 13 and Clang 18 both report the call as
+# ambiguous (docs/findings.md).
+tie_break_placeholder_constraint.cpp g++
+tie_break_placeholder_constraint.cpp g++-13
+tie_break_placeholder_constraint.cpp g++-14
+tie_break_placeholder_constraint.cpp g++-15
+tie_break_placeholder_constraint.cpp clang++
+tie_break_placeholder_constraint.cpp clang++-18
+tie_break_placeholder_constraint.cpp clang++-19

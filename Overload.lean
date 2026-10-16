@@ -7,6 +7,7 @@ import Overload.Deduction
 import Overload.Constraint
 import Overload.Program
 import Overload.Steps
+import Overload.Ordering
 import Overload.Resolution
 import Overload.Emit
 import Overload.Lint
@@ -32,3 +33,8 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.resolve_agree_of_no_perfect
 #audit Overload.generate_p3606_suppresses
 #audit Overload.generate_differ_implies_perfect
+#audit Overload.PartialOrdering.moreSpecialized_irrefl
+#audit Overload.PartialOrdering.moreSpecialized_asymm
+#audit Overload.PartialOrdering.tieBreak_needs_equal_heads
+#audit Overload.PartialOrdering.patternMatches_iff
+#audit Overload.Constraint.moreConstrained_asymm

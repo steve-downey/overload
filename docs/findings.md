@@ -64,8 +64,30 @@ and described here as they arrive.
   `decisions.md#p3606-mode` as evidence about what the P3606 wording
   needs to say.
 
+- **Neither compiler ignores a placeholder's type-constraint when
+  comparing template parameters** (16 October 2026).
+  `tie_break_placeholder_constraint.cpp` is the tie-break probe's variant
+  C as the model spells it: two overloads differing in a defaulted
+  constant template parameter declared `auto` in one and `shape auto` in
+  the other, the second more constrained. [temp.over.link]/6 says
+  equivalence of constant template parameters ignores type-constraints on
+  placeholder types, so the parameters are equivalent, the gate of
+  [temp.func.order]/8 is open, and the model selects the more constrained
+  overload (`PartialOrdering.paramEquivalent`). GCC 13 and Clang 18 both
+  report the call ambiguous. This is the plan's divergence 2 with a
+  different Clang result from the one the plan recorded for its own,
+  unrecovered, probe source (`probes.md`); the by-value spelling here is
+  the one Clang 18 accepts. Listed as known for both compilers; the
+  verdict stands on the text.
+
 ## About the model
 
+- **More-specialized is a strict partial order as far as searched** (16
+  October 2026). Irreflexivity and asymmetry are theorems
+  (`moreSpecialized_irrefl`, `moreSpecialized_asymm`). Transitivity was
+  searched over every triple of single-parameter templates drawn from 18
+  parameter shapes, 5832 triples, with no counterexample
+  (`OverloadTest/Ordering.lean`); a proof is still owed.
 - **The draft's step-order example reproduces, and shows why the order
   matters** (16 October 2026). In the second example of
   [temp.deduct.general]/5, `f(zz, 42)` fails deduction for #1 because

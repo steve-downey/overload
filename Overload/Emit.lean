@@ -4,6 +4,7 @@ import Overload.Program
 import Overload.Deduction
 import Overload.Steps
 import Overload.Resolution
+import Overload.Ordering
 
 /-!
 # The C++ emitter
@@ -49,6 +50,11 @@ inductive Query where
   /-- Hand-written C++ with its own assertions, and whether it is
   well-formed. -/
   | raw (cpp : String) (wellFormed : Bool := true)
+  /-- Which partial specialization of the lookup variable template
+  `typeclass` the argument selects; `expected` indexes the program's
+  instances of that typeclass, in order, `noMatch` is the primary, and
+  `ambiguous` is ill-formed. -/
+  | lookup (typeclass : String) (arg : Ty) (expected : Resolution Nat)
   deriving Repr, Inhabited
 
 /-- One differential test. -/
@@ -63,6 +69,9 @@ structure Case where
   /-- Where the expectation comes from: computed by the model, or stated
   by hand from the draft's example until the model computes it. -/
   source : String := "stated"
+  /-- Ground truths of atomic constraints the program's concepts define,
+  for the model's oracle: `(expression, arguments, holds)`. -/
+  atomics : List (String × List Ty × Bool) := []
   deriving Repr, Inhabited
 
 /-- Is the whole translation unit expected to be well-formed? -/
@@ -72,34 +81,46 @@ def Case.wellFormed (c : Case) : Bool :=
   | .call _ _ (.illFormed _) => false
   | .call .. => true
   | .raw _ wf => wf
+  | .lookup _ _ (.ambiguous _) | .lookup _ _ (.illFormed _) => false
+  | .lookup .. => true
 
 /-! ## The environment a program defines -/
 
-/-- Does an instance of `tc` in the program match the type `a`? Phase 4
-replaces first-match with partial specialization matching and ordering. -/
-def instanceMatches (p : Program) (tc : String) (a : Ty) : Bool :=
-  p.any fun
-    | .instance c h pat =>
-      c = tc && (match deduceTy pat a [] with
-        | some σ => allDeduced h.length σ
-        | none => false)
-    | _ => false
+/-- The instances of a typeclass in a program, as head and pattern, in
+declaration order. -/
+def instancesOf (p : Program) (tc : String) : List (Head × Ty) :=
+  p.filterMap fun
+    | .instance c h pat => if c = tc then some (h, pat) else none
+    | _ => none
+
+/-- Which instance of `tc` the type `a` selects, by partial specialization
+matching and ordering. -/
+def selectInstance (p : Program) (tc : String) (a : Ty) : Resolution Nat :=
+  PartialOrdering.select tc (instancesOf p tc) a
 
 /-- The environment a program defines: the lookups it declares, hard or
-soft, with their instances; `has_instance` as the one atomic constraint;
-and convertibility as identity up to top-level cv and references. -/
-def Env.ofProgram (p : Program) : Env :=
+soft, with their instances; `has_instance` and the case's atomic table
+as the atomic constraints; and convertibility as identity up to top-level
+cv and references. -/
+def Env.ofProgram (p : Program) (atomics : List (String × List Ty × Bool) := []) : Env :=
   { instantiate := fun n a =>
       let hard := p.any fun | .lookupHard c => c = n | _ => false
       let soft := p.any fun | .lookup c => c = n | _ => false
-      if instanceMatches p n a then .ok (.spec' "instance_of" [a])
-      else if hard then .hard s!"static_assert in the primary {n}<{repr a}>"
-      else if soft then .ok (.named "std::false_type")
-      else .soft s!"no variable template {n}"
+      match selectInstance p n a with
+      | .selected i => .ok (.spec' "instance_of" [a, .value (.int i)])
+      | .ambiguous _ => .hard s!"ambiguous partial specializations of {n}<{repr a}>"
+      | .illFormed r => .hard r
+      | .noMatch =>
+        if hard then .hard s!"static_assert in the primary {n}<{repr a}>"
+        else if soft then .ok (.named "std::false_type")
+        else .soft s!"no variable template {n}"
     atomic := fun e args =>
       match e, args with
-      | "has_instance", [.named c, a] => .ok (instanceMatches p c a)
-      | _, _ => .soft s!"unknown atomic constraint {e}"
+      | "has_instance", [.named c, a] => .ok ((selectInstance p c a).toOption.isSome)
+      | _, _ =>
+        match atomics.find? fun (e', args', _) => e' == e && args' == args with
+        | some (_, _, b) => .ok b
+        | none => .soft s!"unknown atomic constraint {e}"
     convertible := fun a t => .ok (a.ty.referred.stripConst == t.referred.stripConst) }
 
 /-! ## Rendering -/
@@ -127,6 +148,7 @@ partial def ty : Ty → String
   | .ptr t => s!"{ty t}*"
   | .lref t => s!"{ty t}&"
   | .rref t => s!"{ty t}&&"
+  | .spec "auto" as => s!"{argList as} auto"
   | .spec c as => s!"{c}<{argList as}>"
   | .nil => ""
   | .cons a as => argList (.cons a as)
@@ -215,6 +237,7 @@ the return type `ret k` for the `k`th candidate. -/
 def program (p : Program) (callee : String) (ret : Nat → Head → String) : String := Id.run do
   let mut out := ""
   let mut k := 0
+  let mut instances : List (String × Nat) := []
   for d in p do
     match d with
     | .class n [] => out := out ++ s!"struct {n} \{};\n"
@@ -244,7 +267,11 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String) : St
       out := out ++ s!"    static constexpr int value = 0;\n};\n"
       out := out ++ s!"template <class T>\ninline constexpr auto {c} = {c}_instance<T>::value;\n"
     | .instance c h pat =>
-      out := out ++ s!"{head h}\ninline constexpr auto {c}<{ty pat}> = instance_of<{ty pat}>\{};\n"
+      let i := (instances.find? (·.1 == c)).map (·.2) |>.getD 0
+      instances := (c, i + 1) :: instances.filter (·.1 != c)
+      out := out ++ s!"{head h}\ninline constexpr selected<{i}> {c}<{ty pat}>\{};\n"
+    | .concept n body =>
+      out := out ++ s!"template <class T>\nconcept {n} = {body};\n"
     | .use c t =>
       out := out ++ s!"static_assert(sizeof({c}<{ty t}>) > 0);\n"
   return out
@@ -284,6 +311,17 @@ def render (c : Case) : String := Id.run do
       out := out ++ s!"using probe = decltype({callExpr callee [] as});\n"
   | .raw cpp _ =>
     out := out ++ program c.program "" (fun _ _ => "void") ++ "\n" ++ cpp
+  | .lookup tc a expected =>
+    out := out ++ program c.program "" (fun _ _ => "void") ++ "\n"
+    let value := s!"std::remove_cvref_t<decltype({tc}<{ty a}>)>"
+    match expected with
+    | .selected k =>
+      out := out ++ s!"static_assert(std::is_same_v<{value}, selected<{k}>>);\n"
+    | .noMatch =>
+      out := out ++ s!"static_assert(std::is_same_v<{value}, std::false_type>);\n"
+    | .ambiguous _ | .illFormed _ =>
+      out := out ++ s!"// the model expects a hard error: ambiguous partial specializations\n"
+      out := out ++ s!"using probe = decltype({tc}<{ty a}>);\n"
   return out
 
 /-! ## The cases -/
@@ -548,6 +586,143 @@ void f(int);                    // #2
 using probe = decltype(f(0));\n" (wellFormed := false)
     source := "the draft's example; the Lean reproduction is in OverloadTest/Resolution.lean" }
 
+/-! ### The tie-break probe
+
+Two overloads where the second is more constrained, varying how the
+instance bound is written. [temp.func.order]/8 compares constraints only
+when the template parameter lists are equivalent. -/
+
+private def c1 : Constraint := .atomic "c1" [T]
+private def c2 : Constraint := .conj (.atomic "c1" [T]) (.atomic "is_empty" [T])
+private def concepts : List Decl :=
+  [ .concept "c1" "std::is_class_v<T>", .concept "is_empty" "std::is_empty_v<T>"
+  , .concept "shape" "std::is_class_v<T>" ]
+private def tieAtomics : List (String × List Ty × Bool) :=
+  [("c1", [.named "X"], true), ("is_empty", [.named "X"], true), ("shape", [.named "std::false_type"], true)]
+
+/-- Variant A: requires-clauses only; #2 is more constrained. -/
+def tieBreakA : Case :=
+  { name := "tie_break_requires_only"
+    cite := cite "temp.func.order#8"
+    program := [.class "X"] ++ concepts ++
+      [ .functionTemplate { name := "g", head := [typeParam], params := [T], constraint := some c1 }
+      , .functionTemplate { name := "g", head := [typeParam], params := [T], constraint := some c2 } ]
+    query := .call "g" [{ ty := .named "X" }] (.selected 1)
+    source := "computed by resolve"
+    atomics := tieAtomics }
+
+/-- Variant B: #2 has an extra defaulted template parameter, so the
+parameter lists differ in length and the tie-break is off. -/
+def tieBreakB : Case :=
+  { name := "tie_break_extra_parameter"
+    cite := cite "temp.func.order#8"
+    program := [.class "X", .lookup "functor"] ++ concepts ++
+      [ .functionTemplate { name := "g", head := [typeParam], params := [T], constraint := some c1 }
+      , .functionTemplate
+          { name := "g"
+            head := [typeParam, { kind := .const (.named "auto"), default := some (.lookup "functor" T) }]
+            params := [T], constraint := some c2 } ]
+    query := .call "g" [{ ty := .named "X" }] (.ambiguous [0, 1])
+    source := "computed by resolve"
+    atomics := tieAtomics }
+
+/-- Variant C: the bound is a type-constraint on an `auto` constant
+parameter. [temp.over.link]/6 ignores it for equivalence, so the tie-break
+applies and #2 wins. -/
+def tieBreakC : Case :=
+  { name := "tie_break_placeholder_constraint"
+    cite := cite "temp.over.link#6"
+    program := [.class "X", .lookup "functor"] ++ concepts ++
+      [ .functionTemplate
+          { name := "g"
+            head := [typeParam, { kind := .const (.named "auto"), default := some (.lookup "functor" T) }]
+            params := [T], constraint := some c1 }
+      , .functionTemplate
+          { name := "g"
+            head := [typeParam, { kind := .const (.spec' "auto" [.named "shape"]), default := some (.lookup "functor" T) }]
+            params := [T], constraint := some c2 } ]
+    query := .call "g" [{ ty := .named "X" }] (.selected 1)
+    source := "computed by resolve"
+    atomics := tieAtomics }
+
+/-- Variant D: constant parameters of different concrete types are not
+equivalent, so the tie-break is off. -/
+def tieBreakD : Case :=
+  { name := "tie_break_different_types"
+    cite := cite "temp.over.link#6"
+    program := [.class "X"] ++ concepts ++
+      [ .functionTemplate
+          { name := "g"
+            head := [typeParam, { kind := .const int, default := some (.value (.int 0)) }]
+            params := [T], constraint := some c1 }
+      , .functionTemplate
+          { name := "g"
+            head := [typeParam, { kind := .const (.named "long"), default := some (.value (.int 0)) }]
+            params := [T], constraint := some c2 } ]
+    query := .call "g" [{ ty := .named "X" }] (.ambiguous [0, 1])
+    source := "computed by resolve"
+    atomics := tieAtomics }
+
+/-! ### Partial ordering of templates and of instances -/
+
+/-- `f(T&)` is more specialized than `f(T&&)` for an lvalue: the reference
+tie-break of [temp.deduct.partial]/9. -/
+def refTieBreak : Case :=
+  { name := "temp_deduct_partial_9_lvalue_reference"
+    cite := cite "temp.deduct.partial#9"
+    program := [.class "X", simpleTemplate [.lref T], simpleTemplate [.rref T]]
+    query := .call "f" [{ ty := .named "X", lvalue := true }] (.selected 0)
+    source := "computed by resolve" }
+
+/-- `f(const T&)` is more specialized than `f(T&&)` for a const lvalue. -/
+def cvTieBreak : Case :=
+  { name := "temp_deduct_partial_9_cv_qualified"
+    cite := cite "temp.deduct.partial#9"
+    program := [.class "X", simpleTemplate [.lref (.const T)], simpleTemplate [.rref T]]
+    query := .call "f" [{ ty := .const (.named "X"), lvalue := true }] (.selected 0)
+    source := "computed by resolve" }
+
+/-- `f(T*)` is more specialized than `f(T)`. -/
+def pointerMoreSpecialized : Case :=
+  { name := "temp_func_order_pointer"
+    cite := cite "temp.deduct.partial#10"
+    program := [.class "X", simpleTemplate [T], simpleTemplate [.ptr T]]
+    query := .call "f" [{ ty := .ptr (.named "X") }] (.selected 1)
+    source := "computed by resolve" }
+
+/-- An instance for `box<int>` is more specialized than one for `box<T>`. -/
+def instanceMoreSpecialized : Case :=
+  { name := "temp_spec_partial_match_more_specialized"
+    cite := cite "temp.spec.partial.match#1"
+    program :=
+      [ .classTemplate "box" [typeParam], .lookup "functor"
+      , .instance "functor" [typeParam] (.spec' "box" [T])
+      , .instance "functor" [] (.spec' "box" [int]) ]
+    query := .lookup "functor" (.spec' "box" [int]) (.selected 1)
+    source := "computed by select" }
+
+/-- `pair<T, int>` and `pair<int, T>` both match `pair<int, int>` and
+neither is more specialized: ambiguous. -/
+def instanceAmbiguous : Case :=
+  { name := "temp_spec_partial_match_ambiguous"
+    cite := cite "temp.spec.partial.match#1"
+    program :=
+      [ .classTemplate "pair" [typeParam, typeParam], .lookup "functor"
+      , .instance "functor" [typeParam] (.spec' "pair" [T, int])
+      , .instance "functor" [typeParam] (.spec' "pair" [int, T]) ]
+    query := .lookup "functor" (.spec' "pair" [int, int]) (.ambiguous [0, 1])
+    source := "computed by select" }
+
+/-- No instance matches: the primary, `std::false_type`. -/
+def instancePrimary : Case :=
+  { name := "temp_spec_partial_match_primary"
+    cite := cite "temp.spec.partial.match#1"
+    program :=
+      [ .classTemplate "box" [typeParam], .lookup "functor"
+      , .instance "functor" [typeParam] (.spec' "box" [T]) ]
+    query := .lookup "functor" int .noMatch
+    source := "computed by select" }
+
 /-- Every case the emitter writes. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -555,7 +730,10 @@ def cases : List Case :=
   , draftDeductGeneral5_both, draftDeductGeneral5_default, draftDeductGeneral5_undeduced
   , draftDeductGeneral5_explicit, draftDeductGeneral5_explicitBoth
   , draftDeductGeneral5_stepOrder, draftDeductGeneral8_immediate
-  , stepOrderHazard, stepOrderHazardGuarded, stepOrderSoft, draftConstrAtomic3_betterMatch ]
+  , stepOrderHazard, stepOrderHazardGuarded, stepOrderSoft, draftConstrAtomic3_betterMatch
+  , tieBreakA, tieBreakB, tieBreakC, tieBreakD
+  , refTieBreak, cvTieBreak, pointerMoreSpecialized
+  , instanceMoreSpecialized, instanceAmbiguous, instancePrimary ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=
@@ -570,7 +748,7 @@ def computed (c : Case) : Option (Option (List (ParamIdx × Ty))) :=
   | .deduction callee as _ explicit =>
     match c.program.functionTemplate? callee with
     | some ft =>
-      match deduceTemplate (Env.ofProgram c.program) ft explicit as with
+      match deduceTemplate (Env.ofProgram c.program c.atomics) ft explicit as with
       | .ok s => some (some (normalize ft.head.length s.args))
       | .soft _ => some none
       | .hard _ => none
@@ -582,8 +760,14 @@ indices; `none` when the case is not a call case. -/
 def computedCall (c : Case) : Option (Resolution Nat) :=
   match c.query with
   | .call callee as _ =>
-    some ((resolve .text (Env.ofProgram c.program) identityRanking
+    some ((resolve .text (Env.ofProgram c.program c.atomics) identityRanking
       (decls := c.program.candidates callee) (args := as)).map (·.index))
+  | _ => none
+
+/-- For a lookup case, what the model computes. -/
+def computedLookup (c : Case) : Option (Resolution Nat) :=
+  match c.query with
+  | .lookup tc a _ => some (selectInstance c.program tc a)
   | _ => none
 
 /-- Do two resolutions agree, ignoring the reason of an ill-formed one? -/

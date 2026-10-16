@@ -23,6 +23,13 @@ open Overload Overload.Emit
   | .call .., none => false
   | _, _ => true
 
+-- Every lookup case's stated expectation is what `select` computes.
+#guard cases.all fun c =>
+  match c.query, computedLookup c with
+  | .lookup _ _ expected, some got => Resolution.agree expected got
+  | .lookup .., none => false
+  | _, _ => true
+
 -- Names are unique, so the emitted files do not collide.
 #guard (cases.map (·.name)).eraseDups.length == cases.length
 

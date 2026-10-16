@@ -75,6 +75,9 @@ inductive Decl where
   | instance (typeclass : String) (head : Head) (pattern : Ty)
   /-- A point of the program that instantiates the lookup for a type. -/
   | use (typeclass : String) (ty : Ty)
+  /-- `template <class T> concept name = body;`, for the emitted C++; the
+  model sees the concept only as an atomic constraint by name. -/
+  | concept (name : String) (body : String)
   deriving Repr, DecidableEq, Inhabited
 
 /-- A program: declarations in order. -/

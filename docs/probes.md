@@ -81,6 +81,8 @@ declaration outright ("constrained placeholder types other than simple
 `auto` on non-type template parameters not supported yet"). The plan's
 Clang result for C needs the original source; until it is found, C is
 recorded as not reproduced and the verdict below stands on the text alone.
+The model's own emission of C, `tie_break_placeholder_constraint.cpp`,
+computes #2 and both compilers answer ambiguous (`findings.md`).
 
 Findings:
 

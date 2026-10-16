@@ -1,6 +1,7 @@
 -- Overload/Resolution.lean                                           -*-lean-*-
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 import Overload.Steps
+import Overload.Ordering
 
 /-!
 # Overload resolution, and the P3606 switch
@@ -199,17 +200,21 @@ def bestViable (r : Ranking Conv) (moreSpecialized : Specialization → Speciali
     | [] => .ambiguous (vs.map (·.cand))
     | ws => .ambiguous (ws.map (·.cand))
 
+/-- Partial ordering in the context of a call with `m` arguments, on the
+templates of two specializations. -/
+def orderingForCall (m : Nat) (s₁ s₂ : Specialization) : Bool :=
+  PartialOrdering.moreSpecialized (some m) s₁.template s₂.template
+
 /-- Overload resolution for a call: the candidates, the viable ones, the
 best. A hard error anywhere is the outcome. -/
 def resolve (mode : Mode) (env : Env) (r : Ranking Conv)
-    (moreSpecialized : Specialization → Specialization → Bool := fun _ _ => false)
     (decls : List Decl) (args : List CallArg) : Resolution Candidate :=
   match generate mode env decls args with
   | .hard reason | .soft reason => .illFormed reason
   | .ok cs =>
     match viable r cs args with
     | .hard reason | .soft reason => .illFormed reason
-    | .ok vs => bestViable r moreSpecialized vs
+    | .ok vs => bestViable r (orderingForCall args.length) vs
 
 /-! ## The two modes compared -/
 
@@ -223,9 +228,9 @@ theorem generate_agree_of_no_perfect (env : Env) (decls : List Decl) (args : Lis
 /-- Without a perfect non-template match, both modes resolve the call the
 same way. -/
 theorem resolve_agree_of_no_perfect (env : Env) (r : Ranking Conv)
-    (ms : Specialization → Specialization → Bool) (decls : List Decl) (args : List CallArg)
+    (decls : List Decl) (args : List CallArg)
     (h : hasPerfectMatch decls args = false) :
-    resolve .text env r ms decls args = resolve .p3606 env r ms decls args := by
+    resolve .text env r decls args = resolve .p3606 env r decls args := by
   simp [resolve, generate_agree_of_no_perfect env decls args h]
 
 /-- With suppression on, generation never deduces: every candidate is a
@@ -252,6 +257,7 @@ theorem generate_go_suppressed (env : Env) (args : List CallArg) :
     | lookupHard c => exact ⟨cs, by simp [generate.go, hcs], hall⟩
     | «instance» c h p => exact ⟨cs, by simp [generate.go, hcs], hall⟩
     | use c t => exact ⟨cs, by simp [generate.go, hcs], hall⟩
+    | concept n b => exact ⟨cs, by simp [generate.go, hcs], hall⟩
 
 /-- With a perfect non-template match, the P3606 mode never deduces a
 template: the candidates are the non-template functions and generation

@@ -55,6 +55,13 @@ transcription.
   inductive type (argument lists are `nil`/`cons` constructors of `Ty`)
   instead of a nested or mutual definition; see the module docstring of
   `Overload/Syntax.lean`.
+- 2026-10-16 — Deviation, to repair: partial ordering
+  (`Overload/Ordering.lean`) and overload resolution
+  (`Overload/Resolution.lean`) are given in the executable form only.
+  Their relation forms, and the agreement theorems, are owed; matching
+  has both (`PatternMatches`, `patternMatches_iff`). The executable
+  forms carry the citations meanwhile, one per sentence, so the index is
+  complete.
 
 ---
 

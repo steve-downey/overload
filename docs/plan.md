@@ -229,13 +229,25 @@ Status, 15 October 2026:
   the function type (`constraint_soft_shields_function_type`). The
   paragraph's two examples and the example of /8 reproduce in Lean and as
   emitted C++. Still to do: Mandates as a post-selection check.
-- Phase 5 is open as a skeleton, ahead of phases 3 and 4, because the
-  P3606 switch lives on it: `Overload/Resolution.lean` has candidate
-  generation with the `Mode` switch, viability, and the best viable
-  function by conversion sequences and the non-template preference, with
-  partial ordering a parameter until phase 4 and the conversion ranking a
-  parameter throughout. The emitted call cases are computed by `resolve`
-  under the text with an identity-only ranking.
+- Phase 5 is open as a skeleton, ahead of phase 3, because the P3606
+  switch lives on it: `Overload/Resolution.lean` has candidate generation
+  with the `Mode` switch, viability, and the best viable function by
+  conversion sequences, the non-template preference and partial ordering,
+  with the conversion ranking a parameter throughout. The emitted call
+  cases are computed by `resolve` under the text with an identity-only
+  ranking.
+- Phase 4 is closed, with one proof target left open.
+  `Overload/Ordering.lean` has the transformed template, deduction for
+  partial ordering with the reference tie-breaks of
+  [temp.deduct.partial]/9, more-specialized, the gate of
+  [temp.func.order]/8 with template parameter equivalence from
+  [temp.over.link]/6, and partial specialization matching by the rewrite
+  of [temp.spec.partial.order]/1. Matching is deterministic
+  (`patternMatches_iff`). More-specialized is irreflexive and asymmetric
+  by theorem; transitivity was searched over 5832 triples of parameter
+  shapes without a counterexample and is not yet proved. Subsumption
+  ([temp.constr.order]/1 and /4) came with it so the gate has something to
+  compare; phase 3's own theorems about it remain.
 
 ## Target theorems
 
