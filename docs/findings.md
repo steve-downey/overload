@@ -50,6 +50,20 @@ and described here as they arrive.
   error when the constraint step is skipped. Listed in
   `differential/known-disagreements.txt` for Clang up to 19.
 
+- **GCC's shortcut is narrower than P3606 as the model reads it** (16
+  October 2026). `draft_temp_constr_atomic_3_better_match.cpp` is the
+  draft's example in [temp.constr.atomic]/3: `f(0)` with a non-template
+  `f(int)` and a template whose constraint fails hard when checked. The
+  text makes the call ill-formed, and the model's `.p3606` mode makes it
+  well-formed, since `f(int)` is a perfect match and the template would
+  never be deduced. GCC 13 rejects it, as the text says, while compiling
+  the two emitted hazard cases, where the hard error is in a default
+  template argument rather than in constraint satisfaction. So whatever
+  GCC skips for a perfect match, it is not the whole of deduction. Not a
+  disagreement with the model under `.text`; recorded against
+  `decisions.md#p3606-mode` as evidence about what the P3606 wording
+  needs to say.
+
 ## About the model
 
 - **The draft's step-order example reproduces, and shows why the order

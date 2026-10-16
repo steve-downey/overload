@@ -229,6 +229,13 @@ Status, 15 October 2026:
   the function type (`constraint_soft_shields_function_type`). The
   paragraph's two examples and the example of /8 reproduce in Lean and as
   emitted C++. Still to do: Mandates as a post-selection check.
+- Phase 5 is open as a skeleton, ahead of phases 3 and 4, because the
+  P3606 switch lives on it: `Overload/Resolution.lean` has candidate
+  generation with the `Mode` switch, viability, and the best viable
+  function by conversion sequences and the non-template preference, with
+  partial ordering a parameter until phase 4 and the conversion ranking a
+  parameter throughout. The emitted call cases are computed by `resolve`
+  under the text with an identity-only ranking.
 
 ## Target theorems
 

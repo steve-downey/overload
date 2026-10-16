@@ -57,6 +57,10 @@ def toOption : Subst α → Option α
   | ok a => some a
   | _ => none
 
+/-- `pure` on `Subst` is `ok`. -/
+@[simp]
+theorem pure_eq (a : α) : (pure a : Subst α) = ok a := rfl
+
 /-- `>>=` on `Subst` is `Subst.bind`, so the equations below apply to the
 monadic spelling. -/
 @[simp]

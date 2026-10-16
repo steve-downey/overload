@@ -3,6 +3,7 @@
 import Overload.Program
 import Overload.Deduction
 import Overload.Steps
+import Overload.Resolution
 
 /-!
 # The C++ emitter
@@ -366,7 +367,8 @@ def nonTemplatePreferred : Case :=
   { name := "over_match_best_general_2_non_template"
     cite := cite "over.match.best.general#2"
     program := [simpleTemplate [T], .function "f" [int]]
-    query := .call "f" [{ ty := int }] (.selected 1) }
+    query := .call "f" [{ ty := int }] (.selected 1)
+    source := "computed by resolve" }
 
 /-! ### [temp.deduct.general]/5, the first example
 
@@ -496,7 +498,7 @@ def stepOrderHazard : Case :=
       , .function "f" [.named "X", int] ]
     query := .call "f" [{ ty := .named "X" }, { ty := int }]
       (.illFormed "the default of T1 instantiates functor<X>, whose primary fails")
-    source := "the plan's step-order suspect; phase 5 computes it" }
+    source := "computed by resolve under the text; well-formed under P3606" }
 
 /-- Variant C: a requires-clause on the same template cannot guard the
 default, since constraints are checked after defaults are substituted. -/
@@ -509,7 +511,7 @@ def stepOrderHazardGuarded : Case :=
       , .function "f" [.named "X", int] ]
     query := .call "f" [{ ty := .named "X" }, { ty := int }]
       (.illFormed "the default of T1 instantiates functor<X> before the constraint is checked")
-    source := "the plan's step-order suspect; phase 5 computes it" }
+    source := "computed by resolve under the text; well-formed under P3606" }
 
 /-- Variant D: the soft design selects the non-template on both compilers. -/
 def stepOrderSoft : Case :=
@@ -520,7 +522,31 @@ def stepOrderSoft : Case :=
       , .functionTemplate (hazardTemplate true)
       , .function "f" [.named "X", int] ]
     query := .call "f" [{ ty := .named "X" }, { ty := int }] (.selected 1)
-    source := "the plan's missing-instance decision; phase 5 computes it" }
+    source := "computed by resolve" }
+
+/-! ### [temp.constr.atomic]/3, the example
+
+A hard error while checking the satisfaction of #1's constraint makes the
+call ill-formed even though #2 is a better match. Under P3606, #2 is a
+perfect match and #1 is never deduced. -/
+
+def draftConstrAtomic3_betterMatch : Case :=
+  { name := "draft_temp_constr_atomic_3_better_match"
+    cite := cite "temp.constr.atomic#3"
+    program := []
+    query := .raw "template<typename T> struct S {
+  constexpr operator bool() const { return true; }
+};
+
+template<typename T> requires (S<T>{})
+void f(T);                      // #1
+void f(int);                    // #2
+
+// error: expression S<int>{} does not have type bool while checking
+// satisfaction of deduced arguments of #1; call is ill-formed even though
+// #2 is a better match
+using probe = decltype(f(0));\n" (wellFormed := false)
+    source := "the draft's example; the Lean reproduction is in OverloadTest/Resolution.lean" }
 
 /-- Every case the emitter writes. -/
 def cases : List Case :=
@@ -529,7 +555,7 @@ def cases : List Case :=
   , draftDeductGeneral5_both, draftDeductGeneral5_default, draftDeductGeneral5_undeduced
   , draftDeductGeneral5_explicit, draftDeductGeneral5_explicitBoth
   , draftDeductGeneral5_stepOrder, draftDeductGeneral8_immediate
-  , stepOrderHazard, stepOrderHazardGuarded, stepOrderSoft ]
+  , stepOrderHazard, stepOrderHazardGuarded, stepOrderSoft, draftConstrAtomic3_betterMatch ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=
@@ -550,6 +576,23 @@ def computed (c : Case) : Option (Option (List (ParamIdx × Ty))) :=
       | .hard _ => none
     | none => none
   | _ => none
+
+/-- For a call case, what the model computes under the text, as candidate
+indices; `none` when the case is not a call case. -/
+def computedCall (c : Case) : Option (Resolution Nat) :=
+  match c.query with
+  | .call callee as _ =>
+    some ((resolve .text (Env.ofProgram c.program) identityRanking
+      (decls := c.program.candidates callee) (args := as)).map (·.index))
+  | _ => none
+
+/-- Do two resolutions agree, ignoring the reason of an ill-formed one? -/
+def Resolution.agree : Resolution Nat → Resolution Nat → Bool
+  | .selected a, .selected b => a == b
+  | .noMatch, .noMatch => true
+  | .ambiguous a, .ambiguous b => a == b
+  | .illFormed _, .illFormed _ => true
+  | _, _ => false
 
 /-- The stated expectation of a deduction case, normalized the same way. -/
 def stated (c : Case) : Option (Option (List (ParamIdx × Ty))) :=

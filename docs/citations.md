@@ -10,9 +10,14 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 |---|---|---|---|
 | [[dcl.ref]/1 sentence 3](https://eel.is/c++draft/dcl.ref#1.sentence-3) | rule | `Overload.formConst` | `Overload.Steps` |
 | [[dcl.ref]/5 sentence 1](https://eel.is/c++draft/dcl.ref#5.sentence-1) | rule | `Overload.formPtr` | `Overload.Steps` |
+| [[over.match.best.general]/2](https://eel.is/c++draft/over.match.best.general#2) | rule | `Overload.betterFunction` | `Overload.Resolution` |
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.Resolution.ambiguous` | `Overload.Outcome` |
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.Resolution.selected` | `Overload.Outcome` |
+| [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.bestViable` | `Overload.Resolution` |
+| [[over.match.funcs.general]/8 sentence 1](https://eel.is/c++draft/over.match.funcs.general#8.sentence-1) | rule | `Overload.generate` | `Overload.Resolution` |
 | [[over.match.general]/3 sentence 2](https://eel.is/c++draft/over.match.general#3.sentence-2) | rule | `Overload.Resolution.noMatch` | `Overload.Outcome` |
+| [[over.match.viable]/2 sentence 1](https://eel.is/c++draft/over.match.viable#2.sentence-1) | rule | `Overload.arityOk` | `Overload.Resolution` |
+| [[over.match.viable]/4 sentence 1](https://eel.is/c++draft/over.match.viable#4.sentence-1) | rule | `Overload.conversions` | `Overload.Resolution` |
 | [[temp.constr.atomic]/3 sentence 1](https://eel.is/c++draft/temp.constr.atomic#3.sentence-1) | rule | `Overload.Constraint.satisfied` | `Overload.Constraint` |
 | [[temp.constr.atomic]/3 sentence 2](https://eel.is/c++draft/temp.constr.atomic#3.sentence-2) | rule | `Overload.Constraint.satisfied_atomic_soft` | `Overload.Constraint` |
 | [[temp.deduct.call]/1 sentence 1](https://eel.is/c++draft/temp.deduct.call#1.sentence-1) | rule | `Overload.deduceCall` | `Overload.Deduction` |
@@ -64,8 +69,6 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 - [[temp.constr.atomic]/2](https://eel.is/c++draft/temp.constr.atomic#2)
 - [[temp.arg.nontype]/1](https://eel.is/c++draft/temp.arg.nontype#1)
 - [[temp.arg.nontype]/3](https://eel.is/c++draft/temp.arg.nontype#3)
-- [[over.match.funcs.general]/8](https://eel.is/c++draft/over.match.funcs.general#8)
-- [[over.match.best.general]/2](https://eel.is/c++draft/over.match.best.general#2)
 - [[over.best.ics.general]/7](https://eel.is/c++draft/over.best.ics.general#7)
 
 ## Assumptions
@@ -75,4 +78,5 @@ What the model needs and the Standard does not say, each linked to its decision-
 | Decision | Declaration |
 |---|---|
 | [expression-depth](decisions.md#expression-depth) | `Overload.Env` |
+| [p3606-mode](decisions.md#p3606-mode) | `Overload.perfectParam` |
 | [single-tu](decisions.md#single-tu) | `Overload.SingleTranslationUnit` |

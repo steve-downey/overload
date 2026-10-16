@@ -59,7 +59,7 @@ structure Specialization where
   args : Bindings
   params : List Ty
   ret : Ty
-  deriving Repr, Inhabited
+  deriving Repr, DecidableEq, Inhabited
 
 /-! ## Forming a substituted type -/
 

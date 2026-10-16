@@ -15,6 +15,14 @@ open Overload Overload.Emit
   | .deduction .. => stated c == computed c && (computed c).isSome
   | _ => true
 
+-- Every call case's stated expectation is what `resolve` computes under
+-- the text.
+#guard cases.all fun c =>
+  match c.query, computedCall c with
+  | .call _ _ expected, some got => Resolution.agree expected got
+  | .call .., none => false
+  | _, _ => true
+
 -- Names are unique, so the emitted files do not collide.
 #guard (cases.map (·.name)).eraseDups.length == cases.length
 

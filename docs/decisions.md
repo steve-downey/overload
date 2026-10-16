@@ -253,6 +253,21 @@ step-order hazard, and GCC implements P3606 today.
 - 2026-10-16 — The two emitted step-order cases are the first entries in
   `differential/known-disagreements.txt`, for GCC. The switch is not yet
   in the model; `deduceTemplate` transcribes the text.
+- 2026-10-16 — The switch exists: `Overload.Mode`, `.text` or `.p3606`,
+  on `generate` and `resolve` in `Overload/Resolution.lean`. Under
+  `.p3606` a non-template candidate that is a perfect match suppresses
+  deduction for every template candidate. "Perfect match" is the model's
+  reading of a proposal whose wording is not settled, so `perfectParam`
+  carries this entry's tag: the parameter type is the argument's own type,
+  with its value category for a reference parameter, and no default
+  argument is used. The theorems `generate_agree_of_no_perfect`,
+  `generate_p3606_suppresses` and `generate_differ_implies_perfect` say
+  the modes differ exactly when a perfect match exists, and then only in
+  that templates are never deduced. GCC 13 compiles the two emitted
+  hazard cases, as the P3606 mode predicts, but rejects the draft's
+  [temp.constr.atomic]/3 example, which the P3606 mode also predicts
+  well-formed: GCC's shortcut is narrower than the rule as read here
+  (`findings.md`). Default stays `.text`.
 
 ---
 
