@@ -59,21 +59,22 @@ concept has_instance = requires { functor_instance<T>::value.fmap; };
 // ---- candidate #1: the template whose default argument does the lookup ----
 
 #if VARIANT == 'A' || VARIANT == 'B' || VARIANT == 'G' || VARIANT == 'I'
-template <class T, const auto& TC = functor_instance<T>::value>
+template <class T, const auto &TC = functor_instance<T>::value>
 int f(T, int) {
     return 1;
 }
 #elif VARIANT == 'C'
 // A requires-clause on the same template cannot guard the default: the
 // default is substituted first ([temp.deduct.general]/5).
-template <class T, const auto& TC = functor_instance<T>::value>
+template <class T, const auto &TC = functor_instance<T>::value>
     requires has_instance<T>
 int f(T, int) {
     return 1;
 }
 #elif VARIANT == 'D'
-template <class T, const auto& TC = functor_instance<T>::value>
-    requires(!std::is_same_v<std::remove_cvref_t<decltype(TC)>, std::false_type>)
+template <class T, const auto &TC = functor_instance<T>::value>
+    requires(
+        !std::is_same_v<std::remove_cvref_t<decltype(TC)>, std::false_type>)
 int f(T, int) {
     return 1;
 }
@@ -81,7 +82,7 @@ int f(T, int) {
 // The lookup is in a default function argument, which is instantiated only
 // if the candidate is selected and the argument is needed.
 template <class T>
-int f(T, int, const void* = &functor_instance<T>::value) {
+int f(T, int, const void * = &functor_instance<T>::value) {
     return 1;
 }
 #elif VARIANT == 'H'

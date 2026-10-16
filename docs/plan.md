@@ -215,10 +215,20 @@ Status, 15 October 2026:
 - Phase 1 is open with its core in place: `Ty`, `Val`, substitution,
   deduction as relation and function with the agreement theorem
   (`deduceTy_iff`), determinism (`deduceTy_det`), the call-site adjustments
-  of [temp.deduct.call]/2 to /5, and template-argument equivalence
-  (`Val.equivalent_iff`). Still to do: template heads with defaults in
-  deduction (the [temp.deduct.general]/5 step), the most-general statement,
-  and the cost report is in `decisions.md#spec-style`.
+  of [temp.deduct.call]/2 to /5, template heads with defaults and
+  explicit arguments (`deduceTemplate`), and template-argument equivalence
+  (`Val.equivalent_iff`). Still to do: the most-general statement. The
+  cost report is in `decisions.md#spec-style`.
+- Phase 2 is open. The step order of [temp.deduct.general]/5 is
+  transcribed as separate steps in `Overload/Steps.lean`, with the three
+  outcomes, the immediate context (`form`), the oracle for separately
+  instantiated constructs (`Env`), and the theorems: a hard error is
+  absorbing (`defaults_hard_absorbing`, `deduceTemplate_hard_iff`), a
+  requires-clause cannot guard a default
+  (`constraint_cannot_guard_default`), and a constraint failure shields
+  the function type (`constraint_soft_shields_function_type`). The
+  paragraph's two examples and the example of /8 reproduce in Lean and as
+  emitted C++. Still to do: Mandates as a post-selection check.
 
 ## Target theorems
 
@@ -427,6 +437,6 @@ than these.
   attribute with its lint.
 - [x] Define types, template heads and substitution, each with its
   citation.
-- [ ] Transcribe the step order of [temp.deduct.general]/5 as separate
+- [x] Transcribe the step order of [temp.deduct.general]/5 as separate
   steps and reproduce that paragraph's examples.
 - [ ] Confirm the prior art list and search for newer mechanizations.

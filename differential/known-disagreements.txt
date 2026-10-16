@@ -1,3 +1,26 @@
 # Emitted programs on which a compiler disagrees with the model, one per
 # line as `<file> <compiler>`, each filed as a finding against the cited
 # sentence in docs/findings.md before it is listed here.
+#
+# The step-order hazard: GCC does not deduce for template candidates when
+# a non-template candidate is an exact match (the P3606 behaviour), so the
+# hard error in the default template argument never happens. The model
+# transcribes the C++26 text (docs/decisions.md#p3606-mode). Both the
+# unversioned and the versioned compiler names are listed, for CI and for
+# a local run with PROBE_COMPILERS="g++-13 clang++-18".
+step_order_hazard.cpp g++
+step_order_hazard.cpp g++-13
+step_order_hazard.cpp g++-14
+step_order_hazard.cpp g++-15
+step_order_hazard_guarded.cpp g++
+step_order_hazard_guarded.cpp g++-13
+step_order_hazard_guarded.cpp g++-14
+step_order_hazard_guarded.cpp g++-15
+#
+# The draft's second example of [temp.deduct.general]/5: Clang 18 checks
+# the conversion of zz to void* before the constraint C<int>, the ordering
+# CWG2369 replaced, so the conversion instantiates Z<void> and the
+# well-formed example fails to compile (docs/findings.md).
+draft_temp_deduct_general_5_step_order.cpp clang++
+draft_temp_deduct_general_5_step_order.cpp clang++-18
+draft_temp_deduct_general_5_step_order.cpp clang++-19

@@ -54,6 +54,7 @@ def deduceTy : Ty → Ty → Bindings → Option Bindings
   | .nil, .nil, σ => some σ
   | .cons p ps, .cons a as, σ => deduceTy p a σ >>= deduceTy ps as
   | .nondeduced _, _, σ => some σ
+  | .lookup _ _, _, σ => some σ
   | _, _, _ => none
 
 /-- The specification form: `DeduceTy P A σ σ'` says that deducing `P`
@@ -101,6 +102,11 @@ inductive DeduceTy : Ty → Ty → Bindings → Bindings → Prop where
   and takes what was deduced elsewhere or explicitly specified. -/
   | nondeduced (p a : Ty) (σ : Bindings) :
       DeduceTy (.nondeduced p) a σ σ
+  /-- A constant template argument in which a subexpression references a
+  template parameter is a non-deduced context: the lookup's argument is
+  not deduced from, whatever `A` is. -/
+  | lookup (n : String) (p a : Ty) (σ : Bindings) :
+      DeduceTy (.lookup n p) a σ σ
 
 attribute [std rule "temp.deduct.type#8.sentence-1"] DeduceTy.param
 attribute [std rule "temp.deduct.type#8.sentence-1"] DeduceTy.value
@@ -113,6 +119,7 @@ attribute [std rule "temp.deduct.type#9.sentence-1"] DeduceTy.spec
 attribute [std rule "temp.deduct.type#9.sentence-1"] DeduceTy.nil
 attribute [std rule "temp.deduct.type#9.sentence-1"] DeduceTy.cons
 attribute [std rule "temp.deduct.type#4.sentence-3"] DeduceTy.nondeduced
+attribute [std rule "temp.deduct.type#5"] DeduceTy.lookup
 
 /-- Soundness: what the function deduces, the relation derives. -/
 theorem deduceTy_sound (p : Ty) : ∀ (a : Ty) (σ σ' : Bindings),
@@ -177,6 +184,11 @@ theorem deduceTy_sound (p : Ty) : ∀ (a : Ty) (σ σ' : Bindings),
     simp only [deduceTy, Option.some.injEq] at h
     subst h
     exact .nondeduced p a σ
+  | lookup n p _ =>
+    intro a σ σ' h
+    simp only [deduceTy, Option.some.injEq] at h
+    subst h
+    exact .lookup n p a σ
 
 /-- Completeness: what the relation derives, the function deduces. -/
 theorem deduceTy_complete {p a : Ty} {σ σ' : Bindings}
@@ -193,6 +205,7 @@ theorem deduceTy_complete {p a : Ty} {σ σ' : Bindings}
   | nil σ => simp [deduceTy]
   | cons p ps a as σ σ₁ σ' _ _ ih₁ ih₂ => simp [deduceTy, ih₁, ih₂]
   | nondeduced p a σ => simp [deduceTy]
+  | lookup n p a σ => simp [deduceTy]
 
 /-- Agreement: the relation holds exactly when the function succeeds. -/
 theorem deduceTy_iff (p a : Ty) (σ σ' : Bindings) :
@@ -275,6 +288,10 @@ theorem deduceTy_extends (p : Ty) : ∀ (a : Ty) (σ σ' : Bindings),
     intro a σ σ' h b hb
     simp only [deduceTy, Option.some.injEq] at h
     subst h; exact hb
+  | lookup n p _ =>
+    intro a σ σ' h b hb
+    simp only [deduceTy, Option.some.injEq] at h
+    subst h; exact hb
 
 /-! ## Deduction from a function call -/
 
@@ -327,14 +344,17 @@ def deduceParam (p : Ty) (a : CallArg) (σ : Bindings) : Option Bindings :=
     | some σ' => some σ'
     | none => if p.isRef then deduceTy p'.stripConst a'.stripConst σ else none
 
-/-- Deduce every parameter of a call, left to right. A call with the wrong
-number of arguments is not a deduction failure but a non-viable candidate;
-here it fails, since nothing can be deduced for it. -/
+/-- Deduce every parameter of a call, left to right. A parameter for which
+the call has no argument, one whose default argument is being used, is a
+non-deduced context ([temp.deduct.type]/5) and contributes nothing; a call
+with more arguments than parameters is not a deduction failure but a
+non-viable candidate, and here it fails, since nothing can be deduced for
+it. -/
 @[std rule "temp.deduct.call#1.sentence-1"]
 def deduceCall : List Ty → List CallArg → Bindings → Option Bindings
-  | [], [], σ => some σ
+  | _, [], σ => some σ
   | p :: ps, a :: as, σ => deduceParam p a σ >>= deduceCall ps as
-  | _, _, _ => none
+  | [], _ :: _, _ => none
 
 /-- After the call, every template parameter of the head must have a value:
 one used only in non-deduced contexts, and not explicitly specified, fails

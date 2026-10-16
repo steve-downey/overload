@@ -23,7 +23,7 @@ template <class T>
 inline constexpr instance functor{};
 
 template <class T>
-concept shape = requires(const T& t) { t.fmap; };
+concept shape = requires(const T &t) { t.fmap; };
 
 template <class T>
 concept c1 = std::is_class_v<T>;
@@ -52,7 +52,7 @@ template <class T>
 int g(T) {
     return 1;
 }
-template <class T, const auto& TC = functor<T>>
+template <class T, const auto &TC = functor<T>>
     requires c2<T>
 int g(T) {
     return 2;
@@ -60,12 +60,12 @@ int g(T) {
 #elif VARIANT == 'C'
 // The bound is a type-constraint on an auto constant parameter.
 // [temp.over.link]/6: equivalence ignores it, so the heads stay equivalent.
-template <class T, const auto& TC = functor<T>>
+template <class T, const auto &TC = functor<T>>
     requires c1<T>
 int g(T) {
     return 1;
 }
-template <class T, const shape auto& TC = functor<T>>
+template <class T, const shape auto &TC = functor<T>>
     requires c2<T>
 int g(T) {
     return 2;
@@ -77,12 +77,12 @@ struct other_instance {
 };
 template <class T>
 inline constexpr other_instance other_functor{};
-template <class T, const instance& TC = functor<T>>
+template <class T, const instance &TC = functor<T>>
     requires c1<T>
 int g(T) {
     return 1;
 }
-template <class T, const other_instance& TC = other_functor<T>>
+template <class T, const other_instance &TC = other_functor<T>>
     requires c2<T>
 int g(T) {
     return 2;

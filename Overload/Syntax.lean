@@ -94,6 +94,11 @@ inductive Ty where
   /-- A non-deduced context around a type: deduction does not look inside,
   substitution does ([temp.deduct.type]/4). -/
   | nondeduced : Ty → Ty
+  /-- The value of a variable template specialization `name<arg>`, such as
+  `functor<T>`: a separately instantiated construct. Substituting into it
+  instantiates it, which is outside the immediate context, and the
+  environment's oracle says what comes of that. -/
+  | lookup : String → Ty → Ty
   deriving Repr, DecidableEq, Inhabited
 
 namespace Ty
@@ -115,7 +120,7 @@ def toList : Ty → Option (List Ty)
 /-- A type, as opposed to an argument list or a value: what a type template
 parameter may be bound to. -/
 def isType : Ty → Bool
-  | .nil | .cons _ _ | .value _ => false
+  | .nil | .cons _ _ | .value _ | .lookup _ _ => false
   | _ => true
 
 /-- Is `t` a reference type? -/
@@ -185,6 +190,7 @@ def Ty.subst (σ : Bindings) : Ty → Ty
   | .cons a as => .cons (Ty.subst σ a) (Ty.subst σ as)
   | .value v => .value (Val.subst σ v)
   | .nondeduced t => .nondeduced (Ty.subst σ t)
+  | .lookup n a => .lookup n (Ty.subst σ a)
 
 /-- Does the value mention a constant template parameter? -/
 def Val.dependent : Val → Bool
@@ -197,7 +203,7 @@ def Val.dependent : Val → Bool
 def Ty.dependent : Ty → Bool
   | .named _ | .nil => false
   | .param _ => true
-  | .const t | .ptr t | .lref t | .rref t | .nondeduced t => Ty.dependent t
+  | .const t | .ptr t | .lref t | .rref t | .nondeduced t | .lookup _ t => Ty.dependent t
   | .spec _ as => Ty.dependent as
   | .cons a as => Ty.dependent a || Ty.dependent as
   | .value v => Val.dependent v

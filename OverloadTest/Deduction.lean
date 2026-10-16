@@ -62,8 +62,10 @@ private def constRef : List Ty := [.lref (.const T)]
 #guard deduceCall [.ptr (.const T)] [{ ty := .ptr int }] [] == none
 -- A non-dependent parameter contributes nothing to deduction.
 #guard deduceCall [int, T] [{ ty := .named "long" }, { ty := int }] [] == some [(0, int)]
--- Wrong arity.
-#guard deduceCall [T] [] [] == none
+-- A parameter with no argument (its default argument is in use) is a
+-- non-deduced context; more arguments than parameters is not viable.
+#guard deduceCall [T] [] [] == some []
+#guard deduceCall [] [{ ty := int }] [] == none
 
 -- Substitution after deduction collapses references.
 #guard Ty.subst [(0, .lref int)] (.rref T) == .lref int

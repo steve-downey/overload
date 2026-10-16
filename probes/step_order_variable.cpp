@@ -17,7 +17,7 @@ struct functor_instance;
 template <class T>
 inline constexpr auto functor = functor_instance<T>::value;
 
-template <class T, const auto& TC = functor<T>>
+template <class T, const auto &TC = functor<T>>
 int f(T, int) {
     return 1;
 }

@@ -16,7 +16,7 @@
 struct base {
     int v;
     constexpr explicit base(int v) : v(v) {}
-    constexpr bool operator==(const base&) const = default;
+    constexpr bool operator==(const base &) const = default;
 };
 
 struct derived : base {

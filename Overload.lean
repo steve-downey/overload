@@ -4,7 +4,9 @@ import Overload.Std
 import Overload.Syntax
 import Overload.Outcome
 import Overload.Deduction
+import Overload.Constraint
 import Overload.Program
+import Overload.Steps
 import Overload.Emit
 import Overload.Lint
 
@@ -21,3 +23,7 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.deduceTy_iff
 #audit Overload.deduceTy_det
 #audit Overload.Val.equivalent_iff
+#audit Overload.defaults_hard_absorbing
+#audit Overload.constraint_cannot_guard_default
+#audit Overload.constraint_soft_shields_function_type
+#audit Overload.deduceTemplate_hard_iff

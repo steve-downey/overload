@@ -1,6 +1,7 @@
 -- Overload/Program.lean                                              -*-lean-*-
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 import Overload.Syntax
+import Overload.Constraint
 
 /-!
 # Programs as data
@@ -22,7 +23,8 @@ inductive ParamKind where
   /-- `class T`. -/
   | type
   /-- A constant template parameter of the given type; `const auto&` is
-  `.const (.lref (.const (.param _)))` with a placeholder. -/
+  `.const (.lref (.const (.named "auto")))`, with the placeholder as a
+  name. -/
   | const (ty : Ty)
   deriving Repr, DecidableEq, Inhabited
 
@@ -37,6 +39,20 @@ structure TemplateParam where
 /-- A template head: the parameters, by position. -/
 abbrev Head := List TemplateParam
 
+/-- A function template: what [temp.deduct.general] deduces for. -/
+structure FunctionTemplate where
+  name : String
+  head : Head
+  /-- The function parameter types, in terms of the head's parameters. -/
+  params : List Ty
+  /-- How many trailing function parameters have default arguments. -/
+  defaultArgs : Nat := 0
+  /-- The return type. -/
+  ret : Ty := .named "void"
+  /-- The associated constraints. -/
+  constraint : Option Constraint := none
+  deriving Repr, DecidableEq, Inhabited
+
 /-- A declaration. -/
 inductive Decl where
   /-- `struct name : bases... {};` -/
@@ -46,10 +62,14 @@ inductive Decl where
   /-- A non-template function, by name and parameter types. -/
   | function (name : String) (params : List Ty)
   /-- A function template. -/
-  | functionTemplate (name : String) (head : Head) (params : List Ty)
-  /-- The primary of a lookup variable template: `functor<T>` with the
-  default instance, `std::false_type`. -/
+  | functionTemplate (ft : FunctionTemplate)
+  /-- The primary of a lookup variable template, `functor<T>`, with the
+  soft default instance, `std::false_type`. -/
   | lookup (typeclass : String)
+  /-- The primary of a lookup variable template whose default fails hard:
+  a `static_assert` fires when it is instantiated for a type without an
+  instance. The design the step-order probe tests. -/
+  | lookupHard (typeclass : String)
   /-- A partial specialization of a lookup variable template: an instance,
   for the types matching `pattern` under `head`. -/
   | instance (typeclass : String) (head : Head) (pattern : Ty)
@@ -66,8 +86,14 @@ namespace Program
 def candidates (p : Program) (name : String) : List Decl :=
   p.filter fun
     | .function n _ => n = name
-    | .functionTemplate n _ _ => n = name
+    | .functionTemplate ft => ft.name = name
     | _ => false
+
+/-- The first function template with a name, if any. -/
+def functionTemplate? (p : Program) (name : String) : Option FunctionTemplate :=
+  p.findSome? fun
+    | .functionTemplate ft => if ft.name = name then some ft else none
+    | _ => none
 
 /-- The index of the first `use` of a typeclass's lookup, if any. -/
 private def firstUse (p : Program) (tc : String) : Option Nat :=
@@ -87,7 +113,7 @@ private def lastInstance (p : Program) (tc : String) : Option Nat :=
 would instantiate its lookup. -/
 def declaredBeforeUse (p : Program) : Bool :=
   let typeclasses := p.filterMap fun
-    | .lookup c => some c
+    | .lookup c | .lookupHard c => some c
     | _ => none
   typeclasses.all fun tc =>
     match lastInstance p tc, firstUse p tc with

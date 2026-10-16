@@ -38,7 +38,6 @@ attribute [std rule "temp.deduct.general#8.sentence-3"] Subst.hard
 namespace Subst
 
 /-- Run the next step only after success; a failure of either kind stands. -/
-@[simp]
 def bind : Subst α → (α → Subst β) → Subst β
   | ok a, f => f a
   | soft r, _ => soft r
@@ -57,6 +56,11 @@ def isOk : Subst α → Bool
 def toOption : Subst α → Option α
   | ok a => some a
   | _ => none
+
+/-- `>>=` on `Subst` is `Subst.bind`, so the equations below apply to the
+monadic spelling. -/
+@[simp]
+theorem bind_eq (s : Subst α) (f : α → Subst β) : s >>= f = Subst.bind s f := rfl
 
 /-- A hard error is absorbing: nothing after it changes the outcome. -/
 @[simp]

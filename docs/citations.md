@@ -8,21 +8,35 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 
 | Citation | Role | Declaration | Module |
 |---|---|---|---|
+| [[dcl.ref]/1 sentence 3](https://eel.is/c++draft/dcl.ref#1.sentence-3) | rule | `Overload.formConst` | `Overload.Steps` |
+| [[dcl.ref]/5 sentence 1](https://eel.is/c++draft/dcl.ref#5.sentence-1) | rule | `Overload.formPtr` | `Overload.Steps` |
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.Resolution.ambiguous` | `Overload.Outcome` |
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.Resolution.selected` | `Overload.Outcome` |
 | [[over.match.general]/3 sentence 2](https://eel.is/c++draft/over.match.general#3.sentence-2) | rule | `Overload.Resolution.noMatch` | `Overload.Outcome` |
+| [[temp.constr.atomic]/3 sentence 1](https://eel.is/c++draft/temp.constr.atomic#3.sentence-1) | rule | `Overload.Constraint.satisfied` | `Overload.Constraint` |
+| [[temp.constr.atomic]/3 sentence 2](https://eel.is/c++draft/temp.constr.atomic#3.sentence-2) | rule | `Overload.Constraint.satisfied_atomic_soft` | `Overload.Constraint` |
 | [[temp.deduct.call]/1 sentence 1](https://eel.is/c++draft/temp.deduct.call#1.sentence-1) | rule | `Overload.deduceCall` | `Overload.Deduction` |
 | [[temp.deduct.call]/2](https://eel.is/c++draft/temp.deduct.call#2) | rule | `Overload.adjustA` | `Overload.Deduction` |
 | [[temp.deduct.call]/3 sentence 1](https://eel.is/c++draft/temp.deduct.call#3.sentence-1) | rule | `Overload.adjustP` | `Overload.Deduction` |
 | [[temp.deduct.call]/3 sentence 3](https://eel.is/c++draft/temp.deduct.call#3.sentence-3) | rule | `Overload.isForwardingRef` | `Overload.Deduction` |
 | [[temp.deduct.call]/5 sentence 1](https://eel.is/c++draft/temp.deduct.call#5.sentence-1) | rule | `Overload.deduceParam` | `Overload.Deduction` |
+| [[temp.deduct.general]/2 sentence 2](https://eel.is/c++draft/temp.deduct.general#2.sentence-2) | rule | `Overload.explicitStep` | `Overload.Steps` |
+| [[temp.deduct.general]/5 sentence 1](https://eel.is/c++draft/temp.deduct.general#5.sentence-1) | rule | `Overload.callStep` | `Overload.Steps` |
+| [[temp.deduct.general]/5 sentence 2](https://eel.is/c++draft/temp.deduct.general#5.sentence-2) | rule | `Overload.defaultsStep` | `Overload.Steps` |
+| [[temp.deduct.general]/5 sentence 4](https://eel.is/c++draft/temp.deduct.general#5.sentence-4) | rule | `Overload.parameterListStep` | `Overload.Steps` |
+| [[temp.deduct.general]/5 sentence 6](https://eel.is/c++draft/temp.deduct.general#5.sentence-6) | rule | `Overload.constraintStep` | `Overload.Steps` |
+| [[temp.deduct.general]/5 sentence 8](https://eel.is/c++draft/temp.deduct.general#5.sentence-8) | rule | `Overload.nonDependentStep` | `Overload.Steps` |
+| [[temp.deduct.general]/5 sentence 9](https://eel.is/c++draft/temp.deduct.general#5.sentence-9) | rule | `Overload.functionTypeStep` | `Overload.Steps` |
 | [[temp.deduct.general]/6 sentence 1](https://eel.is/c++draft/temp.deduct.general#6.sentence-1) | rule | `Overload.Subst.ok` | `Overload.Outcome` |
+| [[temp.deduct.general]/7 sentence 4](https://eel.is/c++draft/temp.deduct.general#7.sentence-4) | rule | `Overload.formAll` | `Overload.Steps` |
 | [[temp.deduct.general]/8 sentence 1](https://eel.is/c++draft/temp.deduct.general#8.sentence-1) | rule | `Overload.Subst.soft` | `Overload.Outcome` |
 | [[temp.deduct.general]/8 sentence 3](https://eel.is/c++draft/temp.deduct.general#8.sentence-3) | rule | `Overload.Resolution.illFormed` | `Overload.Outcome` |
 | [[temp.deduct.general]/8 sentence 3](https://eel.is/c++draft/temp.deduct.general#8.sentence-3) | rule | `Overload.Subst.hard` | `Overload.Outcome` |
+| [[temp.deduct.general]/8 sentence 3](https://eel.is/c++draft/temp.deduct.general#8.sentence-3) | rule | `Overload.form` | `Overload.Steps` |
 | [[temp.deduct.type]/2 sentence 3](https://eel.is/c++draft/temp.deduct.type#2.sentence-3) | theorem | `Overload.deduceTy_det` | `Overload.Deduction` |
 | [[temp.deduct.type]/4 sentence 3](https://eel.is/c++draft/temp.deduct.type#4.sentence-3) | rule | `Overload.DeduceTy.nondeduced` | `Overload.Deduction` |
 | [[temp.deduct.type]/4 sentence 4](https://eel.is/c++draft/temp.deduct.type#4.sentence-4) | rule | `Overload.allDeduced` | `Overload.Deduction` |
+| [[temp.deduct.type]/5](https://eel.is/c++draft/temp.deduct.type#5) | rule | `Overload.DeduceTy.lookup` | `Overload.Deduction` |
 | [[temp.deduct.type]/8 sentence 1](https://eel.is/c++draft/temp.deduct.type#8.sentence-1) | rule | `Overload.DeduceTy.const` | `Overload.Deduction` |
 | [[temp.deduct.type]/8 sentence 1](https://eel.is/c++draft/temp.deduct.type#8.sentence-1) | rule | `Overload.DeduceTy.lref` | `Overload.Deduction` |
 | [[temp.deduct.type]/8 sentence 1](https://eel.is/c++draft/temp.deduct.type#8.sentence-1) | rule | `Overload.DeduceTy.param` | `Overload.Deduction` |
@@ -42,14 +56,12 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 
 ## In scope, no counterpart yet
 
-- [[temp.deduct.general]/5](https://eel.is/c++draft/temp.deduct.general#5)
 - [[temp.deduct.general]/12](https://eel.is/c++draft/temp.deduct.general#12)
 - [[temp.deduct.call]/4](https://eel.is/c++draft/temp.deduct.call#4)
 - [[temp.func.order]/8](https://eel.is/c++draft/temp.func.order#8)
 - [[temp.over.link]/6](https://eel.is/c++draft/temp.over.link#6)
 - [[temp.spec.partial.order]/1](https://eel.is/c++draft/temp.spec.partial.order#1)
 - [[temp.constr.atomic]/2](https://eel.is/c++draft/temp.constr.atomic#2)
-- [[temp.constr.atomic]/3](https://eel.is/c++draft/temp.constr.atomic#3)
 - [[temp.arg.nontype]/1](https://eel.is/c++draft/temp.arg.nontype#1)
 - [[temp.arg.nontype]/3](https://eel.is/c++draft/temp.arg.nontype#3)
 - [[over.match.funcs.general]/8](https://eel.is/c++draft/over.match.funcs.general#8)
@@ -62,4 +74,5 @@ What the model needs and the Standard does not say, each linked to its decision-
 
 | Decision | Declaration |
 |---|---|
+| [expression-depth](decisions.md#expression-depth) | `Overload.Env` |
 | [single-tu](decisions.md#single-tu) | `Overload.SingleTranslationUnit` |

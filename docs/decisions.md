@@ -84,6 +84,12 @@ proof needs to see inside a call that a constraint depends on.
 **Log:**
 
 - 2026-10-13 — Decided.
+- 2026-10-16 — The oracle is `Overload.Env`, tagged with this entry: what
+  a variable template specialization instantiates to, whether an atomic
+  constraint holds, and whether an argument converts to a non-dependent
+  parameter type. `Env.ofProgram` derives one from a program's lookup
+  declarations for the emitted cases; the draft's examples are reproduced
+  with hand-written oracles in `OverloadTest/Steps.lean`.
 
 ---
 
@@ -244,6 +250,9 @@ step-order hazard, and GCC implements P3606 today.
 **Log:**
 
 - 2026-10-13 — Opened.
+- 2026-10-16 — The two emitted step-order cases are the first entries in
+  `differential/known-disagreements.txt`, for GCC. The switch is not yet
+  in the model; `deduceTemplate` transcribes the text.
 
 ---
 

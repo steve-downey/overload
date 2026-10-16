@@ -24,7 +24,44 @@ The three from the probes are in `probes.md`, with verdicts. Disagreements
 on emitted programs are listed in `differential/known-disagreements.txt`
 and described here as they arrive.
 
-None on emitted programs yet.
+- **GCC skips deduction for template candidates when a non-template is an
+  exact match** (16 October 2026). `step_order_hazard.cpp` and
+  `step_order_hazard_guarded.cpp` emit the plan's step-order suspect: a
+  defaulted constant template parameter whose default instantiates a
+  lookup that fails hard, beside a non-template exact match. The model,
+  transcribing [over.match.funcs.general]/8 and [temp.deduct.general]/5
+  sentences 2 and 3, expects the program to be ill-formed, and so does
+  Clang 18. GCC 13 compiles both, which is the P3606 behaviour recorded in
+  `probes.md` (divergence 1). Listed in `differential/known-disagreements.txt`
+  for GCC; the model gains a switch for the P3606 rule once its wording
+  settles (decisions.md#p3606-mode).
+
+- **Clang 18 checks non-dependent conversions before constraints** (16
+  October 2026). `draft_temp_deduct_general_5_step_order.cpp` is the
+  draft's own second example of [temp.deduct.general]/5, verbatim but for
+  the assertion. For `f(zz, 42)` the text fails deduction for #1 at
+  sentence 7, `C<int>` not satisfied, before sentence 8 would check the
+  conversion of `zz` to `void*`. Clang 18.1 checks the conversion first:
+  it substitutes into `ZZ`'s conversion function template, instantiates
+  `Z<void>`, and reports a hard error, so the draft's well-formed example
+  does not compile. GCC 13 compiles it. This is the ordering CWG2369
+  replaced, which Clang implements from version 20; the model transcribes
+  the text, and `OverloadTest/Steps.lean` shows the same call is a hard
+  error when the constraint step is skipped. Listed in
+  `differential/known-disagreements.txt` for Clang up to 19.
+
+## About the model
+
+- **The draft's step-order example reproduces, and shows why the order
+  matters** (16 October 2026). In the second example of
+  [temp.deduct.general]/5, `f(zz, 42)` fails deduction for #1 because
+  `C<int>` is not satisfied. `OverloadTest/Steps.lean` checks that the
+  same call with the constraint removed is a hard error: the conversion of
+  `zz` to `void*` would then be checked, and it instantiates `Z<void>`
+  through the conversion function template's default argument. The
+  constraint check, sentence 6, runs before the conversion check, sentence
+  8, and that order is what keeps the example well-formed;
+  `constraint_soft_shields_function_type` is the general statement.
 
 ## About the plan
 

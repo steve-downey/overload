@@ -8,12 +8,12 @@ differential harness reads. -/
 
 open Overload Overload.Emit
 
--- Every deduction case's stated expectation is what `deduceCall` computes.
+-- Every deduction case's stated expectation is what `deduceTemplate`
+-- computes.
 #guard cases.all fun c =>
-  match c.query, computed c with
-  | .deduction _ _ expected, some got => expected == got
-  | .deduction .., none => false
-  | .call .., _ => true
+  match c.query with
+  | .deduction .. => stated c == computed c && (computed c).isSome
+  | _ => true
 
 -- Names are unique, so the emitted files do not collide.
 #guard (cases.map (·.name)).eraseDups.length == cases.length
@@ -25,5 +25,11 @@ open Overload Overload.Emit
 #guard ((render pointerMismatch).splitOn "static_assert(!viable<int>);").length == 2
 #guard ((render forwardingLvalue).splitOn "std::declval<int&>()").length == 2
 #guard ((render nonTemplatePreferred).splitOn "selected<1>").length == 3
+#guard ((render draftDeductGeneral5_explicit).splitOn "decltype(f<int>())").length == 2
+#guard ((render draftDeductGeneral5_default).splitOn "f(T0 = {}, T1 = {})").length == 2
+#guard ((render stepOrderHazard).splitOn "const auto& T1 = functor<T0>").length == 2
+#guard ((render stepOrderHazard).splitOn "using probe = decltype(f(").length == 2
+#guard (render stepOrderHazard).startsWith "// expect: ill-formed\n"
+#guard ((render stepOrderSoft).splitOn "requires (!std::is_same_v").length == 2
 #guard ty (.spec' "C" [.named "int", .ptr (.param 0)]) == "C<int, T0*>"
 #guard ty (.const (.lref (.param 0))) == "const T0&"
