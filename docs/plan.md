@@ -274,7 +274,7 @@ Status, 15 October 2026:
   ill-formed. They also differ in which conditions are checked: priority
   tags check every overload's, so a later condition that fails hard
   makes the call ill-formed (`dispatch_hard_condition`).
-- Phase 4 is closed, with one proof target left open.
+- Phase 4 is closed.
   `Overload/Ordering.lean` has the transformed template, deduction for
   partial ordering with the reference tie-breaks of
   [temp.deduct.partial]/9, more-specialized, the gate of
@@ -282,8 +282,14 @@ Status, 15 October 2026:
   [temp.over.link]/6, and partial specialization matching by the rewrite
   of [temp.spec.partial.order]/1. Matching is deterministic
   (`patternMatches_iff`). More-specialized is irreflexive and asymmetric
-  by theorem; transitivity was searched over 5832 triples of parameter
-  shapes without a counterexample and is not yet proved. Subsumption
+  by theorem. Transitivity is proved in `Overload/Transitivity.lean` for
+  templates of type parameters whose parameter types have no reference
+  (`moreSpecialized_trans`). It rests on the transitivity of the gate and
+  of more-constrained, and on lifting a match against synthesized types to
+  every substitution. With references the tie-breaks of
+  [temp.deduct.partial]/9 enter, and there the evidence is still the
+  search over 5832 triples of parameter shapes, which found no
+  counterexample. Subsumption
   ([temp.constr.order]/1 and /4) came with it so the gate has something to
   compare.
 - Phase 3 is closed. Subsumption is propositional implication over

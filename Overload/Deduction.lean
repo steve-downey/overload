@@ -150,6 +150,7 @@ attribute [std rule "temp.deduct.type#5"] DeduceTy.enableIf
 theorem deduceTy_sound (p : Ty) : ∀ (a : Ty) (σ σ' : Bindings),
     deduceTy p a σ = some σ' → DeduceTy p a σ σ' := by
   induction p with
+  | synth i => intro a σ σ' h; cases a <;> simp [deduceTy] at h
   | param i =>
     intro a σ σ' h
     simp only [deduceTy] at h
@@ -277,6 +278,7 @@ theorem deduceTy_det {p a : Ty} {σ σ₁ σ₂ : Bindings}
 theorem deduceTy_extends (p : Ty) : ∀ (a : Ty) (σ σ' : Bindings),
     deduceTy p a σ = some σ' → ∀ b ∈ σ, b ∈ σ' := by
   induction p with
+  | synth i => intro a σ σ' h; cases a <;> simp [deduceTy] at h
   | param i =>
     intro a σ σ' h b hb
     simp only [deduceTy] at h

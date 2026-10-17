@@ -90,6 +90,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.deduct.type]/9 sentence 1](https://eel.is/c++draft/temp.deduct.type#9.sentence-1) | rule | `Overload.DeduceTy.nil` | `Overload.Deduction` |
 | [[temp.deduct.type]/9 sentence 1](https://eel.is/c++draft/temp.deduct.type#9.sentence-1) | rule | `Overload.DeduceTy.spec` | `Overload.Deduction` |
 | [[temp.func.order]/2 sentence 4](https://eel.is/c++draft/temp.func.order#2.sentence-4) | rule | `Overload.PartialOrdering.moreSpecialized` | `Overload.Ordering` |
+| [[temp.func.order]/2 sentence 4](https://eel.is/c++draft/temp.func.order#2.sentence-4) | theorem | `Overload.PartialOrdering.moreSpecialized_trans` | `Overload.Transitivity` |
 | [[temp.func.order]/3 sentence 1](https://eel.is/c++draft/temp.func.order#3.sentence-1) | rule | `Overload.PartialOrdering.transform` | `Overload.Ordering` |
 | [[temp.func.order]/8](https://eel.is/c++draft/temp.func.order#8) | rule | `Overload.PartialOrdering.tieBreakApplies` | `Overload.Ordering` |
 | [[temp.func.order]/8](https://eel.is/c++draft/temp.func.order#8) | theorem | `Overload.PartialOrdering.tieBreak_needs_equal_heads` | `Overload.Ordering` |

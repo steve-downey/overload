@@ -114,6 +114,7 @@ partial def val : Val → String
 /-- A type as C++. -/
 partial def ty : Ty → String
   | .named n => n
+  | .synth i => s!"synthesized_{i}"
   | .param i => paramName i
   | .const t => s!"const {ty t}"
   | .ptr t => s!"{ty t}*"
