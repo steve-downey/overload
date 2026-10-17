@@ -389,3 +389,11 @@ repository's `include/beman/transpose/`):
   template argument whose identity is the designated object, and
   `Ty.removeCvref`. The operation object is emitted and computed as four
   call cases (`op_object_*` in `Overload/Emit.lean`).
+- 2026-10-17 — The two user-side routes are modelled. Pinning is
+  `pinTemplate`, after `fmap_plus_one` in the library's
+  `examples/transpose/lookup_modes_example.cpp`, with an instance object
+  outside lookup (`Decl.object`) to pin. The by-value route is
+  `byValueObject`, `traverse`'s `POLICY` reduced to `fmap`, with
+  `Ty.typeOf` for `std::remove_cvref_t<decltype(...)>` and an atomic
+  shape constraint in place of `applicative_object_for`. Nine emitted
+  cases (`pin_*`, `by_value_*`). The plan's three routes remain.

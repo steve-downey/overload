@@ -257,6 +257,7 @@ theorem generate_go_suppressed (env : Env) (args : List CallArg) :
     | lookupHard c => exact ⟨cs, by simp [generate.go, hcs], hall⟩
     | «instance» c h p => exact ⟨cs, by simp [generate.go, hcs], hall⟩
     | use c t => exact ⟨cs, by simp [generate.go, hcs], hall⟩
+    | object n => exact ⟨cs, by simp [generate.go, hcs], hall⟩
     | concept n b => exact ⟨cs, by simp [generate.go, hcs], hall⟩
 
 /-- With a perfect non-template match, the P3606 mode never deduces a

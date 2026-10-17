@@ -121,6 +121,7 @@ partial def ty : Ty → String
   | .lookup n a => s!"{n}<{ty a}>"
   | .ref t => ty t
   | .removeCvref t => s!"std::remove_cvref_t<{ty t}>"
+  | .typeOf t => s!"std::remove_cvref_t<decltype({ty t})>"
 where
   argList (as : Ty) : String :=
     match as.toList with
@@ -188,6 +189,7 @@ def deducedType (h : Head) : String :=
   let parts := h.zipIdx.map fun (p, i) =>
     match p.kind with
     | .type => paramName i
+    | .const (.lref _) => s!"ref_of<{paramName i}>"
     | .const _ => s!"value_of<{paramName i}>"
   s!"deduced<{String.intercalate ", " parts}>"
 
@@ -196,6 +198,7 @@ def expectedDeduced (h : Head) (σ : Bindings) : String :=
   let parts := h.zipIdx.map fun (_, i) =>
     match σ.lookup i with
     | some (.value v) => s!"value_of<{val v}>"
+    | some (.ref t) => s!"ref_of<{ty t}>"
     | some t => ty t
     | none => "void"
   s!"deduced<{String.intercalate ", " parts}>"
@@ -242,6 +245,8 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String) : St
       out := out ++ s!"template <class T>\nconcept {n} = {body};\n"
     | .use c t =>
       out := out ++ s!"static_assert(sizeof({c}<{ty t}>) > 0);\n"
+    | .object n =>
+      out := out ++ s!"inline constexpr pinned_instance {n}\{};\n"
   return out
 
 /-- The whole translation unit for a case. -/
@@ -257,7 +262,11 @@ def render (c : Case) : String := Id.run do
   out := out ++ "template <auto V> struct value_of {};\n"
   out := out ++ "template <int K> struct selected {\n" ++
     "    template <class F, class X> static void fmap(F&&, X&&);\n};\n"
-  out := out ++ "template <class T> struct instance_of {};\n\n"
+  out := out ++ "template <class T> struct instance_of {};\n"
+  out := out ++ "template <const auto &R> struct ref_of {};\n"
+  out := out ++ "struct pinned_instance {\n" ++
+    "    template <class F, class X> static void fmap(F&&, X&&);\n};\n" ++
+    "template <class P> concept fmap_shape = requires(const P &p) { p.fmap(0, 0); };\n\n"
   match c.query with
   | .deduction callee as expected explicit =>
     let p := c.program
@@ -756,6 +765,129 @@ def opObjectAmbiguousHard : Case :=
       (.illFormed "ambiguous partial specializations of functor<pair<int, int>>")
     source := "computed by resolve" }
 
+/-! ### Pinning
+
+The pinning pattern of beman.transpose's examples, `pinTemplate`: a user
+function template with its own reference parameter defaulted to the
+lookup. The program has an instance for `box<T>`, two unordered instances
+for `pair`, and an instance object outside lookup to pin. -/
+
+private def pinProgram : Program :=
+  [ .classTemplate "box" [typeParam], .classTemplate "pair" [typeParam, typeParam]
+  , .lookup "functor", .instance "functor" [typeParam] (.spec' "box" [T])
+  , .instance "functor" [typeParam] (.spec' "pair" [T, int])
+  , .instance "functor" [typeParam] (.spec' "pair" [int, T])
+  , .object "my_functor", .functionTemplate (pinTemplate "functor" "use") ]
+
+/-- Unpinned, the default takes the canonical instance: the argument is
+the reference to the lookup. -/
+def pinCanonical : Case :=
+  { name := "pin_canonical"
+    cite := cite "temp.deduct.general#5.sentence-2"
+    program := pinProgram
+    query := .deduction "use" [{ ty := .spec' "box" [int] }]
+      (some [(0, .spec' "box" [int]), (1, .ref (.lookup "functor" (.spec' "box" [int])))])
+    source := "computed by deduceTemplate" }
+
+/-- Unpinned with no instance: the default binds the primary, and with
+no constraint the call is viable. A missing instance is an error in the
+body, not a deduction failure. -/
+def pinMissingViable : Case :=
+  { name := "pin_missing_viable"
+    cite := cite "temp.deduct.general#5.sentence-2"
+    program := pinProgram
+    query := .deduction "use" [{ ty := int }]
+      (some [(0, int), (1, .ref (.lookup "functor" int))])
+    source := "computed by deduceTemplate" }
+
+/-- Pinned: the explicit argument is used and the default is never
+substituted. -/
+def pinExplicit : Case :=
+  { name := "pin_explicit"
+    cite := cite "temp.deduct.general#2.sentence-2"
+    program := pinProgram
+    query := .deduction "use" [{ ty := int }]
+      (some [(0, int), (1, .ref (.named "my_functor"))])
+      (explicit := [int, .ref (.named "my_functor")])
+    source := "computed by deduceTemplate" }
+
+/-- Pinned at a type whose canonical lookup is ambiguous: the lookup is
+never instantiated, so the call is well-formed. -/
+def pinExplicitAmbiguous : Case :=
+  { name := "pin_explicit_ambiguous"
+    cite := cite "temp.deduct.general#2.sentence-2"
+    program := pinProgram
+    query := .deduction "use" [{ ty := .spec' "pair" [int, int] }]
+      (some [(0, .spec' "pair" [int, int]), (1, .ref (.named "my_functor"))])
+      (explicit := [.spec' "pair" [int, int], .ref (.named "my_functor")])
+    source := "computed by deduceTemplate" }
+
+/-! ### The by-value route
+
+`byValueObject`, `traverse`'s by-value `POLICY` reduced to `fmap`: the
+instance is a trailing function argument whose type defaults to the type
+of the lookup, constrained by its shape. -/
+
+private def byValueProgram (after : Program := []) : Program :=
+  [ .class "Fn", .classTemplate "box" [typeParam], .classTemplate "pair" [typeParam, typeParam]
+  , .lookup "functor", .instance "functor" [typeParam] (.spec' "box" [T])
+  , .instance "functor" [typeParam] (.spec' "pair" [T, int])
+  , .instance "functor" [typeParam] (.spec' "pair" [int, T])
+  , .functionTemplate (byValueObject "functor") ] ++ after
+
+private def policy : CallArg := { ty := .named "pinned_instance", lvalue := true }
+
+/-- Omitted, the policy is the canonical instance. -/
+def byValueCanonical : Case :=
+  { name := "by_value_canonical"
+    cite := cite "temp.deduct.general#5.sentence-2"
+    program := byValueProgram
+    query := .call "fmap_with" [fn, { ty := .spec' "box" [int] }] (.selected 0)
+    source := "computed by resolve" }
+
+/-- Omitted with no instance: the policy type is `std::false_type`, which
+has no `fmap`, so the constraint fails and the call is not viable. The
+soft failure rests on the shapeless-default obligation. -/
+def byValueMissingSoft : Case :=
+  { name := "by_value_missing_soft"
+    cite := cite "temp.deduct.general#5.sentence-7"
+    program := byValueProgram
+    query := .call "fmap_with" [fn, { ty := int }] .noMatch
+    source := "computed by resolve" }
+
+/-- Passed: the policy is deduced from the argument and the default is
+never substituted. -/
+def byValueExplicit : Case :=
+  { name := "by_value_explicit"
+    cite := cite "temp.deduct.general#5.sentence-2"
+    program := byValueProgram
+    query := .call "fmap_with" [fn, { ty := int }, policy] (.selected 0)
+    source := "computed by resolve" }
+
+/-- Passed at a type whose canonical lookup is ambiguous: the lookup is
+never instantiated, so the call is well-formed. -/
+def byValueExplicitAmbiguous : Case :=
+  { name := "by_value_explicit_ambiguous"
+    cite := cite "temp.deduct.general#5.sentence-2"
+    program := byValueProgram
+    query := .call "fmap_with" [fn, { ty := .spec' "pair" [int, int] }, policy] (.selected 0)
+    source := "computed by resolve" }
+
+/-- Omitted at a type whose canonical lookup is ambiguous: substituting
+the default instantiates the lookup, outside the immediate context, so
+the call is ill-formed. A worse fallback tells soft from hard, as in
+`op_object_ambiguous_hard`. -/
+def byValueAmbiguousHard : Case :=
+  { name := "by_value_ambiguous_hard"
+    cite := cite "temp.deduct.general#8.sentence-4"
+    program := byValueProgram
+      [ .functionTemplate
+          { name := "fmap_with", head := [typeParam]
+            params := [.rref T, .lref (.const (.spec' "pair" [int, int]))] } ]
+    query := .call "fmap_with" [fn, { ty := .spec' "pair" [int, int] }]
+      (.illFormed "ambiguous partial specializations of functor<pair<int, int>>")
+    source := "computed by resolve" }
+
 /-- Every case the emitter writes. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -767,7 +899,10 @@ def cases : List Case :=
   , tieBreakA, tieBreakB, tieBreakC, tieBreakD
   , refTieBreak, cvTieBreak, pointerMoreSpecialized
   , instanceMoreSpecialized, instanceAmbiguous, instancePrimary
-  , opObjectSelects, opObjectNormalizedKey, opObjectMissingSoft, opObjectAmbiguousHard ]
+  , opObjectSelects, opObjectNormalizedKey, opObjectMissingSoft, opObjectAmbiguousHard
+  , pinCanonical, pinMissingViable, pinExplicit, pinExplicitAmbiguous
+  , byValueCanonical, byValueMissingSoft, byValueExplicit, byValueExplicitAmbiguous
+  , byValueAmbiguousHard ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=

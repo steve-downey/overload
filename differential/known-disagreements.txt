@@ -12,10 +12,12 @@ step_order_hazard.cpp g++
 step_order_hazard.cpp g++-13
 step_order_hazard.cpp g++-14
 step_order_hazard.cpp g++-15
+step_order_hazard.cpp g++-16
 step_order_hazard_guarded.cpp g++
 step_order_hazard_guarded.cpp g++-13
 step_order_hazard_guarded.cpp g++-14
 step_order_hazard_guarded.cpp g++-15
+step_order_hazard_guarded.cpp g++-16
 #
 # The draft's second example of [temp.deduct.general]/5: Clang 17 to 20 check
 # the conversion of zz to void* before the constraint C<int>, the ordering
@@ -69,6 +71,7 @@ op_object_ambiguous_hard.cpp g++
 op_object_ambiguous_hard.cpp g++-13
 op_object_ambiguous_hard.cpp g++-14
 op_object_ambiguous_hard.cpp g++-15
+op_object_ambiguous_hard.cpp g++-16
 op_object_ambiguous_hard.cpp clang++
 op_object_ambiguous_hard.cpp clang++-17
 op_object_ambiguous_hard.cpp clang++-18
@@ -78,3 +81,20 @@ op_object_ambiguous_hard.cpp clang++-21
 op_object_ambiguous_hard.cpp clang++-22
 op_object_ambiguous_hard.cpp clang++-23
 op_object_ambiguous_hard.cpp clang++-24
+# The by-value route, with the policy type defaulted to the type of the
+# lookup: the same ambiguity, the same deduction failure on every
+# compiler (docs/findings.md).
+by_value_ambiguous_hard.cpp g++
+by_value_ambiguous_hard.cpp g++-13
+by_value_ambiguous_hard.cpp g++-14
+by_value_ambiguous_hard.cpp g++-15
+by_value_ambiguous_hard.cpp g++-16
+by_value_ambiguous_hard.cpp clang++
+by_value_ambiguous_hard.cpp clang++-17
+by_value_ambiguous_hard.cpp clang++-18
+by_value_ambiguous_hard.cpp clang++-19
+by_value_ambiguous_hard.cpp clang++-20
+by_value_ambiguous_hard.cpp clang++-21
+by_value_ambiguous_hard.cpp clang++-22
+by_value_ambiguous_hard.cpp clang++-23
+by_value_ambiguous_hard.cpp clang++-24

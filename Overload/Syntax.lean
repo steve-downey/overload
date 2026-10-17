@@ -109,6 +109,12 @@ inductive Ty where
   /-- `std::remove_cvref_t<T>`: an alias for a nested member type, so a
   non-deduced context, which substitution computes once `T` is known. -/
   | removeCvref : Ty → Ty
+  /-- `std::remove_cvref_t<decltype(e)>` for a constant expression `e`:
+  the type of an instance named by its lookup, as a by-value instance
+  parameter defaults to it. A decltype-specifier is a non-deduced
+  context. The model names an instance by a type, so the type of the
+  instantiated lookup is that name. -/
+  | typeOf : Ty → Ty
   deriving Repr, DecidableEq, Inhabited
 
 namespace Ty
@@ -206,6 +212,7 @@ def Ty.subst (σ : Bindings) : Ty → Ty
   | .lookup n a => .lookup n (Ty.subst σ a)
   | .ref t => .ref (Ty.subst σ t)
   | .removeCvref t => .removeCvref (Ty.subst σ t)
+  | .typeOf t => .typeOf (Ty.subst σ t)
 
 /-- Does the value mention a constant template parameter? -/
 def Val.dependent : Val → Bool
@@ -218,7 +225,8 @@ def Val.dependent : Val → Bool
 def Ty.dependent : Ty → Bool
   | .named _ | .nil => false
   | .param _ => true
-  | .const t | .ptr t | .lref t | .rref t | .nondeduced t | .lookup _ t | .ref t | .removeCvref t =>
+  | .const t | .ptr t | .lref t | .rref t | .nondeduced t | .lookup _ t | .ref t | .removeCvref t
+  | .typeOf t =>
     Ty.dependent t
   | .spec _ as => Ty.dependent as
   | .cons a as => Ty.dependent a || Ty.dependent as

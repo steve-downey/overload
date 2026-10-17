@@ -123,6 +123,10 @@ and described here as they arrive.
   That is the silent choice coherence rules out for lookup itself.
   Listed in `differential/known-disagreements.txt` for both compilers;
   the verdict stands on the text.
+  Update, 17 October 2026: the by-value route behaves the same way.
+  `by_value_ambiguous_hard.cpp` defaults the policy type to
+  `std::remove_cvref_t<decltype(functor<...>)>` at an ambiguous type,
+  and GCC 13 to 16 and Clang 17 to 24 all select the fallback.
 
 ## About the model
 
@@ -149,6 +153,33 @@ and described here as they arrive.
   and #5, come out as the draft says (`OverloadTest/Typeclass.lean`).
 
 ## About the plan
+
+- **Soft failure is by construction only where the route constrains**
+  (17 October 2026). The plan expected a missing instance to fail as a
+  constraint by construction. That holds for the operation object, whose
+  constraint is the call through the instance (`fmapObject_outcome`). It
+  holds for the by-value route only through the shapeless-default
+  obligation: the policy type of a missing instance is
+  `std::false_type`, and the constraint fails because that type has no
+  `fmap` (`byValue_omitted_outcome`). The pinning pattern in the
+  library's examples has no constraint at all. A missing instance binds
+  the primary, the call is viable, and the error is in the body
+  (`unpinned_deduce`, `pin_missing_viable.cpp`). Both compilers agree.
+  The obligation falls on whoever writes a pinning function, not on the
+  typeclass author.
+
+- **Explicit instances never instantiate the lookup** (17 October 2026).
+  A pinned instance and a passed policy are used in place of the
+  default, so the canonical lookup is not instantiated. The outcome is
+  the same in every program, including one where the canonical lookup is
+  ambiguous (`pinned_deduce`, `byValue_passed`, and the two
+  `*_explicit_ambiguous.cpp` cases). The two routes differ in identity.
+  A pinned instance enters the specialization as the object it
+  designates, and a passed policy as its type, so two policies of one
+  type with different state give one specialization. The
+  instance-in-the-type obligation is by construction for pinning, and
+  not for the by-value route once an instance carries state, as the
+  library's monoids may.
 
 - **The library has no explicit-instance overloads** (16 October 2026).
   The plan's three explicit-instance routes and its dispatch-styles

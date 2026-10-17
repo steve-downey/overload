@@ -59,3 +59,7 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.fmapObject_deduce
 #audit Overload.call_stability
 #audit Overload.resolve_congr
+#audit Overload.pinned_deduce
+#audit Overload.unpinned_deduce
+#audit Overload.byValue_omitted_outcome
+#audit Overload.byValue_passed

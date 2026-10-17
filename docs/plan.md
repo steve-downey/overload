@@ -287,8 +287,15 @@ Status, 15 October 2026:
   call's resolution unchanged unless the instance matches the key. When it
   matches, the operation object becomes viable through it, or the call is
   ill-formed by ambiguity. The other candidates must not consult the
-  lookup, a hypothesis met by non-template functions outright. Still to
-  do: the pinning and by-value routes, the plan's three routes as
+  lookup, a hypothesis met by non-template functions outright. The
+  library's other two routes are in the model, with `Ty.typeOf` for a
+  policy type defaulted to the lookup's type. Pinning (`pinTemplate`) and
+  the by-value policy (`byValueObject`) are emitted as nine cases. An
+  explicit instance never instantiates the lookup (`pinned_deduce`,
+  `byValue_passed`). Omitted, pinning has no constraint, so a missing
+  instance is viable and fails in the body (`unpinned_deduce`). The
+  by-value route fails softly only through the shapeless default
+  (`byValue_omitted_outcome`). Still to do: the plan's three routes as
   alternatives, superclass retrieval, inheritance
   erasure, superclass coherence, and the obligations table. Termination
   is vacuous for the library today, since no instance requires another.

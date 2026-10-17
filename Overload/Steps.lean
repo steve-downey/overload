@@ -109,6 +109,9 @@ def form (env : Env) : Ty → Subst Ty
   | .removeCvref t => do
     let t ← form env t
     return if t.dependent then .removeCvref t else t.referred.stripConst
+  | .typeOf t => do
+    let t ← form env t
+    return if t.dependent then .typeOf t else t
 
 /-- Form each of a list of types, left to right, stopping at the first
 failure: substitution proceeds in lexical order and stops when a condition
