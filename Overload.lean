@@ -12,6 +12,7 @@ import Overload.Typeclass
 import Overload.Resolution
 import Overload.Ranking
 import Overload.Separability
+import Overload.Inheritance
 import Overload.Emit
 import Overload.Lint
 
@@ -75,3 +76,10 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.separability_rank_precedence
 #audit Overload.ranking_live
 #audit Overload.rank_beats_refinement
+#audit Overload.inheritance_erasure
+#audit Overload.erasure_needs_exact_type
+#audit Overload.superclass_identity
+#audit Overload.derives_erase
+#audit Overload.ics_erase
+#audit Overload.better_erase
+#audit Overload.deduceTemplate_congr

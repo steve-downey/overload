@@ -167,6 +167,23 @@ and described here as they arrive.
 
 ## About the plan
 
+- **Inheritance erasure holds at exact type** (17 October 2026). The plan
+  predicted that inheritance between instance types is selection-inert
+  exactly when every use takes the instance at its deduced exact type. The
+  model proves the "if" direction (`inheritance_erasure`). A class is
+  touched when it is erased or derived from an erased class. If every
+  conversion the call can form has the same class on both sides whenever
+  either side is touched, then erasing the bases changes nothing:
+  candidates, viability, ranking and the result. Priority tags and other
+  untouched classes may still convert. The hypothesis is about the
+  conversions, not the signatures, because a template parameter deduced
+  from one argument can meet another argument of a derived type. The
+  "only if" direction holds by counterexample: a function that names the
+  base instance type accepts the derived one, and after erasure it
+  accepts nothing (`erasure_needs_exact_type`,
+  `erasure_named_base_*.cpp`). The theorem is for the model's fragment,
+  which has no deduction from a derived class and no access checking.
+
 - **Separability holds with no hypothesis on the ranking** (17 October
   2026). The plan expected the instance selected to be invariant under
   the choice of ranking. It is, for any two rankings of any conversion

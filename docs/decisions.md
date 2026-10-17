@@ -196,6 +196,22 @@ operations from the Monad ones.
   argument for a base-typed constant parameter is sliced and identified with
   the base value. The exact-type obligation now covers constant parameters
   as well as function parameters.
+- 2026-10-17 — Evidence for an answer, not a ruling. Inheritance erasure
+  is proved for the model's fragment (`inheritance_erasure`). Erasing the
+  base classes of a set of instance types changes no call that uses every
+  class erasure touches at its exact type. Outside that fragment erasure
+  changes outcomes (`erasure_needs_exact_type`, `rank_beats_refinement`).
+  Superclass coherence is a law, since a retrieved Functor and the
+  canonical one are different template arguments (`superclass_identity`).
+  The proposed answer is the plan's guidance: inherit if you like, but
+  never name an instance type in a signature, and keep a retrieved
+  superclass instance law-compatible with the canonical one. Two gaps
+  remain before it can be settled. Deduction from a derived class (leak
+  2) is not modelled, and neither is access to the protected base that
+  `derive_functor` uses. beman.transpose relates no two instance types
+  by public inheritance: `derive_monad` grows only the Functor basis, and
+  `as_functor` returns `derive_functor<M>`, which has `M` as a protected
+  base.
 
 ---
 

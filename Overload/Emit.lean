@@ -7,6 +7,7 @@ import Overload.Resolution
 import Overload.Ordering
 import Overload.Typeclass
 import Overload.Separability
+import Overload.Inheritance
 
 /-!
 # The C++ emitter
@@ -1120,6 +1121,26 @@ def rankLeakDerived : Case :=
     query := .call "use" [{ ty := .named "monad_i", lvalue := true }] (.selected 0)
     source := "computed by resolve" }
 
+/-! ### Inheritance erasure -/
+
+/-- A function naming the Functor instance type accepts an Applicative
+instance type derived from it. -/
+def erasureInherited : Case :=
+  { name := "erasure_named_base_inherited"
+    cite := cite "over.ics.ref#1"
+    program := namedBase
+    query := .call "use" [{ ty := .named "applicative_i", lvalue := true }] (.selected 0)
+    source := "computed by resolve" }
+
+/-- With the derivation replaced by composition, it accepts nothing: the
+use is not at exact type, and erasure changes the outcome. -/
+def erasureComposed : Case :=
+  { name := "erasure_named_base_composed"
+    cite := cite "over.match.viable#4.sentence-1"
+    program := namedBase.eraseBases ["applicative_i"]
+    query := .call "use" [{ ty := .named "applicative_i", lvalue := true }] .noMatch
+    source := "computed by resolve" }
+
 /-- Every case the emitter writes. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -1140,7 +1161,7 @@ def cases : List Case :=
   , rankDerivedToBase, rankReferenceExact, rankRvalueBinding, rankLvalueBinding
   , rankQualification, rankValueReferenceAmbiguous
   , priorityTagNearest, priorityTagDispatch, priorityTagFallback
-  , rankLeakExact, rankLeakDerived ]
+  , rankLeakExact, rankLeakDerived, erasureInherited, erasureComposed ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=
