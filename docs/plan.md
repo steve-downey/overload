@@ -414,7 +414,9 @@ on placeholders do not disable it.
 
 The hypothesis is that inheritance between instance types is
 selection-inert exactly when every use site takes the instance at its
-deduced exact type. This is the question tracked as instance-inheritance.
+deduced exact type. This is the question tracked as instance-inheritance,
+decided 17 October 2026: inheritance is allowed, and what it costs is
+harvested as obligations.
 
 The typeclass technique itself needs no subtype relation between instance
 types. Use is duck typed, and the weaker instance can be derived from the
