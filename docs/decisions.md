@@ -263,6 +263,22 @@ It is written down as a tagged predicate so a later phase can remove it.
 - 2026-10-13 — Decided.
 - 2026-10-15 — `Overload.SingleTranslationUnit` carries the tag; it is the
   predicate `Program.declaredBeforeUse`.
+- 2026-10-17 — How phase 8 models what cannot be said, decided by the
+  author. The model does not give a meaning to a program with two
+  contrary definitions of one entity. A program becomes a list of
+  translation units, each resolved on its own as now. The fourth outcome
+  is a verdict about the program, not a substitution outcome: ill-formed,
+  no diagnostic required, naming the rule and the use, and nothing more.
+  divergence-separation compares what two units resolve. Where the
+  instance is a template argument, the units have different
+  specializations, which is fine. Where it is looked up inside the
+  function, they name one specialization with two meanings, and the
+  verdict cites the rule. "Whereof one cannot speak, thereof one must be
+  silent."
+- 2026-10-17 — `Program.declaredBeforeUse` is restated: no instance of a
+  typeclass is declared at or after a use of its lookup. It no longer
+  depends on the lookup being declared. For one unit it is what keeps
+  every use free of a verdict (`verdicts_single`).
 
 ---
 

@@ -106,37 +106,27 @@ def functionTemplate? (p : Program) (name : String) : Option FunctionTemplate :=
     | .functionTemplate ft => if ft.name = name then some ft else none
     | _ => none
 
-/-- The index of the first `use` of a typeclass's lookup, if any. -/
-private def firstUse (p : Program) (tc : String) : Option Nat :=
-  p.findIdx? fun
-    | .use c _ => c = tc
-    | _ => false
+/-- Is the declaration an instance of `tc`? -/
+def isInstanceOf (tc : String) : Decl → Bool
+  | .instance c _ _ => c == tc
+  | _ => false
 
-/-- The index of the last instance declared for a typeclass, if any. -/
-private def lastInstance (p : Program) (tc : String) : Option Nat :=
-  let idxs := p.zipIdx.filterMap fun (d, i) =>
-    match d with
-    | .instance c _ _ => if c = tc then some i else none
-    | _ => none
-  idxs.getLast?
-
-/-- Every instance of every typeclass is declared before any use that
-would instantiate its lookup. -/
+/-- No instance of a typeclass is declared at or after a use of its
+lookup: every instance a use could select is declared before it. -/
 def declaredBeforeUse (p : Program) : Bool :=
-  let typeclasses := p.filterMap fun
-    | .lookup c | .lookupHard c => some c
-    | _ => none
-  typeclasses.all fun tc =>
-    match lastInstance p tc, firstUse p tc with
-    | some i, some u => i < u
-    | _, _ => true
+  p.zipIdx.all fun (d, j) =>
+    match d with
+    | .use tc _ => !((p.drop j).any (isInstanceOf tc))
+    | _ => true
 
 end Program
 
 /-- The standing assumption: one translation unit, with every instance
 declared before any use that would instantiate its lookup. It hides the
 real coherence hazards of C++, which are ill-formed with no diagnostic
-required, and it is stated explicitly so that phase 8 can remove it. -/
+required, and it is stated explicitly so that phase 8 can remove it.
+Phase 8 shows it is exactly what keeps one unit free of a verdict
+(`verdicts_single`). -/
 @[assumed "single-tu"]
 def SingleTranslationUnit (p : Program) : Prop :=
   p.declaredBeforeUse = true
