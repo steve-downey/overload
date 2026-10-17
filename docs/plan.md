@@ -279,9 +279,17 @@ Status, 15 October 2026:
   lookup at the container's type with cv and reference removed. It
   succeeds when an instance is selected, fails softly when none is, and
   fails hard only when lookup is ambiguous. That discharges soft failure
-  and the normalized lookup key by construction. Still to do: call-surface
-  stability over a whole candidate set, the pinning and by-value routes, the
-  plan's three routes as alternatives, superclass retrieval, inheritance
+  and the normalized lookup key by construction. The deduction is a
+  function of that lookup alone (`fmapObject_deduce`), and its
+  specialization names the lookup, not the instance, so it does not move
+  when instance positions shift. Stability holds at the call surface over
+  a whole candidate set (`call_stability`). Declaring an instance leaves a
+  call's resolution unchanged unless the instance matches the key. When it
+  matches, the operation object becomes viable through it, or the call is
+  ill-formed by ambiguity. The other candidates must not consult the
+  lookup, a hypothesis met by non-template functions outright. Still to
+  do: the pinning and by-value routes, the plan's three routes as
+  alternatives, superclass retrieval, inheritance
   erasure, superclass coherence, and the obligations table. Termination
   is vacuous for the library today, since no instance requires another.
 

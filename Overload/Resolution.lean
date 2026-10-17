@@ -298,4 +298,62 @@ def identityRanking : Ranking Unit :=
       .ok (if same && binds then some () else none)
     better := fun _ _ => false }
 
+/-! ## Resolution depends on the environment only through deduction -/
+
+theorem generate_go_congr (env₁ env₂ : Env) (args : List CallArg) (s : Bool) :
+    ∀ (ds : List Decl), (∀ ft, .functionTemplate ft ∈ ds →
+        deduceTemplate env₁ ft [] args = deduceTemplate env₂ ft [] args) →
+      ∀ i, generate.go env₁ args ds i s = generate.go env₂ args ds i s := by
+  intro ds
+  induction ds with
+  | nil => intro _ _; rfl
+  | cons d ds ih =>
+    intro h i
+    have ih' := ih (fun ft hm => h ft (List.mem_cons_of_mem _ hm)) (i + 1)
+    cases d with
+    | functionTemplate ft =>
+      simp only [generate.go]
+      rw [h ft List.mem_cons_self, ih']
+    | _ => simp only [generate.go, ih']
+
+/-- Two environments that give every candidate template the same
+deduction give the call the same resolution. -/
+theorem resolve_congr (mode : Mode) (env₁ env₂ : Env) (r : Ranking Conv)
+    (decls : List Decl) (args : List CallArg)
+    (h : ∀ ft, .functionTemplate ft ∈ decls →
+      deduceTemplate env₁ ft [] args = deduceTemplate env₂ ft [] args) :
+    resolve mode env₁ r decls args = resolve mode env₂ r decls args := by
+  simp only [resolve, generate, generate_go_congr env₁ env₂ args _ decls h]
+
+theorem generate_go_hard (env : Env) (args : List CallArg) (ft : FunctionTemplate) (e : Reason)
+    (hd : deduceTemplate env ft [] args = .hard e) :
+    ∀ (ds : List Decl), .functionTemplate ft ∈ ds →
+      ∀ i, ∃ e', generate.go env args ds i false = .hard e' := by
+  intro ds
+  induction ds with
+  | nil => intro hm; cases hm
+  | cons d ds ih =>
+    intro hm i
+    rcases List.mem_cons.mp hm with rfl | hm
+    · exact ⟨e, by simp [generate.go, hd]⟩
+    · obtain ⟨e', he'⟩ := ih hm (i + 1)
+      cases d with
+      | function n ps => exact ⟨e', by simp [generate.go, he']⟩
+      | functionTemplate ft' =>
+        simp only [generate.go, Bool.false_eq_true, ↓reduceIte]
+        cases deduceTemplate env ft' [] args with
+        | ok sp => exact ⟨e', by rw [he']; rfl⟩
+        | soft _ => exact ⟨e', he'⟩
+        | hard r => exact ⟨r, rfl⟩
+      | _ => exact ⟨e', by simp [generate.go, he']⟩
+
+/-- Under the text, a hard error in any candidate template's deduction
+makes the call ill-formed. -/
+theorem resolve_text_hard (env : Env) (r : Ranking Conv) (decls : List Decl)
+    (args : List CallArg) (ft : FunctionTemplate) (e : Reason)
+    (hm : .functionTemplate ft ∈ decls) (hd : deduceTemplate env ft [] args = .hard e) :
+    ∃ e', resolve .text env r decls args = .illFormed e' := by
+  obtain ⟨e', he'⟩ := generate_go_hard env args ft e hd decls hm 0
+  exact ⟨e', by simp [resolve, generate, he']⟩
+
 end Overload

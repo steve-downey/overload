@@ -2,6 +2,7 @@
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 import Overload.Program
 import Overload.Ordering
+import Overload.Resolution
 
 /-!
 # The typeclass encoding: canonical lookup
@@ -415,6 +416,23 @@ theorem subst_param_type (σ : Bindings) (i : ParamIdx) (t : Ty) (hl : σ.lookup
 theorem dependent_stripConst (t : Ty) : t.stripConst.dependent = t.dependent := by
   cases t <;> rfl
 
+/-- The specialization deduced for a call of the operation object. Its
+instance argument is the reference to the lookup, not the instance
+selected, so it is the same whichever instance that is. -/
+def fmapSpec (tc : String) (f x : CallArg) : Specialization :=
+  { template := fmapObject tc
+    args := [(2, .ref (.lookup tc x.ty.stripConst)), (1, forwarded x), (0, forwarded f)]
+    params := [Ty.collapse (.rref (forwarded f)), Ty.collapse (.rref (forwarded x))]
+    ret := .named "void" }
+
+/-- The outcome of deducing the operation object, given the outcome of
+instance lookup at its key. -/
+def fmapOutcome (tc : String) (f x : CallArg) : Resolution Nat → Subst Specialization
+  | .selected _ => .ok (fmapSpec tc f x)
+  | .noMatch => .soft "associated constraints not satisfied"
+  | .ambiguous _ => .hard s!"ambiguous partial specializations of {tc}<{repr x.ty.stripConst}>"
+  | .illFormed r => .hard r
+
 section fmapObject
 
 variable (p : Program) (tc : String) (f x : CallArg)
@@ -459,9 +477,9 @@ theorem fmapObject_rest (hf : f.ty.isType = true) (hx : x.ty.isType = true)
     (hfr : f.ty.isRef = false) (hxr : x.ty.isRef = false) :
     let env := Env.ofProgram p
     let σ₁ := (2, Ty.ref (.lookup tc (key x))) :: σ₀ f x
-    ∃ s, (parameterListStep env (fmapObject tc).head σ₁ >>= constraintStep env (fmapObject tc).constraint
+    (parameterListStep env (fmapObject tc).head σ₁ >>= constraintStep env (fmapObject tc).constraint
         >>= nonDependentStep env (fmapObject tc).params [f, x] >>= functionTypeStep env (fmapObject tc)) =
-      if (p.selectInstance tc (key x)).toOption.isSome then .ok s
+      if (p.selectInstance tc (key x)).toOption.isSome then .ok (fmapSpec tc f x)
       else .soft "associated constraints not satisfied" := by
   intro env σ₁
   have h0 : Ty.subst σ₁ (.param 0) = forwarded f :=
@@ -483,9 +501,6 @@ theorem fmapObject_rest (hf : f.ty.isType = true) (hx : x.ty.isType = true)
       .ok (p.selectInstance tc (key x)).toOption.isSome := by
     simp only [Constraint.satisfied, List.map, h0, h1, h2]
     simp [env, Env.ofProgram]
-  refine ⟨{ template := fmapObject tc, args := σ₁
-            params := [Ty.collapse (.rref (forwarded f)), Ty.collapse (.rref (forwarded x))]
-            ret := .named "void" }, ?_⟩
   rw [hplist]
   simp only [Subst.bind_eq, Subst.bind_ok, constraintStep, fmapObject, hsat]
   cases (p.selectInstance tc (key x)).toOption.isSome
@@ -494,6 +509,50 @@ theorem fmapObject_rest (hf : f.ty.isType = true) (hx : x.ty.isType = true)
     simp only [↓reduceIte, Subst.pure_eq, Subst.bind_ok, hnd, functionTypeStep, List.map]
     rw [hparams]
     rfl
+
+/-- Deducing the operation object for a call is a function of instance
+lookup at the container's type with cv and reference removed, and of
+nothing else in the program. -/
+theorem fmapObject_deduce (hf : f.ty.isType = true) (hx : x.ty.isType = true)
+    (hfF : f.ty.formed = true) (hxF : x.ty.formed = true)
+    (hfr : f.ty.isRef = false) (hxr : x.ty.isRef = false) (hxd : x.ty.dependent = false)
+    (hsoft : p.any (fun | .lookup c => c = tc | _ => false) = true)
+    (hhard : p.any (fun | .lookupHard c => c = tc | _ => false) = false) :
+    deduceTemplate (Env.ofProgram p) (fmapObject tc) [] [f, x] =
+      fmapOutcome tc f x (p.selectInstance tc x.ty.stripConst) := by
+  have hs := fmapObject_rest p tc f x hf hx hfF hxF hfr hxr
+  simp only [Subst.bind_eq] at hs
+  have hr : deduceTemplate (Env.ofProgram p) (fmapObject tc) [] [f, x] =
+      ((Env.ofProgram p).instantiate tc (key x)).bind fun _ =>
+      (parameterListStep (Env.ofProgram p) (fmapObject tc).head ((2, Ty.ref (.lookup tc (key x))) :: σ₀ f x)
+        >>= constraintStep (Env.ofProgram p) (fmapObject tc).constraint
+        >>= nonDependentStep (Env.ofProgram p) (fmapObject tc).params [f, x]
+        >>= functionTypeStep (Env.ofProgram p) (fmapObject tc)) := by
+    simp only [deduceTemplate]
+    rw [fmapObject_call tc f x hf hx]
+    simp only [Subst.bind_eq, Subst.bind_ok]
+    rw [fmapObject_defaults tc f x _ hx hxF hxr hxd]
+    cases (Env.ofProgram p).instantiate tc (key x) <;> rfl
+  have hinst : (Env.ofProgram p).instantiate tc (key x) =
+      match p.selectInstance tc (key x) with
+      | .selected i => .ok (.spec' "instance_of" [key x, .value (.int i)])
+      | .ambiguous _ => .hard s!"ambiguous partial specializations of {tc}<{repr (key x)}>"
+      | .illFormed r => .hard r
+      | .noMatch => .ok (.named "std::false_type") := by
+    simp only [Env.ofProgram, hsoft, hhard]
+    split <;> simp
+  rw [hr, hinst]
+  cases hl : p.selectInstance tc (key x) with
+  | selected i =>
+    simp only [Subst.bind_eq, Subst.bind_ok]
+    rw [hs, hl]
+    rfl
+  | noMatch =>
+    simp only [Subst.bind_eq, Subst.bind_ok]
+    rw [hs, hl]
+    rfl
+  | ambiguous l => rfl
+  | illFormed r => rfl
 
 /-- The operation object at the call surface. For a program whose lookup
 has the soft default, `std::false_type`, deducing the operation object
@@ -513,41 +572,72 @@ theorem fmapObject_outcome (hf : f.ty.isType = true) (hx : x.ty.isType = true)
     (p.selectInstance tc x.ty.stripConst = .noMatch → ∃ e, r = .soft e) ∧
     (∀ l, p.selectInstance tc x.ty.stripConst = .ambiguous l → ∃ e, r = .hard e) := by
   intro r
-  obtain ⟨s, hs⟩ := fmapObject_rest p tc f x hf hx hfF hxF hfr hxr
-  simp only [Subst.bind_eq] at hs
-  have hr : r = ((Env.ofProgram p).instantiate tc (key x)).bind fun _ =>
-      (parameterListStep (Env.ofProgram p) (fmapObject tc).head ((2, Ty.ref (.lookup tc (key x))) :: σ₀ f x)
-        >>= constraintStep (Env.ofProgram p) (fmapObject tc).constraint
-        >>= nonDependentStep (Env.ofProgram p) (fmapObject tc).params [f, x]
-        >>= functionTypeStep (Env.ofProgram p) (fmapObject tc)) := by
-    simp only [r, deduceTemplate]
-    rw [fmapObject_call tc f x hf hx]
-    simp only [Subst.bind_eq, Subst.bind_ok]
-    rw [fmapObject_defaults tc f x _ hx hxF hxr hxd]
-    cases (Env.ofProgram p).instantiate tc (key x) <;> rfl
-  have hinst : (Env.ofProgram p).instantiate tc (key x) =
-      match p.selectInstance tc (key x) with
-      | .selected i => .ok (.spec' "instance_of" [key x, .value (.int i)])
-      | .ambiguous _ => .hard s!"ambiguous partial specializations of {tc}<{repr (key x)}>"
-      | .illFormed r => .hard r
-      | .noMatch => .ok (.named "std::false_type") := by
-    simp only [Env.ofProgram, hsoft, hhard]
-    split <;> simp
+  have hd : r = _ := fmapObject_deduce p tc f x hf hx hfF hxF hfr hxr hxd hsoft hhard
   refine ⟨fun i hi => ?_, fun hn => ?_, fun l hl => ?_⟩
-  · refine ⟨s, ?_⟩
-    rw [hr, hinst, hi]
-    simp only [Subst.bind_eq, Subst.bind_ok]
-    rw [hs, hi]
-    rfl
-  · refine ⟨"associated constraints not satisfied", ?_⟩
-    rw [hr, hinst, hn]
-    simp only [Subst.bind_eq, Subst.bind_ok]
-    rw [hs, hn]
-    rfl
-  · refine ⟨s!"ambiguous partial specializations of {tc}<{repr (key x)}>", ?_⟩
-    rw [hr, hinst, hl]
-    rfl
+  · rw [hd, hi]; exact ⟨_, rfl⟩
+  · rw [hd, hn]; exact ⟨_, rfl⟩
+  · rw [hd, hl]; exact ⟨_, rfl⟩
 
 end fmapObject
+
+/-! ## Stability at the call surface -/
+
+theorem fmapOutcome_map (tc : String) (f x : CallArg) (g : Nat → Nat) (r : Resolution Nat) :
+    fmapOutcome tc f x (r.map g) = fmapOutcome tc f x r := by
+  cases r <;> rfl
+
+/-- Declaring an instance does not change which lookups a program
+declares. -/
+theorem any_insert_instance (p₁ p₂ : Program) (tc : String) (h : Head) (pat : Ty)
+    (g : Decl → Bool) (hg : g (.instance tc h pat) = false) :
+    (p₁ ++ .instance tc h pat :: p₂).any g = (p₁ ++ p₂).any g := by
+  simp [List.any_append, hg]
+
+/-- Stability of a call of the operation object. Declaring an instance
+anywhere in a program leaves the resolution of the call unchanged unless
+the new instance matches the container's type with cv and reference
+removed. When it matches, the operation object becomes viable through the
+new instance, or lookup is ambiguous and, under the text, the call is
+ill-formed. The other candidates are any non-template functions and any
+templates whose deduction does not consult the lookup; that is the
+hypothesis `hothers`, which a template that also looks up `tc` would have
+to meet through stability of its own lookups. -/
+theorem call_stability (p₁ p₂ : Program) (tc : String) (h : Head) (pat : Ty) (r : Ranking Conv)
+    (decls : List Decl) (f x : CallArg)
+    (hf : f.ty.isType = true) (hx : x.ty.isType = true)
+    (hfF : f.ty.formed = true) (hxF : x.ty.formed = true)
+    (hfr : f.ty.isRef = false) (hxr : x.ty.isRef = false) (hxd : x.ty.dependent = false)
+    (hsoft : (p₁ ++ p₂).any (fun | .lookup c => c = tc | _ => false) = true)
+    (hhard : (p₁ ++ p₂).any (fun | .lookupHard c => c = tc | _ => false) = false)
+    (hm : .functionTemplate (fmapObject tc) ∈ decls) :
+    let p := p₁ ++ p₂
+    let p' := p₁ ++ .instance tc h pat :: p₂
+    (∀ ft, .functionTemplate ft ∈ decls → ft ≠ fmapObject tc →
+      deduceTemplate (Env.ofProgram p') ft [] [f, x] = deduceTemplate (Env.ofProgram p) ft [] [f, x]) →
+    resolve .text (Env.ofProgram p') r decls [f, x] = resolve .text (Env.ofProgram p) r decls [f, x] ∨
+    (PatternMatches h pat x.ty.stripConst ∧
+      (p'.selectInstance tc x.ty.stripConst = .selected (p₁.instancesOf tc).length ∨
+        ∃ e, resolve .text (Env.ofProgram p') r decls [f, x] = .illFormed e)) := by
+  intro p p' hothers
+  have hsoft' : p'.any (fun | .lookup c => c = tc | _ => false) = true := by
+    rw [any_insert_instance _ _ _ _ _ _ rfl]; exact hsoft
+  have hhard' : p'.any (fun | .lookupHard c => c = tc | _ => false) = false := by
+    rw [any_insert_instance _ _ _ _ _ _ rfl]; exact hhard
+  have hd := fmapObject_deduce p tc f x hf hx hfF hxF hfr hxr hxd hsoft hhard
+  have hd' := fmapObject_deduce p' tc f x hf hx hfF hxF hfr hxr hxd hsoft' hhard'
+  have hcongr : deduceTemplate (Env.ofProgram p') (fmapObject tc) [] [f, x] =
+      deduceTemplate (Env.ofProgram p) (fmapObject tc) [] [f, x] →
+      resolve .text (Env.ofProgram p') r decls [f, x] = resolve .text (Env.ofProgram p) r decls [f, x] :=
+    fun he => resolve_congr _ _ _ r decls _ fun ft hft => by
+      by_cases hft' : ft = fmapObject tc
+      · subst hft'; exact he
+      · exact hothers ft hft hft'
+  rcases stability p₁ p₂ tc h pat x.ty.stripConst with e | ⟨hmatch, e | ⟨l, e⟩⟩
+  · refine .inl (hcongr ?_)
+    rw [hd', hd, e, fmapOutcome_map]
+  · exact .inr ⟨hmatch, .inl e⟩
+  · refine .inr ⟨hmatch, .inr ?_⟩
+    rw [e] at hd'
+    exact resolve_text_hard _ r decls _ _ _ hm hd'
 
 end Overload

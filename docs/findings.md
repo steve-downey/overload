@@ -180,6 +180,15 @@ and described here as they arrive.
   instantiated during deduction and its outcome becomes soft or hard, and
   where order of declaration against use matters. They will reappear
   when stability is stated for calls.
+  Update, 17 October 2026: at the call surface (`call_stability`) soft
+  failure is a hypothesis, the soft primary, as expected. The single
+  translation unit assumption is not a hypothesis. It is built into the
+  model's environment, which consults every instance the program declares
+  wherever the call is, so the theorem cannot see the order of
+  declaration against use. Phase 8 removes it from the environment.
+  The theorem also needs the other candidates not to consult the lookup,
+  which the plan did not foresee. It holds for non-template functions
+  outright.
 
 - **Attributes on constructors** (15 October 2026). Lean 4 does not allow
   an attribute in a constructor's declaration (`Attributes cannot be added

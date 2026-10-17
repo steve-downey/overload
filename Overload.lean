@@ -56,3 +56,6 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.Constraint.subsumes_example
 #audit Overload.Constraint.subsumes_not_antisymm
 #audit Overload.fmapObject_outcome
+#audit Overload.fmapObject_deduce
+#audit Overload.call_stability
+#audit Overload.resolve_congr
