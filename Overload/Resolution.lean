@@ -287,10 +287,9 @@ theorem generate_differ_implies_perfect (env : Env) (decls : List Decl) (args : 
 
 /-! ## A concrete ranking -/
 
-/-- The ranking the emitted cases use: identity conversions only, with
-reference binding, and nothing better than anything. Enough for the
-cases the model computes so far; the plan's ranking for priority tags and
-reference binding arrives with phase 5. -/
+/-- The smallest ranking: identity conversions only, with reference
+binding, and nothing better than anything. The unit tests use it; the
+emitted cases use the program's ranking, `Program.ranking`. -/
 def identityRanking : Ranking Unit :=
   { ics := fun a t =>
       let same := a.ty.referred.stripConst == t.referred.stripConst

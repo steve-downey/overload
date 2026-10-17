@@ -10,6 +10,8 @@ import Overload.Steps
 import Overload.Ordering
 import Overload.Typeclass
 import Overload.Resolution
+import Overload.Ranking
+import Overload.Separability
 import Overload.Emit
 import Overload.Lint
 
@@ -63,3 +65,13 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.unpinned_deduce
 #audit Overload.byValue_omitted_outcome
 #audit Overload.byValue_passed
+#audit Overload.better_iff
+#audit Overload.better_asymm
+#audit Overload.separability
+#audit Overload.separability_step_order
+#audit Overload.separability_argument_identity
+#audit Overload.separability_argument_conversion
+#audit Overload.separability_tie_break_reach
+#audit Overload.separability_rank_precedence
+#audit Overload.ranking_live
+#audit Overload.rank_beats_refinement

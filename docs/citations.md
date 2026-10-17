@@ -8,8 +8,21 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 
 | Citation | Role | Declaration | Module |
 |---|---|---|---|
+| [[class.derived.general]/2](https://eel.is/c++draft/class.derived.general#2) | rule | `Overload.Program.derives` | `Overload.Ranking` |
+| [[dcl.init.ref]/4 sentence 2](https://eel.is/c++draft/dcl.init.ref#4.sentence-2) | rule | `Overload.Program.referenceCompatible` | `Overload.Ranking` |
 | [[dcl.ref]/1 sentence 3](https://eel.is/c++draft/dcl.ref#1.sentence-3) | rule | `Overload.formConst` | `Overload.Steps` |
 | [[dcl.ref]/5 sentence 1](https://eel.is/c++draft/dcl.ref#5.sentence-1) | rule | `Overload.formPtr` | `Overload.Steps` |
+| [[over.best.ics.general]/7](https://eel.is/c++draft/over.best.ics.general#7) | rule | `Overload.Program.baseConv` | `Overload.Ranking` |
+| [[over.ics.rank]/1 sentence 1](https://eel.is/c++draft/over.ics.rank#1.sentence-1) | theorem | `Overload.better_asymm` | `Overload.Ranking` |
+| [[over.ics.rank]/3](https://eel.is/c++draft/over.ics.rank#3) | rule | `Overload.BetterConv.qualification` | `Overload.Ranking` |
+| [[over.ics.rank]/3](https://eel.is/c++draft/over.ics.rank#3) | rule | `Overload.BetterConv.rvalueBinding` | `Overload.Ranking` |
+| [[over.ics.rank]/3](https://eel.is/c++draft/over.ics.rank#3) | rule | `Overload.Program.byQualification` | `Overload.Ranking` |
+| [[over.ics.rank]/3](https://eel.is/c++draft/over.ics.rank#3) | rule | `Overload.Program.byRvalueBinding` | `Overload.Ranking` |
+| [[over.ics.rank]/4](https://eel.is/c++draft/over.ics.rank#4) | rule | `Overload.BetterConv.rank` | `Overload.Ranking` |
+| [[over.ics.rank]/4](https://eel.is/c++draft/over.ics.rank#4) | rule | `Overload.Program.byRank` | `Overload.Ranking` |
+| [[over.ics.rank]/4 sentence 1](https://eel.is/c++draft/over.ics.rank#4.sentence-1) | rule | `Overload.ConvRank.better` | `Overload.Ranking` |
+| [[over.ics.ref]/1](https://eel.is/c++draft/over.ics.ref#1) | rule | `Overload.Program.ics` | `Overload.Ranking` |
+| [[over.ics.ref]/3 sentence 1](https://eel.is/c++draft/over.ics.ref#3.sentence-1) | rule | `Overload.Program.canBind` | `Overload.Ranking` |
 | [[over.match.best.general]/2](https://eel.is/c++draft/over.match.best.general#2) | rule | `Overload.betterFunction` | `Overload.Resolution` |
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.Resolution.ambiguous` | `Overload.Outcome` |
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.Resolution.selected` | `Overload.Outcome` |
@@ -95,7 +108,6 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 - [[temp.deduct.call]/4](https://eel.is/c++draft/temp.deduct.call#4)
 - [[temp.arg.nontype]/1](https://eel.is/c++draft/temp.arg.nontype#1)
 - [[temp.arg.nontype]/3](https://eel.is/c++draft/temp.arg.nontype#3)
-- [[over.best.ics.general]/7](https://eel.is/c++draft/over.best.ics.general#7)
 
 ## Assumptions
 

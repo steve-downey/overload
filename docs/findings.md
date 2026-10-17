@@ -134,6 +134,15 @@ and described here as they arrive.
 
 ## About the model
 
+- **Deduction and ranking share one conversion relation** (17 October
+  2026). The environment's convertibility check for non-dependent
+  parameters ([temp.deduct.general]/5, sentence 8) had been identity up
+  to cv and references. A priority tag in a template's non-dependent
+  parameter then failed deduction instead of converting to its base. The
+  environment now asks the program's ranking whether an implicit
+  conversion sequence exists (`Program.ics`), so a fallback at a lower tag
+  is viable (`priority_tag_fallback.cpp`).
+
 - **More-specialized is a strict partial order as far as searched** (16
   October 2026). Irreflexivity and asymmetry are theorems
   (`moreSpecialized_irrefl`, `moreSpecialized_asymm`). Transitivity was
@@ -157,6 +166,31 @@ and described here as they arrive.
   and #5, come out as the draft says (`OverloadTest/Typeclass.lean`).
 
 ## About the plan
+
+- **Separability holds with no hypothesis on the ranking** (17 October
+  2026). The plan expected the instance selected to be invariant under
+  the choice of ranking. It is, for any two rankings of any conversion
+  types: if both select the candidate at one position, they select the
+  same candidate, specialization and template arguments included
+  (`separability`). Candidates are generated, and their template
+  arguments deduced and converted, before any conversion sequence is
+  ranked. The ranking decides only which candidate wins, and that it does
+  decide: `ranking_live` is a call that the program's ranking resolves and
+  the identity ranking finds no viable function for. The plan's
+  rank-precedence suspect is the general form: a worse conversion for any
+  argument loses whatever the non-template preference and partial
+  ordering say (`separability_rank_precedence`).
+
+- **Leak 1 is live** (17 October 2026). An overload that names an
+  Applicative instance type concretely, `use(const applicative_i&)`, wins
+  over a generic `use(const T&)` at that type, by the non-template
+  preference. At a Monad instance type derived from it, the generic
+  template wins: an exact match beats a derived-to-base conversion, and
+  conversions are compared first (`rank_beats_refinement`,
+  `leak_rank_exact.cpp`, `leak_rank_derived.cpp`). Every compiler agrees.
+  Deriving one instance type from another moves the call to the less
+  refined overload. The obligation is exact-type use
+  ([obligations](obligations.md)).
 
 - **The plan's routes separate, but the type route is exposed** (17
   October 2026). The canonical overload and the three routes as one

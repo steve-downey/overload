@@ -129,7 +129,8 @@ is outside it and enters only as an opaque candidate.
 
 **Question:** Is implicit conversion ranking a parameter or a modelled
 mechanism?
-**Status:** DECIDED 13 October 2026, subject to the separability theorem.
+**Status:** DECIDED 13 October 2026. Confirmed 17 October 2026 by the
+separability theorem.
 **Decision:** A parameter for the core theorems. Dispatch is user-written,
 so constraint exclusion, `if constexpr` chains and priority tags will all
 occur. One concrete ranking, covering priority tags and reference binding,
@@ -137,6 +138,14 @@ is supplied so the model can say which styles are safe.
 **Log:**
 
 - 2026-10-13 — Decided.
+- 2026-10-17 — The concrete ranking is `Program.ranking` in
+  `Overload/Ranking.lean`: identity and derived-to-base conversions,
+  direct reference binding, and the tiers of [over.ics.rank]/3. The
+  emitted call cases are computed with it, and every compiler agrees on
+  the eleven cases that exercise it. Separability holds for any two
+  rankings, with no hypothesis on either (`separability`), so the
+  parameter costs the core theorems nothing. `identityRanking` stays for
+  the unit tests.
 
 ---
 
