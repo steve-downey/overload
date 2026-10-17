@@ -211,7 +211,7 @@ theorem resolve_selected_mem (mode : Mode) (env : Env) (r : Ranking Conv) (decls
       have hsub : (vs.map (·.cand)).Sublist cs := viable_go_sublist r args cs vs hvs
       exact ⟨cs, hcs, hsub.subset (bestViable_mem r _ vs c h)⟩
 
-private theorem pairwise_index_eq {cs : List Candidate}
+theorem pairwise_index_eq {cs : List Candidate}
     (hpw : cs.Pairwise (fun a b => a.index < b.index)) :
     ∀ a ∈ cs, ∀ b ∈ cs, a.index = b.index → a = b := by
   induction cs with

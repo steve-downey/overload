@@ -31,6 +31,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[over.match.general]/3 sentence 2](https://eel.is/c++draft/over.match.general#3.sentence-2) | rule | `Overload.Resolution.noMatch` | `Overload.Outcome` |
 | [[over.match.viable]/2 sentence 1](https://eel.is/c++draft/over.match.viable#2.sentence-1) | rule | `Overload.arityOk` | `Overload.Resolution` |
 | [[over.match.viable]/4 sentence 1](https://eel.is/c++draft/over.match.viable#4.sentence-1) | rule | `Overload.conversions` | `Overload.Resolution` |
+| [[structure.specifications]/3](https://eel.is/c++draft/structure.specifications#3) | rule | `Overload.mandateCheck` | `Overload.Mandates` |
 | [[temp.constr.atomic]/2 sentence 1](https://eel.is/c++draft/temp.constr.atomic#2.sentence-1) | rule | `Overload.Constraint.identical` | `Overload.Constraint` |
 | [[temp.constr.atomic]/3 sentence 1](https://eel.is/c++draft/temp.constr.atomic#3.sentence-1) | rule | `Overload.Constraint.satisfied` | `Overload.Constraint` |
 | [[temp.constr.atomic]/3 sentence 2](https://eel.is/c++draft/temp.constr.atomic#3.sentence-2) | rule | `Overload.Constraint.satisfied_atomic_soft` | `Overload.Constraint` |

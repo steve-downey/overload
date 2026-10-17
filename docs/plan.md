@@ -219,7 +219,7 @@ Status, 15 October 2026:
   explicit arguments (`deduceTemplate`), and template-argument equivalence
   (`Val.equivalent_iff`). Still to do: the most-general statement. The
   cost report is in `decisions.md#spec-style`.
-- Phase 2 is open. The step order of [temp.deduct.general]/5 is
+- Phase 2 is closed. The step order of [temp.deduct.general]/5 is
   transcribed as separate steps in `Overload/Steps.lean`, with the three
   outcomes, the immediate context (`form`), the oracle for separately
   instantiated constructs (`Env`), and the theorems: a hard error is
@@ -228,7 +228,14 @@ Status, 15 October 2026:
   (`constraint_cannot_guard_default`), and a constraint failure shields
   the function type (`constraint_soft_shields_function_type`). The
   paragraph's two examples and the example of /8 reproduce in Lean and as
-  emitted C++. Still to do: Mandates as a post-selection check.
+  emitted C++. Mandates are a post-selection check in
+  `Overload/Mandates.lean`: `invoke` is resolution, then the selected
+  specialization's Mandates, and the emitted cases are computed with it.
+  mandate-inertness is a theorem (`mandate_inertness`, `invoke_selected`).
+  constraint-promotion holds where the Mandate fails, as removal of the
+  candidate, and where ordering does not change (`constraint_promotion`).
+  It fails otherwise (`promotion_reorders`), so the target is restated in
+  the table.
 - Phase 5 is closed on its exit criterion. `Overload/Resolution.lean`
   has candidate generation with the `Mode` switch, viability, and the
   best viable function by conversion sequences, the non-template
@@ -249,8 +256,7 @@ Status, 15 October 2026:
   and leak 1 of instance inheritance is a theorem
   (`rank_beats_refinement`). Eleven emitted cases cover ranking, priority
   tags and the leak, and every compiler agrees. Still owed from the
-  phase 5 targets: mandate-inertness, constraint-promotion,
-  sfinae-requires and dispatch-styles.
+  phase 5 targets: sfinae-requires and dispatch-styles.
 - Phase 4 is closed, with one proof target left open.
   `Overload/Ordering.lean` has the transformed template, deduction for
   partial ordering with the reference tie-breaks of
@@ -342,7 +348,7 @@ its counterexample and is a finding, not a setback.
 |---|---|---|
 | determinism | The same program and query always give the same outcome. | 4, 5 |
 | mandate-inertness | Adding a Mandate to a candidate never changes which candidate is selected. It can only turn a selection into an ill-formed program. | 2, 5 |
-| constraint-promotion | Turning a Mandate into a Constraint changes the outcome only by removing that candidate, so the result moves to the next best, to no match, or to ambiguity. | 5 |
+| constraint-promotion | Turning a Mandate into a Constraint removes that candidate where the Mandate fails, so the result moves to the next best, to no match, or to ambiguity. Where the Mandate holds, the outcome is unchanged unless the larger constraint changes partial ordering, which it can. Restated 17 October 2026 (`findings.md`). | 5 |
 | sfinae-requires | An `enable_if` encoding and a requires-clause with the same condition give the same viable set. They differ only where ordering consults subsumption. | 3, 5 |
 | subsumption-sound | Subsumption is a preorder and implies satisfaction-implication, up to hard errors in checking the subsumed constraint. The converse fails, with a witness. | 3 |
 | coherence | For a ground type, canonical lookup yields at most one instance or reports ambiguity. It never chooses silently. | 6 |

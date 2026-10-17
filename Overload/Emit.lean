@@ -8,6 +8,7 @@ import Overload.Ordering
 import Overload.Typeclass
 import Overload.Separability
 import Overload.Inheritance
+import Overload.Mandates
 
 /-!
 # The C++ emitter
@@ -207,6 +208,31 @@ def expectedDeduced (h : Head) (σ : Bindings) : String :=
     | none => "void"
   s!"deduced<{String.intercalate ", " parts}>"
 
+/-- A function template's body: a declaration only, or, with Mandates, a
+definition whose `static_assert` checks them when it is instantiated. -/
+def body (ft : FunctionTemplate) (ret : String) : String :=
+  match ft.mandate with
+  | some m =>
+    if ret == "void" then s!" \{ static_assert({constraint m}); }"
+    else s!" \{ static_assert({constraint m}); return \{}; }"
+  | none => ";"
+
+/-- Does any function template of the program have Mandates? -/
+def hasMandates (p : Program) : Bool :=
+  p.any fun
+    | .functionTemplate ft => ft.mandate.isSome
+    | _ => false
+
+/-- An evaluated call, in a function body, so that the selected
+specialization's definition is instantiated and its Mandates checked. -/
+def evaluatedCall (callee : String) (explicit : List Ty) (as : List CallArg) : String :=
+  let name := if explicit.isEmpty then callee
+    else s!"{callee}<{String.intercalate ", " (explicit.map ty)}>"
+  let ps := as.zipIdx.map fun (a, i) => if a.lvalue then s!"{ty a.ty}& a{i}" else s!"{ty a.ty}&& a{i}"
+  let es := as.zipIdx.map fun (a, i) =>
+    if a.lvalue then s!"a{i}" else s!"static_cast<{ty a.ty}&&>(a{i})"
+  s!"void evaluated({String.intercalate ", " ps}) \{ {name}({String.intercalate ", " es}); }\n"
+
 /-- The declarations of a program, as C++; functions named `callee` get
 the return type `ret k` for the `k`th candidate. -/
 def program (p : Program) (callee : String) (ret : Nat → Head → String) : String := Id.run do
@@ -230,10 +256,10 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String) : St
         | some c => s!"\n    requires {constraint c}"
         | none => ""
       if ft.name = callee then
-        out := out ++ s!"{head ft.head}{req}\n{ret k ft.head} {ft.name}({params ft.params ft.defaultArgs});\n"
+        out := out ++ s!"{head ft.head}{req}\n{ret k ft.head} {ft.name}({params ft.params ft.defaultArgs}){body ft (ret k ft.head)}\n"
         k := k + 1
       else
-        out := out ++ s!"{head ft.head}{req}\nvoid {ft.name}({params ft.params ft.defaultArgs});\n"
+        out := out ++ s!"{head ft.head}{req}\nvoid {ft.name}({params ft.params ft.defaultArgs}){body ft "void"}\n"
     | .lookup c =>
       out := out ++ s!"template <class T>\ninline constexpr auto {c} = std::false_type\{};\n"
     | .lookupHard c =>
@@ -291,6 +317,10 @@ def render (c : Case) : String := Id.run do
     | .illFormed r =>
       out := out ++ s!"// the model expects a hard error: {r}\n"
       out := out ++ s!"using probe = decltype({callExpr callee explicit as});\n"
+    if hasMandates c.program then
+      match expected with
+      | .selected _ | .illFormed _ => out := out ++ evaluatedCall callee explicit as
+      | _ => pure ()
   | .raw cpp _ =>
     out := out ++ program c.program "" (fun _ _ => "void") ++ "\n" ++ cpp
   | .lookup tc a expected =>
@@ -1181,6 +1211,82 @@ def leakDerivedComposed : Case :=
     query := .call "use" [{ ty := .named "opt_monad_map", lvalue := true }] .noMatch
     source := "computed by resolve" }
 
+/-! ### Mandates -/
+
+private def mandateConcepts : List Decl :=
+  [.concept "class_like" "std::is_class_v<T>", .concept "integral_like" "std::is_integral_v<T>"]
+private def mandateAtomics : List (String × List Ty × Bool) :=
+  [("class_like", [.named "X"], true), ("integral_like", [.named "X"], false)]
+
+/-- A Mandate that is met: the call is well-formed. -/
+def mandateMet : Case :=
+  { name := "mandate_met"
+    cite := cite "structure.specifications#3"
+    program := [.class "X"] ++ mandateConcepts ++
+      [.functionTemplate { name := "f", head := [typeParam], params := [T], mandate := some (.atomic "class_like" [T]) }]
+    query := .call "f" [{ ty := .named "X" }] (.selected 0)
+    source := "computed by invoke"
+    atomics := mandateAtomics }
+
+/-- A Mandate that is not met: the selected function makes the program
+ill-formed. -/
+def mandateUnmet : Case :=
+  { name := "mandate_unmet"
+    cite := cite "structure.specifications#3"
+    program := [.class "X"] ++ mandateConcepts ++
+      [.functionTemplate { name := "f", head := [typeParam], params := [T], mandate := some (.atomic "integral_like" [T]) }]
+    query := .call "f" [{ ty := .named "X" }] (.illFormed "a Mandate of the selected function is not met")
+    source := "computed by invoke"
+    atomics := mandateAtomics }
+
+private def pointerOverloads (promoted : Bool) : Program :=
+  let first : FunctionTemplate :=
+    { name := "f", head := [typeParam], params := [.ptr T], mandate := some (.atomic "integral_like" [T]) }
+  [.class "X"] ++ mandateConcepts ++
+    [ .functionTemplate (if promoted then promote first else first)
+    , .functionTemplate { name := "f", head := [typeParam], params := [T] } ]
+
+/-- A Mandate does not fall back: the more specialized template is
+selected, and its unmet Mandate makes the call ill-formed although the
+other template would do. -/
+def mandateNoFallback : Case :=
+  { name := "mandate_no_fallback"
+    cite := cite "structure.specifications#3"
+    program := pointerOverloads false
+    query := .call "f" [{ ty := .ptr (.named "X") }] (.illFormed "a Mandate of the selected function is not met")
+    source := "computed by invoke"
+    atomics := mandateAtomics }
+
+/-- Promoted to a constraint, it removes the candidate, and the call moves
+to the next best. -/
+def promotedFallsBack : Case :=
+  { name := "constraint_promotion_falls_back"
+    cite := cite "structure.specifications#3"
+    program := pointerOverloads true
+    query := .call "f" [{ ty := .ptr (.named "X") }] (.selected 1)
+    source := "computed by invoke"
+    atomics := mandateAtomics }
+
+/-- Before promotion: the constrained template is more constrained than
+the one with the Mandate, and is selected. -/
+def promotionBefore : Case :=
+  { name := "constraint_promotion_before"
+    cite := cite "temp.func.order#8"
+    program := promotionProgram false
+    query := .call "g" [{ ty := .named "X" }] (.selected 0)
+    source := "computed by invoke"
+    atomics := promotionAtomics }
+
+/-- After promotion: neither constraint subsumes the other, and the call
+is ambiguous. -/
+def promotionAfter : Case :=
+  { name := "constraint_promotion_reorders"
+    cite := cite "temp.func.order#8"
+    program := promotionProgram true
+    query := .call "g" [{ ty := .named "X" }] (.ambiguous [0, 1])
+    source := "computed by invoke"
+    atomics := promotionAtomics }
+
 /-- Every case the emitter writes. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -1202,7 +1308,8 @@ def cases : List Case :=
   , rankQualification, rankValueReferenceAmbiguous
   , priorityTagNearest, priorityTagDispatch, priorityTagFallback
   , rankLeakExact, rankLeakDerived, erasureInherited, erasureComposed
-  , deduceFromDerived, deduceFromTwoBases, leakDerivedInherited, leakDerivedComposed ]
+  , deduceFromDerived, deduceFromTwoBases, leakDerivedInherited, leakDerivedComposed
+  , mandateMet, mandateUnmet, mandateNoFallback, promotedFallsBack, promotionBefore, promotionAfter ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=
@@ -1224,12 +1331,13 @@ def computed (c : Case) : Option (Option (List (ParamIdx × Ty))) :=
     | none => none
   | _ => none
 
-/-- For a call case, what the model computes under the text, as candidate
-indices; `none` when the case is not a call case. -/
+/-- For a call case, what the model computes for the evaluated call under
+the text, resolution and then the selected function's Mandates, as
+candidate indices; `none` when the case is not a call case. -/
 def computedCall (c : Case) : Option (Resolution Nat) :=
   match c.query with
   | .call callee as _ explicit =>
-    some ((resolve .text (Env.ofProgram c.program c.atomics) c.program.ranking
+    some ((invoke .text (Env.ofProgram c.program c.atomics) c.program.ranking
       (decls := c.program.candidates callee) (args := as) (explicit := explicit)).map (·.index))
   | _ => none
 

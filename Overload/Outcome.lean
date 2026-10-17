@@ -80,6 +80,12 @@ theorem bind_soft (r : Reason) (f : α → Subst β) : bind (soft r) f = soft r 
 @[simp]
 theorem bind_ok (a : α) (f : α → Subst β) : bind (ok a) f = f a := rfl
 
+/-- Apply a function to the value of a success; a failure stands. -/
+def map (f : α → β) : Subst α → Subst β
+  | ok a => ok (f a)
+  | soft r => soft r
+  | hard r => hard r
+
 /-- In monadic spelling: `hard r >>= f = hard r`. -/
 theorem hard_absorbing (r : Reason) (f : α → Subst β) : (hard r >>= f) = hard r := rfl
 
