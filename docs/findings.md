@@ -139,6 +139,16 @@ and described here as they arrive.
 
 ## About the model
 
+- **Deduction is most general only without nested references** (17
+  October 2026). On the first-order fragment deduction is matching, and
+  it finds the least bindings that solve `P = A` (`deduceTy_most_general`).
+  A reference inside `P` breaks this: `T&` against `int&` deduces `T` as
+  `int`, but `T` as `int&` solves it too, by reference collapsing
+  (`OverloadTest/Deduction.lean`). Deduction's answer is the one the form
+  `T&` of [temp.deduct.type]/8 gives. It is not the only solution. A call strips the
+  top-level reference before deducing, so only references nested inside
+  a parameter type fall outside.
+
 - **The function type is substituted parameters first** (17 October
   2026). Substitution proceeds in lexical order ([temp.deduct.general]/7),
   and the model forms a template's parameter types before its return

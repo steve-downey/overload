@@ -82,3 +82,10 @@ example : Val.Equivalent (.obj' "P" [.int 1, .bool true]) (.obj' "P" [.int 1, .b
   (Val.equivalent_iff _ _).2 rfl
 example : ¬ Val.Equivalent (.obj' "P" [.int 1]) (.obj' "P" [.int 2]) :=
   fun h => by cases (Val.equivalent_iff _ _).1 h
+
+-- Outside the first-order fragment, most generality fails as stated:
+-- `T&` against `int&` deduces `T` as `int`, while binding `T` to `int&`
+-- also makes `P` equal `A`, by reference collapsing.
+#guard deduceTy (.lref T) (.lref int) [] == some [(0, int)]
+#guard Ty.subst [(0, .lref int)] (.lref T) == .lref int
+#guard !(Ty.lref T).firstOrder
