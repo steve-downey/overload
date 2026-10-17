@@ -46,3 +46,12 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.selectInstance_ne_illFormed
 #audit Overload.stability
 #audit Overload.stability_other_typeclass
+#audit Overload.Constraint.subsumes_iff
+#audit Overload.Constraint.subsumes_refl
+#audit Overload.Constraint.subsumes_trans
+#audit Overload.Constraint.atLeastAsConstrained_trans
+#audit Overload.Constraint.subsumes_satisfied
+#audit Overload.Constraint.satisfaction_implication_not_subsumes
+#audit Overload.Constraint.subsumes_satisfied_hard
+#audit Overload.Constraint.subsumes_example
+#audit Overload.Constraint.subsumes_not_antisymm

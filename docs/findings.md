@@ -16,7 +16,15 @@ separate matter, filed under test-oracle (decisions.md#test-oracle).
 
 ## Against the Standard
 
-None yet.
+- **Subsumption is not a partial ordering** (16 October 2026). False
+  statement, in a note. [temp.constr.order]/2 says "The subsumption
+  relation defines a partial ordering on constraints." It is reflexive
+  and transitive, but `A ∧ B` and `B ∧ A` subsume each other and are
+  different constraints, so it is a preorder
+  (`Constraint.subsumes_not_antisymm`). It is a partial order on
+  constraints taken up to mutual subsumption, which is presumably what is
+  meant. Normative text is unaffected: every use of subsumption in
+  ordering asks for one direction and not the other.
 
 ## Compiler disagreements
 
@@ -121,6 +129,15 @@ and described here as they arrive.
   and #5, come out as the draft says (`OverloadTest/Typeclass.lean`).
 
 ## About the plan
+
+- **Subsumption implies satisfaction only up to hard errors** (16 October
+  2026). The subsumption-sound target said subsumption implies
+  satisfaction-implication. With hard errors in the outcome it holds only
+  in the form "if `P` subsumes `Q` and `P` is satisfied, `Q` is satisfied
+  or checking it is a hard error" (`Constraint.subsumes_satisfied`).
+  `A` subsumes `B ∨ A`, and checking `B ∨ A` evaluates `B`, which
+  checking `A` never touched (`Constraint.subsumes_satisfied_hard`). The
+  target is restated in the plan's table.
 
 - **Stability of lookup needs neither expected hypothesis** (16 October
   2026). The plan expected stability to need soft failure of a missing

@@ -247,7 +247,17 @@ Status, 15 October 2026:
   by theorem; transitivity was searched over 5832 triples of parameter
   shapes without a counterexample and is not yet proved. Subsumption
   ([temp.constr.order]/1 and /4) came with it so the gate has something to
-  compare; phase 3's own theorems about it remain.
+  compare.
+- Phase 3 is closed. Subsumption is propositional implication over
+  atomic constraints read as free variables (`subsumes_iff`), hence a
+  preorder (`subsumes_refl`, `subsumes_trans`,
+  `atLeastAsConstrained_trans`). It implies satisfaction-implication up
+  to hard errors (`subsumes_satisfied`), and the hard error happens
+  (`subsumes_satisfied_hard`). The converse fails, with a witness
+  (`satisfaction_implication_not_subsumes`). The example of
+  [temp.constr.order]/1 is a theorem, and the note of /2 is refuted as
+  worded (`findings.md`). Normalization of concept-ids is out of the
+  fragment, which has none.
 - Phase 6 is open with canonical lookup. `Overload/Typeclass.lean` has
   lookup over a program's instances (`Program.selectInstance`), with
   selection given as a relation as well (`Selects`, agreement theorem
@@ -274,7 +284,7 @@ its counterexample and is a finding, not a setback.
 | mandate-inertness | Adding a Mandate to a candidate never changes which candidate is selected. It can only turn a selection into an ill-formed program. | 2, 5 |
 | constraint-promotion | Turning a Mandate into a Constraint changes the outcome only by removing that candidate, so the result moves to the next best, to no match, or to ambiguity. | 5 |
 | sfinae-requires | An `enable_if` encoding and a requires-clause with the same condition give the same viable set. They differ only where ordering consults subsumption. | 3, 5 |
-| subsumption-sound | Subsumption is a preorder and implies satisfaction-implication. The converse fails, with a witness. | 3 |
+| subsumption-sound | Subsumption is a preorder and implies satisfaction-implication, up to hard errors in checking the subsumed constraint. The converse fails, with a witness. | 3 |
 | coherence | For a ground type, canonical lookup yields at most one instance or reports ambiguity. It never chooses silently. | 6 |
 | stability | Adding an instance changes lookup only at types the new instance matches, and there only to the new instance or to ambiguity. | 6 |
 | separability | The instance selected is invariant under the choice of conversion ranking. | 5 |
