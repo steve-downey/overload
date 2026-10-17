@@ -13,6 +13,7 @@ plan. Four kinds of finding about the Standard can result:
 Ambiguity is not a conflict. The Standard makes it a defined outcome, and
 the model keeps it as a value. A disagreement between compilers is a
 separate matter, filed under test-oracle (decisions.md#test-oracle).
+The design note at the end draws one lesson from all four sections.
 
 ## Against the Standard
 
@@ -449,3 +450,40 @@ and described here as they arrive.
 - **Probe reconstruction** (15 October 2026). The probe sources had to be
   reconstructed; step-order B and tie-break C did not reproduce at first,
   and tie-break C still does not. Details in `probes.md`.
+
+## Design note
+
+- **A variable cannot be overloaded** (17 October 2026). The typeclass
+  design in beman.transpose puts a variable at each point where C++ would
+  otherwise build an overload set, and most of its good behaviour follows
+  from that.
+  - The operation object. `fmap` is a variable, so name lookup for
+    `fmap(f, x)` finds one entity, and the call has one candidate, its
+    `operator()`. Argument-dependent lookup does not run when ordinary
+    lookup finds an object, and nobody can add an overload that competes
+    with it or consults the lookup. That is the "no other lookup on the
+    name" hypothesis of `call_stability`, met by construction.
+  - The instance. `functor<T>` is a variable template, and choosing an
+    instance is partial specialization matching, not overload resolution.
+    Conversion ranking, argument-dependent lookup and the non-template
+    preference never touch it. Coherence and stability are theorems about
+    matching alone (`coherence`, `stability`), and no ranking can change
+    the instance a call selects (`separability`).
+  - The members. With an instance in hand, `TC.fmap(...)` is member
+    lookup in one class, which nothing at namespace scope can join.
+
+  The trouble the model found is where an overload set comes back: route
+  overloads beside the canonical `operator()` (`routes_type_ambiguous_hard`,
+  `routes_argument_default_ambiguous`), priority tags, which check every
+  overload's condition (`dispatch_hard_condition`), a function that names
+  an instance type (`rank_beats_refinement`, `derived_class_deduction`,
+  `protected_base_selected_ill_formed`), and the instance's own members,
+  such as `derive_functor`'s constrained `fmap` and `replace`, an overload
+  set its author owns.
+
+  The one hazard runs the other way. Because the operation object names
+  the lookup variable, which is one entity in every translation unit, two
+  units that select different instances give one specialization two
+  meanings, ill-formed with no diagnostic required
+  (`operation_object_not_separated`). Being a variable is what makes it
+  immune to overloading, and what exposes it to the one-definition rule.
