@@ -115,6 +115,16 @@ def form (env : Env) : Ty → Subst Ty
   | .typeOf t => do
     let t ← form env t
     return if t.dependent then .typeOf t else t.typeOfValue
+  | .enableIf c as t => do
+    -- The condition is asked of the oracle with its arguments as
+    -- substituted, the way satisfaction asks of a constraint's mapping.
+    -- Forming the type happens once its arguments are known.
+    let t ← form env t
+    match env.atomic c (as.toList.getD []) with
+    | .ok true => .ok t
+    | .ok false => .soft s!"enable_if condition {c} is false"
+    | .soft r => .soft r
+    | .hard r => .hard r
 
 /-- Form each of a list of types, left to right, stopping at the first
 failure: substitution proceeds in lexical order and stops when a condition

@@ -29,6 +29,14 @@ draft_temp_deduct_general_5_step_order.cpp clang++-18
 draft_temp_deduct_general_5_step_order.cpp clang++-19
 draft_temp_deduct_general_5_step_order.cpp clang++-20
 #
+# The same ordering: with the requires-clause unsatisfied, Clang 17 to 20
+# still substitute the function parameter whose type instantiates a lookup
+# that fails hard, where the requires-clause should shield it.
+sfinae_requires_shields.cpp clang++-17
+sfinae_requires_shields.cpp clang++-18
+sfinae_requires_shields.cpp clang++-19
+sfinae_requires_shields.cpp clang++-20
+#
 # The tie-break with a type-constraint on an auto constant parameter:
 # [temp.over.link]/6 says equivalence of constant template parameters
 # ignores type-constraints on placeholder types, so the parameter lists

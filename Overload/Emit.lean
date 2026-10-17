@@ -9,6 +9,7 @@ import Overload.Typeclass
 import Overload.Separability
 import Overload.Inheritance
 import Overload.Mandates
+import Overload.Sfinae
 
 /-!
 # The C++ emitter
@@ -127,6 +128,7 @@ partial def ty : Ty → String
   | .ref t => ty t
   | .removeCvref t => s!"std::remove_cvref_t<{ty t}>"
   | .typeOf t => s!"std::remove_cvref_t<decltype({ty t})>"
+  | .enableIf c as t => s!"std::enable_if_t<{c}<{argList as}>, {ty t}>"
 where
   argList (as : Ty) : String :=
     match as.toList with
@@ -217,6 +219,16 @@ def body (ft : FunctionTemplate) (ret : String) : String :=
     else s!" \{ static_assert({constraint m}); return \{}; }"
   | none => ";"
 
+/-- A function template's declarator, with the case's return type `r`
+in place of its own. `enable_if` in the return type keeps its condition
+and is spelled as a trailing return type: the model substitutes the
+return type after the parameters, which is the lexical order
+([temp.deduct.general]/7) of a trailing return type. -/
+def declarator (ft : FunctionTemplate) (r : String) (ps : String) : String :=
+  match ft.ret with
+  | .enableIf c as _ => s!"auto {ft.name}({ps}) -> {ty (.enableIf c as (.named r))}"
+  | _ => s!"{r} {ft.name}({ps})"
+
 /-- Does any function template of the program have Mandates? -/
 def hasMandates (p : Program) : Bool :=
   p.any fun
@@ -256,10 +268,10 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String) : St
         | some c => s!"\n    requires {constraint c}"
         | none => ""
       if ft.name = callee then
-        out := out ++ s!"{head ft.head}{req}\n{ret k ft.head} {ft.name}({params ft.params ft.defaultArgs}){body ft (ret k ft.head)}\n"
+        out := out ++ s!"{head ft.head}{req}\n{declarator ft (ret k ft.head) (params ft.params ft.defaultArgs)}{body ft (ret k ft.head)}\n"
         k := k + 1
       else
-        out := out ++ s!"{head ft.head}{req}\nvoid {ft.name}({params ft.params ft.defaultArgs}){body ft "void"}\n"
+        out := out ++ s!"{head ft.head}{req}\n{declarator ft "void" (params ft.params ft.defaultArgs)}{body ft "void"}\n"
     | .lookup c =>
       out := out ++ s!"template <class T>\ninline constexpr auto {c} = std::false_type\{};\n"
     | .lookupHard c =>
@@ -1287,6 +1299,68 @@ def promotionAfter : Case :=
     source := "computed by invoke"
     atomics := promotionAtomics }
 
+/-! ### sfinae-requires -/
+
+/-- A requires-clause is more constrained than no constraint, and wins. -/
+def sfinaeRequiresOrdered : Case :=
+  { name := "sfinae_requires_subsumes"
+    cite := cite "temp.func.order#8"
+    program := subsumptionProgram false
+    query := .call "g" [{ ty := .named "X" }] (.selected 1)
+    source := "computed by invoke"
+    atomics := subsumptionAtomics }
+
+/-- The same condition as `enable_if` in the return type is no
+constraint: the call is ambiguous. -/
+def sfinaeEnableIfUnordered : Case :=
+  { name := "sfinae_enable_if_unordered"
+    cite := cite "temp.func.order#8"
+    program := subsumptionProgram true
+    query := .call "g" [{ ty := .named "X" }] (.ambiguous [0, 1])
+    source := "computed by invoke"
+    atomics := subsumptionAtomics }
+
+/-- The `enable_if` form is viable when its condition holds. -/
+def sfinaeEnableIfViable : Case :=
+  { name := "sfinae_enable_if_viable"
+    cite := cite "temp.deduct.general#8.sentence-1"
+    program := [.class "X", .concept "empty_like" "std::is_empty_v<T>"
+      , .functionTemplate (enableIfForm { name := "g", head := [typeParam], params := [T] } "empty_like" [T])]
+    query := .call "g" [{ ty := .named "X" }] (.selected 0)
+    source := "computed by invoke"
+    atomics := subsumptionAtomics }
+
+/-- And not viable when it fails, as the requires form would not be. -/
+def sfinaeEnableIfNotViable : Case :=
+  { name := "sfinae_enable_if_not_viable"
+    cite := cite "temp.deduct.general#8.sentence-1"
+    program := [.class "X", .concept "integral_like" "std::is_integral_v<T>"
+      , .functionTemplate (enableIfForm { name := "g", head := [typeParam], params := [T] } "integral_like" [T])]
+    query := .call "g" [{ ty := .named "X" }] .noMatch
+    source := "computed by invoke"
+    atomics := shieldAtomics }
+
+/-- The requires-clause shields the function type: the call is not
+viable. -/
+def sfinaeRequiresShields : Case :=
+  { name := "sfinae_requires_shields"
+    cite := cite "temp.deduct.general#5.sentence-6"
+    program := shieldProgram false
+    query := .call "f" [{ ty := .named "X" }, { ty := .named "int" }] .noMatch
+    source := "computed by invoke"
+    atomics := shieldAtomics }
+
+/-- `enable_if` in the return type does not: the parameter's hard error
+comes first. -/
+def sfinaeEnableIfUnshielded : Case :=
+  { name := "sfinae_enable_if_unshielded"
+    cite := cite "temp.deduct.general#5.sentence-9"
+    program := shieldProgram true
+    query := .call "f" [{ ty := .named "X" }, { ty := .named "int" }]
+      (.illFormed "static_assert in the primary functor<X>")
+    source := "computed by invoke"
+    atomics := shieldAtomics }
+
 /-- Every case the emitter writes. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -1309,7 +1383,9 @@ def cases : List Case :=
   , priorityTagNearest, priorityTagDispatch, priorityTagFallback
   , rankLeakExact, rankLeakDerived, erasureInherited, erasureComposed
   , deduceFromDerived, deduceFromTwoBases, leakDerivedInherited, leakDerivedComposed
-  , mandateMet, mandateUnmet, mandateNoFallback, promotedFallsBack, promotionBefore, promotionAfter ]
+  , mandateMet, mandateUnmet, mandateNoFallback, promotedFallsBack, promotionBefore, promotionAfter
+  , sfinaeRequiresOrdered, sfinaeEnableIfUnordered, sfinaeEnableIfViable, sfinaeEnableIfNotViable
+  , sfinaeRequiresShields, sfinaeEnableIfUnshielded ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=

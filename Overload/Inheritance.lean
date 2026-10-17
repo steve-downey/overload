@@ -174,16 +174,19 @@ theorem allBases_spec (p : Program) (s : Ty) (h : s.isSpec = true) : p.allBases 
 /-! ## Deduction depends on the environment's convertibility only at
 non-dependent parameters -/
 
-theorem form_congr {env₁ env₂ : Env} (h : env₁.instantiate = env₂.instantiate) (t : Ty) :
+theorem form_congr {env₁ env₂ : Env} (h : env₁.instantiate = env₂.instantiate)
+    (ha : env₁.atomic = env₂.atomic) (t : Ty) :
     form env₁ t = form env₂ t := by
   fun_induction form env₁ t <;> simp_all [form]
 
-theorem formAll_congr {env₁ env₂ : Env} (h : env₁.instantiate = env₂.instantiate) :
+theorem formAll_congr {env₁ env₂ : Env} (h : env₁.instantiate = env₂.instantiate)
+    (ha : env₁.atomic = env₂.atomic) :
     ∀ ts, formAll env₁ ts = formAll env₂ ts
   | [] => rfl
-  | t :: ts => by simp only [formAll, form_congr h t, formAll_congr h ts]
+  | t :: ts => by simp only [formAll, form_congr h ha t, formAll_congr h ha ts]
 
 theorem defaultsStep_congr {env₁ env₂ : Env} (h : env₁.instantiate = env₂.instantiate)
+    (ha : env₁.atomic = env₂.atomic)
     (head : Head) : defaultsStep env₁ head = defaultsStep env₂ head := by
   funext σ
   simp only [defaultsStep]
@@ -193,7 +196,7 @@ theorem defaultsStep_congr {env₁ env₂ : Env} (h : env₁.instantiate = env�
   | nil => intro i σ; rfl
   | cons q ps ih =>
     intro i σ
-    simp only [defaultsStep.go, form_congr h, ih]
+    simp only [defaultsStep.go, form_congr h ha, ih]
 
 theorem nonDependentStep_congr {env₁ env₂ : Env} :
     ∀ (ps : List Ty) (args : List CallArg),
@@ -306,12 +309,12 @@ theorem deduceTemplate_congr {env₁ env₂ : Env} (hi : env₁.instantiate = en
     deduceTemplate env₁ ft explicit args = deduceTemplate env₂ ft explicit args := by
   have hcall := callStep_congr ft args hs hb
   have hp : parameterListStep env₁ ft.head = parameterListStep env₂ ft.head := by
-    funext σ; simp only [parameterListStep, formAll_congr hi]
+    funext σ; simp only [parameterListStep, formAll_congr hi ha]
   have hk : constraintStep env₁ ft.constraint = constraintStep env₂ ft.constraint := by
     funext σ; simp only [constraintStep, ha]
   have hf : functionTypeStep env₁ ft = functionTypeStep env₂ ft := by
-    funext σ; simp only [functionTypeStep, formAll_congr hi, form_congr hi]
-  simp only [deduceTemplate, hcall, defaultsStep_congr hi, hp, hk, nonDependentStep_congr _ _ hc, hf]
+    funext σ; simp only [functionTypeStep, formAll_congr hi ha, form_congr hi ha]
+  simp only [deduceTemplate, hcall, defaultsStep_congr hi ha, hp, hk, nonDependentStep_congr _ _ hc, hf]
 
 /-! ## Erasure leaves lookup and constraints alone -/
 
