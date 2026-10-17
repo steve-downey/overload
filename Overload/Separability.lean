@@ -315,7 +315,7 @@ theorem separability_rank_precedence (r : Ranking Conv)
 /-- Three classes in a chain and two functions taking the lower two by
 value, the draft's example of [over.ics.rank]/4 without the pointers. -/
 def derivedChain : Program :=
-  [ .class "A", .class "B" ["A"], .class "C" ["B"]
+  [ .class "A", .class "B" [.named "A"], .class "C" [.named "B"]
   , .function "f" [.named "A"], .function "f" [.named "B"] ]
 
 /-- The ranking is live: on one call the program's ranking selects
@@ -335,7 +335,7 @@ theorem ranking_live :
 instance type derived from that, a generic `use(const T&)` and one that
 names the Applicative instance type concretely. -/
 def rankLeak : Program :=
-  [ .class "functor_i", .class "applicative_i" ["functor_i"], .class "monad_i" ["applicative_i"]
+  [ .class "functor_i", .class "applicative_i" [.named "functor_i"], .class "monad_i" [.named "applicative_i"]
   , .functionTemplate { name := "use", head := [{ kind := .type }], params := [.lref (.const (.param 0))] }
   , .function "use" [.lref (.const (.named "applicative_i"))] ]
 

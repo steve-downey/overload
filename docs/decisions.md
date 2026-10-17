@@ -208,7 +208,10 @@ operations from the Monad ones.
   superclass instance law-compatible with the canonical one. Two gaps
   remain before it can be settled. Deduction from a derived class (leak
   2) is not modelled, and neither is access to the protected base that
-  `derive_functor` uses. beman.transpose relates no two instance types
+  `derive_functor` uses. Update the same day: leak 2 is now modelled and
+  is a theorem (`derived_class_deduction`), and erasure asks that no
+  argument of a touched class be deduced from as a derived class. Access
+  to a protected base is the gap that remains. beman.transpose relates no two instance types
   by public inheritance: `derive_monad` grows only the Functor basis, and
   `as_functor` returns `derive_functor<M>`, which has `M` as a protected
   base.

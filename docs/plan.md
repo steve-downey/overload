@@ -326,9 +326,12 @@ Status, 15 October 2026:
   proves is that a retrieved Functor and the canonical one are different
   template arguments (`superclass_identity`), so agreement between them
   is a law on instance authors. Termination is vacuous for the library
-  today, since no instance requires another. Still to do: the
-  dispatch-styles theorem, and deduction from a derived class
-  ([temp.deduct.call]/4), without which leak 2 is outside the model.
+  today, since no instance requires another. Deduction from a derived
+  class ([temp.deduct.call]/4 and /5) is in the model, with bases that
+  may be class template specializations, and leak 2 is a theorem
+  (`derived_class_deduction`). Erasure therefore also asks that no
+  argument of a touched class be deduced from as a derived class. Still
+  to do: the dispatch-styles theorem.
 
 ## Target theorems
 
@@ -405,9 +408,11 @@ leaks are known:
 2. **Deduction from a derived class.** A function parameter of the form
    `functor_impl<F>` deduces from a class derived from it, and fails if more
    than one base matches ([temp.deduct.call]/4). A derived Applicative
-   silently matches Functor-shaped signatures. Not yet modelled: the
-   model's deduction has no derived-class case, so `inheritance_erasure`
-   does not cover it.
+   silently matches Functor-shaped signatures. Confirmed 17 October 2026
+   (`derived_class_deduction`, `leak_derived_deduction_*.cpp`): a Monad
+   instance type derived from `derive_functor<I>` matches a parameter
+   `const derive_functor<I>&`, and stops matching once the derivation is
+   replaced by composition.
 3. **Two paths to the superclass.** Slicing an Applicative to its base gives
    one Functor and lookup gives another. They agree only if the base is the
    canonical instance, and the explicit-instance routes do not force that.

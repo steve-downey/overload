@@ -10,7 +10,7 @@ open Overload
 private def A : Ty := .named "A"
 private def B : Ty := .named "B"
 private def C : Ty := .named "C"
-private def p : Program := [.class "A", .class "B" ["A"], .class "C" ["B"]]
+private def p : Program := [.class "A", .class "B" [.named "A"], .class "C" [.named "B"]]
 
 private def conv (a : CallArg) (t : Ty) : Option StdConv := p.ics a t
 
@@ -54,7 +54,7 @@ private def conv (a : CallArg) (t : Ty) : Option StdConv := p.ics a t
   | _, _ => false
 
 -- A cyclic hierarchy, which no program can declare, decides nothing.
-private def cyclic : Program := [.class "P" ["Q"], .class "Q" ["P"]]
+private def cyclic : Program := [.class "P" [.named "Q"], .class "Q" [.named "P"]]
 #guard match cyclic.ics { ty := .named "P" } (.named "Q"), cyclic.ics { ty := .named "P" } (.named "P") with
   | some s₁, some s₂ => !cyclic.better s₁ s₁ && (cyclic.better s₂ s₁ && !cyclic.better s₁ s₂)
   | _, _ => false

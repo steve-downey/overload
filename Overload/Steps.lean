@@ -51,6 +51,9 @@ structure Env where
   function template's default argument for one, so the answer is a
   `Subst`: a `hard` is a failure outside the immediate context. -/
   convertible : CallArg → Ty → Subst Bool
+  /-- The base classes of a class type, direct and indirect, for deduction
+  from a derived class. -/
+  bases : Bases := noBases
 
 /-- What deduction produces: the template's arguments and its substituted
 function type. -/
@@ -148,8 +151,9 @@ where
 /-- The substituted and adjusted function type is used for deduction from
 the arguments of the call. -/
 @[std rule "temp.deduct.general#5.sentence-1"]
-def callStep (params : List Ty) (args : List CallArg) (σ : Bindings) : Subst Bindings :=
-  match deduceCall (params.map (Ty.subst σ)) args σ with
+def callStep (env : Env) (params : List Ty) (args : List CallArg) (σ : Bindings) :
+    Subst Bindings :=
+  match deduceCall env.bases (params.map (Ty.subst σ)) args σ with
   | some σ' => .ok σ'
   | none => .soft "template argument deduction failed"
 
@@ -225,7 +229,7 @@ template arguments and the arguments of a call: the steps of
 def deduceTemplate (env : Env) (ft : FunctionTemplate) (explicit : List Ty) (args : List CallArg) :
     Subst Specialization :=
   explicitStep ft.head explicit
-    >>= callStep ft.params args
+    >>= callStep env ft.params args
     >>= defaultsStep env ft.head
     >>= parameterListStep env ft.head
     >>= constraintStep env ft.constraint
@@ -239,7 +243,7 @@ outcome of deduction: nothing that follows, constraints, convertibility or
 the function type, is reached. -/
 theorem defaults_hard_absorbing (env : Env) (ft : FunctionTemplate) (explicit : List Ty)
     (args : List CallArg) (σ : Bindings) (r : Reason)
-    (hc : (explicitStep ft.head explicit >>= callStep ft.params args) = .ok σ)
+    (hc : (explicitStep ft.head explicit >>= callStep env ft.params args) = .ok σ)
     (hd : defaultsStep env ft.head σ = .hard r) :
     deduceTemplate env ft explicit args = .hard r := by
   unfold deduceTemplate
@@ -251,7 +255,7 @@ constraints are checked after the defaults are substituted, so the
 outcome is the same hard error whatever the constraint is. -/
 theorem constraint_cannot_guard_default (env : Env) (ft : FunctionTemplate) (explicit : List Ty)
     (args : List CallArg) (σ : Bindings) (r : Reason) (c : Option Constraint)
-    (hc : (explicitStep ft.head explicit >>= callStep ft.params args) = .ok σ)
+    (hc : (explicitStep ft.head explicit >>= callStep env ft.params args) = .ok σ)
     (hd : defaultsStep env ft.head σ = .hard r) :
     deduceTemplate env { ft with constraint := c } explicit args = .hard r :=
   defaults_hard_absorbing env { ft with constraint := c } explicit args σ r hc hd
@@ -261,7 +265,7 @@ being substituted: the step order is what makes the draft's own example
 well-formed, since the return type would fail hard. -/
 theorem constraint_soft_shields_function_type (env : Env) (ft : FunctionTemplate)
     (explicit : List Ty) (args : List CallArg) (σ : Bindings) (r : Reason)
-    (hc : (explicitStep ft.head explicit >>= callStep ft.params args >>= defaultsStep env ft.head
+    (hc : (explicitStep ft.head explicit >>= callStep env ft.params args >>= defaultsStep env ft.head
       >>= parameterListStep env ft.head) = .ok σ)
     (hk : constraintStep env ft.constraint σ = .soft r) :
     deduceTemplate env ft explicit args = .soft r := by
@@ -276,13 +280,13 @@ fragment, so the first disjunct is there for the statement's shape. -/
 theorem deduceTemplate_hard_iff (env : Env) (ft : FunctionTemplate) (explicit : List Ty)
     (args : List CallArg) (r : Reason) :
     deduceTemplate env ft explicit args = .hard r ↔
-      (explicitStep ft.head explicit >>= callStep ft.params args) = .hard r ∨
-      ∃ σ, (explicitStep ft.head explicit >>= callStep ft.params args) = .ok σ ∧
+      (explicitStep ft.head explicit >>= callStep env ft.params args) = .hard r ∨
+      ∃ σ, (explicitStep ft.head explicit >>= callStep env ft.params args) = .ok σ ∧
         (defaultsStep env ft.head σ >>= parameterListStep env ft.head
           >>= constraintStep env ft.constraint >>= nonDependentStep env ft.params args
           >>= functionTypeStep env ft) = .hard r := by
   unfold deduceTemplate
-  generalize explicitStep ft.head explicit >>= callStep ft.params args = s
+  generalize explicitStep ft.head explicit >>= callStep env ft.params args = s
   cases s with
   | ok σ => simp
   | soft _ => simp

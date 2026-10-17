@@ -335,7 +335,8 @@ def Env.ofProgram (p : Program) (atomics : List (String × List Ty × Bool) := [
         match atomics.find? fun (e', args', _) => e' == e && args' == args with
         | some (_, _, b) => .ok b
         | none => .soft s!"unknown atomic constraint {e}"
-    convertible := fun a t => .ok (p.ics a t).isSome }
+    convertible := fun a t => .ok (p.ics a t).isSome
+    bases := p.allBases }
 
 /-- The operation object `fmap` of beman.transpose, for the typeclass
 `tc`: `template <class F, class T, const auto &TC =
@@ -386,9 +387,9 @@ theorem form_formed (env : Env) (t : Ty) (h : t.formed = true) : form env t = .o
 argument's type, as an lvalue reference for an lvalue. -/
 def forwarded (a : CallArg) : Ty := if a.lvalue then .lref a.ty else a.ty
 
-theorem fmapObject_call (tc : String) (f x : CallArg) (hf : f.ty.isType = true)
+theorem fmapObject_call (env : Env) (tc : String) (f x : CallArg) (hf : f.ty.isType = true)
     (hx : x.ty.isType = true) :
-    (explicitStep (fmapObject tc).head [] >>= callStep (fmapObject tc).params [f, x]) =
+    (explicitStep (fmapObject tc).head [] >>= callStep env (fmapObject tc).params [f, x]) =
       .ok [(1, forwarded x), (0, forwarded f)] := by
   have h0 : Ty.collapse (.rref (.param 0)) = .rref (.param 0) := rfl
   have h1 : Ty.collapse (.rref (.param 1)) = .rref (.param 1) := rfl
@@ -542,7 +543,7 @@ theorem fmapObject_deduce (hf : f.ty.isType = true) (hx : x.ty.isType = true)
         >>= nonDependentStep (Env.ofProgram p) (fmapObject tc).params [f, x]
         >>= functionTypeStep (Env.ofProgram p) (fmapObject tc)) := by
     simp only [deduceTemplate]
-    rw [fmapObject_call tc f x hf hx]
+    rw [fmapObject_call _ tc f x hf hx]
     simp only [Subst.bind_eq, Subst.bind_ok]
     rw [fmapObject_defaults tc f x _ hx hxF hxr hxd]
     cases (Env.ofProgram p).instantiate tc (key x) <;> rfl
@@ -692,7 +693,7 @@ theorem pinned_deduce (env : Env) (tc name o : String) (c : Ty) (x : CallArg)
     rfl
   have hform : form env (.lref (.const c)) = .ok (.lref (.const c)) :=
     form_formed env _ (by simp [Ty.formed, hcF, Ty.isRef] at *; exact hcr)
-  have hcall : callStep (pinTemplate tc name).params [x] [(1, .ref (.named o)), (0, c)] =
+  have hcall : callStep env (pinTemplate tc name).params [x] [(1, .ref (.named o)), (0, c)] =
       .ok [(1, .ref (.named o)), (0, c)] := by
     simp only [callStep, pinTemplate, List.map, hsub, deduceCall, deduceParam, Ty.dependent, hcd]
     rfl
@@ -719,9 +720,9 @@ def pinOutcome (tc name : String) (c : Ty) : Resolution Nat → Subst Specializa
   | .ambiguous _ => .hard s!"ambiguous partial specializations of {tc}<{repr c}>"
   | .illFormed r => .hard r
 
-theorem pin_call (tc name : String) (x : CallArg) (hx : x.ty.isType = true)
+theorem pin_call (env : Env) (tc name : String) (x : CallArg) (hx : x.ty.isType = true)
     (hk : x.ty.stripConst.isType = true) :
-    callStep (pinTemplate tc name).params [x] [] = .ok [(0, x.ty.stripConst)] := by
+    callStep env (pinTemplate tc name).params [x] [] = .ok [(0, x.ty.stripConst)] := by
   cases h : x.ty <;> simp_all [callStep, pinTemplate, deduceCall, deduceParam, adjustP, adjustA,
     isForwardingRef, Ty.isRef, Ty.referred, Ty.dependent, Ty.subst, Bindings.lookup, deduceTy,
     bindArg, Ty.stripConst, Ty.collapse] <;> rfl
@@ -775,7 +776,7 @@ theorem unpinned_deduce (p : Program) (tc name : String) (x : CallArg)
       | .noMatch => .ok (.named "std::false_type") := by
     simp only [Env.ofProgram, hsoft, hhard]
     split <;> simp
-  have hcall := pin_call tc name x hx (hc ▸ hk)
+  have hcall := pin_call (Env.ofProgram p) tc name x hx (hc ▸ hk)
   rw [hc] at hcall
   simp only [deduceTemplate, Subst.bind_eq]
   rw [show explicitStep (pinTemplate tc name).head [] = .ok [] from rfl, Subst.bind_ok, hcall,
@@ -804,9 +805,9 @@ def byValueObject (tc : String) : FunctionTemplate :=
     defaultArgs := 1
     constraint := some (.atomic "fmap_shape" [.param 2]) }
 
-theorem byValue_call_omitted (tc : String) (f x : CallArg) (hf : f.ty.isType = true)
+theorem byValue_call_omitted (env : Env) (tc : String) (f x : CallArg) (hf : f.ty.isType = true)
     (hx : x.ty.isType = true) :
-    (explicitStep (byValueObject tc).head [] >>= callStep (byValueObject tc).params [f, x]) =
+    (explicitStep (byValueObject tc).head [] >>= callStep env (byValueObject tc).params [f, x]) =
       .ok [(1, forwarded x), (0, forwarded f)] := by
   have h0 : Ty.collapse (.rref (.param 0)) = .rref (.param 0) := rfl
   have h1 : Ty.collapse (.rref (.param 1)) = .rref (.param 1) := rfl
@@ -915,7 +916,7 @@ theorem byValue_omitted_outcome (hf : f.ty.isType = true) (hx : x.ty.isType = tr
         >>= nonDependentStep (Env.ofProgram p) (byValueObject tc).params [f, x]
         >>= functionTypeStep (Env.ofProgram p) (byValueObject tc)) := by
     simp only [r, deduceTemplate]
-    rw [byValue_call_omitted tc f x hf hx]
+    rw [byValue_call_omitted _ tc f x hf hx]
     simp only [Subst.bind_eq, Subst.bind_ok]
     rw [byValue_defaults tc f x _ hx hxF hxr hxd]
     cases (Env.ofProgram p).instantiate tc x.ty.stripConst <;> rfl
@@ -954,9 +955,9 @@ theorem byValue_omitted_outcome (hf : f.ty.isType = true) (hx : x.ty.isType = tr
     rw [hr, hinst, hl]
     rfl
 
-theorem byValue_call_passed (hf : f.ty.isType = true) (hx : x.ty.isType = true) (pol : CallArg)
+theorem byValue_call_passed (env : Env) (hf : f.ty.isType = true) (hx : x.ty.isType = true) (pol : CallArg)
     (hk : pol.ty.stripConst.isType = true) :
-    (explicitStep (byValueObject tc).head [] >>= callStep (byValueObject tc).params [f, x, pol]) =
+    (explicitStep (byValueObject tc).head [] >>= callStep env (byValueObject tc).params [f, x, pol]) =
       .ok [(2, pol.ty.stripConst), (1, forwarded x), (0, forwarded f)] := by
   have h0 : Ty.collapse (.rref (.param 0)) = .rref (.param 0) := rfl
   have h1 : Ty.collapse (.rref (.param 1)) = .rref (.param 1) := rfl
@@ -986,7 +987,7 @@ theorem byValue_passed (hf : f.ty.isType = true) (hx : x.ty.isType = true)
   have hs := byValue_rest p tc f x hf hx hfF hxF hfr hxr pol.ty.stripConst hk hkF [f, x, pol]
   simp only [Subst.bind_eq] at hs
   simp only [deduceTemplate]
-  rw [byValue_call_passed tc f x hf hx pol hk]
+  rw [byValue_call_passed tc f x _ hf hx pol hk]
   simp only [Subst.bind_eq, Subst.bind_ok]
   rw [hdef, Subst.bind_ok]
   exact hs

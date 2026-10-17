@@ -367,23 +367,56 @@ reference deduces by its referred type, which keeps its qualifiers. -/
 def adjustP (p : Ty) : Ty :=
   if p.isRef then p.referred else p.stripConst
 
+/-- The base classes of a class type, direct and indirect, as the program
+declares them. Deduction needs them for the derived-class alternative. -/
+abbrev Bases := Ty → List Ty
+
+/-- No class has a base. -/
+def noBases : Bases := fun _ => []
+
+/-- Is the type a class template specialization, the form
+simple-template-id? -/
+def Ty.isSpec : Ty → Bool
+  | .spec _ _ => true
+  | _ => false
+
+/-- The derived-class alternative: when `P` is a class of the form
+simple-template-id, the transformed `A` can be a class derived from the
+deduced `A`. Each base of `A` that `P` matches is a possible deduced `A`,
+except a base of another possible one. More than one possible deduced `A`
+is a deduction failure ([temp.deduct.call]/5). -/
+@[std rule "temp.deduct.call#4"]
+def deduceFromBase (bases : Bases) (p a : Ty) (σ : Bindings) : Option Bindings :=
+  if !p.isSpec then none
+  else
+    let valid := (bases a).filter fun b => b.isSpec && (deduceTy p b σ).isSome
+    let nearest := valid.filter fun b => !(valid.any fun c => (bases c).contains b)
+    match nearest.eraseDups with
+    | [b] => deduceTy p b σ
+    | _ => none
+
 /-- Deduce from one function parameter and its argument. A parameter whose
 type does not participate in deduction (it is non-dependent) contributes
 nothing here; overload resolution checks it.
 
-When `P` is a reference, the deduced `A` may be more cv-qualified than the
-transformed `A` ([temp.deduct.call]/4), and that alternative is considered
-only if deduction would otherwise fail ([temp.deduct.call]/5): `const T&`
-against an `int` prvalue deduces `T` as `int` on the second attempt. -/
+Two alternatives are considered only if deduction would otherwise fail
+([temp.deduct.call]/5). When `P` is a reference, the deduced `A` may be
+more cv-qualified than the transformed `A`: `const T&` against an `int`
+prvalue deduces `T` as `int` on the second attempt. When `P` is a class
+template specialization, the transformed `A` may be derived from the
+deduced `A` (`deduceFromBase`). -/
 @[std rule "temp.deduct.call#5.sentence-1"]
-def deduceParam (p : Ty) (a : CallArg) (σ : Bindings) : Option Bindings :=
+def deduceParam (bases : Bases) (p : Ty) (a : CallArg) (σ : Bindings) : Option Bindings :=
   if !p.dependent then some σ
   else
     let p' := adjustP p
     let a' := adjustA p a
     match deduceTy p' a' σ with
     | some σ' => some σ'
-    | none => if p.isRef then deduceTy p'.stripConst a'.stripConst σ else none
+    | none =>
+      match (if p.isRef then deduceTy p'.stripConst a'.stripConst σ else none) with
+      | some σ' => some σ'
+      | none => deduceFromBase bases p'.stripConst a'.stripConst σ
 
 /-- Deduce every parameter of a call, left to right. A parameter for which
 the call has no argument, one whose default argument is being used, is a
@@ -392,9 +425,9 @@ with more arguments than parameters is not a deduction failure but a
 non-viable candidate, and here it fails, since nothing can be deduced for
 it. -/
 @[std rule "temp.deduct.call#1.sentence-1"]
-def deduceCall : List Ty → List CallArg → Bindings → Option Bindings
+def deduceCall (bases : Bases) : List Ty → List CallArg → Bindings → Option Bindings
   | _, [], σ => some σ
-  | p :: ps, a :: as, σ => deduceParam p a σ >>= deduceCall ps as
+  | p :: ps, a :: as, σ => deduceParam bases p a σ >>= deduceCall bases ps as
   | [], _ :: _, _ => none
 
 /-- After the call, every template parameter of the head must have a value:

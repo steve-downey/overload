@@ -44,28 +44,28 @@ private def U : Ty := .param 1
 
 -- Call-site adjustments: [temp.deduct.call]/2 and /3, the draft's example.
 private def constRef : List Ty := [.lref (.const T)]
-#guard deduceCall constRef [{ ty := int }] [] == some [(0, int)]
-#guard deduceCall constRef [{ ty := .const int, lvalue := true }] [] == some [(0, int)]
+#guard deduceCall noBases constRef [{ ty := int }] [] == some [(0, int)]
+#guard deduceCall noBases constRef [{ ty := .const int, lvalue := true }] [] == some [(0, int)]
 -- `template<class T> int f(T)` with a `const int` lvalue: top-level cv ignored.
-#guard deduceCall [T] [{ ty := .const int, lvalue := true }] [] == some [(0, int)]
+#guard deduceCall noBases [T] [{ ty := .const int, lvalue := true }] [] == some [(0, int)]
 -- Forwarding references.
-#guard deduceCall [.rref T] [{ ty := int, lvalue := true }] [] == some [(0, .lref int)]
-#guard deduceCall [.rref T] [{ ty := int }] [] == some [(0, int)]
+#guard deduceCall noBases [.rref T] [{ ty := int, lvalue := true }] [] == some [(0, .lref int)]
+#guard deduceCall noBases [.rref T] [{ ty := int }] [] == some [(0, int)]
 -- `const T&&` is not a forwarding reference: an lvalue `int` deduces `T` as
 -- `int` here, and the binding of an lvalue to `const int&&` is for overload
 -- resolution to reject.
-#guard deduceCall [.rref (.const T)] [{ ty := int, lvalue := true }] [] == some [(0, int)]
+#guard deduceCall noBases [.rref (.const T)] [{ ty := int, lvalue := true }] [] == some [(0, int)]
 -- `T&` with a `const int` lvalue deduces `T` as `const int`.
-#guard deduceCall [.lref T] [{ ty := .const int, lvalue := true }] [] == some [(0, .const int)]
+#guard deduceCall noBases [.lref T] [{ ty := .const int, lvalue := true }] [] == some [(0, .const int)]
 -- The more-cv-qualified alternative is for references only: `const T*`
 -- against `int*` fails.
-#guard deduceCall [.ptr (.const T)] [{ ty := .ptr int }] [] == none
+#guard deduceCall noBases [.ptr (.const T)] [{ ty := .ptr int }] [] == none
 -- A non-dependent parameter contributes nothing to deduction.
-#guard deduceCall [int, T] [{ ty := .named "long" }, { ty := int }] [] == some [(0, int)]
+#guard deduceCall noBases [int, T] [{ ty := .named "long" }, { ty := int }] [] == some [(0, int)]
 -- A parameter with no argument (its default argument is in use) is a
 -- non-deduced context; more arguments than parameters is not viable.
-#guard deduceCall [T] [] [] == some []
-#guard deduceCall [] [{ ty := int }] [] == none
+#guard deduceCall noBases [T] [] [] == some []
+#guard deduceCall noBases [] [{ ty := int }] [] == none
 
 -- Substitution after deduction collapses references.
 #guard Ty.subst [(0, .lref int)] (.rref T) == .lref int
