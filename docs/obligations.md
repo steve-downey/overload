@@ -7,10 +7,7 @@ predictions. This one says what the model found, and where the
 prediction failed. The classes are the plan's: by construction,
 compiler-checked, library-checkable, undiagnosable.
 
-Rows wait for their theorems. Superclass coherence and visible
-refinement need inheritance erasure, superclass coherence and
-sfinae-requires. Exact-type use has its counterexample but not yet the
-theorem it supports. Instance in the
+Rows wait for their theorems. Visible refinement needs sfinae-requires. Instance in the
 signature needs divergence-separation, phase 8.
 
 ## Harvested
@@ -27,5 +24,6 @@ signature needs divergence-separation, phase 8.
 | Instance identity: two uses with different instances are different specializations. | Typeclass author | instance in the type | By construction for pinning: a reference argument is the object it designates ([temp.type]/2). By construction for the type route, and for the value route up to value equivalence, which for empty instances is the type. Not for the by-value route once an instance has state, since only its type enters the specialization. The library passes stateful monoids by value. | Held for the template-parameter routes. The plan's structural-identity row assumed value parameters; the library uses references. |
 | Genuine instance: an object passed as an instance is meant as one. | User of explicit instances | `pinned_deduce`, `byValue_passed` | Library-checkable for shape on the by-value, value and type routes. Not checked for pinning, which has no constraint. Intent is convention on every route. | Held, except pinning checks no shape. |
 | Visibility and stable satisfaction: every instance is declared before any use, the same in every translation unit. | Instance author, everyone | `call_stability` | Undiagnosable. Not a hypothesis of any theorem yet: the model's environment consults every instance the program declares, wherever the call is, so the single translation unit assumption is built in ([single-tu](decisions.md#single-tu)). | Pending phase 8. |
-| Exact-type use: no signature names an instance type concretely, so every use takes an instance at its deduced exact type. | Author of an overload on instances, user of the library | inheritance erasure (owed); `rank_beats_refinement` shows the failure | Undiagnosable as a rule. Each overload is well-formed, and the call moves to the less refined overload without a diagnostic once one instance type derives from another (`leak_rank_derived`). | Held: leak 1 is live, as predicted. |
+| Exact-type use: every conversion a call forms meets a class whose derivation would be erased at that class's exact type. Naming no instance type in a signature is the practical rule. | Author of an overload on instances, user of the library | `inheritance_erasure`; `rank_beats_refinement` and `erasure_needs_exact_type` show the failure | Undiagnosable as a rule. Each overload is well-formed, and the call moves to the less refined overload without a diagnostic once one instance type derives from another (`leak_rank_derived`). | Held: leak 1 is live, as predicted. The hypothesis is about conversions, not signatures, because a parameter deduced from one argument can meet a derived class in another. |
+| Superclass coherence: a superclass instance retrieved from a stronger one behaves as the canonical instance where one exists. | Instance author | superclass coherence | Undiagnosable. The two are different template arguments (`superclass_identity`), so they can agree only in behaviour, which the model does not have. The library's `as_functor` deliberately does not consult the canonical lookup. | Held: a law, as predicted. |
 | Decreasing requirements. | Instance author | termination | Vacuous for the library: no instance requires another. | Not needed today. |

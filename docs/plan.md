@@ -316,13 +316,19 @@ Status, 15 October 2026:
   take explicit template arguments. The routes separate, but the type
   route does not protect a caller from an ambiguous canonical lookup, and
   the argument route cannot keep a default (`findings.md`). The
-  dispatch-styles theorem waits for the phase 5 ranking, which priority
-  tags need. The obligations harvested so far are in `obligations.md`,
-  with where each prediction held. Still to do: superclass retrieval,
-  inheritance erasure and superclass coherence, which need derived-to-base
-  conversion from phase 5, and the obligation rows that wait on them.
-  Termination is vacuous for the library today, since no instance
-  requires another.
+  obligations harvested so far are in `obligations.md`, with where each
+  prediction held. Inheritance erasure is proved in
+  `Overload/Inheritance.lean` (`inheritance_erasure`). Erasing the base
+  classes of a set of instance types changes no call that uses every
+  class erasure touches at its exact type. Outside that fragment it does
+  change outcomes (`erasure_needs_exact_type`). Superclass coherence
+  cannot be a theorem of the model, which has no behaviour. What the model
+  proves is that a retrieved Functor and the canonical one are different
+  template arguments (`superclass_identity`), so agreement between them
+  is a law on instance authors. Termination is vacuous for the library
+  today, since no instance requires another. Still to do: the
+  dispatch-styles theorem, and deduction from a derived class
+  ([temp.deduct.call]/4), without which leak 2 is outside the model.
 
 ## Target theorems
 
@@ -399,10 +405,14 @@ leaks are known:
 2. **Deduction from a derived class.** A function parameter of the form
    `functor_impl<F>` deduces from a class derived from it, and fails if more
    than one base matches ([temp.deduct.call]/4). A derived Applicative
-   silently matches Functor-shaped signatures.
+   silently matches Functor-shaped signatures. Not yet modelled: the
+   model's deduction has no derived-class case, so `inheritance_erasure`
+   does not cover it.
 3. **Two paths to the superclass.** Slicing an Applicative to its base gives
    one Functor and lookup gives another. They agree only if the base is the
    canonical instance, and the explicit-instance routes do not force that.
+   Recorded 17 October 2026: in the model the two are different template
+   arguments whatever their behaviour (`superclass_identity`).
 4. **Constant-parameter conversion.** Whether a derived instance is accepted
    for a base-typed constant template parameter is unchecked, and is a
    candidate for compiler disagreement. Settled 15 October 2026: accepted

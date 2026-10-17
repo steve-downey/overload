@@ -43,12 +43,12 @@ private def Sorted (i : Nat) (cs : List Candidate) : Prop :=
 
 private theorem sorted_cons {i : Nat} {c : Candidate} {rest : List Candidate}
     (hc : c.index = i) (h : Sorted (i + 1) rest) : Sorted i (c :: rest) := by
-  obtain ⟨hge, hpw⟩ := h
-  refine ⟨?_, List.pairwise_cons.mpr ⟨fun c' hc' => by have := hge c' hc'; omega, hpw⟩⟩
+  obtain ⟨hlow, hpw⟩ := h
+  refine ⟨?_, List.pairwise_cons.mpr ⟨fun c' hc' => by have := hlow c' hc'; omega, hpw⟩⟩
   intro c' hc'
   rcases List.mem_cons.mp hc' with rfl | hc'
   · omega
-  · have := hge c' hc'; omega
+  · have := hlow c' hc'; omega
 
 private theorem sorted_skip {i : Nat} {cs : List Candidate} (h : Sorted (i + 1) cs) :
     Sorted i cs :=
