@@ -10,7 +10,8 @@ typeclass encoding in [bemanproject/typeclass](https://github.com/bemanproject/t
 Read `docs/plan.md` first: it is the charter, with phases, target theorems,
 suspects and obligations. `docs/decisions.md` is the decision log; every
 `@[assumed "..."]` tag names an entry there. `docs/findings.md` collects what
-the work has turned up. Do not restate those documents elsewhere; link to
+the work has turned up, and `docs/obligations.md` the obligations harvested
+from the theorems. Do not restate those documents elsewhere; link to
 them.
 
 ## Two sides, one Makefile

@@ -302,9 +302,12 @@ Status, 15 October 2026:
   route does not protect a caller from an ambiguous canonical lookup, and
   the argument route cannot keep a default (`findings.md`). The
   dispatch-styles theorem waits for the phase 5 ranking, which priority
-  tags need. Still to do: superclass retrieval, inheritance
-  erasure, superclass coherence, and the obligations table. Termination
-  is vacuous for the library today, since no instance requires another.
+  tags need. The obligations harvested so far are in `obligations.md`,
+  with where each prediction held. Still to do: superclass retrieval,
+  inheritance erasure and superclass coherence, which need derived-to-base
+  conversion from phase 5, and the obligation rows that wait on them.
+  Termination is vacuous for the library today, since no instance
+  requires another.
 
 ## Target theorems
 
@@ -419,7 +422,8 @@ Each obligation is classified by how it is discharged:
   only convention or tooling stands behind it.
 
 The rows below are the candidates expected to fall out. The last column is
-a prediction for the model to confirm or correct.
+a prediction for the model to confirm or correct. The harvest, with what
+the model found, is in [obligations.md](obligations.md).
 
 | Obligation | Owed by | Needed for | Expected discharge |
 |---|---|---|---|
