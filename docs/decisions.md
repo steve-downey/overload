@@ -185,7 +185,7 @@ inheritance?
 implementer can make, and the model treats it as one. The work is to find
 the problems it causes and say, for each, whether it is a matter of
 education, an obligation on someone, or a bug to fix.
-**Why:** The point of the work is to state what a typeclass implementor
+**Why:** The point of the work is to state what a typeclass implementer
 owes. Forbidding inheritance would only be worth it if it were harmful, and
 it would then need a technical means of enforcement, which is unlikely to
 exist. So it is allowed, and its consequences are harvested as obligations
