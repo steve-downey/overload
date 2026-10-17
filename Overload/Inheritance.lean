@@ -351,6 +351,9 @@ theorem atomic_erase (p : Program) (I : List String) (atomics : List (String × 
     (Env.ofProgram (p.eraseBases I) atomics).atomic = (Env.ofProgram p atomics).atomic := by
   funext e args
   simp only [Env.ofProgram, selectInstance_erase]
+  split <;> try rfl
+  rename_i c a
+  rw [any_erase p I _ (fun _ _ _ => rfl)]
 
 /-! ## Conversions at exact type do not see erasure -/
 

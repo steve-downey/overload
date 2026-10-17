@@ -10,6 +10,7 @@ import Overload.Separability
 import Overload.Inheritance
 import Overload.Mandates
 import Overload.Sfinae
+import Overload.Dispatch
 
 /-!
 # The C++ emitter
@@ -153,7 +154,10 @@ def constraint : Constraint → String
     s!"(!std::is_same_v<std::remove_cvref_t<decltype({c}<{ty a}>)>, std::false_type>)"
   | .atomic "fmap_call" [tc, f, x] =>
     s!"requires \{ {ty tc}.fmap(std::declval<{ty f}>(), std::declval<{ty x}>()); }"
-  | .atomic e m => s!"{e}<{String.intercalate ", " (m.map ty)}>"
+  | .atomic "lookup_formed" [.named c, a] => s!"(sizeof(decltype({c}<{ty a}>)) > 0)"
+  | .atomic e m =>
+    if e.startsWith "!" then s!"(!{e.drop 1}<{String.intercalate ", " (m.map ty)}>)"
+    else s!"{e}<{String.intercalate ", " (m.map ty)}>"
   | .conj l r => s!"({constraint l} && {constraint r})"
   | .disj l r => s!"({constraint l} || {constraint r})"
 
@@ -1361,6 +1365,109 @@ def sfinaeEnableIfUnshielded : Case :=
     source := "computed by invoke"
     atomics := shieldAtomics }
 
+/-! ### dispatch-styles -/
+
+/-- The if-constexpr encoding as C++: one template whose body tests the
+conditions in order, branch `i` returning `selected<i>`, and ending in a
+`static_assert` when no branch is taken. The return type is deduced, so
+naming the call's type instantiates the body. -/
+def ifConstexprCpp (conds : List Constraint) : String :=
+  let branches := conds.zipIdx.map fun (c, i) =>
+    s!"if constexpr ({constraint c}) return selected<{i}>\{};"
+  "template <class T0>\nauto g(T0) {\n    " ++ String.intercalate "\n    else " branches ++
+    "\n    else static_assert(sizeof(T0) == 0, \"no branch is taken\");\n}\n"
+
+/-- An if-constexpr case, its expectation computed by `ifConstexpr`. -/
+def ifConstexprCase (name : String) (p : Program) (atomics : List (String × List Ty × Bool))
+    (conds : List Constraint) : Case :=
+  let call := "decltype(g(std::declval<X>()))"
+  match ifConstexprBranch p atomics conds with
+  | .ok i =>
+    { name, cite := cite "stmt.if#2.sentence-2", program := p, atomics
+      query := .raw (ifConstexprCpp conds ++ s!"static_assert(std::is_same_v<{call}, selected<{i}>>);\n")
+      source := "computed by ifConstexpr" }
+  | _ =>
+    { name, cite := cite "stmt.if#2.sentence-2", program := p, atomics
+      query := .raw (ifConstexprCpp conds ++ s!"using probe = {call};\n") (wellFormed := false)
+      source := "computed by ifConstexpr" }
+
+private def dispatchOne : List Bool := [false, true, true]
+private def dispatchNone : List Bool := [false, false, false]
+private def dispatchFirst : List Bool := [true, false, false]
+private def condList : List Constraint := [cond 0, cond 1, cond 2]
+
+/-- Exclusion selects the first condition that holds. -/
+def dispatchExclusionOne : Case :=
+  { name := "dispatch_exclusion_first_true"
+    cite := cite "temp.constr.op#2"
+    program := exclusionProgram dispatchOne
+    query := .call "g" [{ ty := .named "X" }] (.selected 1)
+    source := "computed by invoke"
+    atomics := condAtomics dispatchOne }
+
+/-- So do priority tags. -/
+def dispatchTagsOne : Case :=
+  { name := "dispatch_tags_first_true"
+    cite := cite "over.ics.rank#4"
+    program := tagsProgram dispatchOne
+    query := .call "g" [{ ty := .named "X" }, { ty := .named "rank2" }] (.selected 1)
+    source := "computed by invoke"
+    atomics := condAtomics dispatchOne }
+
+/-- So does the if-constexpr chain. -/
+def dispatchIfConstexprOne : Case :=
+  ifConstexprCase "dispatch_if_constexpr_first_true" ((exclusionProgram dispatchOne).take 4)
+    (condAtomics dispatchOne) condList
+
+/-- With no condition holding, exclusion leaves the call not viable. -/
+def dispatchExclusionNone : Case :=
+  { name := "dispatch_exclusion_none"
+    cite := cite "over.match.viable#3.sentence-1"
+    program := exclusionProgram dispatchNone
+    query := .call "g" [{ ty := .named "X" }] .noMatch
+    source := "computed by invoke"
+    atomics := condAtomics dispatchNone }
+
+/-- So do priority tags. -/
+def dispatchTagsNone : Case :=
+  { name := "dispatch_tags_none"
+    cite := cite "over.match.viable#3.sentence-1"
+    program := tagsProgram dispatchNone
+    query := .call "g" [{ ty := .named "X" }, { ty := .named "rank2" }] .noMatch
+    source := "computed by invoke"
+    atomics := condAtomics dispatchNone }
+
+/-- The if-constexpr chain is ill-formed. -/
+def dispatchIfConstexprNone : Case :=
+  ifConstexprCase "dispatch_if_constexpr_none" ((exclusionProgram dispatchNone).take 4)
+    (condAtomics dispatchNone) condList
+
+/-- A last condition that fails hard when checked: exclusion never checks
+it. -/
+def dispatchExclusionHard : Case :=
+  { name := "dispatch_exclusion_hard_last"
+    cite := cite "temp.constr.op#2"
+    program := .lookupHard "functor" :: exclusionProgram dispatchFirst hardLast
+    query := .call "g" [{ ty := .named "X" }] (.selected 0)
+    source := "computed by invoke"
+    atomics := condAtomics dispatchFirst }
+
+/-- Priority tags check it, and the call is ill-formed. -/
+def dispatchTagsHard : Case :=
+  { name := "dispatch_tags_hard_last"
+    cite := cite "temp.constr.atomic#3.sentence-2"
+    program := .lookupHard "functor" :: tagsProgram dispatchFirst hardLast
+    query := .call "g" [{ ty := .named "X" }, { ty := .named "rank2" }]
+      (.illFormed "static_assert in the primary functor<X>")
+    source := "computed by invoke"
+    atomics := condAtomics dispatchFirst }
+
+/-- The if-constexpr chain never checks it. -/
+def dispatchIfConstexprHard : Case :=
+  ifConstexprCase "dispatch_if_constexpr_hard_last"
+    ((exclusionProgram dispatchFirst).take 4 ++ [.lookupHard "functor"])
+    (condAtomics dispatchFirst) [cond 0, cond 1, hardLast]
+
 /-- Every case the emitter writes. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -1385,7 +1492,10 @@ def cases : List Case :=
   , deduceFromDerived, deduceFromTwoBases, leakDerivedInherited, leakDerivedComposed
   , mandateMet, mandateUnmet, mandateNoFallback, promotedFallsBack, promotionBefore, promotionAfter
   , sfinaeRequiresOrdered, sfinaeEnableIfUnordered, sfinaeEnableIfViable, sfinaeEnableIfNotViable
-  , sfinaeRequiresShields, sfinaeEnableIfUnshielded ]
+  , sfinaeRequiresShields, sfinaeEnableIfUnshielded
+  , dispatchExclusionOne, dispatchTagsOne, dispatchIfConstexprOne
+  , dispatchExclusionNone, dispatchTagsNone, dispatchIfConstexprNone
+  , dispatchExclusionHard, dispatchTagsHard, dispatchIfConstexprHard ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=

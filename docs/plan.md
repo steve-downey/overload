@@ -255,13 +255,19 @@ Status, 15 October 2026:
   is still live, since it decides which candidate wins (`ranking_live`),
   and leak 1 of instance inheritance is a theorem
   (`rank_beats_refinement`). Eleven emitted cases cover ranking, priority
-  tags and the leak, and every compiler agrees. Still owed from the
-  phase 5 targets: dispatch-styles. sfinae-requires is in
+  tags and the leak, and every compiler agrees. sfinae-requires is in
   `Overload/Sfinae.lean` for `enable_if` in a trailing return type: the
   same viable set (`sfinae_requires`), the same resolution where ordering
   does not change (`sfinae_requires_resolve`), and the two places they
   differ, subsumption (`sfinae_loses_subsumption`) and step order
-  (`sfinae_unshielded`).
+  (`sfinae_unshielded`). dispatch-styles is in `Overload/Dispatch.lean`,
+  checked over the eight valuations of three conditions rather than
+  proved for every length (`dispatch_styles`). Exclusion, priority tags
+  and the if-constexpr chain select the first condition that holds. With
+  none, the first two leave the call not viable and the chain is
+  ill-formed. They also differ in which conditions are checked: priority
+  tags check every overload's, so a later condition that fails hard
+  makes the call ill-formed (`dispatch_hard_condition`).
 - Phase 4 is closed, with one proof target left open.
   `Overload/Ordering.lean` has the transformed template, deduction for
   partial ordering with the reference tie-breaks of
@@ -341,8 +347,8 @@ Status, 15 October 2026:
   class ([temp.deduct.call]/4 and /5) is in the model, with bases that
   may be class template specializations, and leak 2 is a theorem
   (`derived_class_deduction`). Erasure therefore also asks that no
-  argument of a touched class be deduced from as a derived class. Still
-  to do: the dispatch-styles theorem.
+  argument of a touched class be deduced from as a derived class. The
+  dispatch-styles check is under phase 5.
 
 ## Target theorems
 
@@ -363,7 +369,7 @@ its counterexample and is a finding, not a setback.
 | superclass-coherence | The Functor derived from a stronger instance, such as `derive_functor<M>`, behaves as the canonical Functor instance where one exists. This is extensional equality of the operations, since the two are different types and so different template arguments. | 6 |
 | termination | Lookup terminates under the restriction chosen in termination-condition. | 6 |
 | divergence-separation | If two translation units resolve an instance differently, every function whose behaviour depends on that instance has a different identity in the two units. Expected to hold when the instance is a template argument of the function, and to fail when lookup happens inside a body. | 8 |
-| dispatch-styles | For one ordered candidate list, the constraint-exclusion, if-constexpr and priority-tag encodings select the same candidate. Expected to differ only in whether having no candidate is a soft or a hard failure. | 5, 6 |
+| dispatch-styles | For one ordered candidate list, the constraint-exclusion, if-constexpr and priority-tag encodings select the same candidate. They differ in whether having no candidate is a soft or a hard failure, and in which conditions are checked: priority tags check all of them. Restated 17 October 2026 (`findings.md`). | 5, 6 |
 
 Stability is the theorem that says open polymorphism has no surprises. Its
 hypotheses are expected to include soft failure of a missing instance and
