@@ -82,9 +82,9 @@ in `differential/known-disagreements.txt` so CI stays green. Never settle a
 disagreement by majority.
 
 A deduction case's expectation must be what `deduceTemplate` computes and
-a call case's what `invoke` computes under `Mode.text` with the
-program's ranking, `Program.ranking`: resolution, then the selected
-function's Mandates (`OverloadTest/Emit.lean` checks both); a raw case states
+a call case's what `Program.call` computes under `Mode.text` with the
+program's ranking: resolution, the access check on the selected
+function's conversions, then its Mandates (`OverloadTest/Emit.lean` checks both); a raw case states
 its expectation by hand and says so in its `source` field. `Mode.p3606` is
 the switch of `decisions.md#p3606-mode`; the compilers are what they are,
 so an emitted case always states the text's expectation.

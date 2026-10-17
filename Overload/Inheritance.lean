@@ -36,7 +36,7 @@ namespace Overload
 its definition and loses its base classes. -/
 def Program.eraseBases (p : Program) (I : List String) : Program :=
   p.map fun
-    | .class n bs => .class n (if I.contains n then [] else bs)
+    | .class n bs ps => .class n (if I.contains n then [] else bs) (if I.contains n then [] else ps)
     | d => d
 
 /-- Is the type a class whose bases erasing `I` removes? -/
@@ -64,7 +64,7 @@ theorem directBases_erase (p : Program) (I : List String) (d : Ty)
     congr 2
     funext decl
     cases decl with
-    | «class» n bs =>
+    | «class» n bs ps =>
       simp only [Function.comp]
       by_cases h : n = d
       · subst h
@@ -331,21 +331,21 @@ theorem selectInstance_erase (p : Program) (I : List String) (tc : String) (a : 
   simp only [Program.selectInstance, instancesOf_erase]
 
 theorem any_erase (p : Program) (I : List String) (f : Decl → Bool)
-    (hf : ∀ n bs bs', f (.class n bs) = f (.class n bs')) :
+    (hf : ∀ n bs ps bs' ps', f (.class n bs ps) = f (.class n bs' ps')) :
     (p.eraseBases I).any f = p.any f := by
   unfold Program.eraseBases
   rw [List.any_map]
   apply any_congr_mem
   intro d _
   cases d with
-  | «class» n bs => exact hf n _ bs
+  | «class» n bs ps => exact hf n _ _ bs ps
   | _ => rfl
 
 theorem instantiate_erase (p : Program) (I : List String) (atomics : List (String × List Ty × Bool)) :
     (Env.ofProgram (p.eraseBases I) atomics).instantiate = (Env.ofProgram p atomics).instantiate := by
   funext n a
   simp only [Env.ofProgram, selectInstance_erase]
-  rw [any_erase p I _ (fun _ _ _ => rfl), any_erase p I _ (fun _ _ _ => rfl)]
+  rw [any_erase p I _ (fun _ _ _ _ _ => rfl), any_erase p I _ (fun _ _ _ _ _ => rfl)]
 
 theorem atomic_erase (p : Program) (I : List String) (atomics : List (String × List Ty × Bool)) :
     (Env.ofProgram (p.eraseBases I) atomics).atomic = (Env.ofProgram p atomics).atomic := by
@@ -353,7 +353,7 @@ theorem atomic_erase (p : Program) (I : List String) (atomics : List (String × 
   simp only [Env.ofProgram, selectInstance_erase]
   split <;> try rfl
   rename_i c a
-  rw [any_erase p I _ (fun _ _ _ => rfl)]
+  rw [any_erase p I _ (fun _ _ _ _ _ => rfl)]
 
 /-! ## Conversions at exact type do not see erasure -/
 

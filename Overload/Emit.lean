@@ -11,6 +11,7 @@ import Overload.Inheritance
 import Overload.Mandates
 import Overload.Sfinae
 import Overload.Dispatch
+import Overload.Access
 
 /-!
 # The C++ emitter
@@ -258,9 +259,10 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String) : St
   let mut instances : List (String × Nat) := []
   for d in p do
     match d with
-    | .class n [] => out := out ++ s!"struct {n} \{};\n"
-    | .class n bases =>
-      out := out ++ s!"struct {n} : {String.intercalate ", " (bases.map (s!"public {ty ·}"))} \{};\n"
+    | .class n [] [] => out := out ++ s!"struct {n} \{};\n"
+    | .class n bases prot =>
+      let specs := bases.map (s!"public {ty ·}") ++ prot.map (s!"protected {ty ·}")
+      out := out ++ s!"struct {n} : {String.intercalate ", " specs} \{};\n"
     | .classTemplate n h => out := out ++ s!"{head h}\nstruct {n} \{};\n"
     | .function n ps =>
       if n = callee then
@@ -1469,6 +1471,37 @@ def dispatchIfConstexprHard : Case :=
     ((exclusionProgram dispatchFirst).take 4 ++ [.lookupHard "functor"])
     (condAtomics dispatchFirst) [cond 0, cond 1, hardLast]
 
+/-! ### Access to a base class -/
+
+/-- Resolution ignores access, so the function naming the protected
+implementation is selected, and the call is ill-formed. -/
+def protectedBaseSelected : Case :=
+  { name := "access_protected_base_selected"
+    cite := cite "conv.ptr#3.sentence-2"
+    program := protectedProgram
+    query := .call "use" [{ ty := .named "map", lvalue := true }]
+      (.illFormed "conversion to an inaccessible base class")
+    source := "computed by Program.call" }
+
+/-- Deduction from a derived class goes through the protected base, and
+the selected call is ill-formed. -/
+def protectedBaseDeduced : Case :=
+  { name := "access_protected_base_deduced"
+    cite := cite "temp.deduct.call#4"
+    program := protectedTemplateProgram
+    query := .call "use" [{ ty := .named "int_map", lvalue := true }]
+      (.illFormed "conversion to an inaccessible base class")
+    source := "computed by Program.call" }
+
+/-- With the base public, the same call is well-formed. -/
+def publicBaseSelected : Case :=
+  { name := "access_public_base_selected"
+    cite := cite "class.access.base#4"
+    program := [ .class "impl", .class "derive_impl" [.named "impl"], .class "map" [.named "derive_impl"]
+      , .function "use" [.lref (.const (.named "impl"))] ]
+    query := .call "use" [{ ty := .named "map", lvalue := true }] (.selected 0)
+    source := "computed by Program.call" }
+
 /-- Every case the emitter writes. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -1496,7 +1529,8 @@ def cases : List Case :=
   , sfinaeRequiresShields, sfinaeEnableIfUnshielded
   , dispatchExclusionOne, dispatchTagsOne, dispatchIfConstexprOne
   , dispatchExclusionNone, dispatchTagsNone, dispatchIfConstexprNone
-  , dispatchExclusionHard, dispatchTagsHard, dispatchIfConstexprHard ]
+  , dispatchExclusionHard, dispatchTagsHard, dispatchIfConstexprHard
+  , protectedBaseSelected, protectedBaseDeduced, publicBaseSelected ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=
@@ -1518,14 +1552,14 @@ def computed (c : Case) : Option (Option (List (ParamIdx × Ty))) :=
     | none => none
   | _ => none
 
-/-- For a call case, what the model computes for the evaluated call under
-the text, resolution and then the selected function's Mandates, as
-candidate indices; `none` when the case is not a call case. -/
+/-- For a call case, what the model computes for the call under the text:
+resolution, the access check on the selected function's conversions, and
+the selected function's Mandates, as candidate indices; `none` when the
+case is not a call case. -/
 def computedCall (c : Case) : Option (Resolution Nat) :=
   match c.query with
   | .call callee as _ explicit =>
-    some ((invoke .text (Env.ofProgram c.program c.atomics) c.program.ranking
-      (decls := c.program.candidates callee) (args := as) (explicit := explicit)).map (·.index))
+    some ((c.program.call c.atomics (c.program.candidates callee) as explicit).map (·.index))
   | _ => none
 
 /-- For a lookup case, what the model computes. -/
