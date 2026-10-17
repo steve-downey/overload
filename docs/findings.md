@@ -182,6 +182,13 @@ and described here as they arrive.
   searched over every triple of single-parameter templates drawn from 18
   parameter shapes, 5832 triples, with no counterexample
   (`OverloadTest/Ordering.lean`); a proof is still owed.
+  Update, 17 October 2026: proved for templates of type parameters whose
+  parameter types have no reference, with any number of parameters
+  (`moreSpecialized_trans`). Ten of the eighteen searched shapes are in
+  that fragment. The proof needed the synthesized types to be a
+  constructor of their own, `Ty.synth`, so that a match against them can
+  be undone. With names, as before, undoing it would have meant parsing
+  the name. The reference shapes are still evidence only.
 - **The draft's step-order example reproduces, and shows why the order
   matters** (16 October 2026). In the second example of
   [temp.deduct.general]/5, `f(zz, 42)` fails deduction for #1 because

@@ -37,9 +37,9 @@ namespace PartialOrdering
 
 /-! ## The transformed template -/
 
-/-- The unique type synthesized for the type template parameter `i`. The
-name cannot be spelled in C++, so it collides with nothing. -/
-def synthType (i : ParamIdx) : Ty := .named s!"#U{i}"
+/-- The unique type synthesized for the type template parameter `i`. It
+is `Ty.synth`, which no program can spell, so it collides with nothing. -/
+def synthType (i : ParamIdx) : Ty := .synth i
 
 /-- The unique value synthesized for the constant template parameter `i`:
 a class value of a type no program names. -/
@@ -111,7 +111,7 @@ def denies (p a : Ty) : Bool := (deducePair p a []).2
 /-- The template parameters a list of types uses, a parameter in a
 non-deduced context counting as used. -/
 def usedParams : Ty → List ParamIdx
-  | .named _ | .nil => []
+  | .named _ | .nil | .synth _ => []
   | .param i => [i]
   | .const t | .ptr t | .lref t | .rref t | .nondeduced t | .lookup _ t | .spec _ t | .ref t
   | .removeCvref t | .typeOf t => usedParams t

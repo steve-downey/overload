@@ -171,3 +171,11 @@ def transitivityCounterexamples : List (Ty × Ty × Ty) :=
 -- 18 shapes, 5832 triples, no counterexample on 16 October 2026.
 #guard shapes.length == 18
 #guard transitivityCounterexamples.isEmpty
+
+-- `moreSpecialized_trans` proves transitivity for the shapes that are
+-- plain, those without a reference; the search still covers the rest.
+#guard (shapes.filter Ty.plain).length == 10
+example : Simple (ft [.ptr (.const T)]) where
+  types := by simp [ft, typeParam]
+  plain := by simp [ft, Ty.plain, T]
+  inScope := by simp [ft, usedParams, T]

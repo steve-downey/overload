@@ -86,6 +86,7 @@ parameters is formed as far as it goes. -/
 @[std rule "temp.deduct.general#8.sentence-3"]
 def form (env : Env) : Ty → Subst Ty
   | .named n => .ok (.named n)
+  | .synth i => .ok (.synth i)
   | .param i => .ok (.param i)
   | .const t => do return formConst (← form env t)
   | .ptr t => do formPtr (← form env t)

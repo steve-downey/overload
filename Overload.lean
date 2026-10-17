@@ -9,6 +9,7 @@ import Overload.Constraint
 import Overload.Program
 import Overload.Steps
 import Overload.Ordering
+import Overload.Transitivity
 import Overload.Typeclass
 import Overload.Resolution
 import Overload.Ranking
@@ -105,3 +106,8 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.dispatch_hard_condition
 #audit Overload.deduceTy_subst
 #audit Overload.deduceTy_most_general
+#audit Overload.PartialOrdering.moreSpecialized_trans
+#audit Overload.PartialOrdering.moreSpecialized_trans_of
+#audit Overload.PartialOrdering.atLeastAsSpecialized_trans
+#audit Overload.PartialOrdering.tieBreakApplies_trans
+#audit Overload.Constraint.moreConstrained_trans
