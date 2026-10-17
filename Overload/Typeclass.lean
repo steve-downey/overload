@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 import Overload.Program
 import Overload.Ordering
-import Overload.Resolution
+import Overload.Ranking
 
 /-!
 # The typeclass encoding: canonical lookup
@@ -309,8 +309,8 @@ def fmapShape (t : Ty) : Bool :=
 soft, with their instances; `has_instance` and the case's atomic table
 and the operation object's call through its instance, `fmap_call`, as
 the atomic constraints, with the case's table for any other; and
-convertibility as identity up to top-level
-cv and references. -/
+convertibility as the existence of an implicit conversion sequence under
+the program's ranking (`Program.ics`). -/
 def Env.ofProgram (p : Program) (atomics : List (String × List Ty × Bool) := []) : Env :=
   { instantiate := fun n a =>
       let hard := p.any fun | .lookupHard c => c = n | _ => false
@@ -335,7 +335,7 @@ def Env.ofProgram (p : Program) (atomics : List (String × List Ty × Bool) := [
         match atomics.find? fun (e', args', _) => e' == e && args' == args with
         | some (_, _, b) => .ok b
         | none => .soft s!"unknown atomic constraint {e}"
-    convertible := fun a t => .ok (a.ty.referred.stripConst == t.referred.stripConst) }
+    convertible := fun a t => .ok (p.ics a t).isSome }
 
 /-- The operation object `fmap` of beman.transpose, for the typeclass
 `tc`: `template <class F, class T, const auto &TC =

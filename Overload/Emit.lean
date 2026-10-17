@@ -6,6 +6,7 @@ import Overload.Steps
 import Overload.Resolution
 import Overload.Ordering
 import Overload.Typeclass
+import Overload.Separability
 
 /-!
 # The C++ emitter
@@ -994,6 +995,131 @@ def routesArgumentDefaultAmbiguous : Case :=
     query := .call "fmap" [fn, { ty := .spec' "box" [int] }] (.ambiguous [0, 1])
     source := "computed by resolve" }
 
+/-! ### Ranking conversion sequences
+
+Computed with the program's ranking (`Program.ranking`): the identity
+conversion, the derived-to-base conversion and direct reference
+binding. -/
+
+private def A : Ty := .named "A"
+private def B : Ty := .named "B"
+private def C : Ty := .named "C"
+private def X : Ty := .named "X"
+private def chain : Program := [.class "A", .class "B" ["A"], .class "C" ["B"]]
+
+/-- `C` to `B` is better than `C` to `A`, by value: the draft's example in
+[over.ics.rank]/4 without the pointers. -/
+def rankDerivedToBase : Case :=
+  { name := "over_ics_rank_derived_to_base"
+    cite := cite "over.ics.rank#4"
+    program := chain ++ [.function "f" [A], .function "f" [B]]
+    query := .call "f" [{ ty := C }] (.selected 1)
+    source := "computed by resolve" }
+
+/-- Binding `B&` to an lvalue `B` is an exact match, and binding `A&` is a
+derived-to-base conversion: the draft's example in [over.ics.ref]/1. -/
+def rankReferenceExact : Case :=
+  { name := "over_ics_ref_exact_over_derived"
+    cite := cite "over.ics.ref#1"
+    program := chain ++ [.function "f" [.lref A], .function "f" [.lref B]]
+    query := .call "f" [{ ty := B, lvalue := true }] (.selected 1)
+    source := "computed by resolve" }
+
+/-- An rvalue reference bound to an rvalue beats an lvalue reference:
+`g(const X&&)` for an rvalue. -/
+def rankRvalueBinding : Case :=
+  { name := "over_ics_rank_rvalue_binding"
+    cite := cite "over.ics.rank#3"
+    program := [.class "X", .function "g" [.lref (.const X)], .function "g" [.rref (.const X)]]
+    query := .call "g" [{ ty := X }] (.selected 1)
+    source := "computed by resolve" }
+
+/-- The same pair for an lvalue: the rvalue reference cannot bind. -/
+def rankLvalueBinding : Case :=
+  { name := "over_ics_rank_lvalue_binding"
+    cite := cite "over.ics.ref#3.sentence-1"
+    program := [.class "X", .function "g" [.lref (.const X)], .function "g" [.rref (.const X)]]
+    query := .call "g" [{ ty := X, lvalue := true }] (.selected 0)
+    source := "computed by resolve" }
+
+/-- `f(X&)` beats `f(const X&)` for a non-const lvalue: the less
+qualified reference wins. -/
+def rankQualification : Case :=
+  { name := "over_ics_rank_qualification"
+    cite := cite "over.ics.rank#3"
+    program := [.class "X", .function "f" [.lref (.const X)], .function "f" [.lref X]]
+    query := .call "f" [{ ty := X, lvalue := true }] (.selected 1)
+    source := "computed by resolve" }
+
+/-- `g(const X&)` and `g(X)` are indistinguishable for an lvalue: the
+draft's `int k = g(i); // ambiguous`. -/
+def rankValueReferenceAmbiguous : Case :=
+  { name := "over_ics_rank_value_reference_ambiguous"
+    cite := cite "over.ics.rank#3"
+    program := [.class "X", .function "g" [.lref (.const X)], .function "g" [X]]
+    query := .call "g" [{ ty := X, lvalue := true }] (.ambiguous [0, 1])
+    source := "computed by resolve" }
+
+private def rank0 : Ty := .named "rank0"
+private def rank1 : Ty := .named "rank1"
+private def rank2 : Ty := .named "rank2"
+private def tags : Program := [.class "rank0", .class "rank1" ["rank0"], .class "rank2" ["rank1"]]
+
+/-- Priority tags: each tag derives from the one below, and the overload
+for the nearest base wins. -/
+def priorityTagNearest : Case :=
+  { name := "priority_tag_nearest"
+    cite := cite "over.ics.rank#4"
+    program := tags ++ [.function "f" [rank0], .function "f" [rank1]]
+    query := .call "f" [{ ty := rank2 }] (.selected 1)
+    source := "computed by resolve" }
+
+/-- Priority-tag dispatch over templates: a constrained overload at the
+higher tag, and a fallback at the lower, which is a non-dependent
+parameter checked for convertibility during deduction. -/
+private def tagDispatch : Program :=
+  tags ++
+    [ .functionTemplate { name := "g", head := [typeParam], params := [T, rank1]
+                          constraint := some (.atomic "fmap_shape" [T]) }
+    , .functionTemplate { name := "g", head := [typeParam], params := [T, rank0] } ]
+
+/-- With an instance, the constrained overload wins on the tag. -/
+def priorityTagDispatch : Case :=
+  { name := "priority_tag_dispatch"
+    cite := cite "over.ics.rank#4"
+    program := tagDispatch
+    query := .call "g" [{ ty := .named "pinned_instance" }, { ty := rank1 }] (.selected 0)
+    source := "computed by resolve" }
+
+/-- Without one, the constraint removes it and the fallback is viable
+through the derived-to-base conversion of its non-dependent
+parameter. -/
+def priorityTagFallback : Case :=
+  { name := "priority_tag_fallback"
+    cite := cite "temp.deduct.general#5.sentence-8"
+    program := tagDispatch
+    query := .call "g" [{ ty := int }, { ty := rank1 }] (.selected 1)
+    source := "computed by resolve" }
+
+/-- Inheritance leak 1, at the instance type the concrete overload names:
+the conversions tie and the non-template wins. -/
+def rankLeakExact : Case :=
+  { name := "leak_rank_exact"
+    cite := cite "over.match.best.general#2"
+    program := rankLeak
+    query := .call "use" [{ ty := .named "applicative_i", lvalue := true }] (.selected 1)
+    source := "computed by resolve" }
+
+/-- At an instance type derived from it, the template's exact match beats
+the derived-to-base conversion before the non-template preference is
+consulted. -/
+def rankLeakDerived : Case :=
+  { name := "leak_rank_derived"
+    cite := cite "over.match.best.general#2"
+    program := rankLeak
+    query := .call "use" [{ ty := .named "monad_i", lvalue := true }] (.selected 0)
+    source := "computed by resolve" }
+
 /-- Every case the emitter writes. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -1010,7 +1136,11 @@ def cases : List Case :=
   , byValueCanonical, byValueMissingSoft, byValueExplicit, byValueExplicitAmbiguous
   , byValueAmbiguousHard
   , routesCanonical, routesValue, routesType, routesArgument, routesValueAmbiguous
-  , routesArgumentAmbiguous, routesTypeAmbiguousHard, routesArgumentDefaultAmbiguous ]
+  , routesArgumentAmbiguous, routesTypeAmbiguousHard, routesArgumentDefaultAmbiguous
+  , rankDerivedToBase, rankReferenceExact, rankRvalueBinding, rankLvalueBinding
+  , rankQualification, rankValueReferenceAmbiguous
+  , priorityTagNearest, priorityTagDispatch, priorityTagFallback
+  , rankLeakExact, rankLeakDerived ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=
@@ -1037,7 +1167,7 @@ indices; `none` when the case is not a call case. -/
 def computedCall (c : Case) : Option (Resolution Nat) :=
   match c.query with
   | .call callee as _ explicit =>
-    some ((resolve .text (Env.ofProgram c.program c.atomics) identityRanking
+    some ((resolve .text (Env.ofProgram c.program c.atomics) c.program.ranking
       (decls := c.program.candidates callee) (args := as) (explicit := explicit)).map (·.index))
   | _ => none
 

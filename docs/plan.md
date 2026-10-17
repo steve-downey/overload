@@ -229,13 +229,28 @@ Status, 15 October 2026:
   the function type (`constraint_soft_shields_function_type`). The
   paragraph's two examples and the example of /8 reproduce in Lean and as
   emitted C++. Still to do: Mandates as a post-selection check.
-- Phase 5 is open as a skeleton, ahead of phase 3, because the P3606
-  switch lives on it: `Overload/Resolution.lean` has candidate generation
-  with the `Mode` switch, viability, and the best viable function by
-  conversion sequences, the non-template preference and partial ordering,
-  with the conversion ranking a parameter throughout. The emitted call
-  cases are computed by `resolve` under the text with an identity-only
-  ranking.
+- Phase 5 is closed on its exit criterion. `Overload/Resolution.lean`
+  has candidate generation with the `Mode` switch, viability, and the
+  best viable function by conversion sequences, the non-template
+  preference and partial ordering, with the conversion ranking a
+  parameter throughout. `Overload/Ranking.lean` supplies the one
+  concrete ranking that ranking-fidelity calls for, `Program.ranking`:
+  the identity and derived-to-base conversions, direct reference binding,
+  and the tiers of [over.ics.rank]/3 as a lexicographic chain, given as
+  relation and function (`better_iff`) and asymmetric for any class
+  hierarchy (`better_asymm`). The emitted call cases are computed with
+  it, and convertibility during deduction uses the same relation.
+  `Overload/Separability.lean` proves separability for any two rankings
+  of any conversion types: if both select the candidate at one position,
+  they select the same candidate, specialization and instance included
+  (`separability`). One lemma per suspect: step-order, argument-identity,
+  argument-conversion, tie-break-reach and rank-precedence. The ranking
+  is still live, since it decides which candidate wins (`ranking_live`),
+  and leak 1 of instance inheritance is a theorem
+  (`rank_beats_refinement`). Eleven emitted cases cover ranking, priority
+  tags and the leak, and every compiler agrees. Still owed from the
+  phase 5 targets: mandate-inertness, constraint-promotion,
+  sfinae-requires and dispatch-styles.
 - Phase 4 is closed, with one proof target left open.
   `Overload/Ordering.lean` has the transformed template, deduction for
   partial ordering with the reference tie-breaks of
@@ -377,7 +392,10 @@ leaks are known:
 
 1. **Ranking beats subsumption.** Derived-to-base is a ranked conversion,
    and conversion comparison is consulted before constraints. An overload
-   that should win by refinement can lose on rank.
+   that should win by refinement can lose on rank. Confirmed 17 October
+   2026 (`rank_beats_refinement`, `leak_rank_*.cpp`): an overload naming
+   an Applicative instance type wins at that type and loses to a generic
+   template at a Monad instance type derived from it.
 2. **Deduction from a derived class.** A function parameter of the form
    `functor_impl<F>` deduces from a class derived from it, and fails if more
    than one base matches ([temp.deduct.call]/4). A derived Applicative
