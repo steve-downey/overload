@@ -117,3 +117,6 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.late_instance_verdict
 #audit Overload.operation_object_not_separated
 #audit Overload.byValue_separated
+#audit Overload.call_stability_unit
+#audit Overload.late_insertion_verdict
+#audit Overload.callAt_insert_after

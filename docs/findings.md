@@ -412,6 +412,11 @@ and described here as they arrive.
   model's environment, which consults every instance the program declares
   wherever the call is, so the theorem cannot see the order of
   declaration against use. Phase 8 removes it from the environment.
+  Update the same day: per unit, a call sees only what precedes it
+  (`call_stability_unit`). An instance declared after the call cannot
+  move it. It can only make the program ill-formed with no diagnostic
+  required, which the model reports and stops at
+  (`late_insertion_verdict`).
   The theorem also needs the other candidates not to consult the lookup,
   which the plan did not foresee. It holds for non-template functions
   outright.
