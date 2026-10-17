@@ -98,3 +98,20 @@ by_value_ambiguous_hard.cpp clang++-21
 by_value_ambiguous_hard.cpp clang++-22
 by_value_ambiguous_hard.cpp clang++-23
 by_value_ambiguous_hard.cpp clang++-24
+# The plan's type route beside the canonical overload, at an ambiguous
+# type: the canonical overload's default is the same ambiguity, a
+# deduction failure on every compiler (docs/findings.md).
+routes_type_ambiguous_hard.cpp g++
+routes_type_ambiguous_hard.cpp g++-13
+routes_type_ambiguous_hard.cpp g++-14
+routes_type_ambiguous_hard.cpp g++-15
+routes_type_ambiguous_hard.cpp g++-16
+routes_type_ambiguous_hard.cpp clang++
+routes_type_ambiguous_hard.cpp clang++-17
+routes_type_ambiguous_hard.cpp clang++-18
+routes_type_ambiguous_hard.cpp clang++-19
+routes_type_ambiguous_hard.cpp clang++-20
+routes_type_ambiguous_hard.cpp clang++-21
+routes_type_ambiguous_hard.cpp clang++-22
+routes_type_ambiguous_hard.cpp clang++-23
+routes_type_ambiguous_hard.cpp clang++-24

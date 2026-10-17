@@ -19,7 +19,7 @@ open Overload Overload.Emit
 -- the text.
 #guard cases.all fun c =>
   match c.query, computedCall c with
-  | .call _ _ expected, some got => Resolution.agree expected got
+  | .call _ _ expected _, some got => Resolution.agree expected got
   | .call .., none => false
   | _, _ => true
 

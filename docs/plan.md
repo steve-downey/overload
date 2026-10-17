@@ -295,8 +295,14 @@ Status, 15 October 2026:
   `byValue_passed`). Omitted, pinning has no constraint, so a missing
   instance is viable and fails in the body (`unpinned_deduce`). The
   by-value route fails softly only through the shapeless default
-  (`byValue_omitted_outcome`). Still to do: the plan's three routes as
-  alternatives, superclass retrieval, inheritance
+  (`byValue_omitted_outcome`). The plan's three routes are in the model
+  as an alternative design (`valueRoute`, `typeRoute`, `argumentRoute`),
+  in one overload set with the canonical object, with call cases that
+  take explicit template arguments. The routes separate, but the type
+  route does not protect a caller from an ambiguous canonical lookup, and
+  the argument route cannot keep a default (`findings.md`). The
+  dispatch-styles theorem waits for the phase 5 ranking, which priority
+  tags need. Still to do: superclass retrieval, inheritance
   erasure, superclass coherence, and the obligations table. Termination
   is vacuous for the library today, since no instance requires another.
 

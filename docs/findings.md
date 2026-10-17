@@ -127,6 +127,10 @@ and described here as they arrive.
   `by_value_ambiguous_hard.cpp` defaults the policy type to
   `std::remove_cvref_t<decltype(functor<...>)>` at an ambiguous type,
   and GCC 13 to 16 and Clang 17 to 24 all select the fallback.
+  So does `routes_type_ambiguous_hard.cpp`, where the ambiguous lookup is
+  the canonical overload's default, reached through a call meant for the
+  plan's type route. Under the text that call is ill-formed; on every
+  compiler it selects the type route.
 
 ## About the model
 
@@ -153,6 +157,24 @@ and described here as they arrive.
   and #5, come out as the draft says (`OverloadTest/Typeclass.lean`).
 
 ## About the plan
+
+- **The plan's routes separate, but the type route is exposed** (17
+  October 2026). The canonical overload and the three routes as one
+  overload set, `fmap`, select the intended overload for each call form
+  (`routes_*.cpp`). Explicit template arguments bind the leading
+  parameters, so the instance comes first in the two template-parameter
+  routes. The value route and the argument route are protected from the
+  canonical lookup: the canonical overload fails at the explicit
+  argument's kind, or at the extra call argument, before its default is
+  substituted. The type route is not. The canonical overload takes the
+  instance type as its `F`, deduces `T`, and substitutes its default, so
+  at a type whose canonical lookup is ambiguous the call is ill-formed
+  although the caller supplied an instance (`routes_type_ambiguous_hard`).
+  The argument route cannot keep a default, as the library's by-value
+  route does: beside the canonical overload the two are unordered and a
+  call without the policy is ambiguous
+  (`routes_argument_default_ambiguous`). The library's choice of one
+  overload per operation object avoids both.
 
 - **Soft failure is by construction only where the route constrains**
   (17 October 2026). The plan expected a missing instance to fail as a

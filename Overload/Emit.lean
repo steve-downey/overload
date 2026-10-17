@@ -45,9 +45,11 @@ inductive Query where
   the bindings, or `none` for a deduction failure. -/
   | deduction (callee : String) (args : List CallArg) (expected : Option Bindings)
       (explicit : List Ty := [])
-  /-- Resolve a call of `callee`; `expected` names the candidate by its
-  index among the candidates with that name. -/
+  /-- Resolve a call of `callee`, with explicit template arguments if
+  any; `expected` names the candidate by its index among the candidates
+  with that name. -/
   | call (callee : String) (args : List CallArg) (expected : Resolution Nat)
+      (explicit : List Ty := [])
   /-- Hand-written C++ with its own assertions, and whether it is
   well-formed. -/
   | raw (cpp : String) (wellFormed : Bool := true)
@@ -79,7 +81,7 @@ structure Case where
 def Case.wellFormed (c : Case) : Bool :=
   match c.query with
   | .deduction .. => true
-  | .call _ _ (.illFormed _) => false
+  | .call _ _ (.illFormed _) _ => false
   | .call .. => true
   | .raw _ wf => wf
   | .lookup _ _ (.ambiguous _) | .lookup _ _ (.illFormed _) => false
@@ -277,16 +279,16 @@ def render (c : Case) : String := Id.run do
       out := out ++ s!"static_assert(std::is_same_v<decltype({callExpr callee explicit as}), {expectedDeduced h σ}>);\n"
     | none =>
       out := out ++ notViable callee explicit as
-  | .call callee as expected =>
+  | .call callee as expected explicit =>
     out := out ++ program c.program callee (fun k _ => s!"selected<{k}>") ++ "\n"
     match expected with
     | .selected k =>
-      out := out ++ s!"static_assert(std::is_same_v<decltype({callExpr callee [] as}), selected<{k}>>);\n"
+      out := out ++ s!"static_assert(std::is_same_v<decltype({callExpr callee explicit as}), selected<{k}>>);\n"
     | .noMatch | .ambiguous _ =>
-      out := out ++ notViable callee [] as
+      out := out ++ notViable callee explicit as
     | .illFormed r =>
       out := out ++ s!"// the model expects a hard error: {r}\n"
-      out := out ++ s!"using probe = decltype({callExpr callee [] as});\n"
+      out := out ++ s!"using probe = decltype({callExpr callee explicit as});\n"
   | .raw cpp _ =>
     out := out ++ program c.program "" (fun _ _ => "void") ++ "\n" ++ cpp
   | .lookup tc a expected =>
@@ -888,6 +890,110 @@ def byValueAmbiguousHard : Case :=
       (.illFormed "ambiguous partial specializations of functor<pair<int, int>>")
     source := "computed by resolve" }
 
+/-! ### The plan's routes, as an alternative design
+
+The canonical operation object and the plan's three explicit-instance
+routes as one overload set named `fmap`: candidates 0 to 3 are the
+canonical object, the value route, the type route and the argument
+route. -/
+
+private def routesProgram : Program :=
+  [ .class "Fn", .classTemplate "box" [typeParam], .classTemplate "pair" [typeParam, typeParam]
+  , .lookup "functor", .instance "functor" [typeParam] (.spec' "box" [T])
+  , .instance "functor" [typeParam] (.spec' "pair" [T, int])
+  , .instance "functor" [typeParam] (.spec' "pair" [int, T])
+  , .functionTemplate opObject, .functionTemplate valueRoute, .functionTemplate typeRoute
+  , .functionTemplate argumentRoute ]
+
+private def pinnedValue : Ty := .value (.obj "pinned_instance" .nil)
+private def pinnedType : Ty := .named "pinned_instance"
+private def ambiguousKey : CallArg := { ty := .spec' "pair" [int, int] }
+
+/-- No explicit instance: only the canonical overload is viable. The
+template-parameter routes cannot deduce the instance, and the argument
+route has too few arguments. -/
+def routesCanonical : Case :=
+  { name := "routes_canonical"
+    cite := cite "temp.deduct.type#4.sentence-4"
+    program := routesProgram
+    query := .call "fmap" [fn, { ty := .spec' "box" [int] }] (.selected 0)
+    source := "computed by resolve" }
+
+/-- An instance value as the explicit argument: the value route. The
+other three fail at the explicit argument, which has the wrong kind for
+their first parameter. -/
+def routesValue : Case :=
+  { name := "routes_value"
+    cite := cite "temp.deduct.general#2.sentence-2"
+    program := routesProgram
+    query := .call "fmap" [fn, { ty := int }] (.selected 1) (explicit := [pinnedValue])
+    source := "computed by resolve" }
+
+/-- An instance type as the explicit argument: the type route. The
+canonical overload takes the type as its `F`, deduces `T` and looks up
+the instance; at `int` there is none and its constraint fails. -/
+def routesType : Case :=
+  { name := "routes_type"
+    cite := cite "temp.deduct.general#2.sentence-2"
+    program := routesProgram
+    query := .call "fmap" [fn, { ty := int }] (.selected 2) (explicit := [pinnedType])
+    source := "computed by resolve" }
+
+/-- An instance as a third argument: the argument route. -/
+def routesArgument : Case :=
+  { name := "routes_argument"
+    cite := cite "over.match.viable#2.sentence-1"
+    program := routesProgram
+    query := .call "fmap" [fn, { ty := int }, policy] (.selected 3)
+    source := "computed by resolve" }
+
+/-- The value route at a type whose canonical lookup is ambiguous: the
+canonical overload fails at the explicit argument, before its default is
+substituted, so the call is well-formed. -/
+def routesValueAmbiguous : Case :=
+  { name := "routes_value_ambiguous"
+    cite := cite "temp.deduct.general#2.sentence-2"
+    program := routesProgram
+    query := .call "fmap" [fn, ambiguousKey] (.selected 1) (explicit := [pinnedValue])
+    source := "computed by resolve" }
+
+/-- The argument route at that type: the canonical overload fails at the
+call, on the extra argument, before its default is substituted. -/
+def routesArgumentAmbiguous : Case :=
+  { name := "routes_argument_ambiguous"
+    cite := cite "temp.deduct.general#5.sentence-1"
+    program := routesProgram
+    query := .call "fmap" [fn, ambiguousKey, policy] (.selected 3)
+    source := "computed by resolve" }
+
+/-- The type route at that type: the canonical overload accepts the
+instance type as its `F`, deduces `T`, and substitutes its default,
+which instantiates the ambiguous lookup. The call is ill-formed although
+the caller supplied an instance. Placing the instance first does not
+protect the type route from the canonical overload. -/
+def routesTypeAmbiguousHard : Case :=
+  { name := "routes_type_ambiguous_hard"
+    cite := cite "temp.deduct.general#8.sentence-4"
+    program := routesProgram
+    query := .call "fmap" [fn, ambiguousKey]
+      (.illFormed "ambiguous partial specializations of functor<pair<int, int>>")
+      (explicit := [pinnedType])
+    source := "computed by resolve" }
+
+/-- The argument route with a default, as the library's by-value route
+has, beside the canonical overload: both are viable for a call without
+the policy, neither is more specialized, and their template parameters
+differ, so constraints are not compared and the call is ambiguous. -/
+def routesArgumentDefaultAmbiguous : Case :=
+  { name := "routes_argument_default_ambiguous"
+    cite := cite "over.match.best.general#3.sentence-1"
+    program :=
+      [ .class "Fn", .classTemplate "box" [typeParam]
+      , .lookup "functor", .instance "functor" [typeParam] (.spec' "box" [T])
+      , .functionTemplate opObject, .functionTemplate { byValueObject "functor" with name := "fmap" } ]
+    query := .call "fmap" [fn, { ty := .spec' "box" [int] }] (.ambiguous [0, 1])
+    source := "computed by resolve" }
+
 /-- Every case the emitter writes. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -902,7 +1008,9 @@ def cases : List Case :=
   , opObjectSelects, opObjectNormalizedKey, opObjectMissingSoft, opObjectAmbiguousHard
   , pinCanonical, pinMissingViable, pinExplicit, pinExplicitAmbiguous
   , byValueCanonical, byValueMissingSoft, byValueExplicit, byValueExplicitAmbiguous
-  , byValueAmbiguousHard ]
+  , byValueAmbiguousHard
+  , routesCanonical, routesValue, routesType, routesArgument, routesValueAmbiguous
+  , routesArgumentAmbiguous, routesTypeAmbiguousHard, routesArgumentDefaultAmbiguous ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=
@@ -928,9 +1036,9 @@ def computed (c : Case) : Option (Option (List (ParamIdx × Ty))) :=
 indices; `none` when the case is not a call case. -/
 def computedCall (c : Case) : Option (Resolution Nat) :=
   match c.query with
-  | .call callee as _ =>
+  | .call callee as _ explicit =>
     some ((resolve .text (Env.ofProgram c.program c.atomics) identityRanking
-      (decls := c.program.candidates callee) (args := as)).map (·.index))
+      (decls := c.program.candidates callee) (args := as) (explicit := explicit)).map (·.index))
   | _ => none
 
 /-- For a lookup case, what the model computes. -/

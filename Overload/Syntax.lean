@@ -162,6 +162,13 @@ def collapse : Ty → Ty
   | .rref (.rref t) => .rref t
   | t => t
 
+/-- The type of a constant expression, for `typeOf`: a class value's
+class, and an instance named by a type, the result of instantiating a
+lookup, that name. -/
+def typeOfValue : Ty → Ty
+  | .value (.obj c _) => .named c
+  | t => t
+
 end Ty
 
 /-- The arguments deduced or specified so far: a parameter position maps to

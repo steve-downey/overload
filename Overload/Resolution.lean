@@ -97,10 +97,13 @@ def hasPerfectMatch (decls : List Decl) (args : List CallArg) : Bool :=
 template contributes the specialization its deduction produces; a soft
 failure contributes nothing; a hard failure is the outcome. Under
 `.p3606`, when a non-template candidate is a perfect match, no template
-is deduced. -/
+is deduced. Explicit template arguments are given to each template's
+deduction; which non-template functions a call with explicit template
+arguments names is name lookup, outside the fragment, and no case has
+one. -/
 @[std rule "over.match.funcs.general#8.sentence-1"]
-def generate (mode : Mode) (env : Env) (decls : List Decl) (args : List CallArg) :
-    Subst (List Candidate) :=
+def generate (mode : Mode) (env : Env) (decls : List Decl) (args : List CallArg)
+    (explicit : List Ty := []) : Subst (List Candidate) :=
   go decls 0 (mode matches .p3606 && hasPerfectMatch decls args)
 where
   go : List Decl → Nat → Bool → Subst (List Candidate)
@@ -110,7 +113,7 @@ where
     | .functionTemplate ft :: ds, i, s =>
       if s then go ds (i + 1) s
       else
-        match deduceTemplate env ft [] args with
+        match deduceTemplate env ft explicit args with
         | .ok sp => do
           return { index := i, params := sp.params, defaultArgs := ft.defaultArgs
                    specialization := some sp } :: (← go ds (i + 1) s)
@@ -208,8 +211,8 @@ def orderingForCall (m : Nat) (s₁ s₂ : Specialization) : Bool :=
 /-- Overload resolution for a call: the candidates, the viable ones, the
 best. A hard error anywhere is the outcome. -/
 def resolve (mode : Mode) (env : Env) (r : Ranking Conv)
-    (decls : List Decl) (args : List CallArg) : Resolution Candidate :=
-  match generate mode env decls args with
+    (decls : List Decl) (args : List CallArg) (explicit : List Ty := []) : Resolution Candidate :=
+  match generate mode env decls args explicit with
   | .hard reason | .soft reason => .illFormed reason
   | .ok cs =>
     match viable r cs args with
@@ -235,8 +238,8 @@ theorem resolve_agree_of_no_perfect (env : Env) (r : Ranking Conv)
 
 /-- With suppression on, generation never deduces: every candidate is a
 non-template function and nothing fails. -/
-theorem generate_go_suppressed (env : Env) (args : List CallArg) :
-    ∀ (ds : List Decl) (i : Nat), ∃ cs, generate.go env args ds i true = .ok cs ∧
+theorem generate_go_suppressed (env : Env) (args : List CallArg) (explicit : List Ty) :
+    ∀ (ds : List Decl) (i : Nat), ∃ cs, generate.go env args explicit ds i true = .ok cs ∧
       cs.all (fun c => !c.isTemplate) = true := by
   intro ds
   induction ds with
@@ -267,7 +270,7 @@ theorem generate_p3606_suppresses (env : Env) (decls : List Decl) (args : List C
     (h : hasPerfectMatch decls args = true) :
     ∃ cs, generate .p3606 env decls args = .ok cs ∧ cs.all (fun c => !c.isTemplate) = true := by
   simp only [generate, h, Bool.and_true]
-  exact generate_go_suppressed env args decls 0
+  exact generate_go_suppressed env args [] decls 0
 
 /-- The modes differ only on the hazard: if the text makes a call
 ill-formed in candidate generation and P3606 does not, a perfect
@@ -301,10 +304,10 @@ def identityRanking : Ranking Unit :=
 
 /-! ## Resolution depends on the environment only through deduction -/
 
-theorem generate_go_congr (env₁ env₂ : Env) (args : List CallArg) (s : Bool) :
+theorem generate_go_congr (env₁ env₂ : Env) (args : List CallArg) (explicit : List Ty) (s : Bool) :
     ∀ (ds : List Decl), (∀ ft, .functionTemplate ft ∈ ds →
-        deduceTemplate env₁ ft [] args = deduceTemplate env₂ ft [] args) →
-      ∀ i, generate.go env₁ args ds i s = generate.go env₂ args ds i s := by
+        deduceTemplate env₁ ft explicit args = deduceTemplate env₂ ft explicit args) →
+      ∀ i, generate.go env₁ args explicit ds i s = generate.go env₂ args explicit ds i s := by
   intro ds
   induction ds with
   | nil => intro _ _; rfl
@@ -320,16 +323,16 @@ theorem generate_go_congr (env₁ env₂ : Env) (args : List CallArg) (s : Bool)
 /-- Two environments that give every candidate template the same
 deduction give the call the same resolution. -/
 theorem resolve_congr (mode : Mode) (env₁ env₂ : Env) (r : Ranking Conv)
-    (decls : List Decl) (args : List CallArg)
+    (decls : List Decl) (args : List CallArg) {explicit : List Ty}
     (h : ∀ ft, .functionTemplate ft ∈ decls →
-      deduceTemplate env₁ ft [] args = deduceTemplate env₂ ft [] args) :
-    resolve mode env₁ r decls args = resolve mode env₂ r decls args := by
-  simp only [resolve, generate, generate_go_congr env₁ env₂ args _ decls h]
+      deduceTemplate env₁ ft explicit args = deduceTemplate env₂ ft explicit args) :
+    resolve mode env₁ r decls args explicit = resolve mode env₂ r decls args explicit := by
+  simp only [resolve, generate, generate_go_congr env₁ env₂ args explicit _ decls h]
 
-theorem generate_go_hard (env : Env) (args : List CallArg) (ft : FunctionTemplate) (e : Reason)
-    (hd : deduceTemplate env ft [] args = .hard e) :
+theorem generate_go_hard (env : Env) (args : List CallArg) (explicit : List Ty)
+    (ft : FunctionTemplate) (e : Reason) (hd : deduceTemplate env ft explicit args = .hard e) :
     ∀ (ds : List Decl), .functionTemplate ft ∈ ds →
-      ∀ i, ∃ e', generate.go env args ds i false = .hard e' := by
+      ∀ i, ∃ e', generate.go env args explicit ds i false = .hard e' := by
   intro ds
   induction ds with
   | nil => intro hm; cases hm
@@ -342,7 +345,7 @@ theorem generate_go_hard (env : Env) (args : List CallArg) (ft : FunctionTemplat
       | function n ps => exact ⟨e', by simp [generate.go, he']⟩
       | functionTemplate ft' =>
         simp only [generate.go, Bool.false_eq_true, ↓reduceIte]
-        cases deduceTemplate env ft' [] args with
+        cases deduceTemplate env ft' explicit args with
         | ok sp => exact ⟨e', by rw [he']; rfl⟩
         | soft _ => exact ⟨e', he'⟩
         | hard r => exact ⟨r, rfl⟩
@@ -351,10 +354,10 @@ theorem generate_go_hard (env : Env) (args : List CallArg) (ft : FunctionTemplat
 /-- Under the text, a hard error in any candidate template's deduction
 makes the call ill-formed. -/
 theorem resolve_text_hard (env : Env) (r : Ranking Conv) (decls : List Decl)
-    (args : List CallArg) (ft : FunctionTemplate) (e : Reason)
-    (hm : .functionTemplate ft ∈ decls) (hd : deduceTemplate env ft [] args = .hard e) :
-    ∃ e', resolve .text env r decls args = .illFormed e' := by
-  obtain ⟨e', he'⟩ := generate_go_hard env args ft e hd decls hm 0
+    (args : List CallArg) {explicit : List Ty} (ft : FunctionTemplate) (e : Reason)
+    (hm : .functionTemplate ft ∈ decls) (hd : deduceTemplate env ft explicit args = .hard e) :
+    ∃ e', resolve .text env r decls args explicit = .illFormed e' := by
+  obtain ⟨e', he'⟩ := generate_go_hard env args explicit ft e hd decls hm 0
   exact ⟨e', by simp [resolve, generate, he']⟩
 
 end Overload

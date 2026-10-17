@@ -293,12 +293,17 @@ theorem stability_other_typeclass (p₁ p₂ : Program) (tc tc' : String) (h : H
 
 /-! ## The program's environment, and the operation object -/
 
-/-- The shape of an instance type, for a by-value instance: an instance
-and the pinned instance type have `fmap`, and the primary,
-`std::false_type`, has not. -/
-def fmapShape : Ty → Bool
+/-- Does a type have the shape of an instance: an instance and the
+pinned instance type have `fmap`, and the primary, `std::false_type`,
+has not. -/
+def instanceShape : Ty → Bool
   | .spec "instance_of" _ | .named "pinned_instance" => true
   | _ => false
+
+/-- The shape constraint on a type, or on the type of a constant
+argument, `decltype(TC)`, which satisfaction evaluates. -/
+def fmapShape (t : Ty) : Bool :=
+  instanceShape (match t with | .typeOf e => e.typeOfValue | t => t)
 
 /-- The environment a program defines: the lookups it declares, hard or
 soft, with their instances; `has_instance` and the case's atomic table
@@ -829,7 +834,7 @@ theorem byValue_defaults (env : Env) (hx : x.ty.isType = true) (hxF : x.ty.forme
     (hxr : x.ty.isRef = false) (hxd : x.ty.dependent = false) :
     defaultsStep env (byValueObject tc).head [(1, forwarded x), (0, forwarded f)] =
       (env.instantiate tc x.ty.stripConst).bind fun v =>
-        .ok ((2, if v.dependent then .typeOf v else v) :: [(1, forwarded x), (0, forwarded f)]) := by
+        .ok ((2, if v.dependent then .typeOf v else v.typeOfValue) :: [(1, forwarded x), (0, forwarded f)]) := by
   have h1 : Ty.subst [(1, forwarded x), (0, forwarded f)] (.param 1) = forwarded x :=
     subst_param_type _ _ _ (by simp [Bindings.lookup]) (forwarded_isType x hx)
   have hd : Ty.subst [(1, forwarded x), (0, forwarded f)] (.typeOf (.lookup tc (.removeCvref (.param 1)))) =
@@ -905,7 +910,7 @@ theorem byValue_omitted_outcome (hf : f.ty.isType = true) (hx : x.ty.isType = tr
   intro r
   have hr : r = ((Env.ofProgram p).instantiate tc x.ty.stripConst).bind fun v =>
       (parameterListStep (Env.ofProgram p) (byValueObject tc).head
-          ((2, if v.dependent then .typeOf v else v) :: [(1, forwarded x), (0, forwarded f)])
+          ((2, if v.dependent then .typeOf v else v.typeOfValue) :: [(1, forwarded x), (0, forwarded f)])
         >>= constraintStep (Env.ofProgram p) (byValueObject tc).constraint
         >>= nonDependentStep (Env.ofProgram p) (byValueObject tc).params [f, x]
         >>= functionTypeStep (Env.ofProgram p) (byValueObject tc)) := by
@@ -935,9 +940,10 @@ theorem byValue_omitted_outcome (hf : f.ty.isType = true) (hx : x.ty.isType = tr
     rw [hr, hinst, hi]
     simp only [Subst.bind_eq, Subst.bind_ok]
     simp only [Subst.bind_eq] at hs
-    rw [show (if v.dependent = true then Ty.typeOf v else v) = v by simp [hvd]]
+    rw [show (if v.dependent = true then Ty.typeOf v else v.typeOfValue) = v by
+      simp only [hvd, Bool.false_eq_true, ↓reduceIte]; rfl]
     rw [hs]
-    simp [fmapShape, v, Ty.spec']
+    simp [fmapShape, instanceShape, v, Ty.spec']
   · have hs := byValue_rest p tc f x hf hx hfF hxF hfr hxr (.named "std::false_type") rfl rfl [f, x]
     refine ⟨"associated constraints not satisfied", ?_⟩
     rw [hr, hinst, hn]
@@ -986,5 +992,43 @@ theorem byValue_passed (hf : f.ty.isType = true) (hx : x.ty.isType = true)
   exact hs
 
 end byValue
+
+/-! ## The plan's routes, as an alternative design
+
+The plan proposed three explicit-instance routes as overloads beside the
+canonical one, which beman.transpose does not have
+(`decisions.md#explicit-instance-routes`). They are given here so the
+guidance can compare them with the library: the instance as a constant
+template argument by value, as a type template argument, and as a
+trailing function argument with no default. Each is constrained by the
+shape of the instance's type, and none consults the lookup. The explicit
+instance comes first in the two template-parameter routes, since
+explicit template arguments bind the leading parameters. -/
+
+/-- `template <auto TC, class F, class T> requires
+fmap_shape<std::remove_cvref_t<decltype(TC)>> void fmap(F &&, T &&)`. -/
+def valueRoute : FunctionTemplate :=
+  { name := "fmap"
+    head := [ { kind := .const (.named "auto") }, { kind := .type }, { kind := .type } ]
+    params := [.rref (.param 1), .rref (.param 2)]
+    constraint := some (.atomic "fmap_shape" [.typeOf (.value (.param 0))]) }
+
+/-- `template <class TC, class F, class T> requires fmap_shape<TC> void
+fmap(F &&, T &&)`. -/
+def typeRoute : FunctionTemplate :=
+  { name := "fmap"
+    head := [ { kind := .type }, { kind := .type }, { kind := .type } ]
+    params := [.rref (.param 1), .rref (.param 2)]
+    constraint := some (.atomic "fmap_shape" [.param 0]) }
+
+/-- `template <class F, class T, class P> requires fmap_shape<P> void
+fmap(F &&, T &&, P)`: the by-value route with the policy required. With
+a default it would be viable for every call the canonical overload is,
+and the two would not be ordered (`routes_argument_default_ambiguous`). -/
+def argumentRoute : FunctionTemplate :=
+  { name := "fmap"
+    head := [ { kind := .type }, { kind := .type }, { kind := .type } ]
+    params := [.rref (.param 0), .rref (.param 1), .param 2]
+    constraint := some (.atomic "fmap_shape" [.param 2]) }
 
 end Overload

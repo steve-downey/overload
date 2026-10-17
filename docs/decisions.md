@@ -397,3 +397,9 @@ repository's `include/beman/transpose/`):
   `Ty.typeOf` for `std::remove_cvref_t<decltype(...)>` and an atomic
   shape constraint in place of `applicative_object_for`. Nine emitted
   cases (`pin_*`, `by_value_*`). The plan's three routes remain.
+- 2026-10-17 — The plan's three routes are modelled as an alternative
+  design: `valueRoute`, `typeRoute` and `argumentRoute` in
+  `Overload/Typeclass.lean`, beside the canonical object in one overload
+  set, as eight emitted call cases (`routes_*`). Call cases gain explicit
+  template arguments. Non-template functions in a call with explicit
+  template arguments are out of the fragment; no case has one.
