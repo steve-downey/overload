@@ -180,8 +180,17 @@ nothing else on the path fails hard.
 
 **Question:** May instance types for related typeclasses be related by
 inheritance?
-**Status:** OPEN; settled by inheritance erasure and superclass coherence in
-phase 6.
+**Status:** DECIDED 17 October 2026.
+**Decision:** Allowed. Inheritance between instance types is a choice an
+implementer can make, and the model treats it as one. The work is to find
+the problems it causes and say, for each, whether it is a matter of
+education, an obligation on someone, or a bug to fix.
+**Why:** The point of the work is to state what a typeclass implementor
+owes. Forbidding inheritance would only be worth it if it were harmful, and
+it would then need a technical means of enforcement, which is unlikely to
+exist. So it is allowed, and its consequences are harvested as obligations
+(`obligations.md`): exact-type use, and superclass coherence.
+**Decided by:** the author.
 **Facts recorded 13 October 2026:** The relation varies by kind and may vary
 within a kind, since not every Functor is an Applicative and a type may
 admit more than one instance. Where a relation exists it runs from the
@@ -215,6 +224,11 @@ operations from the Monad ones.
   by public inheritance: `derive_monad` grows only the Functor basis, and
   `as_functor` returns `derive_functor<M>`, which has `M` as a protected
   base.
+- 2026-10-17 — Decided by the author: allowed. The known problems are leak
+  1 (rank beats refinement), leak 2 (deduction from a derived class), leak
+  3 (two paths to the superclass) and leak 4 (constant-parameter slicing),
+  all recorded as obligations. Access to a protected base is still
+  unmodelled, and is the next place to look for a problem.
 
 ---
 
