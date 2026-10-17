@@ -83,3 +83,5 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.ics_erase
 #audit Overload.better_erase
 #audit Overload.deduceTemplate_congr
+#audit Overload.derived_class_deduction
+#audit Overload.allBases_erase

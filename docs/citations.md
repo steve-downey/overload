@@ -45,6 +45,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.deduct.call]/2](https://eel.is/c++draft/temp.deduct.call#2) | rule | `Overload.adjustA` | `Overload.Deduction` |
 | [[temp.deduct.call]/3 sentence 1](https://eel.is/c++draft/temp.deduct.call#3.sentence-1) | rule | `Overload.adjustP` | `Overload.Deduction` |
 | [[temp.deduct.call]/3 sentence 3](https://eel.is/c++draft/temp.deduct.call#3.sentence-3) | rule | `Overload.isForwardingRef` | `Overload.Deduction` |
+| [[temp.deduct.call]/4](https://eel.is/c++draft/temp.deduct.call#4) | rule | `Overload.deduceFromBase` | `Overload.Deduction` |
 | [[temp.deduct.call]/5 sentence 1](https://eel.is/c++draft/temp.deduct.call#5.sentence-1) | rule | `Overload.deduceParam` | `Overload.Deduction` |
 | [[temp.deduct.general]/2 sentence 2](https://eel.is/c++draft/temp.deduct.general#2.sentence-2) | rule | `Overload.explicitStep` | `Overload.Steps` |
 | [[temp.deduct.general]/5 sentence 1](https://eel.is/c++draft/temp.deduct.general#5.sentence-1) | rule | `Overload.callStep` | `Overload.Steps` |
@@ -105,7 +106,6 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 ## In scope, no counterpart yet
 
 - [[temp.deduct.general]/12](https://eel.is/c++draft/temp.deduct.general#12)
-- [[temp.deduct.call]/4](https://eel.is/c++draft/temp.deduct.call#4)
 - [[temp.arg.nontype]/1](https://eel.is/c++draft/temp.arg.nontype#1)
 - [[temp.arg.nontype]/3](https://eel.is/c++draft/temp.arg.nontype#3)
 

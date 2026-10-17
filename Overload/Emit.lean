@@ -217,7 +217,7 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String) : St
     match d with
     | .class n [] => out := out ++ s!"struct {n} \{};\n"
     | .class n bases =>
-      out := out ++ s!"struct {n} : {String.intercalate ", " (bases.map (s!"public {·}"))} \{};\n"
+      out := out ++ s!"struct {n} : {String.intercalate ", " (bases.map (s!"public {ty ·}"))} \{};\n"
     | .classTemplate n h => out := out ++ s!"{head h}\nstruct {n} \{};\n"
     | .function n ps =>
       if n = callee then
@@ -1006,7 +1006,7 @@ private def A : Ty := .named "A"
 private def B : Ty := .named "B"
 private def C : Ty := .named "C"
 private def X : Ty := .named "X"
-private def chain : Program := [.class "A", .class "B" ["A"], .class "C" ["B"]]
+private def chain : Program := [.class "A", .class "B" [.named "A"], .class "C" [.named "B"]]
 
 /-- `C` to `B` is better than `C` to `A`, by value: the draft's example in
 [over.ics.rank]/4 without the pointers. -/
@@ -1064,7 +1064,7 @@ def rankValueReferenceAmbiguous : Case :=
 private def rank0 : Ty := .named "rank0"
 private def rank1 : Ty := .named "rank1"
 private def rank2 : Ty := .named "rank2"
-private def tags : Program := [.class "rank0", .class "rank1" ["rank0"], .class "rank2" ["rank1"]]
+private def tags : Program := [.class "rank0", .class "rank1" [.named "rank0"], .class "rank2" [.named "rank1"]]
 
 /-- Priority tags: each tag derives from the one below, and the overload
 for the nearest base wins. -/
@@ -1141,6 +1141,46 @@ def erasureComposed : Case :=
     query := .call "use" [{ ty := .named "applicative_i", lvalue := true }] .noMatch
     source := "computed by resolve" }
 
+/-! ### Deduction from a derived class -/
+
+/-- `const derive_functor<T>&` deduces `T` from a class derived from
+`derive_functor<opt_impl>`. -/
+def deduceFromDerived : Case :=
+  { name := "temp_deduct_call_4_derived"
+    cite := cite "temp.deduct.call#4"
+    program := derivedShape
+    query := .deduction "use" [{ ty := .named "opt_monad_map", lvalue := true }]
+      (some [(0, .named "opt_impl")])
+    source := "computed by deduceTemplate" }
+
+/-- Two bases of the form `derive_functor<T>`: more than one possible
+deduced `A`, so deduction fails. -/
+def deduceFromTwoBases : Case :=
+  { name := "temp_deduct_call_5_two_bases"
+    cite := cite "temp.deduct.call#5.sentence-2"
+    program := derivedShape ++
+      [ .class "list_impl"
+      , .class "two_maps" [.spec' "derive_functor" [.named "opt_impl"], .spec' "derive_functor" [.named "list_impl"]] ]
+    query := .deduction "use" [{ ty := .named "two_maps", lvalue := true }] none
+    source := "computed by deduceTemplate" }
+
+/-- Leak 2: the Monad instance type matches the Functor-shaped
+signature. -/
+def leakDerivedInherited : Case :=
+  { name := "leak_derived_deduction_inherited"
+    cite := cite "temp.deduct.call#4"
+    program := derivedShape
+    query := .call "use" [{ ty := .named "opt_monad_map", lvalue := true }] (.selected 0)
+    source := "computed by resolve" }
+
+/-- With the derivation replaced by composition, it does not. -/
+def leakDerivedComposed : Case :=
+  { name := "leak_derived_deduction_composed"
+    cite := cite "temp.deduct.call#4"
+    program := derivedShape.eraseBases ["opt_monad_map"]
+    query := .call "use" [{ ty := .named "opt_monad_map", lvalue := true }] .noMatch
+    source := "computed by resolve" }
+
 /-- Every case the emitter writes. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -1161,7 +1201,8 @@ def cases : List Case :=
   , rankDerivedToBase, rankReferenceExact, rankRvalueBinding, rankLvalueBinding
   , rankQualification, rankValueReferenceAmbiguous
   , priorityTagNearest, priorityTagDispatch, priorityTagFallback
-  , rankLeakExact, rankLeakDerived, erasureInherited, erasureComposed ]
+  , rankLeakExact, rankLeakDerived, erasureInherited, erasureComposed
+  , deduceFromDerived, deduceFromTwoBases, leakDerivedInherited, leakDerivedComposed ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=

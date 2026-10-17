@@ -14,10 +14,16 @@ private def exactPair (p : Program) (I : List String) (a : CallArg) (t : Ty) : B
   !(p.touched I a.ty.referred.stripConst || p.touched I t.referred.stripConst) ||
     a.ty.referred.stripConst == t.referred.stripConst
 
-/-- Both hypotheses of `inheritance_erasure` for a call of `name`. -/
+/-- The hypotheses of `inheritance_erasure` for a call of `name` without
+explicit template arguments, with `NoDerivedDeduction` checked at the
+empty substitution. -/
 private def exactUse (p : Program) (I : List String) (name : String) (args : List CallArg) : Bool :=
   let decls := p.candidates name
-  let atDeduction := decls.all fun
+  let noDerived := decls.all fun
+    | .functionTemplate ft => (args.zip ft.params).all fun (a, t) =>
+        !t.dependent || !(adjustP t).stripConst.isSpec || !p.touched I (adjustA t a).stripConst
+    | _ => true
+  let atDeduction := noDerived && decls.all fun
     | .functionTemplate ft => (args.zip ft.params).all fun (a, t) => t.dependent || exactPair p I a t
     | _ => true
   let atUse := match generate .text (Env.ofProgram p) decls args with
@@ -31,7 +37,7 @@ private def outcome (p : Program) (name : String) (args : List CallArg) : Resolu
 private def T : Ty := .param 0
 private def typeParam : TemplateParam := { kind := .type }
 private def instances : Program :=
-  [ .class "functor_i", .class "applicative_i" ["functor_i"], .class "monad_i" ["applicative_i"] ]
+  [ .class "functor_i", .class "applicative_i" [.named "functor_i"], .class "monad_i" [.named "applicative_i"] ]
 private def I : List String := ["applicative_i", "monad_i"]
 private def monad : CallArg := { ty := .named "monad_i", lvalue := true }
 
@@ -48,7 +54,7 @@ private def deduced : Program :=
 
 -- A priority tag beside the instance is not touched, so it may convert.
 private def tagged : Program :=
-  instances ++ [.class "rank0", .class "rank1" ["rank0"]] ++
+  instances ++ [.class "rank0", .class "rank1" [.named "rank0"]] ++
     [ .functionTemplate { name := "use", head := [typeParam], params := [.lref (.const T), .named "rank0"] }
     , .functionTemplate { name := "use", head := [typeParam], params := [.lref (.const T), .named "rank1"] } ]
 private def taggedArgs : List CallArg := [monad, { ty := .named "rank1" }]
@@ -60,3 +66,10 @@ private def taggedArgs : List CallArg := [monad, { ty := .named "rank1" }]
 -- does the conclusion.
 #guard !exactUse namedBase ["applicative_i"] "use" [{ ty := .named "applicative_i", lvalue := true }]
 #guard !exactUse rankLeak ["monad_i"] "use" [monad]
+
+-- Deduction from a derived class: the hypothesis fails, and so does the
+-- conclusion.
+private def monadMap : CallArg := { ty := .named "opt_monad_map", lvalue := true }
+#guard !exactUse derivedShape ["opt_monad_map"] "use" [monadMap]
+#guard outcome derivedShape "use" [monadMap] == .selected 0
+#guard outcome (derivedShape.eraseBases ["opt_monad_map"]) "use" [monadMap] == .noMatch

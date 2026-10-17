@@ -11,8 +11,8 @@ positive result. Erasing the base classes of a set of instance types `I`,
 which is replacing derivation with composition plus retrieval, changes no
 call that uses every class it touches at its exact type
 (`inheritance_erasure`). Outside that fragment erasure changes outcomes
-(`erasure_needs_exact_type`), and leak 1 is the way it does
-(`rank_beats_refinement`).
+(`erasure_needs_exact_type`), and leaks 1 and 2 are the ways it does
+(`rank_beats_refinement`, `derived_class_deduction`).
 
 The classes erasure touches are the ones in `I` and the ones derived from
 one of them (`Program.touched`). Derivation from any other class is the
@@ -21,10 +21,11 @@ classes at their exact type when every conversion it forms, between an
 argument and a parameter, has the same class on both sides if either side
 is touched (`ExactPair`).
 
-Two parts of the plan's fragment are not modelled, so the theorem does not
-cover them: deduction of a template parameter from a class derived from
-the parameter's type ([temp.deduct.call]/4, leak 2), and access to a
-protected base, which `derive_functor` uses.
+Deduction from a derived class ([temp.deduct.call]/4) is the other way
+erasure can change an outcome, leak 2 (`derived_class_deduction`), so
+the theorem asks that no argument of a touched class be deduced from that
+way (`NoDerivedDeduction`). Access to a protected base, which
+`derive_functor` uses, is not modelled.
 -/
 
 namespace Overload
@@ -38,31 +39,39 @@ def Program.eraseBases (p : Program) (I : List String) : Program :=
     | .class n bs => .class n (if I.contains n then [] else bs)
     | d => d
 
+/-- Is the type a class whose bases erasing `I` removes? -/
+def erased (I : List String) : Ty → Bool
+  | .named n => I.contains n
+  | _ => false
+
 /-- The classes whose derivation erasing `I` can change: those in `I`, and
 those derived from one. -/
-def Program.touched (p : Program) (I : List String) : Ty → Bool
-  | .named n => I.contains n || I.any fun c => p.derivesWithin p.length n c
-  | _ => false
+def Program.touched (p : Program) (I : List String) (t : Ty) : Bool :=
+  erased I t || I.any fun c => p.derivesWithin p.length t (.named c)
 
 theorem eraseBases_length (p : Program) (I : List String) :
     (p.eraseBases I).length = p.length := by
   simp [Program.eraseBases]
 
-theorem directBases_erase (p : Program) (I : List String) (d : String)
-    (hd : I.contains d = false) :
+theorem directBases_erase (p : Program) (I : List String) (d : Ty)
+    (hd : erased I d = false) :
     (p.eraseBases I).directBases d = p.directBases d := by
-  unfold Program.directBases Program.eraseBases
-  rw [List.findSome?_map]
-  congr 2
-  funext decl
-  cases decl with
-  | «class» n bs =>
-    simp only [Function.comp]
-    by_cases h : n = d
-    · subst h
-      have hn : n ∉ I := fun h => by rw [List.contains_iff_mem.mpr h] at hd; cases hd
-      simp [hn]
-    · simp [h]
+  cases d with
+  | named d =>
+    unfold Program.directBases Program.eraseBases
+    dsimp only
+    rw [List.findSome?_map]
+    congr 2
+    funext decl
+    cases decl with
+    | «class» n bs =>
+      simp only [Function.comp]
+      by_cases h : n = d
+      · subst h
+        have hn : n ∉ I := by simpa [erased] using hd
+        simp [hn]
+      · simp [h]
+    | _ => rfl
   | _ => rfl
 
 private theorem any_congr_mem {l : List α} {f g : α → Bool} (h : ∀ x ∈ l, f x = g x) :
@@ -73,11 +82,41 @@ private theorem any_congr_mem {l : List α} {f g : α → Bool} (h : ∀ x ∈ l
     simp only [List.any_cons, h a List.mem_cons_self,
       ih (fun x hx => h x (List.mem_cons_of_mem _ hx))]
 
+private theorem flatMap_congr_mem {l : List α} {f g : α → List β} (h : ∀ x ∈ l, f x = g x) :
+    l.flatMap f = l.flatMap g := by
+  induction l with
+  | nil => rfl
+  | cons a l ih =>
+    simp only [List.flatMap_cons, h a List.mem_cons_self,
+      ih (fun x hx => h x (List.mem_cons_of_mem _ hx))]
+
+/-- A direct base of a class that reaches no erased class within `k + 1`
+steps is not erased, and reaches none within `k`. -/
+private theorem base_untouched (p : Program) (I : List String) (k : Nat) (d m : Ty)
+    (hm : m ∈ p.directBases d) (hc : ∀ c ∈ I, p.derivesWithin (k + 1) d (.named c) = false) :
+    erased I m = false ∧ ∀ c ∈ I, p.derivesWithin k m (.named c) = false := by
+  constructor
+  · cases m with
+    | named c =>
+      cases h : I.contains c with
+      | false => simpa [erased] using h
+      | true =>
+        have := hc c (List.contains_iff_mem.mp h)
+        simp only [Program.derivesWithin, List.any_eq_false] at this
+        exact absurd (by simp) (this (.named c) hm)
+    | _ => rfl
+  · intro c hcI
+    have := hc c hcI
+    simp only [Program.derivesWithin, List.any_eq_false] at this
+    have := this m hm
+    simp only [Bool.or_eq_true, beq_iff_eq, not_or] at this
+    simpa using this.2
+
 /-- Derivation from a class erasure does not touch is unchanged: the
 search never reaches a class in `I`. -/
 theorem derivesWithin_erase (p : Program) (I : List String) :
-    ∀ (k : Nat) (d b : String), I.contains d = false →
-      (∀ c ∈ I, p.derivesWithin k d c = false) →
+    ∀ (k : Nat) (d b : Ty), erased I d = false →
+      (∀ c ∈ I, p.derivesWithin k d (.named c) = false) →
         (p.eraseBases I).derivesWithin k d b = p.derivesWithin k d b := by
   intro k
   induction k with
@@ -87,35 +126,50 @@ theorem derivesWithin_erase (p : Program) (I : List String) :
     simp only [Program.derivesWithin, directBases_erase p I d hd]
     apply any_congr_mem
     intro m hm
-    have hmI : I.contains m = false := by
-      cases h : I.contains m with
-      | false => rfl
-      | true =>
-        have := hc m (List.contains_iff_mem.mp h)
-        simp only [Program.derivesWithin, List.any_eq_false] at this
-        exact absurd (by simp) (this m hm)
-    have hmc : ∀ c ∈ I, p.derivesWithin k m c = false := by
-      intro c hcI
-      have := hc c hcI
-      simp only [Program.derivesWithin, List.any_eq_false] at this
-      have := this m hm
-      simp only [Bool.or_eq_true, beq_iff_eq, not_or] at this
-      simpa using this.2
+    obtain ⟨hmI, hmc⟩ := base_untouched p I k d m hm hc
     rw [ih m b hmI hmc]
+
+/-- So are its base classes. -/
+theorem allBasesWithin_erase (p : Program) (I : List String) :
+    ∀ (k : Nat) (d : Ty), erased I d = false →
+      (∀ c ∈ I, p.derivesWithin k d (.named c) = false) →
+        (p.eraseBases I).allBasesWithin k d = p.allBasesWithin k d := by
+  intro k
+  induction k with
+  | zero => intro d _ _; rfl
+  | succ k ih =>
+    intro d hd hc
+    simp only [Program.allBasesWithin, directBases_erase p I d hd]
+    apply flatMap_congr_mem
+    intro m hm
+    obtain ⟨hmI, hmc⟩ := base_untouched p I k d m hm hc
+    rw [ih m hmI hmc]
+
+private theorem untouched_parts {p : Program} {I : List String} {s : Ty}
+    (hs : p.touched I s = false) :
+    erased I s = false ∧ ∀ c ∈ I, p.derivesWithin p.length s (.named c) = false := by
+  simp only [Program.touched, Bool.or_eq_false_iff, List.any_eq_false] at hs
+  exact ⟨hs.1, fun c hc => by simpa using hs.2 c hc⟩
 
 /-- Derivation from an untouched class is unchanged by erasure. -/
 theorem derives_erase (p : Program) (I : List String) (s t : Ty)
     (hs : p.touched I s = false) :
     (p.eraseBases I).derives s t = p.derives s t := by
-  cases s with
-  | named d =>
-    cases t with
-    | named b =>
-      simp only [Program.touched, Bool.or_eq_false_iff, List.any_eq_false] at hs
-      simp only [Program.derives, eraseBases_length]
-      exact derivesWithin_erase p I p.length d b hs.1 (fun c hc => by simpa using hs.2 c hc)
-    | _ => rfl
-  | _ => rfl
+  obtain ⟨h₁, h₂⟩ := untouched_parts hs
+  simp only [Program.derives, eraseBases_length]
+  exact derivesWithin_erase p I p.length s t h₁ h₂
+
+/-- The base classes of an untouched class are unchanged by erasure. -/
+theorem allBases_erase (p : Program) (I : List String) (s : Ty)
+    (hs : p.touched I s = false) :
+    (p.eraseBases I).allBases s = p.allBases s := by
+  obtain ⟨h₁, h₂⟩ := untouched_parts hs
+  simp only [Program.allBases, eraseBases_length]
+  exact allBasesWithin_erase p I p.length s h₁ h₂
+
+theorem allBases_spec (p : Program) (s : Ty) (h : s.isSpec = true) : p.allBases s = [] := by
+  cases s <;> simp_all [Ty.isSpec, Program.allBases]
+  all_goals (cases p.length <;> rfl)
 
 /-! ## Deduction depends on the environment's convertibility only at
 non-dependent parameters -/
@@ -162,22 +216,102 @@ theorem nonDependentStep_congr {env₁ env₂ : Env} :
         have := h (a, q) List.mem_cons_self hd
         simp only [Bool.false_eq_true, ↓reduceIte, this, ih']
 
+theorem deduceFromBase_congr {b₁ b₂ : Bases} (p a : Ty) (σ : Bindings)
+    (ha : p.isSpec = true → b₁ a = b₂ a) (hs : ∀ c, c.isSpec = true → b₁ c = b₂ c) :
+    deduceFromBase b₁ p a σ = deduceFromBase b₂ p a σ := by
+  unfold deduceFromBase
+  cases hp : p.isSpec with
+  | false => rfl
+  | true =>
+    simp only [Bool.not_true, Bool.false_eq_true, ↓reduceIte]
+    rw [ha hp]
+    have hn : ∀ b ∈ (b₂ a).filter (fun b => b.isSpec && (deduceTy p b σ).isSome),
+        ((b₂ a).filter (fun b => b.isSpec && (deduceTy p b σ).isSome)).any (fun c => (b₁ c).contains b) =
+          ((b₂ a).filter (fun b => b.isSpec && (deduceTy p b σ).isSome)).any (fun c => (b₂ c).contains b) := by
+      intro b _
+      apply any_congr_mem
+      intro c hc
+      have : c.isSpec = true := by
+        simp only [List.mem_filter, Bool.and_eq_true] at hc
+        exact hc.2.1
+      rw [hs c this]
+    rw [List.filter_congr (fun b hb => by rw [hn b hb])]
+
+/-- Deduction from the call consults the bases only at the class of an
+argument that meets a parameter of class template form, and at class
+template specializations. -/
+theorem deduceCall_congr {b₁ b₂ : Bases} (hs : ∀ c, c.isSpec = true → b₁ c = b₂ c) :
+    ∀ (ps : List Ty) (args : List CallArg) (σ : Bindings),
+      (∀ x ∈ args.zip ps, x.2.dependent = true → (adjustP x.2).stripConst.isSpec = true →
+        b₁ (adjustA x.2 x.1).stripConst = b₂ (adjustA x.2 x.1).stripConst) →
+      deduceCall b₁ ps args σ = deduceCall b₂ ps args σ := by
+  intro ps
+  induction ps with
+  | nil => intro args σ _; cases args <;> rfl
+  | cons q ps ih =>
+    intro args σ h
+    cases args with
+    | nil => rfl
+    | cons a as =>
+      have hq : deduceParam b₁ q a σ = deduceParam b₂ q a σ := by
+        unfold deduceParam
+        cases hd : q.dependent with
+        | false => rfl
+        | true =>
+          simp only [Bool.not_true, Bool.false_eq_true, ↓reduceIte]
+          rw [deduceFromBase_congr _ _ σ (h (a, q) List.mem_cons_self hd) hs]
+      simp only [deduceCall, hq]
+      cases deduceParam b₂ q a σ with
+      | none => rfl
+      | some σ' => exact ih as σ' (fun x hx => h x (List.mem_cons_of_mem _ hx))
+
+/-- A call deduces from a derived class only at untouched classes: no
+argument of a touched class meets a dependent parameter of class
+template form, where deduction may take a base of the argument's class
+([temp.deduct.call]/4). -/
+def NoDerivedDeduction (p : Program) (I : List String) (ft : FunctionTemplate)
+    (args : List CallArg) : Prop :=
+  ∀ σ, ∀ x ∈ args.zip ft.params, (x.2.subst σ).dependent = true →
+    (adjustP (x.2.subst σ)).stripConst.isSpec = true →
+      p.touched I (adjustA (x.2.subst σ) x.1).stripConst = false
+
+theorem callStep_congr {env₁ env₂ : Env} (ft : FunctionTemplate) (args : List CallArg)
+    (hs : ∀ c, c.isSpec = true → env₁.bases c = env₂.bases c)
+    (hb : ∀ σ, ∀ x ∈ args.zip ft.params, (x.2.subst σ).dependent = true →
+      (adjustP (x.2.subst σ)).stripConst.isSpec = true →
+        env₁.bases (adjustA (x.2.subst σ) x.1).stripConst =
+          env₂.bases (adjustA (x.2.subst σ) x.1).stripConst) :
+    callStep env₁ ft.params args = callStep env₂ ft.params args := by
+  funext σ
+  simp only [callStep]
+  rw [deduceCall_congr hs _ _ σ (fun x hx => by
+    rw [List.zip_map_right, List.mem_map] at hx
+    obtain ⟨y, hy, rfl⟩ := hx
+    exact hb σ y hy)]
+
 /-- Two environments that agree on instantiation and atomic constraints,
-and on convertibility at the template's non-dependent parameters, give
-the same deduction. -/
+on the bases that deduction from the call consults, and on
+convertibility at the template's non-dependent parameters, give the same
+deduction. -/
 theorem deduceTemplate_congr {env₁ env₂ : Env} (hi : env₁.instantiate = env₂.instantiate)
     (ha : env₁.atomic = env₂.atomic) (ft : FunctionTemplate) (explicit : List Ty)
     (args : List CallArg)
+    (hs : ∀ c, c.isSpec = true → env₁.bases c = env₂.bases c)
+    (hb : ∀ σ, ∀ x ∈ args.zip ft.params, (x.2.subst σ).dependent = true →
+      (adjustP (x.2.subst σ)).stripConst.isSpec = true →
+        env₁.bases (adjustA (x.2.subst σ) x.1).stripConst =
+          env₂.bases (adjustA (x.2.subst σ) x.1).stripConst)
     (hc : ∀ x ∈ args.zip ft.params, x.2.dependent = false →
       env₁.convertible x.1 x.2 = env₂.convertible x.1 x.2) :
     deduceTemplate env₁ ft explicit args = deduceTemplate env₂ ft explicit args := by
+  have hcall := callStep_congr ft args hs hb
   have hp : parameterListStep env₁ ft.head = parameterListStep env₂ ft.head := by
     funext σ; simp only [parameterListStep, formAll_congr hi]
   have hk : constraintStep env₁ ft.constraint = constraintStep env₂ ft.constraint := by
     funext σ; simp only [constraintStep, ha]
   have hf : functionTypeStep env₁ ft = functionTypeStep env₂ ft := by
     funext σ; simp only [functionTypeStep, formAll_congr hi, form_congr hi]
-  simp only [deduceTemplate, defaultsStep_congr hi, hp, hk, nonDependentStep_congr _ _ hc, hf]
+  simp only [deduceTemplate, hcall, defaultsStep_congr hi, hp, hk, nonDependentStep_congr _ _ hc, hf]
 
 /-! ## Erasure leaves lookup and constraints alone -/
 
@@ -521,11 +655,14 @@ theorem bestViable_congr (r₁ : Ranking C₁) (r₂ : Ranking C₁)
 /-- Inheritance erasure: erasing the base classes of the instance types in
 `I`, which replaces derivation by composition, changes no call that uses
 every class erasure touches at its exact type. The hypotheses ask it of
-each conversion the call can form: at the non-dependent parameters that
-deduction checks, and at every parameter of every candidate. -/
+each conversion the call can form, at the non-dependent parameters that
+deduction checks and at every parameter of every candidate, and of
+deduction: no argument of a touched class is deduced from as a derived
+class. -/
 theorem inheritance_erasure (mode : Mode) (p : Program) (I : List String)
     (atomics : List (String × List Ty × Bool)) (decls : List Decl) (args : List CallArg)
     (explicit : List Ty)
+    (hderived : ∀ ft, .functionTemplate ft ∈ decls → NoDerivedDeduction p I ft args)
     (hdeduce : ∀ ft, .functionTemplate ft ∈ decls → ∀ x ∈ args.zip ft.params,
       x.2.dependent = false → ExactPair p I x.1 x.2)
     (huse : ∀ cs, generate mode (Env.ofProgram p atomics) decls args explicit = .ok cs →
@@ -537,8 +674,10 @@ theorem inheritance_erasure (mode : Mode) (p : Program) (I : List String)
     simp only [generate]
     refine generate_go_congr _ _ args explicit _ decls (fun ft hm => ?_) 0
     refine deduceTemplate_congr (instantiate_erase p I atomics) (atomic_erase p I atomics) ft
-      explicit args (fun x hx hd => ?_)
-    simp only [Env.ofProgram, ics_erase p I x.1 x.2 (hdeduce ft hm x hx hd)]
+      explicit args (fun c hc => ?_) (fun σ x hx hd hsp => ?_) (fun x hx hd => ?_)
+    · simp only [Env.ofProgram, allBases_spec _ c hc]
+    · simp only [Env.ofProgram, allBases_erase p I _ (hderived ft hm σ x hx hd hsp)]
+    · simp only [Env.ofProgram, ics_erase p I x.1 x.2 (hdeduce ft hm x hx hd)]
   unfold resolve
   rw [hgen]
   cases hg : generate mode (Env.ofProgram p atomics) decls args explicit with
@@ -561,7 +700,7 @@ theorem inheritance_erasure (mode : Mode) (p : Program) (I : List String)
 /-- An Applicative instance type derived from a Functor one, and a
 function that names the Functor instance type. -/
 def namedBase : Program :=
-  [ .class "functor_i", .class "applicative_i" ["functor_i"]
+  [ .class "functor_i", .class "applicative_i" [.named "functor_i"]
   , .function "use" [.lref (.const (.named "functor_i"))] ]
 
 /-- Erasure needs exact-type use: a function naming the base instance type
@@ -575,6 +714,32 @@ theorem erasure_needs_exact_type :
         (namedBase.eraseBases ["applicative_i"]).ranking
         ((namedBase.eraseBases ["applicative_i"]).candidates "use")
         [{ ty := .named "applicative_i", lvalue := true }]).map (·.index) = .noMatch := by
+  constructor <;> rfl
+
+/-! ## Inheritance leak 2: deduction from a derived class -/
+
+/-- A Monad instance type derived from a Functor instance type
+`derive_functor<opt_impl>`, and a function of Functor shape. -/
+def derivedShape : Program :=
+  [ .classTemplate "derive_functor" [{ kind := .type }], .class "opt_impl"
+  , .class "opt_monad_map" [.spec' "derive_functor" [.named "opt_impl"]]
+  , .functionTemplate
+      { name := "use", head := [{ kind := .type }]
+        params := [.lref (.const (.spec' "derive_functor" [.param 0]))] } ]
+
+/-- Leak 2 of the plan's instance inheritance: a parameter of the form
+`derive_functor<I>` deduces `I` from a class derived from it, so the
+Monad instance type silently matches the Functor-shaped signature. With
+the derivation replaced by composition it does not match. The deduction
+is from a derived class, so `inheritance_erasure` does not apply. -/
+theorem derived_class_deduction :
+    (resolve .text (Env.ofProgram derivedShape) derivedShape.ranking
+        (derivedShape.candidates "use") [{ ty := .named "opt_monad_map", lvalue := true }]).map
+        (·.index) = .selected 0 ∧
+      (resolve .text (Env.ofProgram (derivedShape.eraseBases ["opt_monad_map"]))
+        (derivedShape.eraseBases ["opt_monad_map"]).ranking
+        ((derivedShape.eraseBases ["opt_monad_map"]).candidates "use")
+        [{ ty := .named "opt_monad_map", lvalue := true }]).map (·.index) = .noMatch := by
   constructor <;> rfl
 
 /-! ## Superclass coherence is a law, not an identity -/

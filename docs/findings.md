@@ -134,6 +134,15 @@ and described here as they arrive.
 
 ## About the model
 
+- **The derived-class exclusion is vacuous on the fragment** (17 October
+  2026). [temp.deduct.call]/4 excludes a possible deduced `A` that is a
+  base of another possible one. Every possible deduced `A` has the form of
+  a class template specialization, and the fragment gives class templates
+  no bases, so the exclusion never fires. `deduceFromBase` implements it,
+  and the draft's own example, which needs variadic templates, is out of
+  reach. Two bases of the same form fail deduction, as /5 says, on every
+  compiler (`temp_deduct_call_5_two_bases.cpp`).
+
 - **Deduction and ranking share one conversion relation** (17 October
   2026). The environment's convertibility check for non-dependent
   parameters ([temp.deduct.general]/5, sentence 8) had been identity up
@@ -181,8 +190,13 @@ and described here as they arrive.
   "only if" direction holds by counterexample: a function that names the
   base instance type accepts the derived one, and after erasure it
   accepts nothing (`erasure_needs_exact_type`,
-  `erasure_named_base_*.cpp`). The theorem is for the model's fragment,
-  which has no deduction from a derived class and no access checking.
+  `erasure_named_base_*.cpp`). Deduction from a derived class is the
+  second way erasure changes an outcome, leak 2: a parameter
+  `const derive_functor<I>&` deduces `I` from a Monad instance type
+  derived from `derive_functor<opt_impl>` (`derived_class_deduction`,
+  `leak_derived_deduction_*.cpp`). So the theorem also asks that no
+  argument of a touched class meet a dependent parameter of class
+  template form (`NoDerivedDeduction`). Access checking is not modelled.
 
 - **Separability holds with no hypothesis on the ranking** (17 October
   2026). The plan expected the instance selected to be invariant under

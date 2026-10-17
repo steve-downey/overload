@@ -36,15 +36,18 @@ namespace Overload
 namespace Program
 
 /-- The direct base classes a program declares for a class, from its
-first definition. -/
-def directBases (p : Program) (n : String) : List String :=
-  (p.findSome? fun
-    | .class m bs => if m = n then some bs else none
-    | _ => none).getD []
+first definition. A class template specialization has none: the fragment
+does not give class templates bases. -/
+def directBases (p : Program) : Ty → List Ty
+  | .named n =>
+    (p.findSome? fun
+      | .class m bs => if m = n then some bs else none
+      | _ => none).getD []
+  | _ => []
 
 /-- `derivesWithin p fuel d b`: `b` is a base class of `d`, found within
 `fuel` steps of direct derivation. -/
-def derivesWithin (p : Program) : Nat → String → String → Bool
+def derivesWithin (p : Program) : Nat → Ty → Ty → Bool
   | 0, _, _ => false
   | fuel + 1, d, b => (p.directBases d).any fun m => m == b || p.derivesWithin fuel m b
 
@@ -53,10 +56,16 @@ def derivesWithin (p : Program) : Nat → String → String → Bool
 complete before the class that names it, so a chain of derivation is no
 longer than the program, which bounds the search. -/
 @[std rule "class.derived.general#2"]
-def derives (p : Program) (d b : Ty) : Bool :=
-  match d, b with
-  | .named d, .named b => p.derivesWithin p.length d b
-  | _, _ => false
+def derives (p : Program) (d b : Ty) : Bool := p.derivesWithin p.length d b
+
+/-- The base classes of a class, direct and indirect, within `fuel` steps
+of direct derivation, nearest first. -/
+def allBasesWithin (p : Program) : Nat → Ty → List Ty
+  | 0, _ => []
+  | fuel + 1, d => (p.directBases d).flatMap fun m => m :: p.allBasesWithin fuel m
+
+/-- The base classes of a class, direct and indirect. -/
+def allBases (p : Program) (d : Ty) : List Ty := p.allBasesWithin p.length d
 
 /-- `cv1 T1` is reference-compatible with `cv2 T2` when a pointer to
 `cv2 T2` converts to a pointer to `cv1 T1`: `T2` is `T1` or derived from
