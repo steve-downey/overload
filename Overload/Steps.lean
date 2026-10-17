@@ -96,6 +96,19 @@ def form (env : Env) : Ty → Subst Ty
   | .lookup n a => do
     let a ← form env a
     if a.dependent then return .lookup n a else env.instantiate n a
+  | .ref (.lookup n a) => do
+    -- Binding the reference instantiates the variable template
+    -- specialization, whose failure is outside the immediate context; the
+    -- argument is the specialization itself, whatever its value.
+    let a ← form env a
+    if a.dependent then return .ref (.lookup n a)
+    else do
+      let _ ← env.instantiate n a
+      return .ref (.lookup n a)
+  | .ref t => do return .ref (← form env t)
+  | .removeCvref t => do
+    let t ← form env t
+    return if t.dependent then .removeCvref t else t.referred.stripConst
 
 /-- Form each of a list of types, left to right, stopping at the first
 failure: substitution proceeds in lexical order and stops when a condition

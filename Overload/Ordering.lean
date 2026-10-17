@@ -113,7 +113,8 @@ non-deduced context counting as used. -/
 def usedParams : Ty → List ParamIdx
   | .named _ | .nil => []
   | .param i => [i]
-  | .const t | .ptr t | .lref t | .rref t | .nondeduced t | .lookup _ t | .spec _ t => usedParams t
+  | .const t | .ptr t | .lref t | .rref t | .nondeduced t | .lookup _ t | .spec _ t | .ref t
+  | .removeCvref t => usedParams t
   | .cons a as => usedParams a ++ usedParams as
   | .value v => usedVal v
 where

@@ -269,9 +269,16 @@ Status, 15 October 2026:
   instance anywhere in a program moves lookup only at types the instance
   matches, and there only to it or to ambiguity (`stability`). Lookups of
   other typeclasses do not move (`stability_other_typeclass`). Neither
-  theorem needs single-tu or soft failure (`findings.md`). Still to do:
-  the explicit-instance routes, superclass retrieval, inheritance
-  erasure, superclass coherence, termination, and the obligations table.
+  theorem needs single-tu or soft failure (`findings.md`). The operation
+  object of beman.transpose is in the model, with its reference instance
+  parameter (`Ty.ref`) and `remove_cvref_t` key, as four emitted call
+  cases. An ambiguous instance there is a finding against both compilers
+  (`findings.md`). The routes are settled by
+  `decisions.md#explicit-instance-routes`. Still to do: the call-surface
+  theorems for the operation object, the pinning and by-value routes, the
+  plan's three routes as alternatives, superclass retrieval, inheritance
+  erasure, superclass coherence, and the obligations table. Termination
+  is vacuous for the library today, since no instance requires another.
 
 ## Target theorems
 

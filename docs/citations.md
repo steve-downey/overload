@@ -57,6 +57,8 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.deduct.type]/4 sentence 3](https://eel.is/c++draft/temp.deduct.type#4.sentence-3) | rule | `Overload.DeduceTy.nondeduced` | `Overload.Deduction` |
 | [[temp.deduct.type]/4 sentence 4](https://eel.is/c++draft/temp.deduct.type#4.sentence-4) | rule | `Overload.allDeduced` | `Overload.Deduction` |
 | [[temp.deduct.type]/5](https://eel.is/c++draft/temp.deduct.type#5) | rule | `Overload.DeduceTy.lookup` | `Overload.Deduction` |
+| [[temp.deduct.type]/5](https://eel.is/c++draft/temp.deduct.type#5) | rule | `Overload.DeduceTy.ref` | `Overload.Deduction` |
+| [[temp.deduct.type]/5](https://eel.is/c++draft/temp.deduct.type#5) | rule | `Overload.DeduceTy.removeCvref` | `Overload.Deduction` |
 | [[temp.deduct.type]/8 sentence 1](https://eel.is/c++draft/temp.deduct.type#8.sentence-1) | rule | `Overload.DeduceTy.const` | `Overload.Deduction` |
 | [[temp.deduct.type]/8 sentence 1](https://eel.is/c++draft/temp.deduct.type#8.sentence-1) | rule | `Overload.DeduceTy.lref` | `Overload.Deduction` |
 | [[temp.deduct.type]/8 sentence 1](https://eel.is/c++draft/temp.deduct.type#8.sentence-1) | rule | `Overload.DeduceTy.param` | `Overload.Deduction` |

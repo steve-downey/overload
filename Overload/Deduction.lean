@@ -55,6 +55,8 @@ def deduceTy : Ty → Ty → Bindings → Option Bindings
   | .cons p ps, .cons a as, σ => deduceTy p a σ >>= deduceTy ps as
   | .nondeduced _, _, σ => some σ
   | .lookup _ _, _, σ => some σ
+  | .ref _, _, σ => some σ
+  | .removeCvref _, _, σ => some σ
   | _, _, _ => none
 
 /-- The specification form: `DeduceTy P A σ σ'` says that deducing `P`
@@ -107,6 +109,16 @@ inductive DeduceTy : Ty → Ty → Bindings → Bindings → Prop where
   not deduced from, whatever `A` is. -/
   | lookup (n : String) (p a : Ty) (σ : Bindings) :
       DeduceTy (.lookup n p) a σ σ
+  /-- So is a reference constant template argument whose operand
+  references a template parameter, such as `functor<T>`; one whose operand
+  does not is the same object or no match, which the fragment's uses never
+  ask, since the instance parameter is always defaulted. -/
+  | ref (p a : Ty) (σ : Bindings) :
+      DeduceTy (.ref p) a σ σ
+  /-- `std::remove_cvref_t<T>` names `std::remove_cvref<T>::type`: the
+  nested-name-specifier of a qualified-id is a non-deduced context. -/
+  | removeCvref (p a : Ty) (σ : Bindings) :
+      DeduceTy (.removeCvref p) a σ σ
 
 attribute [std rule "temp.deduct.type#8.sentence-1"] DeduceTy.param
 attribute [std rule "temp.deduct.type#8.sentence-1"] DeduceTy.value
@@ -120,6 +132,8 @@ attribute [std rule "temp.deduct.type#9.sentence-1"] DeduceTy.nil
 attribute [std rule "temp.deduct.type#9.sentence-1"] DeduceTy.cons
 attribute [std rule "temp.deduct.type#4.sentence-3"] DeduceTy.nondeduced
 attribute [std rule "temp.deduct.type#5"] DeduceTy.lookup
+attribute [std rule "temp.deduct.type#5"] DeduceTy.ref
+attribute [std rule "temp.deduct.type#5"] DeduceTy.removeCvref
 
 /-- Soundness: what the function deduces, the relation derives. -/
 theorem deduceTy_sound (p : Ty) : ∀ (a : Ty) (σ σ' : Bindings),
@@ -189,6 +203,16 @@ theorem deduceTy_sound (p : Ty) : ∀ (a : Ty) (σ σ' : Bindings),
     simp only [deduceTy, Option.some.injEq] at h
     subst h
     exact .lookup n p a σ
+  | ref p _ =>
+    intro a σ σ' h
+    simp only [deduceTy, Option.some.injEq] at h
+    subst h
+    exact .ref p a σ
+  | removeCvref p _ =>
+    intro a σ σ' h
+    simp only [deduceTy, Option.some.injEq] at h
+    subst h
+    exact .removeCvref p a σ
 
 /-- Completeness: what the relation derives, the function deduces. -/
 theorem deduceTy_complete {p a : Ty} {σ σ' : Bindings}
@@ -206,6 +230,8 @@ theorem deduceTy_complete {p a : Ty} {σ σ' : Bindings}
   | cons p ps a as σ σ₁ σ' _ _ ih₁ ih₂ => simp [deduceTy, ih₁, ih₂]
   | nondeduced p a σ => simp [deduceTy]
   | lookup n p a σ => simp [deduceTy]
+  | ref p a σ => simp [deduceTy]
+  | removeCvref p a σ => simp [deduceTy]
 
 /-- Agreement: the relation holds exactly when the function succeeds. -/
 theorem deduceTy_iff (p a : Ty) (σ σ' : Bindings) :
@@ -289,6 +315,10 @@ theorem deduceTy_extends (p : Ty) : ∀ (a : Ty) (σ σ' : Bindings),
     simp only [deduceTy, Option.some.injEq] at h
     subst h; exact hb
   | lookup n p _ =>
+    intro a σ σ' h b hb
+    simp only [deduceTy, Option.some.injEq] at h
+    subst h; exact hb
+  | ref p _ | removeCvref p _ =>
     intro a σ σ' h b hb
     simp only [deduceTy, Option.some.injEq] at h
     subst h; exact hb

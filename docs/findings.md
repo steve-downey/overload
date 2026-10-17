@@ -57,7 +57,7 @@ and described here as they arrive.
   fails the example (checked 16 October 2026); the model transcribes
   the text, and `OverloadTest/Steps.lean` shows the same call is a hard
   error when the constraint step is skipped. Listed in
-  `differential/known-disagreements.txt` for Clang up to 20.
+  `differential/known-disagreements.txt` for Clang 17 to 20.
 
 - **GCC's shortcut is narrower than P3606 as the model reads it** (16
   October 2026). `draft_temp_constr_atomic_3_better_match.cpp` is the
@@ -101,8 +101,28 @@ and described here as they arrive.
   the one Clang 18 accepts. Listed as known for both compilers; the
   verdict stands on the text.
   Update, 16 October 2026: Clang 19 to 24 select the more constrained
-  overload, as the model does. GCC 13 to 15 still report ambiguity, so
-  the known entries remain for GCC and for Clang 18.
+  overload, as the model does. GCC 13 to 15 still report ambiguity, and
+  so does Clang 17, so the known entries remain for GCC and for Clang 17
+  and 18.
+
+- **An ambiguous instance is a deduction failure on both compilers**
+  (16 October 2026). `op_object_ambiguous_hard.cpp` is the operation
+  object of beman.transpose at a type two instances match, with neither
+  more specialized, beside a worse fallback template. [temp.spec.partial.match]/1
+  makes the ambiguous use ill-formed. The matching is how the
+  specialization is instantiated, and [temp.deduct.general]/8 puts
+  instantiations outside the immediate context, so the model makes the
+  call ill-formed. GCC 13 to 15 and Clang 17 to 24 select the fallback.
+  The result depends on how the lookup is spelled. A hand-written variant
+  that looks up through a class template's static member is a hard error
+  on GCC and soft on Clang. Through a variable template whose initializer
+  names that static member, it is hard on GCC and on Clang 18, and soft on
+  Clang 23. For the library this means that two unordered instances do
+  not make a call ill-formed in practice. The type is silently treated as
+  having no instance, and another overload, if there is one, is chosen.
+  That is the silent choice coherence rules out for lookup itself.
+  Listed in `differential/known-disagreements.txt` for both compilers;
+  the verdict stands on the text.
 
 ## About the model
 

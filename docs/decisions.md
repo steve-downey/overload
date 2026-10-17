@@ -339,7 +339,15 @@ citation index, the drift check and the installed C++ package
 
 **Question:** Which ways of supplying an instance other than canonical
 lookup does the model cover?
-**Status:** OPEN.
+**Status:** DECIDED 16 October 2026.
+**Decided by:** the author.
+**Decision:** Both. First the library as written: the operation object
+with its `const auto &` instance parameter, the user-side pinning
+pattern, and the by-value trailing argument. Then the plan's three
+routes, as alternative designs, so the guidance can compare them.
+**Why:** The library is what the theorems have to be about. The plan's
+routes are designs someone might adopt, and the inheritance guidance is
+stronger when it can say which of them a leak depends on.
 **Facts recorded 16 October 2026,** from beman.transpose (the typeclass
 repository's `include/beman/transpose/`):
 
@@ -374,3 +382,7 @@ repository's `include/beman/transpose/`):
   argument identity is the identity of the referenced object
   ([temp.type]/2 for references), not value equivalence. The model's
   `Val` covers values only.
+- 2026-10-16 — Decided. The model gains `Ty.ref`, a reference constant
+  template argument whose identity is the designated object, and
+  `Ty.removeCvref`. The operation object is emitted and computed as four
+  call cases (`op_object_*` in `Overload/Emit.lean`).

@@ -106,6 +106,10 @@ def Env.ofProgram (p : Program) (atomics : List (String × List Ty × Bool) := [
     atomic := fun e args =>
       match e, args with
       | "has_instance", [.named c, a] => .ok ((p.selectInstance c a).toOption.isSome)
+      -- The operation object's constraint, the call through the instance:
+      -- an instance has the operation, and the primary, `std::false_type`,
+      -- does not.
+      | "fmap_call", [.ref (.lookup c a), _, _] => .ok ((p.selectInstance c a).toOption.isSome)
       | _, _ =>
         match atomics.find? fun (e', args', _) => e' == e && args' == args with
         | some (_, _, b) => .ok b
@@ -144,6 +148,8 @@ partial def ty : Ty → String
   | .value v => val v
   | .nondeduced t => s!"std::type_identity_t<{ty t}>"
   | .lookup n a => s!"{n}<{ty a}>"
+  | .ref t => ty t
+  | .removeCvref t => s!"std::remove_cvref_t<{ty t}>"
 where
   argList (as : Ty) : String :=
     match as.toList with
@@ -166,6 +172,8 @@ the encoding spells it; any other atomic constraint is a concept-id. -/
 def constraint : Constraint → String
   | .atomic "has_instance" [.named c, a] =>
     s!"(!std::is_same_v<std::remove_cvref_t<decltype({c}<{ty a}>)>, std::false_type>)"
+  | .atomic "fmap_call" [tc, f, x] =>
+    s!"requires \{ {ty tc}.fmap(std::declval<{ty f}>(), std::declval<{ty x}>()); }"
   | .atomic e m => s!"{e}<{String.intercalate ", " (m.map ty)}>"
   | .conj l r => s!"({constraint l} && {constraint r})"
   | .disj l r => s!"({constraint l} || {constraint r})"
@@ -276,7 +284,8 @@ def render (c : Case) : String := Id.run do
   out := out ++ "#include <type_traits>\n#include <utility>\n\n"
   out := out ++ "template <class...> struct deduced {};\n"
   out := out ++ "template <auto V> struct value_of {};\n"
-  out := out ++ "template <int K> struct selected {};\n"
+  out := out ++ "template <int K> struct selected {\n" ++
+    "    template <class F, class X> static void fmap(F&&, X&&);\n};\n"
   out := out ++ "template <class T> struct instance_of {};\n\n"
   match c.query with
   | .deduction callee as expected explicit =>
@@ -712,6 +721,77 @@ def instancePrimary : Case :=
     query := .lookup "functor" int .noMatch
     source := "computed by select" }
 
+/-! ### The operation object of beman.transpose
+
+`fmap` as the library spells it: the container type is deduced from the
+second argument, and the instance arrives through a trailing `const auto &`
+constant template parameter defaulted to the lookup at the container's
+type with cv and reference removed. The constraint is the call through the
+instance. -/
+
+private def opObject : FunctionTemplate :=
+  { name := "fmap"
+    head :=
+      [ typeParam, typeParam
+      , { kind := .const (.lref (.const (.named "auto")))
+          default := some (.ref (.lookup "functor" (.removeCvref (.param 1)))) } ]
+    params := [.rref (.param 0), .rref (.param 1)]
+    constraint := some (.atomic "fmap_call" [.param 2, .param 0, .param 1]) }
+
+private def opProgram (extra : Program := []) (after : Program := []) : Program :=
+  [ .class "Fn", .classTemplate "box" [typeParam], .classTemplate "pair" [typeParam, typeParam]
+  , .lookup "functor", .instance "functor" [typeParam] (.spec' "box" [T]) ] ++ extra ++
+  [ .functionTemplate opObject ] ++ after
+
+private def fn : CallArg := { ty := .named "Fn" }
+
+/-- The instance is found at the container's type. -/
+def opObjectSelects : Case :=
+  { name := "op_object_selects"
+    cite := cite "temp.deduct.general#5.sentence-3"
+    program := opProgram
+    query := .call "fmap" [fn, { ty := .spec' "box" [int] }] (.selected 0)
+    source := "computed by resolve" }
+
+/-- A const lvalue argument deduces `T` as `const box<int>&`, and the
+lookup key is still `box<int>`: the normalized-key obligation, discharged
+by `remove_cvref_t`. -/
+def opObjectNormalizedKey : Case :=
+  { name := "op_object_normalized_key"
+    cite := cite "temp.deduct.call#3.sentence-3"
+    program := opProgram
+    query := .call "fmap" [fn, { ty := .const (.spec' "box" [int]), lvalue := true }] (.selected 0)
+    source := "computed by resolve" }
+
+/-- No instance: the lookup is the primary, which has no `fmap`, so the
+call is not viable rather than ill-formed. -/
+def opObjectMissingSoft : Case :=
+  { name := "op_object_missing_soft"
+    cite := cite "temp.deduct.general#5.sentence-7"
+    program := opProgram
+    query := .call "fmap" [fn, { ty := int }] .noMatch
+    source := "computed by resolve" }
+
+/-- Two instances match and neither is more specialized: substituting the
+default instantiates an ambiguous lookup, and matching partial
+specializations is part of instantiation, outside the immediate context,
+so the call is ill-formed, not merely not viable. A worse fallback
+candidate, a template so that no perfect-match shortcut applies, tells
+the two apart: a compiler that treats the ambiguity as a deduction
+failure selects it. Both compilers do (docs/findings.md). -/
+def opObjectAmbiguousHard : Case :=
+  { name := "op_object_ambiguous_hard"
+    cite := cite "temp.deduct.general#8.sentence-4"
+    program := opProgram
+      [ .instance "functor" [typeParam] (.spec' "pair" [T, int])
+      , .instance "functor" [typeParam] (.spec' "pair" [int, T]) ]
+      [ .functionTemplate
+          { name := "fmap", head := [typeParam]
+            params := [.rref T, .lref (.const (.spec' "pair" [int, int]))] } ]
+    query := .call "fmap" [fn, { ty := .spec' "pair" [int, int] }]
+      (.illFormed "ambiguous partial specializations of functor<pair<int, int>>")
+    source := "computed by resolve" }
+
 /-- Every case the emitter writes. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -722,7 +802,8 @@ def cases : List Case :=
   , stepOrderHazard, stepOrderHazardGuarded, stepOrderSoft, draftConstrAtomic3_betterMatch
   , tieBreakA, tieBreakB, tieBreakC, tieBreakD
   , refTieBreak, cvTieBreak, pointerMoreSpecialized
-  , instanceMoreSpecialized, instanceAmbiguous, instancePrimary ]
+  , instanceMoreSpecialized, instanceAmbiguous, instancePrimary
+  , opObjectSelects, opObjectNormalizedKey, opObjectMissingSoft, opObjectAmbiguousHard ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=

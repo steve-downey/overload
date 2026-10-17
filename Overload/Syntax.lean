@@ -99,6 +99,16 @@ inductive Ty where
   instantiates it, which is outside the immediate context, and the
   environment's oracle says what comes of that. -/
   | lookup : String → Ty → Ty
+  /-- A constant template argument of reference type: the object the
+  operand designates, such as the variable template specialization
+  `functor<T>` itself (`ref (lookup "functor" T)`). This is how
+  beman.transpose passes an instance: a `const auto &` constant template
+  parameter bound to the lookup variable. Its identity is the identity of
+  the designated object, not the object's value ([temp.type]/2). -/
+  | ref : Ty → Ty
+  /-- `std::remove_cvref_t<T>`: an alias for a nested member type, so a
+  non-deduced context, which substitution computes once `T` is known. -/
+  | removeCvref : Ty → Ty
   deriving Repr, DecidableEq, Inhabited
 
 namespace Ty
@@ -120,7 +130,7 @@ def toList : Ty → Option (List Ty)
 /-- A type, as opposed to an argument list or a value: what a type template
 parameter may be bound to. -/
 def isType : Ty → Bool
-  | .nil | .cons _ _ | .value _ | .lookup _ _ => false
+  | .nil | .cons _ _ | .value _ | .lookup _ _ | .ref _ => false
   | _ => true
 
 /-- Is `t` a reference type? -/
@@ -173,12 +183,15 @@ def Val.subst (σ : Bindings) : Val → Val
     | _ => .param i
 
 /-- Replace the template parameters of a type by their bound arguments,
-collapsing references as they are formed. Parameters with no binding are
-left in place. -/
+collapsing references as they are formed. A parameter bound to a type or
+to a reference constant argument is replaced by it; a value is
+substituted through `Val.subst`. Parameters with no binding are left in
+place. -/
 def Ty.subst (σ : Bindings) : Ty → Ty
   | .named n => .named n
   | .param i =>
     match σ.lookup i with
+    | some (.ref r) => .ref r
     | some t => if t.isType then t else .param i
     | none => .param i
   | .const t => .const (Ty.subst σ t)
@@ -191,6 +204,8 @@ def Ty.subst (σ : Bindings) : Ty → Ty
   | .value v => .value (Val.subst σ v)
   | .nondeduced t => .nondeduced (Ty.subst σ t)
   | .lookup n a => .lookup n (Ty.subst σ a)
+  | .ref t => .ref (Ty.subst σ t)
+  | .removeCvref t => .removeCvref (Ty.subst σ t)
 
 /-- Does the value mention a constant template parameter? -/
 def Val.dependent : Val → Bool
@@ -203,7 +218,8 @@ def Val.dependent : Val → Bool
 def Ty.dependent : Ty → Bool
   | .named _ | .nil => false
   | .param _ => true
-  | .const t | .ptr t | .lref t | .rref t | .nondeduced t | .lookup _ t => Ty.dependent t
+  | .const t | .ptr t | .lref t | .rref t | .nondeduced t | .lookup _ t | .ref t | .removeCvref t =>
+    Ty.dependent t
   | .spec _ as => Ty.dependent as
   | .cons a as => Ty.dependent a || Ty.dependent as
   | .value v => Val.dependent v
