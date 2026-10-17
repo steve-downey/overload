@@ -69,6 +69,17 @@ transcription.
   agreement proof is about 160 lines, most of it list bookkeeping for
   positions. Coherence and stability are proved from the relation, not
   from the function, which is the payoff the decision expected.
+- 2026-10-17 — The deviation is repaired. `Overload/Specs.lean` gives
+  partial ordering and overload resolution their relation forms, each
+  constructor cited, with agreement theorems: `DeducePairs`,
+  `AtLeastAsSpecialized`, `MoreSpecialized`, `BetterFunction`,
+  `BestViable` and `Resolves`. The relations are built on `DeduceTy` and
+  on each other. At the leaves they use the executable parts that are
+  definitions rather than rules: the transformed template, the nominated
+  types, the /9 denial, the gate, more-constrained and the ranking. The
+  file is about 350 lines, most of it the agreement proofs. `Selects`
+  is still stated over the executable more-specialized, which
+  `moreSpecialized_iff` now makes interchangeable with the relation.
 
 ---
 

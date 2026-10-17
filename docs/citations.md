@@ -26,13 +26,24 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[over.ics.rank]/4 sentence 1](https://eel.is/c++draft/over.ics.rank#4.sentence-1) | rule | `Overload.ConvRank.better` | `Overload.Ranking` |
 | [[over.ics.ref]/1](https://eel.is/c++draft/over.ics.ref#1) | rule | `Overload.Program.ics` | `Overload.Ranking` |
 | [[over.ics.ref]/3 sentence 1](https://eel.is/c++draft/over.ics.ref#3.sentence-1) | rule | `Overload.Program.canBind` | `Overload.Ranking` |
+| [[over.match.best.general]/2](https://eel.is/c++draft/over.match.best.general#2) | rule | `Overload.BetterFunction.betterConversion` | `Overload.Specs` |
+| [[over.match.best.general]/2](https://eel.is/c++draft/over.match.best.general#2) | rule | `Overload.BetterFunction.moreSpecialized` | `Overload.Specs` |
+| [[over.match.best.general]/2](https://eel.is/c++draft/over.match.best.general#2) | rule | `Overload.BetterFunction.nonTemplate` | `Overload.Specs` |
 | [[over.match.best.general]/2](https://eel.is/c++draft/over.match.best.general#2) | rule | `Overload.betterFunction` | `Overload.Resolution` |
+| [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.BestViable.noneBest` | `Overload.Specs` |
+| [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.BestViable.selected` | `Overload.Specs` |
+| [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.BestViable.severalBest` | `Overload.Specs` |
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.Resolution.ambiguous` | `Overload.Outcome` |
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.Resolution.selected` | `Overload.Outcome` |
+| [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.Resolves.best` | `Overload.Specs` |
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.bestViable` | `Overload.Resolution` |
+| [[over.match.funcs.general]/8 sentence 1](https://eel.is/c++draft/over.match.funcs.general#8.sentence-1) | rule | `Overload.Resolves.generationSoft` | `Overload.Specs` |
 | [[over.match.funcs.general]/8 sentence 1](https://eel.is/c++draft/over.match.funcs.general#8.sentence-1) | rule | `Overload.generate` | `Overload.Resolution` |
+| [[over.match.general]/3 sentence 2](https://eel.is/c++draft/over.match.general#3.sentence-2) | rule | `Overload.BestViable.noViable` | `Overload.Specs` |
 | [[over.match.general]/3 sentence 2](https://eel.is/c++draft/over.match.general#3.sentence-2) | rule | `Overload.Resolution.noMatch` | `Overload.Outcome` |
 | [[over.match.viable]/2 sentence 1](https://eel.is/c++draft/over.match.viable#2.sentence-1) | rule | `Overload.arityOk` | `Overload.Resolution` |
+| [[over.match.viable]/4 sentence 1](https://eel.is/c++draft/over.match.viable#4.sentence-1) | rule | `Overload.Resolves.viabilityHard` | `Overload.Specs` |
+| [[over.match.viable]/4 sentence 1](https://eel.is/c++draft/over.match.viable#4.sentence-1) | rule | `Overload.Resolves.viabilitySoft` | `Overload.Specs` |
 | [[over.match.viable]/4 sentence 1](https://eel.is/c++draft/over.match.viable#4.sentence-1) | rule | `Overload.conversions` | `Overload.Resolution` |
 | [[stmt.if]/2 sentence 2](https://eel.is/c++draft/stmt.if#2.sentence-2) | rule | `Overload.ifConstexpr` | `Overload.Dispatch` |
 | [[structure.specifications]/3](https://eel.is/c++draft/structure.specifications#3) | rule | `Overload.mandateCheck` | `Overload.Mandates` |
@@ -63,14 +74,19 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.deduct.general]/7 sentence 4](https://eel.is/c++draft/temp.deduct.general#7.sentence-4) | rule | `Overload.formAll` | `Overload.Steps` |
 | [[temp.deduct.general]/8 sentence 1](https://eel.is/c++draft/temp.deduct.general#8.sentence-1) | rule | `Overload.Subst.soft` | `Overload.Outcome` |
 | [[temp.deduct.general]/8 sentence 3](https://eel.is/c++draft/temp.deduct.general#8.sentence-3) | rule | `Overload.Resolution.illFormed` | `Overload.Outcome` |
+| [[temp.deduct.general]/8 sentence 3](https://eel.is/c++draft/temp.deduct.general#8.sentence-3) | rule | `Overload.Resolves.generationHard` | `Overload.Specs` |
 | [[temp.deduct.general]/8 sentence 3](https://eel.is/c++draft/temp.deduct.general#8.sentence-3) | rule | `Overload.Subst.hard` | `Overload.Outcome` |
 | [[temp.deduct.general]/8 sentence 3](https://eel.is/c++draft/temp.deduct.general#8.sentence-3) | rule | `Overload.form` | `Overload.Steps` |
 | [[temp.deduct.partial]/2 sentence 3](https://eel.is/c++draft/temp.deduct.partial#2.sentence-3) | rule | `Overload.PartialOrdering.direction` | `Overload.Ordering` |
 | [[temp.deduct.partial]/3](https://eel.is/c++draft/temp.deduct.partial#3) | rule | `Overload.PartialOrdering.nominated` | `Overload.Ordering` |
+| [[temp.deduct.partial]/5](https://eel.is/c++draft/temp.deduct.partial#5) | rule | `Overload.PartialOrdering.DeducePairs.cons` | `Overload.Specs` |
 | [[temp.deduct.partial]/8 sentence 4](https://eel.is/c++draft/temp.deduct.partial#8.sentence-4) | rule | `Overload.PartialOrdering.deducePair` | `Overload.Ordering` |
 | [[temp.deduct.partial]/9](https://eel.is/c++draft/temp.deduct.partial#9) | rule | `Overload.PartialOrdering.denies` | `Overload.Ordering` |
+| [[temp.deduct.partial]/10 sentence 1](https://eel.is/c++draft/temp.deduct.partial#10.sentence-1) | rule | `Overload.PartialOrdering.AtLeastAsSpecialized.intro` | `Overload.Specs` |
 | [[temp.deduct.partial]/10 sentence 1](https://eel.is/c++draft/temp.deduct.partial#10.sentence-1) | rule | `Overload.PartialOrdering.atLeastAsSpecialized` | `Overload.Ordering` |
+| [[temp.deduct.partial]/10 sentence 2](https://eel.is/c++draft/temp.deduct.partial#10.sentence-2) | rule | `Overload.PartialOrdering.MoreSpecialized.byDeduction` | `Overload.Specs` |
 | [[temp.deduct.partial]/10 sentence 2](https://eel.is/c++draft/temp.deduct.partial#10.sentence-2) | rule | `Overload.PartialOrdering.moreSpecializedByDeduction` | `Overload.Ordering` |
+| [[temp.deduct.partial]/12 sentence 1](https://eel.is/c++draft/temp.deduct.partial#12.sentence-1) | rule | `Overload.PartialOrdering.DeducePairs.nil` | `Overload.Specs` |
 | [[temp.deduct.partial]/12 sentence 1](https://eel.is/c++draft/temp.deduct.partial#12.sentence-1) | rule | `Overload.PartialOrdering.deduceAll` | `Overload.Ordering` |
 | [[temp.deduct.type]/1 sentence 1](https://eel.is/c++draft/temp.deduct.type#1.sentence-1) | theorem | `Overload.deduceTy_most_general` | `Overload.Generality` |
 | [[temp.deduct.type]/1 sentence 1](https://eel.is/c++draft/temp.deduct.type#1.sentence-1) | theorem | `Overload.deduceTy_subst` | `Overload.Generality` |
@@ -95,6 +111,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.func.order]/2 sentence 4](https://eel.is/c++draft/temp.func.order#2.sentence-4) | rule | `Overload.PartialOrdering.moreSpecialized` | `Overload.Ordering` |
 | [[temp.func.order]/2 sentence 4](https://eel.is/c++draft/temp.func.order#2.sentence-4) | theorem | `Overload.PartialOrdering.moreSpecialized_trans` | `Overload.Transitivity` |
 | [[temp.func.order]/3 sentence 1](https://eel.is/c++draft/temp.func.order#3.sentence-1) | rule | `Overload.PartialOrdering.transform` | `Overload.Ordering` |
+| [[temp.func.order]/8](https://eel.is/c++draft/temp.func.order#8) | rule | `Overload.PartialOrdering.MoreSpecialized.byConstraints` | `Overload.Specs` |
 | [[temp.func.order]/8](https://eel.is/c++draft/temp.func.order#8) | rule | `Overload.PartialOrdering.tieBreakApplies` | `Overload.Ordering` |
 | [[temp.func.order]/8](https://eel.is/c++draft/temp.func.order#8) | theorem | `Overload.PartialOrdering.tieBreak_needs_equal_heads` | `Overload.Ordering` |
 | [[temp.over.link]/6 sentence 2](https://eel.is/c++draft/temp.over.link#6.sentence-2) | rule | `Overload.PartialOrdering.paramEquivalent` | `Overload.Ordering` |

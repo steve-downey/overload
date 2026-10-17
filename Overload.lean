@@ -10,6 +10,7 @@ import Overload.Program
 import Overload.Steps
 import Overload.Ordering
 import Overload.Transitivity
+import Overload.Specs
 import Overload.Typeclass
 import Overload.Resolution
 import Overload.Ranking
@@ -124,3 +125,9 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.call_eq_invoke
 #audit Overload.protected_base_selected_ill_formed
 #audit Overload.protected_base_deduced_ill_formed
+#audit Overload.PartialOrdering.deduceAll_go_iff
+#audit Overload.PartialOrdering.atLeastAsSpecialized_iff
+#audit Overload.PartialOrdering.moreSpecialized_iff
+#audit Overload.betterFunction_iff
+#audit Overload.bestViable_iff
+#audit Overload.resolve_iff
