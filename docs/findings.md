@@ -361,8 +361,9 @@ and described here as they arrive.
   The argument route cannot keep a default, as the library's by-value
   route does: beside the canonical overload the two are unordered and a
   call without the policy is ambiguous
-  (`routes_argument_default_ambiguous`). The library's choice of one
-  overload per operation object avoids both.
+  (`routes_argument_default_ambiguous`). The library avoids both by giving
+  each named operation one operation object with one `operator()`, so
+  there is no overload set of routes.
 
 - **Soft failure is by construction only where the route constrains**
   (17 October 2026). The plan expected a missing instance to fail as a
@@ -394,9 +395,11 @@ and described here as they arrive.
 - **The library has no explicit-instance overloads** (16 October 2026).
   The plan's three explicit-instance routes and its dispatch-styles
   theorem assume operation objects that offer several ways in. In
-  beman.transpose each operation object has one `operator()`, which looks
-  the instance up through a trailing `const auto &` constant template
-  parameter. The other routes are user-side patterns or a by-value
+  beman.transpose each named operation (`fmap`, `replace`, `bind` and the
+  rest) is its own operation object, and each such object has one
+  `operator()`, which looks the instance up through a trailing `const
+  auto &` constant template parameter. The instance, the bundle of
+  operations, is a different object, reached through the lookup. The other routes are user-side patterns or a by-value
   trailing argument on `traverse` and `fold_map`. Instance constant
   parameters are references, not structural values, so the plan's
   argument-identity analysis does not apply to the library as written,

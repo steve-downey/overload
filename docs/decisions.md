@@ -431,8 +431,9 @@ stronger when it can say which of them a leak depends on.
 **Facts recorded 16 October 2026,** from beman.transpose (the typeclass
 repository's `include/beman/transpose/`):
 
-- The operation objects (`fmap`, `replace`, `bind`, `join`, and the
-  applicative and fold objects) each have one `operator()`. It looks the
+- Each named operation is its own operation object (`fmap`, `replace`,
+  `bind`, `join`, and the applicative and fold objects), and each object
+  has one `operator()`. It looks the
   instance up through a trailing `const auto &TC` constant template
   parameter defaulted to the lookup, constrained on the call through
   `TC`. There are no overloads between routes, no priority tags and no
