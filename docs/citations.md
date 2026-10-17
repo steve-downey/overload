@@ -69,6 +69,8 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.deduct.partial]/10 sentence 1](https://eel.is/c++draft/temp.deduct.partial#10.sentence-1) | rule | `Overload.PartialOrdering.atLeastAsSpecialized` | `Overload.Ordering` |
 | [[temp.deduct.partial]/10 sentence 2](https://eel.is/c++draft/temp.deduct.partial#10.sentence-2) | rule | `Overload.PartialOrdering.moreSpecializedByDeduction` | `Overload.Ordering` |
 | [[temp.deduct.partial]/12 sentence 1](https://eel.is/c++draft/temp.deduct.partial#12.sentence-1) | rule | `Overload.PartialOrdering.deduceAll` | `Overload.Ordering` |
+| [[temp.deduct.type]/1 sentence 1](https://eel.is/c++draft/temp.deduct.type#1.sentence-1) | theorem | `Overload.deduceTy_most_general` | `Overload.Generality` |
+| [[temp.deduct.type]/1 sentence 1](https://eel.is/c++draft/temp.deduct.type#1.sentence-1) | theorem | `Overload.deduceTy_subst` | `Overload.Generality` |
 | [[temp.deduct.type]/2 sentence 3](https://eel.is/c++draft/temp.deduct.type#2.sentence-3) | theorem | `Overload.deduceTy_det` | `Overload.Deduction` |
 | [[temp.deduct.type]/4 sentence 3](https://eel.is/c++draft/temp.deduct.type#4.sentence-3) | rule | `Overload.DeduceTy.nondeduced` | `Overload.Deduction` |
 | [[temp.deduct.type]/4 sentence 4](https://eel.is/c++draft/temp.deduct.type#4.sentence-4) | rule | `Overload.allDeduced` | `Overload.Deduction` |

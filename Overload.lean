@@ -4,6 +4,7 @@ import Overload.Std
 import Overload.Syntax
 import Overload.Outcome
 import Overload.Deduction
+import Overload.Generality
 import Overload.Constraint
 import Overload.Program
 import Overload.Steps
@@ -102,3 +103,5 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.sfinae_unshielded
 #audit Overload.dispatch_styles
 #audit Overload.dispatch_hard_condition
+#audit Overload.deduceTy_subst
+#audit Overload.deduceTy_most_general

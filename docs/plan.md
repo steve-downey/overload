@@ -212,13 +212,19 @@ Status, 15 October 2026:
 - Phase 0 is closed. The attribute, lint, index, drift check and emitter
   exist; `make differential` compiles eight emitted programs with GCC and
   Clang, all in agreement with the model.
-- Phase 1 is open with its core in place: `Ty`, `Val`, substitution,
+- Phase 1 is closed. Its core: `Ty`, `Val`, substitution,
   deduction as relation and function with the agreement theorem
   (`deduceTy_iff`), determinism (`deduceTy_det`), the call-site adjustments
   of [temp.deduct.call]/2 to /5, template heads with defaults and
   explicit arguments (`deduceTemplate`), and template-argument equivalence
-  (`Val.equivalent_iff`). Still to do: the most-general statement. The
-  cost report is in `decisions.md#spec-style`.
+  (`Val.equivalent_iff`). The cost report is in `decisions.md#spec-style`.
+  Deduction is sound and most general on the first-order fragment, in
+  `Overload/Generality.lean`. Substituting the deduced bindings into `P`
+  gives `A` (`deduceTy_subst`). Any bindings that extend the starting
+  ones and make `P` equal a non-dependent `A` extend the deduced ones
+  (`deduceTy_most_general`). The fragment leaves out references inside
+  `P`, where collapsing gives two solutions, and constant arguments that
+  mention a parameter below the top, which are non-deduced.
 - Phase 2 is closed. The step order of [temp.deduct.general]/5 is
   transcribed as separate steps in `Overload/Steps.lean`, with the three
   outcomes, the immediate context (`form`), the oracle for separately
