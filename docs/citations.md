@@ -70,6 +70,10 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.func.order]/8](https://eel.is/c++draft/temp.func.order#8) | rule | `Overload.PartialOrdering.tieBreakApplies` | `Overload.Ordering` |
 | [[temp.func.order]/8](https://eel.is/c++draft/temp.func.order#8) | theorem | `Overload.PartialOrdering.tieBreak_needs_equal_heads` | `Overload.Ordering` |
 | [[temp.over.link]/6 sentence 2](https://eel.is/c++draft/temp.over.link#6.sentence-2) | rule | `Overload.PartialOrdering.paramEquivalent` | `Overload.Ordering` |
+| [[temp.spec.partial.match]/1](https://eel.is/c++draft/temp.spec.partial.match#1) | rule | `Overload.PartialOrdering.Selects.ambiguous` | `Overload.Ordering` |
+| [[temp.spec.partial.match]/1](https://eel.is/c++draft/temp.spec.partial.match#1) | rule | `Overload.PartialOrdering.Selects.mostSpecialized` | `Overload.Ordering` |
+| [[temp.spec.partial.match]/1](https://eel.is/c++draft/temp.spec.partial.match#1) | rule | `Overload.PartialOrdering.Selects.primary` | `Overload.Ordering` |
+| [[temp.spec.partial.match]/1](https://eel.is/c++draft/temp.spec.partial.match#1) | rule | `Overload.PartialOrdering.Selects.unique` | `Overload.Ordering` |
 | [[temp.spec.partial.match]/1](https://eel.is/c++draft/temp.spec.partial.match#1) | rule | `Overload.PartialOrdering.select` | `Overload.Ordering` |
 | [[temp.spec.partial.match]/2 sentence 1](https://eel.is/c++draft/temp.spec.partial.match#2.sentence-1) | rule | `Overload.PartialOrdering.patternMatches` | `Overload.Ordering` |
 | [[temp.spec.partial.order]/1 sentence 1](https://eel.is/c++draft/temp.spec.partial.order#1.sentence-1) | rule | `Overload.PartialOrdering.rewrite` | `Overload.Ordering` |

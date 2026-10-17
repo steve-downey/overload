@@ -8,6 +8,7 @@ import Overload.Constraint
 import Overload.Program
 import Overload.Steps
 import Overload.Ordering
+import Overload.Typeclass
 import Overload.Resolution
 import Overload.Emit
 import Overload.Lint
@@ -38,3 +39,10 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.PartialOrdering.tieBreak_needs_equal_heads
 #audit Overload.PartialOrdering.patternMatches_iff
 #audit Overload.Constraint.moreConstrained_asymm
+#audit Overload.PartialOrdering.select_iff
+#audit Overload.PartialOrdering.mostSpecialized_unique
+#audit Overload.coherence
+#audit Overload.coherence_ambiguous
+#audit Overload.selectInstance_ne_illFormed
+#audit Overload.stability
+#audit Overload.stability_other_typeclass

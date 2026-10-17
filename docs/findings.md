@@ -45,10 +45,11 @@ and described here as they arrive.
   it substitutes into `ZZ`'s conversion function template, instantiates
   `Z<void>`, and reports a hard error, so the draft's well-formed example
   does not compile. GCC 13 compiles it. This is the ordering CWG2369
-  replaced, which Clang implements from version 20; the model transcribes
+  replaced; Clang implements the new order from version 21, and Clang 20 still
+  fails the example (checked 16 October 2026); the model transcribes
   the text, and `OverloadTest/Steps.lean` shows the same call is a hard
   error when the constraint step is skipped. Listed in
-  `differential/known-disagreements.txt` for Clang up to 19.
+  `differential/known-disagreements.txt` for Clang up to 20.
 
 - **GCC's shortcut is narrower than P3606 as the model reads it** (16
   October 2026). `draft_temp_constr_atomic_3_better_match.cpp` is the
@@ -63,6 +64,18 @@ and described here as they arrive.
   disagreement with the model under `.text`; recorded against
   `decisions.md#p3606-mode` as evidence about what the P3606 wording
   needs to say.
+
+- **Clang 21 implements the model's P3606 reading in full** (16 October
+  2026). Clang 18 to 20 agree with the text on all three cases above.
+  Clang 21 to 24 compile all three: `step_order_hazard.cpp`,
+  `step_order_hazard_guarded.cpp`, and the draft's [temp.constr.atomic]/3
+  example. So once a non-template is a perfect match, Clang skips
+  deduction for the template, constraint satisfaction included. That is
+  what `Mode.p3606` computes, and it goes further than GCC 13 to 15,
+  which still reject the constraint case. The two implementations
+  disagree about what P3606 covers. Listed in
+  `differential/known-disagreements.txt` for Clang 21 to 24; recorded
+  against `decisions.md#p3606-mode`.
 
 - **Neither compiler ignores a placeholder's type-constraint when
   comparing template parameters** (16 October 2026).
@@ -79,6 +92,9 @@ and described here as they arrive.
   unrecovered, probe source (`probes.md`); the by-value spelling here is
   the one Clang 18 accepts. Listed as known for both compilers; the
   verdict stands on the text.
+  Update, 16 October 2026: Clang 19 to 24 select the more constrained
+  overload, as the model does. GCC 13 to 15 still report ambiguity, so
+  the known entries remain for GCC and for Clang 18.
 
 ## About the model
 
@@ -99,7 +115,22 @@ and described here as they arrive.
   8, and that order is what keeps the example well-formed;
   `constraint_soft_shields_function_type` is the general statement.
 
+- **The draft's first matching example reproduces** (16 October 2026).
+  The five uses in the first example of [temp.spec.partial.match]/2,
+  including a constant template parameter and the ambiguity between #3
+  and #5, come out as the draft says (`OverloadTest/Typeclass.lean`).
+
 ## About the plan
+
+- **Stability of lookup needs neither expected hypothesis** (16 October
+  2026). The plan expected stability to need soft failure of a missing
+  instance and the single translation unit assumption. For the
+  variable-template lookup it needs neither: `stability` holds for any
+  program and any insertion point. A missing instance there is just the
+  primary. Both hypotheses belong to the call surface, where a lookup is
+  instantiated during deduction and its outcome becomes soft or hard, and
+  where order of declaration against use matters. They will reappear
+  when stability is stated for calls.
 
 - **Attributes on constructors** (15 October 2026). Lean 4 does not allow
   an attribute in a constructor's declaration (`Attributes cannot be added

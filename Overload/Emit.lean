@@ -5,6 +5,7 @@ import Overload.Deduction
 import Overload.Steps
 import Overload.Resolution
 import Overload.Ordering
+import Overload.Typeclass
 
 /-!
 # The C++ emitter
@@ -86,18 +87,6 @@ def Case.wellFormed (c : Case) : Bool :=
 
 /-! ## The environment a program defines -/
 
-/-- The instances of a typeclass in a program, as head and pattern, in
-declaration order. -/
-def instancesOf (p : Program) (tc : String) : List (Head × Ty) :=
-  p.filterMap fun
-    | .instance c h pat => if c = tc then some (h, pat) else none
-    | _ => none
-
-/-- Which instance of `tc` the type `a` selects, by partial specialization
-matching and ordering. -/
-def selectInstance (p : Program) (tc : String) (a : Ty) : Resolution Nat :=
-  PartialOrdering.select tc (instancesOf p tc) a
-
 /-- The environment a program defines: the lookups it declares, hard or
 soft, with their instances; `has_instance` and the case's atomic table
 as the atomic constraints; and convertibility as identity up to top-level
@@ -106,7 +95,7 @@ def Env.ofProgram (p : Program) (atomics : List (String × List Ty × Bool) := [
   { instantiate := fun n a =>
       let hard := p.any fun | .lookupHard c => c = n | _ => false
       let soft := p.any fun | .lookup c => c = n | _ => false
-      match selectInstance p n a with
+      match p.selectInstance n a with
       | .selected i => .ok (.spec' "instance_of" [a, .value (.int i)])
       | .ambiguous _ => .hard s!"ambiguous partial specializations of {n}<{repr a}>"
       | .illFormed r => .hard r
@@ -116,7 +105,7 @@ def Env.ofProgram (p : Program) (atomics : List (String × List Ty × Bool) := [
         else .soft s!"no variable template {n}"
     atomic := fun e args =>
       match e, args with
-      | "has_instance", [.named c, a] => .ok ((selectInstance p c a).toOption.isSome)
+      | "has_instance", [.named c, a] => .ok ((p.selectInstance c a).toOption.isSome)
       | _, _ =>
         match atomics.find? fun (e', args', _) => e' == e && args' == args with
         | some (_, _, b) => .ok b
@@ -767,7 +756,7 @@ def computedCall (c : Case) : Option (Resolution Nat) :=
 /-- For a lookup case, what the model computes. -/
 def computedLookup (c : Case) : Option (Resolution Nat) :=
   match c.query with
-  | .lookup tc a _ => some (selectInstance c.program tc a)
+  | .lookup tc a _ => some (c.program.selectInstance tc a)
   | _ => none
 
 /-- Do two resolutions agree, ignoring the reason of an ill-formed one? -/

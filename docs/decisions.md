@@ -62,6 +62,13 @@ transcription.
   has both (`PatternMatches`, `patternMatches_iff`). The executable
   forms carry the citations meanwhile, one per sentence, so the index is
   complete.
+- 2026-10-16 — Partial specialization selection now has both forms:
+  `Selects`, one constructor per case of [temp.spec.partial.match]/1, and
+  `select_iff`. The relation is stated over the executable
+  more-specialized, since ordering still has no relation form. The
+  agreement proof is about 160 lines, most of it list bookkeeping for
+  positions. Coherence and stability are proved from the relation, not
+  from the function, which is the payoff the decision expected.
 
 ---
 
@@ -275,6 +282,11 @@ step-order hazard, and GCC implements P3606 today.
   [temp.constr.atomic]/3 example, which the P3606 mode also predicts
   well-formed: GCC's shortcut is narrower than the rule as read here
   (`findings.md`). Default stays `.text`.
+- 2026-10-16 — Clang 21 to 24 compile all three cases, the
+  [temp.constr.atomic]/3 example included, so Clang's shortcut is the
+  rule exactly as `.p3606` reads it, and GCC's is narrower. Clang 18 to
+  20 follow the text. The question of what "perfect match" suppresses
+  now has two shipping answers (`findings.md`). Default stays `.text`.
 
 ---
 

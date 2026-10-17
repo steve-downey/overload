@@ -5,4 +5,5 @@ import OverloadTest.Deduction
 import OverloadTest.Steps
 import OverloadTest.Resolution
 import OverloadTest.Ordering
+import OverloadTest.Typeclass
 import OverloadTest.Emit

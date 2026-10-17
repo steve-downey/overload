@@ -248,6 +248,20 @@ Status, 15 October 2026:
   shapes without a counterexample and is not yet proved. Subsumption
   ([temp.constr.order]/1 and /4) came with it so the gate has something to
   compare; phase 3's own theorems about it remain.
+- Phase 6 is open with canonical lookup. `Overload/Typeclass.lean` has
+  lookup over a program's instances (`Program.selectInstance`), with
+  selection given as a relation as well (`Selects`, agreement theorem
+  `select_iff`). Coherence and stability are proved and audited. Lookup
+  selects an instance exactly when it is the most specialized match, and
+  at most one is (`coherence`, `mostSpecialized_unique`). Otherwise it
+  reports the primary or ambiguity, never an ill-formed program
+  (`coherence_ambiguous`, `selectInstance_ne_illFormed`). Declaring an
+  instance anywhere in a program moves lookup only at types the instance
+  matches, and there only to it or to ambiguity (`stability`). Lookups of
+  other typeclasses do not move (`stability_other_typeclass`). Neither
+  theorem needs single-tu or soft failure (`findings.md`). Still to do:
+  the explicit-instance routes, superclass retrieval, inheritance
+  erasure, superclass coherence, termination, and the obligations table.
 
 ## Target theorems
 
