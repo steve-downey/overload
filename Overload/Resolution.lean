@@ -254,7 +254,7 @@ theorem generate_go_suppressed (env : Env) (args : List CallArg) (explicit : Lis
       · rw [List.all_cons]
         simpa [Candidate.isTemplate] using hall
     | functionTemplate ft => exact ⟨cs, by simp [generate.go, hcs], hall⟩
-    | «class» n bs => exact ⟨cs, by simp [generate.go, hcs], hall⟩
+    | «class» n bs ps => exact ⟨cs, by simp [generate.go, hcs], hall⟩
     | classTemplate n h => exact ⟨cs, by simp [generate.go, hcs], hall⟩
     | lookup c => exact ⟨cs, by simp [generate.go, hcs], hall⟩
     | lookupHard c => exact ⟨cs, by simp [generate.go, hcs], hall⟩

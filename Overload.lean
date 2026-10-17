@@ -19,6 +19,7 @@ import Overload.Mandates
 import Overload.Sfinae
 import Overload.Dispatch
 import Overload.Units
+import Overload.Access
 import Overload.Emit
 import Overload.Lint
 
@@ -120,3 +121,6 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.call_stability_unit
 #audit Overload.late_insertion_verdict
 #audit Overload.callAt_insert_after
+#audit Overload.call_eq_invoke
+#audit Overload.protected_base_selected_ill_formed
+#audit Overload.protected_base_deduced_ill_formed

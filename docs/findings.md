@@ -207,6 +207,21 @@ and described here as they arrive.
 
 ## About the plan
 
+- **A protected base does not hide the implementation** (17 October
+  2026). `derive_functor<Impl>` inherits `Impl` protected, which reads as
+  keeping `Impl` out of view. Overload resolution does not see access:
+  implicit conversion sequences ignore it ([over.best.ics.general]/2), and
+  deduction from a derived class goes through the protected base. A
+  function that names `Impl`, or a class template `Impl` comes from, is
+  selected for an instance type built on it, and the call is ill-formed
+  at the conversion ([conv.ptr]/3, [dcl.init.ref]/4). It is not merely
+  not viable, so no other overload is tried
+  (`protected_base_selected_ill_formed`,
+  `protected_base_deduced_ill_formed`, `access_protected_base_*.cpp`).
+  Every compiler agrees. Within a requires-expression the same access
+  failure is part of substitution, so a constraint that tests such a call
+  is simply false.
+
 - **A reference to the lookup does not separate units** (17 October
   2026). The plan expected divergence-separation to hold where the
   instance is a template argument of the function and to fail where it

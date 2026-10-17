@@ -229,6 +229,14 @@ operations from the Monad ones.
   3 (two paths to the superclass) and leak 4 (constant-parameter slicing),
   all recorded as obligations. Access to a protected base is still
   unmodelled, and is the next place to look for a problem.
+- 2026-10-17 — Access is modelled (`Overload/Access.lean`). A protected
+  base, as `derive_functor` has, does not hide the implementation from
+  overload resolution: ranking ignores access, deduction from a derived
+  class goes through the base, and a selected conversion to it makes the
+  call ill-formed (`protected_base_selected_ill_formed`,
+  `protected_base_deduced_ill_formed`). It is the exact-type obligation
+  again, with the implementation's types among those a signature must not
+  name.
 
 ---
 

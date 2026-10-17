@@ -15,8 +15,9 @@ open Overload Overload.Emit
   | .deduction .. => stated c == computed c && (computed c).isSome
   | _ => true
 
--- Every call case's stated expectation is what `invoke` computes under
--- the text: resolution, then the selected function's Mandates.
+-- Every call case's stated expectation is what `Program.call` computes
+-- under the text: resolution, the access check, then the selected
+-- function's Mandates.
 #guard cases.all fun c =>
   match c.query, computedCall c with
   | .call _ _ expected _, some got => Resolution.agree expected got

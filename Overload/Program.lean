@@ -59,9 +59,9 @@ structure FunctionTemplate where
 
 /-- A declaration. -/
 inductive Decl where
-  /-- `struct name : bases... {};`, with public bases, which may be class
-  template specializations. -/
-  | «class» (name : String) (bases : List Ty := [])
+  /-- `struct name : public bases..., protected protectedBases... {};`.
+  A base may be a class template specialization. -/
+  | «class» (name : String) (bases : List Ty := []) (protectedBases : List Ty := [])
   /-- `template <head> struct name {};` -/
   | classTemplate (name : String) (head : Head)
   /-- A non-template function, by name and parameter types. -/

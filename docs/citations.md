@@ -8,8 +8,11 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 
 | Citation | Role | Declaration | Module |
 |---|---|---|---|
+| [[class.access.base]/4](https://eel.is/c++draft/class.access.base#4) | rule | `Overload.Program.accessibleBase` | `Overload.Access` |
 | [[class.derived.general]/2](https://eel.is/c++draft/class.derived.general#2) | rule | `Overload.Program.derives` | `Overload.Ranking` |
+| [[conv.ptr]/3 sentence 2](https://eel.is/c++draft/conv.ptr#3.sentence-2) | rule | `Overload.Program.accessibleConversion` | `Overload.Access` |
 | [[dcl.init.ref]/4 sentence 2](https://eel.is/c++draft/dcl.init.ref#4.sentence-2) | rule | `Overload.Program.referenceCompatible` | `Overload.Ranking` |
+| [[dcl.init.ref]/4 sentence 3](https://eel.is/c++draft/dcl.init.ref#4.sentence-3) | rule | `Overload.Program.call` | `Overload.Access` |
 | [[dcl.ref]/1 sentence 3](https://eel.is/c++draft/dcl.ref#1.sentence-3) | rule | `Overload.formConst` | `Overload.Steps` |
 | [[dcl.ref]/5 sentence 1](https://eel.is/c++draft/dcl.ref#5.sentence-1) | rule | `Overload.formPtr` | `Overload.Steps` |
 | [[over.best.ics.general]/7](https://eel.is/c++draft/over.best.ics.general#7) | rule | `Overload.Program.baseConv` | `Overload.Ranking` |
