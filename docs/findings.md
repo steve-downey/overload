@@ -190,6 +190,25 @@ and described here as they arrive.
 
 ## About the plan
 
+- **Priority tags check every condition** (17 October 2026). The plan
+  expected the three dispatch styles to select the same candidate and to
+  differ only in whether having no candidate is soft or hard. Over the
+  eight valuations of three conditions they select the same one
+  (`dispatch_styles`). With none, exclusion and priority tags leave the
+  call not viable and the if-constexpr chain is ill-formed, as expected
+  (`dispatch_*_none.cpp`). They also differ in which conditions are
+  checked. The if-constexpr chain stops at the first condition that holds,
+  and so does exclusion written with the negations first, since a
+  conjunction is checked left to right. Priority tags check every
+  overload's condition, because each overload is a candidate. With the
+  first condition holding and the last one failing hard when checked,
+  exclusion and the chain select the first, and the tagged call is
+  ill-formed (`dispatch_hard_condition`, `dispatch_*_hard_last.cpp`).
+  Every compiler agrees. For the typeclass encoding this matters when a
+  later condition looks an instance up through a lookup that can fail
+  hard. The library's lookups default to `std::false_type`, so they
+  cannot.
+
 - **sfinae-requires holds up to step order and subsumption** (17 October
   2026). The plan said an `enable_if` encoding and a requires-clause with
   the same condition give the same viable set and differ only where

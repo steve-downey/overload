@@ -15,6 +15,7 @@ import Overload.Separability
 import Overload.Inheritance
 import Overload.Mandates
 import Overload.Sfinae
+import Overload.Dispatch
 import Overload.Emit
 import Overload.Lint
 
@@ -99,3 +100,5 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.sfinae_requires_resolve
 #audit Overload.sfinae_loses_subsumption
 #audit Overload.sfinae_unshielded
+#audit Overload.dispatch_styles
+#audit Overload.dispatch_hard_condition

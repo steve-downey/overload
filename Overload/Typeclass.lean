@@ -331,6 +331,18 @@ def Env.ofProgram (p : Program) (atomics : List (String × List Ty × Bool) := [
       -- does not.
       | "fmap_call", [.ref (.lookup c a), _, _] => .ok ((p.selectInstance c a).toOption.isSome)
       | "fmap_shape", [t] => .ok (fmapShape t)
+      -- A condition that names a lookup's variable, `sizeof(decltype(
+      -- tc<a>)) > 0`: true when the variable can be instantiated, and a
+      -- failure outside the immediate context when it cannot.
+      | "lookup_formed", [.named c, a] =>
+        match p.selectInstance c a with
+        | .selected _ => .ok true
+        | .ambiguous _ => .hard s!"ambiguous partial specializations of {c}<{repr a}>"
+        | .illFormed r => .hard r
+        | .noMatch =>
+          if p.any fun | .lookupHard c' => c' = c | _ => false then
+            .hard s!"static_assert in the primary {c}<{repr a}>"
+          else .ok true
       | _, _ =>
         match atomics.find? fun (e', args', _) => e' == e && args' == args with
         | some (_, _, b) => .ok b
