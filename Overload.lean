@@ -13,6 +13,7 @@ import Overload.Resolution
 import Overload.Ranking
 import Overload.Separability
 import Overload.Inheritance
+import Overload.Mandates
 import Overload.Emit
 import Overload.Lint
 
@@ -85,3 +86,10 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.deduceTemplate_congr
 #audit Overload.derived_class_deduction
 #audit Overload.allBases_erase
+#audit Overload.mandate_inertness
+#audit Overload.mandate_inertness_index
+#audit Overload.invoke_selected
+#audit Overload.invoke_of_selected
+#audit Overload.constraint_promotion
+#audit Overload.deduceTemplate_promote
+#audit Overload.promotion_reorders

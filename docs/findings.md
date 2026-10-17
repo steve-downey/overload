@@ -176,6 +176,26 @@ and described here as they arrive.
 
 ## About the plan
 
+- **Constraint-promotion fails as stated** (17 October 2026). The plan
+  said that turning a Mandate into a constraint changes the outcome only
+  by removing that candidate. Where the Mandate fails, it does: the call
+  resolves as if the declaration contributed nothing
+  (`constraint_promotion`, `constraint_promotion_falls_back.cpp`). Where
+  the Mandate holds, the candidate stays, but its constraint has grown,
+  and partial ordering compares constraints. A template that lost to a
+  more constrained sibling can then tie with it. With one template
+  requiring `class_like` and another carrying the Mandate `empty_like`,
+  the first is selected. Removing the second changes nothing. Promoting
+  its Mandate makes the call ambiguous (`promotion_reorders`,
+  `constraint_promotion_before.cpp`, `constraint_promotion_reorders.cpp`).
+  Every compiler agrees. The theorem holds when the promoted constraint
+  changes no ordering against the other candidates, and when checking the
+  Mandate never fails hard: promoted, a hard error there would make every
+  call that deduces the template ill-formed. Mandate-inertness holds with
+  no hypothesis (`mandate_inertness`). A Mandate never falls back: the
+  more specialized template is selected and its unmet Mandate makes the
+  call ill-formed (`mandate_no_fallback.cpp`).
+
 - **Inheritance erasure holds at exact type** (17 October 2026). The plan
   predicted that inheritance between instance types is selection-inert
   exactly when every use takes the instance at its deduced exact type. The

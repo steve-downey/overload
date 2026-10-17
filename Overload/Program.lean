@@ -51,6 +51,10 @@ structure FunctionTemplate where
   ret : Ty := .named "void"
   /-- The associated constraints. -/
   constraint : Option Constraint := none
+  /-- The Mandates: a condition in the body, `static_assert` in the
+  library's wording, checked only once overload resolution has selected
+  the specialization and its definition is instantiated. -/
+  mandate : Option Constraint := none
   deriving Repr, DecidableEq, Inhabited
 
 /-- A declaration. -/
