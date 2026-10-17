@@ -207,6 +207,25 @@ and described here as they arrive.
 
 ## About the plan
 
+- **A reference to the lookup does not separate units** (17 October
+  2026). The plan expected divergence-separation to hold where the
+  instance is a template argument of the function and to fail where it
+  is looked up inside a body. The canonical operation object takes the
+  instance as a template argument, but as `const auto &TC =
+  functor<...>`, a reference to the lookup variable. A reference argument
+  is the entity it designates, and the variable `functor<box<int>>` is
+  one entity in every unit, whatever its initializer selects. So two
+  units whose lookups select different instances deduce one
+  specialization (`operation_object_not_separated`), and the program
+  gives one function two meanings, ill-formed with no diagnostic
+  required ([basic.def.odr]/16). Pinning names the instance object and
+  separates. The by-value policy names the instance's type, and separates
+  only when instances have distinct types (`byValue_separated`), which is
+  an obligation of its own (`obligations.md`). The verdict at the lookup
+  itself comes first: the program is already ill-formed with no
+  diagnostic required where a use cannot reach an instance another unit
+  selects (`missing_instance_verdict`).
+
 - **Priority tags check every condition** (17 October 2026). The plan
   expected the three dispatch styles to select the same candidate and to
   differ only in whether having no candidate is soft or hard. Over the

@@ -18,6 +18,7 @@ import Overload.Inheritance
 import Overload.Mandates
 import Overload.Sfinae
 import Overload.Dispatch
+import Overload.Units
 import Overload.Emit
 import Overload.Lint
 
@@ -111,3 +112,8 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.PartialOrdering.atLeastAsSpecialized_trans
 #audit Overload.PartialOrdering.tieBreakApplies_trans
 #audit Overload.Constraint.moreConstrained_trans
+#audit Overload.verdicts_single
+#audit Overload.missing_instance_verdict
+#audit Overload.late_instance_verdict
+#audit Overload.operation_object_not_separated
+#audit Overload.byValue_separated

@@ -8,8 +8,9 @@ import Overload.Std
 Substitution and resolution each return more than success or failure, and
 the theorems are about the difference.
 
-`Subst` gains a fourth case, ill-formed with no diagnostic required, when
-the single translation unit axiom is relaxed in phase 8.
+The fourth outcome of the plan, ill-formed with no diagnostic required, is
+not a case of `Subst`. Within one unit nothing is wrong; it is a verdict
+about a program of several units, `IllFormedNdr` in `Overload/Units.lean`.
 -/
 
 namespace Overload
