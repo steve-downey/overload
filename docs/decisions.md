@@ -156,6 +156,11 @@ nothing else on the path fails hard.
 - 2026-10-15 — The encoding in `src/smd/overload/encoding.hpp` spells it:
   the primary `functor<T>` is `std::false_type`, and the operation object is
   constrained on `has_instance_v`.
+- 2026-10-16 — Corrected to match beman.transpose: the operation object
+  is constrained on the call through the instance, `requires { TC.fmap(...)
+  }`, not on `has_instance_v`, and `derive_functor` inherits `Impl`
+  protected. Soft failure still holds by construction, because
+  `std::false_type` has no `fmap`.
 
 ---
 
@@ -327,3 +332,45 @@ citation index, the drift check and the installed C++ package
 **Log:**
 
 - 2026-10-15 — Decided.
+
+---
+
+## explicit-instance-routes
+
+**Question:** Which ways of supplying an instance other than canonical
+lookup does the model cover?
+**Status:** OPEN.
+**Facts recorded 16 October 2026,** from beman.transpose (the typeclass
+repository's `include/beman/transpose/`):
+
+- The operation objects (`fmap`, `replace`, `bind`, `join`, and the
+  applicative and fold objects) each have one `operator()`. It looks the
+  instance up through a trailing `const auto &TC` constant template
+  parameter defaulted to the lookup, constrained on the call through
+  `TC`. There are no overloads between routes, no priority tags and no
+  rank types. The library's own comment calls naming `TC` explicitly "a
+  curiosity, not an API".
+- What the plan called the three routes appear as patterns, not as
+  overloads. An instance can be called directly (`tc.fmap(f, v)`). User
+  code can pin one through its own `const auto &` constant template
+  parameter defaulted to the lookup. A few objects take one by value as a
+  trailing function argument: `traverse` takes a `POLICY` that defaults
+  to the applicative lookup and is constrained by `applicative_object_for`,
+  and `fold_map` and `combine_all` have an extra-arity overload taking a
+  monoid. Library-provided instances take others as type template
+  parameters and default-construct them (`lifted_monoid`, the Kleisli
+  monoid).
+- Constant template parameters for instances are references bound to the
+  `inline constexpr` lookup variables, never structural values. Instance
+  types are empty. Monoids may carry state, and are passed by value only.
+- No instance is conditioned on another instance at a subterm, so lookup
+  never recurses.
+
+**Log:**
+
+- 2026-10-16 — Opened. The plan's argument-identity suspect, leak 4 and
+  the structural-identity obligation assume instances are passed as
+  structural values. The library passes them as references, so template
+  argument identity is the identity of the referenced object
+  ([temp.type]/2 for references), not value equivalence. The model's
+  `Val` covers values only.

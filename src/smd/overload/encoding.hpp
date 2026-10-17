@@ -58,9 +58,11 @@ struct constant_function {
 } // namespace detail
 
 /** Derivation base for Functor instances. `Impl` supplies `fmap(f, v)`;
- * `replace` is derived from it unless `Impl` supplies its own. */
+ * `replace` is derived from it unless `Impl` supplies its own. `Impl` is a
+ * protected base, as in beman.transpose, so the instance exposes only the
+ * operations this base declares. */
 template <class Impl>
-struct derive_functor : Impl {
+struct derive_functor : protected Impl {
     template <class FUNCTION, class T>
     constexpr auto fmap(FUNCTION &&function, T &&value) const
         requires requires(const Impl &impl) {
@@ -100,14 +102,18 @@ struct derive_functor : Impl {
 // 5cdef435-de62-4973-91f4-a56dbef659f3
 /** The operation object for `fmap`. The container type keys the lookup
  * and is deduced from the second argument; the instance arrives through
- * the trailing constant template parameter, defaulted to the lookup. The
- * default is substituted before the constraint is checked
- * ([temp.deduct.general]/5), which is the step-order hazard of the plan:
- * it is safe here only because the lookup's default is std::false_type. */
+ * the trailing constant template parameter, a reference defaulted to the
+ * lookup. The constraint is the call itself, as in beman.transpose, so a
+ * type without an instance is not a candidate. The default is substituted
+ * before the constraint is checked ([temp.deduct.general]/5), which is the
+ * step-order hazard of the plan: it is safe here only because the lookup's
+ * default is std::false_type, which has no `fmap`. */
 inline constexpr struct fmap_t {
     template <class FUNCTION, class T,
               const auto &TC = functor<std::remove_cvref_t<T>>>
-        requires has_instance_v<decltype(TC)>
+        requires requires {
+            TC.fmap(std::declval<FUNCTION>(), std::declval<T>());
+        }
     constexpr auto operator()(FUNCTION &&function, T &&value) const {
         return TC.fmap(std::forward<FUNCTION>(function),
                        std::forward<T>(value));

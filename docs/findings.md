@@ -130,6 +130,18 @@ and described here as they arrive.
 
 ## About the plan
 
+- **The library has no explicit-instance overloads** (16 October 2026).
+  The plan's three explicit-instance routes and its dispatch-styles
+  theorem assume operation objects that offer several ways in. In
+  beman.transpose each operation object has one `operator()`, which looks
+  the instance up through a trailing `const auto &` constant template
+  parameter. The other routes are user-side patterns or a by-value
+  trailing argument on `traverse` and `fold_map`. Instance constant
+  parameters are references, not structural values, so the plan's
+  argument-identity analysis does not apply to the library as written,
+  and nothing needs termination today: no instance requires another.
+  Recorded in `decisions.md#explicit-instance-routes`, which is open.
+
 - **Subsumption implies satisfaction only up to hard errors** (16 October
   2026). The subsumption-sound target said subsumption implies
   satisfaction-implication. With hard errors in the outcome it holds only
