@@ -87,35 +87,6 @@ def Case.wellFormed (c : Case) : Bool :=
 
 /-! ## The environment a program defines -/
 
-/-- The environment a program defines: the lookups it declares, hard or
-soft, with their instances; `has_instance` and the case's atomic table
-as the atomic constraints; and convertibility as identity up to top-level
-cv and references. -/
-def Env.ofProgram (p : Program) (atomics : List (String × List Ty × Bool) := []) : Env :=
-  { instantiate := fun n a =>
-      let hard := p.any fun | .lookupHard c => c = n | _ => false
-      let soft := p.any fun | .lookup c => c = n | _ => false
-      match p.selectInstance n a with
-      | .selected i => .ok (.spec' "instance_of" [a, .value (.int i)])
-      | .ambiguous _ => .hard s!"ambiguous partial specializations of {n}<{repr a}>"
-      | .illFormed r => .hard r
-      | .noMatch =>
-        if hard then .hard s!"static_assert in the primary {n}<{repr a}>"
-        else if soft then .ok (.named "std::false_type")
-        else .soft s!"no variable template {n}"
-    atomic := fun e args =>
-      match e, args with
-      | "has_instance", [.named c, a] => .ok ((p.selectInstance c a).toOption.isSome)
-      -- The operation object's constraint, the call through the instance:
-      -- an instance has the operation, and the primary, `std::false_type`,
-      -- does not.
-      | "fmap_call", [.ref (.lookup c a), _, _] => .ok ((p.selectInstance c a).toOption.isSome)
-      | _, _ =>
-        match atomics.find? fun (e', args', _) => e' == e && args' == args with
-        | some (_, _, b) => .ok b
-        | none => .soft s!"unknown atomic constraint {e}"
-    convertible := fun a t => .ok (a.ty.referred.stripConst == t.referred.stripConst) }
-
 /-! ## Rendering -/
 
 private def paramName (i : ParamIdx) : String := s!"T{i}"
@@ -729,14 +700,7 @@ constant template parameter defaulted to the lookup at the container's
 type with cv and reference removed. The constraint is the call through the
 instance. -/
 
-private def opObject : FunctionTemplate :=
-  { name := "fmap"
-    head :=
-      [ typeParam, typeParam
-      , { kind := .const (.lref (.const (.named "auto")))
-          default := some (.ref (.lookup "functor" (.removeCvref (.param 1)))) } ]
-    params := [.rref (.param 0), .rref (.param 1)]
-    constraint := some (.atomic "fmap_call" [.param 2, .param 0, .param 1]) }
+private def opObject : FunctionTemplate := fmapObject "functor"
 
 private def opProgram (extra : Program := []) (after : Program := []) : Program :=
   [ .class "Fn", .classTemplate "box" [typeParam], .classTemplate "pair" [typeParam, typeParam]

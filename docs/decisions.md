@@ -161,6 +161,9 @@ nothing else on the path fails hard.
   }`, not on `has_instance_v`, and `derive_functor` inherits `Impl`
   protected. Soft failure still holds by construction, because
   `std::false_type` has no `fmap`.
+- 2026-10-16 — Confirmed by theorem: `fmapObject_outcome` shows that a
+  missing instance makes the operation object's deduction fail softly,
+  and only an ambiguous lookup fails hard.
 
 ---
 

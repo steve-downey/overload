@@ -290,4 +290,264 @@ theorem stability_other_typeclass (p₁ p₂ : Program) (tc tc' : String) (h : H
     (p₁ ++ .instance tc h pat :: p₂).selectInstance tc' a = (p₁ ++ p₂).selectInstance tc' a := by
   simp only [Program.selectInstance, Program.instancesOf_insert_other _ _ _ _ _ _ hne]
 
+/-! ## The program's environment, and the operation object -/
+
+/-- The environment a program defines: the lookups it declares, hard or
+soft, with their instances; `has_instance` and the case's atomic table
+and the operation object's call through its instance, `fmap_call`, as
+the atomic constraints, with the case's table for any other; and
+convertibility as identity up to top-level
+cv and references. -/
+def Env.ofProgram (p : Program) (atomics : List (String × List Ty × Bool) := []) : Env :=
+  { instantiate := fun n a =>
+      let hard := p.any fun | .lookupHard c => c = n | _ => false
+      let soft := p.any fun | .lookup c => c = n | _ => false
+      match p.selectInstance n a with
+      | .selected i => .ok (.spec' "instance_of" [a, .value (.int i)])
+      | .ambiguous _ => .hard s!"ambiguous partial specializations of {n}<{repr a}>"
+      | .illFormed r => .hard r
+      | .noMatch =>
+        if hard then .hard s!"static_assert in the primary {n}<{repr a}>"
+        else if soft then .ok (.named "std::false_type")
+        else .soft s!"no variable template {n}"
+    atomic := fun e args =>
+      match e, args with
+      | "has_instance", [.named c, a] => .ok ((p.selectInstance c a).toOption.isSome)
+      -- The operation object's constraint, the call through the instance:
+      -- an instance has the operation, and the primary, `std::false_type`,
+      -- does not.
+      | "fmap_call", [.ref (.lookup c a), _, _] => .ok ((p.selectInstance c a).toOption.isSome)
+      | _, _ =>
+        match atomics.find? fun (e', args', _) => e' == e && args' == args with
+        | some (_, _, b) => .ok b
+        | none => .soft s!"unknown atomic constraint {e}"
+    convertible := fun a t => .ok (a.ty.referred.stripConst == t.referred.stripConst) }
+
+/-- The operation object `fmap` of beman.transpose, for the typeclass
+`tc`: `template <class F, class T, const auto &TC =
+tc<std::remove_cvref_t<T>>> requires requires { TC.fmap(...); } auto
+operator()(F &&, T &&) const`. A call of the object is resolved as a call
+of this one template. -/
+def fmapObject (tc : String) : FunctionTemplate :=
+  { name := "fmap"
+    head :=
+      [ { kind := .type }, { kind := .type }
+      , { kind := .const (.lref (.const (.named "auto")))
+          default := some (.ref (.lookup tc (.removeCvref (.param 1)))) } ]
+    params := [.rref (.param 0), .rref (.param 1)]
+    constraint := some (.atomic "fmap_call" [.param 2, .param 0, .param 1]) }
+
+/-- A type that forming leaves as it is: no reference, pointer or
+`const` applied to a reference, and none of the constructs forming
+computes or instantiates. -/
+def Ty.formed : Ty → Bool
+  | .named _ | .nil | .value _ | .param _ => true
+  | .const t | .ptr t | .lref t | .rref t => t.formed && !t.isRef
+  | .spec _ as => as.formed
+  | .cons a as => a.formed && as.formed
+  | _ => false
+
+theorem form_formed (env : Env) (t : Ty) (h : t.formed = true) : form env t = .ok t := by
+  induction t with
+  | named _ | nil | value _ | param _ => rfl
+  | const t ih =>
+    simp only [Ty.formed, Bool.and_eq_true, Bool.not_eq_true'] at h
+    simp [form, ih h.1, formConst, h.2]
+  | ptr t ih =>
+    simp only [Ty.formed, Bool.and_eq_true, Bool.not_eq_true'] at h
+    simp [form, ih h.1, formPtr, h.2]
+  | lref t ih | rref t ih =>
+    simp only [Ty.formed, Bool.and_eq_true, Bool.not_eq_true'] at h
+    simp only [form, ih h.1, Subst.bind_eq, Subst.bind_ok, Subst.pure_eq]
+    cases t <;> simp_all [Ty.collapse, Ty.isRef]
+  | spec c as ih =>
+    simp only [Ty.formed] at h
+    simp [form, ih h]
+  | cons a as iha ihas =>
+    simp only [Ty.formed, Bool.and_eq_true] at h
+    simp [form, iha h.1, ihas h.2]
+  | _ => simp [Ty.formed] at h
+
+/-- The type a forwarding reference deduces from an argument: the
+argument's type, as an lvalue reference for an lvalue. -/
+def forwarded (a : CallArg) : Ty := if a.lvalue then .lref a.ty else a.ty
+
+theorem fmapObject_call (tc : String) (f x : CallArg) (hf : f.ty.isType = true)
+    (hx : x.ty.isType = true) :
+    (explicitStep (fmapObject tc).head [] >>= callStep (fmapObject tc).params [f, x]) =
+      .ok [(1, forwarded x), (0, forwarded f)] := by
+  have h0 : Ty.collapse (.rref (.param 0)) = .rref (.param 0) := rfl
+  have h1 : Ty.collapse (.rref (.param 1)) = .rref (.param 1) := rfl
+  have hl : ∀ t : Ty, (Ty.lref t).isType = true := fun _ => rfl
+  cases hlf : f.lvalue <;> cases hlx : x.lvalue <;>
+    simp [h0, h1, hl, fmapObject, explicitStep, explicitStep.go, callStep, deduceCall, deduceParam, adjustP,
+      adjustA, isForwardingRef, Ty.isRef, Ty.referred, Ty.dependent, Ty.subst, Bindings.lookup,
+      deduceTy, bindArg, forwarded, hlf, hlx, hf, hx]
+
+theorem forwarded_formed (a : CallArg) (h : a.ty.formed = true) (hr : a.ty.isRef = false) :
+    (forwarded a).formed = true := by
+  unfold forwarded
+  split <;> simp [Ty.formed, h, hr]
+
+theorem forwarded_key (a : CallArg) (hr : a.ty.isRef = false) :
+    (forwarded a).referred.stripConst = a.ty.stripConst := by
+  unfold forwarded
+  split
+  · rfl
+  · cases h : a.ty <;> simp_all [Ty.referred, Ty.isRef]
+
+theorem forwarded_dependent (a : CallArg) : (forwarded a).dependent = a.ty.dependent := by
+  unfold forwarded
+  split <;> rfl
+
+theorem forwarded_isType (a : CallArg) (h : a.ty.isType = true) : (forwarded a).isType = true := by
+  unfold forwarded
+  split
+  · rfl
+  · exact h
+
+/-- A parameter bound to a type is replaced by it. -/
+theorem subst_param_type (σ : Bindings) (i : ParamIdx) (t : Ty) (hl : σ.lookup i = some t)
+    (ht : t.isType = true) : Ty.subst σ (.param i) = t := by
+  simp only [Ty.subst, hl]
+  split <;> simp_all [Ty.isType]
+
+theorem dependent_stripConst (t : Ty) : t.stripConst.dependent = t.dependent := by
+  cases t <;> rfl
+
+section fmapObject
+
+variable (p : Program) (tc : String) (f x : CallArg)
+
+/-- The bindings after deduction from the call. -/
+private abbrev σ₀ : Bindings := [(1, forwarded x), (0, forwarded f)]
+
+/-- The lookup key: the container's type with cv and reference removed. -/
+private abbrev key : Ty := x.ty.stripConst
+
+theorem fmapObject_defaults (env : Env) (hx : x.ty.isType = true) (hxF : x.ty.formed = true)
+    (hxr : x.ty.isRef = false) (hxd : x.ty.dependent = false) :
+    defaultsStep env (fmapObject tc).head (σ₀ f x) =
+      (env.instantiate tc (key x)).bind fun _ => .ok ((2, .ref (.lookup tc (key x))) :: σ₀ f x) := by
+  have h1 : Ty.subst (σ₀ f x) (.param 1) = forwarded x :=
+    subst_param_type _ _ _ (by simp [Bindings.lookup]) (forwarded_isType x hx)
+  have hd : Ty.subst (σ₀ f x) (.ref (.lookup tc (.removeCvref (.param 1)))) =
+      .ref (.lookup tc (.removeCvref (forwarded x))) := by
+    show Ty.ref (Ty.lookup tc (Ty.removeCvref (Ty.subst (σ₀ f x) (.param 1)))) = _
+    rw [h1]
+  have hform : form env (forwarded x) = .ok (forwarded x) :=
+    form_formed env _ (forwarded_formed x hxF hxr)
+  simp only [defaultsStep, defaultsStep.go, fmapObject, Bindings.lookup, List.find?]
+  simp only [decide_true, decide_false, Option.map_some, Option.map_none, Nat.reduceEqDiff,
+    reduceCtorEq]
+  rw [hd]
+  simp [form, hform, forwarded_dependent, hxd, forwarded_key x hxr, dependent_stripConst]
+  cases env.instantiate tc x.ty.stripConst <;> rfl
+
+theorem collapse_rref_forwarded_formed (a : CallArg) (h : a.ty.formed = true)
+    (hr : a.ty.isRef = false) : (Ty.collapse (.rref (forwarded a))).formed = true := by
+  unfold forwarded
+  split
+  · simp [Ty.collapse, Ty.formed, h, hr]
+  · cases ha : a.ty <;> simp_all [Ty.collapse, Ty.formed, Ty.isRef]
+
+/-- After the defaults, the steps that remain succeed exactly when the
+constraint, the call through the instance, holds; otherwise the
+constraint step fails softly. -/
+theorem fmapObject_rest (hf : f.ty.isType = true) (hx : x.ty.isType = true)
+    (hfF : f.ty.formed = true) (hxF : x.ty.formed = true)
+    (hfr : f.ty.isRef = false) (hxr : x.ty.isRef = false) :
+    let env := Env.ofProgram p
+    let σ₁ := (2, Ty.ref (.lookup tc (key x))) :: σ₀ f x
+    ∃ s, (parameterListStep env (fmapObject tc).head σ₁ >>= constraintStep env (fmapObject tc).constraint
+        >>= nonDependentStep env (fmapObject tc).params [f, x] >>= functionTypeStep env (fmapObject tc)) =
+      if (p.selectInstance tc (key x)).toOption.isSome then .ok s
+      else .soft "associated constraints not satisfied" := by
+  intro env σ₁
+  have h0 : Ty.subst σ₁ (.param 0) = forwarded f :=
+    subst_param_type _ _ _ (by simp [σ₁, Bindings.lookup]) (forwarded_isType f hf)
+  have h1 : Ty.subst σ₁ (.param 1) = forwarded x :=
+    subst_param_type _ _ _ (by simp [σ₁, Bindings.lookup]) (forwarded_isType x hx)
+  have h2 : Ty.subst σ₁ (.param 2) = .ref (.lookup tc (key x)) := by
+    simp [Ty.subst, σ₁, Bindings.lookup]
+  have hparams : formAll env [Ty.subst σ₁ (.rref (.param 0)), Ty.subst σ₁ (.rref (.param 1))] =
+      .ok [Ty.collapse (.rref (forwarded f)), Ty.collapse (.rref (forwarded x))] := by
+    show formAll env [Ty.collapse (.rref (Ty.subst σ₁ (.param 0))),
+      Ty.collapse (.rref (Ty.subst σ₁ (.param 1)))] = _
+    rw [h0, h1]
+    simp [formAll, form_formed env _ (collapse_rref_forwarded_formed f hfF hfr),
+      form_formed env _ (collapse_rref_forwarded_formed x hxF hxr)]
+  have hplist : parameterListStep env (fmapObject tc).head σ₁ = .ok σ₁ := by
+    rfl
+  have hsat : Constraint.satisfied env.atomic σ₁ (.atomic "fmap_call" [.param 2, .param 0, .param 1]) =
+      .ok (p.selectInstance tc (key x)).toOption.isSome := by
+    simp only [Constraint.satisfied, List.map, h0, h1, h2]
+    simp [env, Env.ofProgram]
+  refine ⟨{ template := fmapObject tc, args := σ₁
+            params := [Ty.collapse (.rref (forwarded f)), Ty.collapse (.rref (forwarded x))]
+            ret := .named "void" }, ?_⟩
+  rw [hplist]
+  simp only [Subst.bind_eq, Subst.bind_ok, constraintStep, fmapObject, hsat]
+  cases (p.selectInstance tc (key x)).toOption.isSome
+  · simp
+  · have hnd : nonDependentStep env [(Ty.param 0).rref, (Ty.param 1).rref] [f, x] σ₁ = .ok σ₁ := rfl
+    simp only [↓reduceIte, Subst.pure_eq, Subst.bind_ok, hnd, functionTypeStep, List.map]
+    rw [hparams]
+    rfl
+
+/-- The operation object at the call surface. For a program whose lookup
+has the soft default, `std::false_type`, deducing the operation object
+for a call follows instance lookup at the container's type with cv and
+reference removed. It succeeds when an instance is selected. A missing
+instance is a deduction failure, so the call is merely not viable: the
+soft-failure obligation, discharged by construction. Only an ambiguous
+lookup is a hard error. The arguments are formed, non-reference,
+non-dependent types, as the arguments of a call are. -/
+theorem fmapObject_outcome (hf : f.ty.isType = true) (hx : x.ty.isType = true)
+    (hfF : f.ty.formed = true) (hxF : x.ty.formed = true)
+    (hfr : f.ty.isRef = false) (hxr : x.ty.isRef = false) (hxd : x.ty.dependent = false)
+    (hsoft : p.any (fun | .lookup c => c = tc | _ => false) = true)
+    (hhard : p.any (fun | .lookupHard c => c = tc | _ => false) = false) :
+    let r := deduceTemplate (Env.ofProgram p) (fmapObject tc) [] [f, x]
+    (∀ i, p.selectInstance tc x.ty.stripConst = .selected i → ∃ s, r = .ok s) ∧
+    (p.selectInstance tc x.ty.stripConst = .noMatch → ∃ e, r = .soft e) ∧
+    (∀ l, p.selectInstance tc x.ty.stripConst = .ambiguous l → ∃ e, r = .hard e) := by
+  intro r
+  obtain ⟨s, hs⟩ := fmapObject_rest p tc f x hf hx hfF hxF hfr hxr
+  simp only [Subst.bind_eq] at hs
+  have hr : r = ((Env.ofProgram p).instantiate tc (key x)).bind fun _ =>
+      (parameterListStep (Env.ofProgram p) (fmapObject tc).head ((2, Ty.ref (.lookup tc (key x))) :: σ₀ f x)
+        >>= constraintStep (Env.ofProgram p) (fmapObject tc).constraint
+        >>= nonDependentStep (Env.ofProgram p) (fmapObject tc).params [f, x]
+        >>= functionTypeStep (Env.ofProgram p) (fmapObject tc)) := by
+    simp only [r, deduceTemplate]
+    rw [fmapObject_call tc f x hf hx]
+    simp only [Subst.bind_eq, Subst.bind_ok]
+    rw [fmapObject_defaults tc f x _ hx hxF hxr hxd]
+    cases (Env.ofProgram p).instantiate tc (key x) <;> rfl
+  have hinst : (Env.ofProgram p).instantiate tc (key x) =
+      match p.selectInstance tc (key x) with
+      | .selected i => .ok (.spec' "instance_of" [key x, .value (.int i)])
+      | .ambiguous _ => .hard s!"ambiguous partial specializations of {tc}<{repr (key x)}>"
+      | .illFormed r => .hard r
+      | .noMatch => .ok (.named "std::false_type") := by
+    simp only [Env.ofProgram, hsoft, hhard]
+    split <;> simp
+  refine ⟨fun i hi => ?_, fun hn => ?_, fun l hl => ?_⟩
+  · refine ⟨s, ?_⟩
+    rw [hr, hinst, hi]
+    simp only [Subst.bind_eq, Subst.bind_ok]
+    rw [hs, hi]
+    rfl
+  · refine ⟨"associated constraints not satisfied", ?_⟩
+    rw [hr, hinst, hn]
+    simp only [Subst.bind_eq, Subst.bind_ok]
+    rw [hs, hn]
+    rfl
+  · refine ⟨s!"ambiguous partial specializations of {tc}<{repr (key x)}>", ?_⟩
+    rw [hr, hinst, hl]
+    rfl
+
+end fmapObject
+
 end Overload

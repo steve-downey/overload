@@ -30,7 +30,7 @@ private def withInstance : Program :=
   , .functionTemplate (hazard false), .function "f" [X, int] ]
 
 private def run (mode : Mode) (p : Program) (args : List CallArg) : Resolution Nat :=
-  (resolve mode (Emit.Env.ofProgram p) identityRanking (decls := p.candidates "f") (args := args)).map
+  (resolve mode (Env.ofProgram p) identityRanking (decls := p.candidates "f") (args := args)).map
     (·.index)
 
 private def callX : List CallArg := [{ ty := X }, { ty := int }]

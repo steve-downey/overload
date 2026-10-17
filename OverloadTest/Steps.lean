@@ -131,20 +131,20 @@ private def withInstance : Program := [.class "X", .lookupHard "functor", .insta
 private def callX : List CallArg := [{ ty := .named "X" }, { ty := int }]
 
 -- The hard design: the default's lookup fails hard, and that is the outcome.
-#guard match deduceTemplate (Emit.Env.ofProgram hardProgram) (hazard false) [] callX with
+#guard match deduceTemplate (Env.ofProgram hardProgram) (hazard false) [] callX with
   | .hard _ => true
   | _ => false
 -- A requires-clause on the same template does not guard it.
-#guard match deduceTemplate (Emit.Env.ofProgram hardProgram) (hazard true) [] callX with
+#guard match deduceTemplate (Env.ofProgram hardProgram) (hazard true) [] callX with
   | .hard _ => true
   | _ => false
 -- The soft design: the lookup succeeds with std::false_type and the
 -- constraint fails softly.
-#guard match deduceTemplate (Emit.Env.ofProgram softProgram) (hazard true) [] callX with
+#guard match deduceTemplate (Env.ofProgram softProgram) (hazard true) [] callX with
   | .soft r => r == "associated constraints not satisfied"
   | _ => false
 -- With an instance declared, both designs deduce.
-#guard match deduceTemplate (Emit.Env.ofProgram withInstance) (hazard true) [] callX with
+#guard match deduceTemplate (Env.ofProgram withInstance) (hazard true) [] callX with
   | .ok s => s.args.lookup 1 == some (.spec' "instance_of" [.named "X", .value (.int 0)])
   | _ => false
 

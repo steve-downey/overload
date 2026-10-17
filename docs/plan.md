@@ -274,8 +274,13 @@ Status, 15 October 2026:
   parameter (`Ty.ref`) and `remove_cvref_t` key, as four emitted call
   cases. An ambiguous instance there is a finding against both compilers
   (`findings.md`). The routes are settled by
-  `decisions.md#explicit-instance-routes`. Still to do: the call-surface
-  theorems for the operation object, the pinning and by-value routes, the
+  `decisions.md#explicit-instance-routes`. At the call surface,
+  `fmapObject_outcome` proves that deducing the operation object follows
+  lookup at the container's type with cv and reference removed. It
+  succeeds when an instance is selected, fails softly when none is, and
+  fails hard only when lookup is ambiguous. That discharges soft failure
+  and the normalized lookup key by construction. Still to do: call-surface
+  stability over a whole candidate set, the pinning and by-value routes, the
   plan's three routes as alternatives, superclass retrieval, inheritance
   erasure, superclass coherence, and the obligations table. Termination
   is vacuous for the library today, since no instance requires another.
