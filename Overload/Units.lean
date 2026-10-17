@@ -296,4 +296,101 @@ theorem byValue_separated (hx : x.ty.isType = true) (hf : f.ty.isType = true)
 
 end separation
 
+/-! ## Stability, per unit -/
+
+/-- A call as the declarations of its unit before it see it: the call is
+at position `pos`, and only what precedes it is reachable. -/
+def callAt (p : Program) (pos : Nat) (r : Ranking Conv) (decls : List Decl) (args : List CallArg) :
+    Resolution Candidate :=
+  resolve .text (Env.ofProgram (p.take pos)) r decls args
+
+theorem take_insert_after (p : Program) (j pos : Nat) (inst : Decl) (hj : j ≤ p.length)
+    (hpos : pos < j) : (p.take j ++ inst :: p.drop j).take pos = p.take pos := by
+  have hl : pos ≤ (p.take j).length := by simp; omega
+  rw [List.take_append_of_le_length hl, List.take_take, Nat.min_eq_left (by omega)]
+
+/-- An instance declared after a call leaves the call as it was. -/
+theorem callAt_insert_after (p : Program) (j pos : Nat) (inst : Decl) (r : Ranking Conv)
+    (decls : List Decl) (args : List CallArg) (hj : j ≤ p.length) (hpos : pos < j) :
+    callAt (p.take j ++ inst :: p.drop j) pos r decls args = callAt p pos r decls args := by
+  unfold callAt
+  rw [take_insert_after p j pos inst hj hpos]
+
+/-- An instance declared before a call, as `call_stability` sees it: the
+call's prefix gains the instance. -/
+theorem take_insert_before (p : Program) (j pos : Nat) (inst : Decl) (hj : j ≤ pos)
+    (hpos : pos ≤ p.length) :
+    (p.take j ++ inst :: p.drop j).take (pos + 1) = p.take j ++ inst :: (p.drop j).take (pos - j) ∧
+      p.take pos = p.take j ++ (p.drop j).take (pos - j) := by
+  have hl : (p.take j).length = j := by simp; omega
+  constructor
+  · rw [List.take_append, hl, List.take_of_length_le (by omega),
+      show pos + 1 - j = (pos - j) + 1 by omega, List.take_succ_cons]
+  · conv => lhs; rw [← List.take_append_drop j p]
+    rw [List.take_append, hl, List.take_of_length_le (by omega)]
+
+/-- Stability at the call surface, per unit. An instance declared after
+the call leaves it unchanged. An instance declared before it moves the
+call as `call_stability` says, on the declarations that precede the
+call. The single translation unit assumption is no longer built into
+the environment: a call sees what precedes it, and a later instance its
+use would select is the business of `late_insertion_verdict`. -/
+theorem call_stability_unit (p : Program) (j pos : Nat) (tc : String) (h : Head) (pat : Ty)
+    (r : Ranking Conv) (decls : List Decl) (f x : CallArg) (hpos : pos ≤ p.length)
+    (hf : f.ty.isType = true) (hx : x.ty.isType = true)
+    (hfF : f.ty.formed = true) (hxF : x.ty.formed = true)
+    (hfr : f.ty.isRef = false) (hxr : x.ty.isRef = false) (hxd : x.ty.dependent = false)
+    (hm : .functionTemplate (fmapObject tc) ∈ decls) :
+    let p' := p.take j ++ .instance tc h pat :: p.drop j
+    (pos < j → j ≤ p.length → callAt p' pos r decls [f, x] = callAt p pos r decls [f, x]) ∧
+    (j ≤ pos →
+      (p.take pos).any (fun | .lookup c => c = tc | _ => false) = true →
+      (p.take pos).any (fun | .lookupHard c => c = tc | _ => false) = false →
+      (∀ ft, .functionTemplate ft ∈ decls → ft ≠ fmapObject tc →
+        deduceTemplate (Env.ofProgram (p'.take (pos + 1))) ft [] [f, x] =
+          deduceTemplate (Env.ofProgram (p.take pos)) ft [] [f, x]) →
+      callAt p' (pos + 1) r decls [f, x] = callAt p pos r decls [f, x] ∨
+        (PatternMatches h pat x.ty.stripConst ∧
+          (Program.selectInstance (p'.take (pos + 1)) tc x.ty.stripConst =
+              Resolution.selected (Program.instancesOf (p.take j) tc).length ∨
+            ∃ e, callAt p' (pos + 1) r decls [f, x] = .illFormed e))) := by
+  intro p'
+  refine ⟨fun hlt hj => callAt_insert_after p j pos _ r decls _ hj hlt, ?_⟩
+  intro hj hsoft hhard hothers
+  obtain ⟨e', e⟩ := take_insert_before p j pos (.instance tc h pat) hj hpos
+  unfold callAt
+  simp only [p'] at hothers ⊢
+  rw [e', e] at hothers ⊢
+  rw [e] at hsoft hhard
+  exact call_stability (p.take j) ((p.drop j).take (pos - j)) tc h pat r decls f x hf hx hfF hxF hfr
+    hxr hxd hsoft hhard hm hothers
+
+/-- An instance declared after a use of the lookup leaves what the use
+selects as it was. The program stays free of a verdict at the use when
+the whole unit selects the same, and otherwise gets the verdict of
+[temp.point]/7, and nothing else: it is the end of the unit that sees
+the instance. -/
+theorem late_insertion_verdict (p : Program) (j pos : Nat) (tc c : String) (h : Head) (pat a : Ty)
+    (hj : j ≤ p.length) (hpos : pos < j) :
+    let p' := p.take j ++ .instance c h pat :: p.drop j
+    let before := selection (reachable (p.take pos) tc) tc a
+    (useVerdict [p'] 0 pos p' tc a = none ∧ before = selection (reachable p' tc) tc a) ∨
+      (useVerdict [p'] 0 pos p' tc a = some (.laterInUnit 0 pos tc a) ∧
+        before ≠ selection (reachable p' tc) tc a) := by
+  intro p' before
+  have hprog : Units.instancesOf [p'] tc = reachable p' tc := by simp [Units.instancesOf, reachable]
+  have ht : p'.take pos = p.take pos := take_insert_after p j pos _ hj hpos
+  unfold useVerdict
+  rw [hprog, ht]
+  dsimp only
+  by_cases he : before = selection (reachable p' tc) tc a
+  · left
+    have he' := he
+    simp only [before] at he
+    exact ⟨by simp [he], he'⟩
+  · right
+    have he' := he
+    simp only [before] at he
+    exact ⟨by simp [he], he'⟩
+
 end Overload

@@ -302,7 +302,7 @@ Status, 15 October 2026:
   [temp.constr.order]/1 is a theorem, and the note of /2 is refuted as
   worded (`findings.md`). Normalization of concept-ids is out of the
   fragment, which has none.
-- Phase 8 is open. `Overload/Units.lean` makes a program a list of
+- Phase 8 is closed. `Overload/Units.lean` makes a program a list of
   translation units, each resolved alone. The fourth outcome is a
   verdict about the program, ill-formed with no diagnostic required,
   naming the rule and the use and nothing more (`IllFormedNdr`): an
@@ -313,8 +313,18 @@ Status, 15 October 2026:
   instance argument is a reference to the lookup variable
   (`operation_object_not_separated`), and holds for pinning and, as far as
   instance types are distinct, for the by-value policy
-  (`byValue_separated`). Still to do: take the assumption out of
-  `call_stability`'s environment, so that stability is stated per unit.
+  (`byValue_separated`). Stability at the call surface is stated per unit
+  (`call_stability_unit`): a call sees only the declarations before it.
+  An instance declared after the call leaves it unchanged, and the program
+  either stays free of a verdict at the call's use or gets the verdict of
+  [temp.point]/7 (`late_insertion_verdict`). An instance declared before
+  it moves the call as `call_stability` says, on the call's prefix. The
+  single translation unit assumption is no longer built into any
+  theorem's environment. The exit criterion holds: the undiagnosable
+  obligations that make a program ill-formed are tied to [temp.point]/7,
+  [temp.spec.partial.general]/1 and [basic.def.odr]/16. Exact-type use and
+  superclass coherence are undiagnosable too, but their programs are
+  well-formed, so there is no rule to tie them to (`obligations.md`).
 - Phase 6 is open with canonical lookup. `Overload/Typeclass.lean` has
   lookup over a program's instances (`Program.selectInstance`), with
   selection given as a relation as well (`Selects`, agreement theorem
