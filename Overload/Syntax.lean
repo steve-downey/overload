@@ -115,6 +115,11 @@ inductive Ty where
   context. The model names an instance by a type, so the type of the
   instantiated lookup is that name. -/
   | typeOf : Ty → Ty
+  /-- `std::enable_if_t<C<args>, T>`: the type `T` when the concept-id
+  `C<args>` is satisfied, and no type otherwise, which is an invalid type
+  in the immediate context. An alias for a nested member type, so a
+  non-deduced context. -/
+  | enableIf : String → Ty → Ty → Ty
   deriving Repr, DecidableEq, Inhabited
 
 namespace Ty
@@ -220,6 +225,7 @@ def Ty.subst (σ : Bindings) : Ty → Ty
   | .ref t => .ref (Ty.subst σ t)
   | .removeCvref t => .removeCvref (Ty.subst σ t)
   | .typeOf t => .typeOf (Ty.subst σ t)
+  | .enableIf c as t => .enableIf c (Ty.subst σ as) (Ty.subst σ t)
 
 /-- Does the value mention a constant template parameter? -/
 def Val.dependent : Val → Bool
@@ -236,7 +242,7 @@ def Ty.dependent : Ty → Bool
   | .typeOf t =>
     Ty.dependent t
   | .spec _ as => Ty.dependent as
-  | .cons a as => Ty.dependent a || Ty.dependent as
+  | .cons a as | .enableIf _ a as => Ty.dependent a || Ty.dependent as
   | .value v => Val.dependent v
 
 /-! ## Template-argument equivalence -/

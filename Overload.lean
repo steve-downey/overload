@@ -14,6 +14,7 @@ import Overload.Ranking
 import Overload.Separability
 import Overload.Inheritance
 import Overload.Mandates
+import Overload.Sfinae
 import Overload.Emit
 import Overload.Lint
 
@@ -93,3 +94,8 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.constraint_promotion
 #audit Overload.deduceTemplate_promote
 #audit Overload.promotion_reorders
+#audit Overload.deduceTemplate_enableIf
+#audit Overload.sfinae_requires
+#audit Overload.sfinae_requires_resolve
+#audit Overload.sfinae_loses_subsumption
+#audit Overload.sfinae_unshielded

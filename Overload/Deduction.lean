@@ -58,6 +58,7 @@ def deduceTy : Ty → Ty → Bindings → Option Bindings
   | .ref _, _, σ => some σ
   | .removeCvref _, _, σ => some σ
   | .typeOf _, _, σ => some σ
+  | .enableIf _ _ _, _, σ => some σ
   | _, _, _ => none
 
 /-- The specification form: `DeduceTy P A σ σ'` says that deducing `P`
@@ -123,6 +124,10 @@ inductive DeduceTy : Ty → Ty → Bindings → Bindings → Prop where
   /-- The expression of a decltype-specifier is a non-deduced context. -/
   | typeOf (p a : Ty) (σ : Bindings) :
       DeduceTy (.typeOf p) a σ σ
+  /-- `std::enable_if_t<...>` names a nested member type: deduction does
+  not look inside. -/
+  | enableIf (c : String) (as p a : Ty) (σ : Bindings) :
+      DeduceTy (.enableIf c as p) a σ σ
 
 attribute [std rule "temp.deduct.type#8.sentence-1"] DeduceTy.param
 attribute [std rule "temp.deduct.type#8.sentence-1"] DeduceTy.value
@@ -139,6 +144,7 @@ attribute [std rule "temp.deduct.type#5"] DeduceTy.lookup
 attribute [std rule "temp.deduct.type#5"] DeduceTy.ref
 attribute [std rule "temp.deduct.type#5"] DeduceTy.removeCvref
 attribute [std rule "temp.deduct.type#5"] DeduceTy.typeOf
+attribute [std rule "temp.deduct.type#5"] DeduceTy.enableIf
 
 /-- Soundness: what the function deduces, the relation derives. -/
 theorem deduceTy_sound (p : Ty) : ∀ (a : Ty) (σ σ' : Bindings),
@@ -223,6 +229,11 @@ theorem deduceTy_sound (p : Ty) : ∀ (a : Ty) (σ σ' : Bindings),
     simp only [deduceTy, Option.some.injEq] at h
     subst h
     exact .typeOf p a σ
+  | enableIf c as p _ _ =>
+    intro a σ σ' h
+    simp only [deduceTy, Option.some.injEq] at h
+    subst h
+    exact .enableIf c as p a σ
 
 /-- Completeness: what the relation derives, the function deduces. -/
 theorem deduceTy_complete {p a : Ty} {σ σ' : Bindings}
@@ -243,6 +254,7 @@ theorem deduceTy_complete {p a : Ty} {σ σ' : Bindings}
   | ref p a σ => simp [deduceTy]
   | removeCvref p a σ => simp [deduceTy]
   | typeOf p a σ => simp [deduceTy]
+  | enableIf c as p a σ => simp [deduceTy]
 
 /-- Agreement: the relation holds exactly when the function succeeds. -/
 theorem deduceTy_iff (p a : Ty) (σ σ' : Bindings) :
@@ -329,7 +341,7 @@ theorem deduceTy_extends (p : Ty) : ∀ (a : Ty) (σ σ' : Bindings),
     intro a σ σ' h b hb
     simp only [deduceTy, Option.some.injEq] at h
     subst h; exact hb
-  | ref p _ | removeCvref p _ | typeOf p _ =>
+  | ref p _ | removeCvref p _ | typeOf p _ | enableIf _ _ p _ _ =>
     intro a σ σ' h b hb
     simp only [deduceTy, Option.some.injEq] at h
     subst h; exact hb

@@ -58,6 +58,11 @@ and described here as they arrive.
   the text, and `OverloadTest/Steps.lean` shows the same call is a hard
   error when the constraint step is skipped. Listed in
   `differential/known-disagreements.txt` for Clang 17 to 20.
+  Update, 17 October 2026: the same ordering shows with a function
+  parameter. In `sfinae_requires_shields.cpp` the requires-clause is not
+  satisfied, so the text never substitutes the parameter whose type
+  instantiates a lookup that fails hard. Clang 17 to 20 substitute it and
+  report the error. Clang 21 to 24 and GCC 13 to 16 shield it.
 
 - **GCC's shortcut is narrower than P3606 as the model reads it** (16
   October 2026). `draft_temp_constr_atomic_3_better_match.cpp` is the
@@ -134,6 +139,15 @@ and described here as they arrive.
 
 ## About the model
 
+- **The function type is substituted parameters first** (17 October
+  2026). Substitution proceeds in lexical order ([temp.deduct.general]/7),
+  and the model forms a template's parameter types before its return
+  type, the order of a trailing return type. A leading return type comes
+  first lexically: emitted as one, `enable_if` was checked before the
+  parameter's hard error and every compiler accepted the call. The
+  emitter now spells a return type with a condition as a trailing return
+  type. A leading return type with a condition is outside the model.
+
 - **The derived-class exclusion is vacuous on the fragment** (17 October
   2026). [temp.deduct.call]/4 excludes a possible deduced `A` that is a
   base of another possible one. Every possible deduced `A` has the form of
@@ -175,6 +189,25 @@ and described here as they arrive.
   and #5, come out as the draft says (`OverloadTest/Typeclass.lean`).
 
 ## About the plan
+
+- **sfinae-requires holds up to step order and subsumption** (17 October
+  2026). The plan said an `enable_if` encoding and a requires-clause with
+  the same condition give the same viable set and differ only where
+  ordering consults subsumption. For `enable_if` in a trailing return
+  type the viable set is the same, and so is resolution where ordering
+  does not change (`sfinae_requires`, `sfinae_requires_resolve`).
+  Ordering does change where a requires-clause wins by subsumption: the
+  `enable_if` form has no constraint, and the call is ambiguous
+  (`sfinae_loses_subsumption`, `sfinae_requires_subsumes.cpp`,
+  `sfinae_enable_if_unordered.cpp`). The two also differ in step order,
+  which the plan did not predict. A requires-clause is checked before the
+  function type is substituted. `enable_if` in a trailing return type is
+  checked while it is substituted, after the parameters, so a hard error
+  in a parameter's type is reached that the requires-clause would have
+  shielded (`sfinae_unshielded`, `sfinae_enable_if_unshielded.cpp`).
+  Every compiler agrees on the encodings. Clang 17 to 20 do not shield
+  even with the requires-clause, by the ordering filed under
+  [compiler disagreements](#compiler-disagreements).
 
 - **Constraint-promotion fails as stated** (17 October 2026). The plan
   said that turning a Mandate into a constraint changes the outcome only
