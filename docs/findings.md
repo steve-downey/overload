@@ -589,6 +589,15 @@ and described here as they arrive.
     the lookup. The operation object is no longer a single candidate, but
     no candidate the call does not mean consults the lookup.
 
+  The model now states the member call's answer as a parameter, and
+  proves that the operation object passes it on unchanged
+  (`fmapObject_member`). The arity and registry shapes are theorems too
+  (`call_stability_arity`, `arity_order_matters`, `registry_verdicts`).
+  The order of the lookup default matters only beside an `operator()`
+  that does not consult the lookup. `fold_map` and `combine_all` key both
+  overloads at the same type, so for them either order gives the same
+  outcome.
+
   Reported as steve-downey/typeclass#10 (Functor impls), #11 (`std::array`
   impl), #12 (derived members), #13 (`bind`) and #14 (placement). A
   correction to #6 is posted on it.

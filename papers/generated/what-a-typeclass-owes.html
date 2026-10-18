@@ -643,10 +643,13 @@ and member lookup stops at the first class whose scope declares the name
 ([class.member.lookup]/3). The instance’s using-declaration of its
 implementation’s <code class="sourceCode default">invoke</code>
 therefore hides the derivation base’s, and the call has one template.
-The model treats this call as a fact about the instance, true when the
-lookup selects one. That is the one place where the design relies on its
-authors more than on its shape, and the first obligation below on the
-typeclass author is what makes it true.</p>
+The model does not resolve this call. It takes the member’s answer as
+given and proves that the operation object passes it on unchanged:
+viable where the member call is valid, not viable where it is invalid,
+and ill-formed where checking it is a hard error. The operation object
+can add no accuracy the member lacks. That is the one place where the
+design relies on its authors more than on its shape, and the first
+obligation below on the typeclass author is what makes it hold.</p>
 <p>Every hazard the model found is a place where an overload set comes
 back.</p>
 <h1 data-number="6" id="obligations"><span class="header-section-number">6</span> Obligations<a href="#obligations" class="self-link"></a></h1>
@@ -710,12 +713,19 @@ the primary fails the shape.</em></li>
 <code class="sourceCode default">std::remove_cvref_t&lt;T&gt;</code>, so
 every spelling of a type reaches one instance. <em>By
 construction.</em></li>
-<li><strong>No other candidate consults the lookup.</strong> Stability
-at the call surface needs the call’s other candidates not to look the
-instance up. An operation object meets this by construction, since a
-variable cannot be overloaded. If a named operation were a function
-template or an overload set, anyone could add an overload, and each
-added overload would have to stay away from the lookup.</li>
+<li><strong>No other candidate reaches the lookup.</strong> Stability at
+the call surface needs the call’s other candidates not to look the
+instance up. An operation object with one call operator meets this by
+construction, since a variable cannot be overloaded. One with several,
+as beman.transpose’s <code class="sourceCode default">fold_map</code>
+and <code class="sourceCode default">combine_all</code> have, meets it
+when they differ by arity and each puts the lookup default after a
+parameter a shorter call cannot deduce: that overload fails before it
+reaches the lookup. With the default first, it reaches the lookup in a
+call meant for another overload, and an ambiguous lookup makes that call
+ill-formed. If a named operation were a function template or an overload
+set, anyone could add an overload, and each added overload would have to
+stay away from the lookup.</li>
 <li><strong>Refinement is visible.</strong> Write a refinement between
 conditions as constraints, so subsumption can see it. An
 <code class="sourceCode default">enable_if</code> encoding of the same
@@ -990,16 +1000,17 @@ user-defined conversions and access from inside a class are outside.
 Concept satisfaction is an oracle, not a semantics of expressions. A
 registry that tests for an instance by completeness, as
 beman.transpose’s <code class="sourceCode default">Monoid</code> does,
-is a third encoding the model does not cover. Its stability rests on a
-third rule, a satisfaction result that differs at two points
+is a third encoding. The model covers only its verdicts: they are a
+lookup’s, at the same uses, under a third rule where the test’s answer
+changes, a satisfaction result that differs at two points
 ([temp.constr.atomic]/3). The member overload set of an instance is not
 resolved: the model has no class member lookup, no using-declarations
-and no explicit object parameters, and takes the member call to be valid
-exactly when the lookup selects an instance. The member observations
-above come from compiling against beman.transpose, not from the model.
-Function parameter packs are outside the fragment. Applicative’s
-<code class="sourceCode default">invoke</code> takes one after the
-argument that keys the lookup, and the pack does not enter the
+and no explicit object parameters. It takes the member call’s answer as
+a parameter, and proves only what the operation object makes of it.
+Which members are accurate comes from compiling against beman.transpose,
+not from the model. Function parameter packs are outside the fragment.
+Applicative’s <code class="sourceCode default">invoke</code> takes one
+after the argument that keys the lookup, and the pack does not enter the
 lookup.</p>
 <h1 data-number="12" id="implementation-experience"><span class="header-section-number">12</span> Implementation experience<a href="#implementation-experience" class="self-link"></a></h1>
 <p>The model and the generated tests are in the overload repository. The
@@ -1028,6 +1039,11 @@ explicit-instance routes.</li>
 <code class="sourceCode default">superclass_identity</code>.</li>
 <li><code class="sourceCode default">Overload/Access.lean</code>: <code class="sourceCode default">protected_base_selected_ill_formed</code>,
 <code class="sourceCode default">protected_base_deduced_ill_formed</code>.</li>
+<li><code class="sourceCode default">Overload/Members.lean</code>:
+<code class="sourceCode default">fmapObject_member</code>,
+<code class="sourceCode default">call_stability_arity</code>,
+<code class="sourceCode default">arity_order_matters</code>,
+<code class="sourceCode default">registry_verdicts</code>.</li>
 <li><code class="sourceCode default">Overload/Units.lean</code>:
 <code class="sourceCode default">verdicts_single</code>,
 <code class="sourceCode default">operation_object_not_separated</code>,

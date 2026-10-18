@@ -65,10 +65,16 @@ inductive IllFormedNdr where
   /-- A partial specialization of another unit would be selected, and it
   is not reachable from the use. -/
   | notReachable (unit pos : Nat) (tc : String) (arg : Ty)
+  /-- A use that tests a registry for completeness, `requires { R<a>{}; }`,
+  answers differently from the answer it would give with every
+  specialization reachable: one satisfaction result at two points
+  (`Overload/Members.lean`). -/
+  | satisfactionChanged (unit pos : Nat) (registry : String) (arg : Ty)
   deriving Repr, DecidableEq
 
 attribute [std rule "temp.point#7"] IllFormedNdr.laterInUnit
 attribute [std rule "temp.spec.partial.general#1.sentence-3"] IllFormedNdr.notReachable
+attribute [std rule "temp.constr.atomic#3.sentence-5"] IllFormedNdr.satisfactionChanged
 
 /-- The verdict at one use, the `pos`th declaration of unit `u`. -/
 def useVerdict (us : Units) (u pos : Nat) (p : Program) (tc : String) (a : Ty) : Option IllFormedNdr :=

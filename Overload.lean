@@ -21,6 +21,7 @@ import Overload.Sfinae
 import Overload.Dispatch
 import Overload.Units
 import Overload.Access
+import Overload.Members
 import Overload.Emit
 import Overload.Lint
 
@@ -131,3 +132,13 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.betterFunction_iff
 #audit Overload.bestViable_iff
 #audit Overload.resolve_iff
+#audit Overload.fmapObject_member
+#audit Overload.member_transfer
+#audit Overload.ofProgram_member
+#audit Overload.inaccurate_member_ill_formed
+#audit Overload.arity_disjoint_soft
+#audit Overload.call_stability_arity
+#audit Overload.arity_order_matters
+#audit Overload.registry_verdicts
+#audit Overload.registry_verdicts_single
+#audit Overload.registry_late_verdict

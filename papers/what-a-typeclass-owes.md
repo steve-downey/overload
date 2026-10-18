@@ -195,11 +195,14 @@ scope can join. Argument-dependent lookup applies only to an unqualified
 name ([basic.lookup.argdep]/1), and member lookup stops at the first class
 whose scope declares the name ([class.member.lookup]/3). The instance's
 using-declaration of its implementation's `invoke` therefore hides the
-derivation base's, and the call has one template. The model treats this
-call as a fact about the instance, true when the lookup selects one. That
-is the one place where the design relies on its authors more than on its
-shape, and the first obligation below on the typeclass author is what
-makes it true.
+derivation base's, and the call has one template. The model does not
+resolve this call. It takes the member's answer as given and proves that
+the operation object passes it on unchanged: viable where the member call
+is valid, not viable where it is invalid, and ill-formed where checking it
+is a hard error. The operation object can add no accuracy the member
+lacks. That is the one place where the design relies on its authors more
+than on its shape, and the first obligation below on the typeclass author
+is what makes it hold.
 
 Every hazard the model found is a place where an overload set comes back.
 
@@ -253,12 +256,18 @@ construction, compiler-checked, library-checkable, or undiagnosable.
 - **The lookup key is normalized.** The lookup is at
   `std::remove_cvref_t<T>`, so every spelling of a type reaches one
   instance. *By construction.*
-- **No other candidate consults the lookup.** Stability at the call surface
+- **No other candidate reaches the lookup.** Stability at the call surface
   needs the call's other candidates not to look the instance up. An
-  operation object meets this by construction, since a variable cannot be
-  overloaded. If a named operation were a function template or an overload
-  set, anyone could add an overload, and each added overload would have to
-  stay away from the lookup.
+  operation object with one call operator meets this by construction,
+  since a variable cannot be overloaded. One with several, as
+  beman.transpose's `fold_map` and `combine_all` have, meets it when they
+  differ by arity and each puts the lookup default after a parameter a
+  shorter call cannot deduce: that overload fails before it reaches the
+  lookup. With the default first, it reaches the lookup in a call meant for
+  another overload, and an ambiguous lookup makes that call ill-formed. If
+  a named operation were a function template or an overload set, anyone
+  could add an overload, and each added overload would have to stay away
+  from the lookup.
 - **Refinement is visible.** Write a refinement between conditions as
   constraints, so subsumption can see it. An `enable_if` encoding of the
   same condition has the same viable set, and loses every ordering a
@@ -539,14 +548,15 @@ identity, derived-to-base and reference binding; arithmetic conversions,
 user-defined conversions and access from inside a class are outside.
 Concept satisfaction is an oracle, not a semantics of expressions.
 A registry that tests for an instance by completeness, as
-beman.transpose's `Monoid` does, is a third encoding the model does not
-cover. Its stability rests on a third rule, a satisfaction result that
-differs at two points ([temp.constr.atomic]/3). The member overload set
-of an instance is not resolved: the model has no
-class member lookup, no using-declarations and no explicit object
-parameters, and takes the member call to be valid exactly when the lookup
-selects an instance. The member observations above come from compiling
-against beman.transpose, not from the model. Function parameter packs are
+beman.transpose's `Monoid` does, is a third encoding. The model covers
+only its verdicts: they are a lookup's, at the same uses, under a third
+rule where the test's answer changes, a satisfaction result that differs
+at two points ([temp.constr.atomic]/3). The member overload set of an
+instance is not resolved: the model has no class member lookup, no
+using-declarations and no explicit object parameters. It takes the member
+call's answer as a parameter, and proves only what the operation object
+makes of it. Which members are accurate comes from compiling against
+beman.transpose, not from the model. Function parameter packs are
 outside the fragment. Applicative's `invoke` takes one after the argument
 that keys the lookup, and the pack does not enter the lookup.
 
@@ -568,6 +578,8 @@ The main results, by file:
   `derived_class_deduction`, `superclass_identity`.
 - `Overload/Access.lean`: `protected_base_selected_ill_formed`,
   `protected_base_deduced_ill_formed`.
+- `Overload/Members.lean`: `fmapObject_member`, `call_stability_arity`,
+  `arity_order_matters`, `registry_verdicts`.
 - `Overload/Units.lean`: `verdicts_single`,
   `operation_object_not_separated`, `byValue_separated`,
   `call_stability_unit`.
