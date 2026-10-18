@@ -8,6 +8,11 @@ author:
     email: <sdowney@gmail.com>
 toc: true
 toc-depth: 2
+references:
+  - id: BEMAN-TRANSPOSE
+    citation-label: beman.transpose
+    title: "beman.transpose: typeclasses for C++ as a library"
+    URL: https://github.com/bemanproject/typeclass
 ---
 
 # Abstract
@@ -15,8 +20,8 @@ toc-depth: 2
 Typeclasses can be written in C++ as a library. An instance is a partial
 specialization of a variable template whose primary is `std::false_type`,
 and each operation is an object whose call operator finds the instance
-through a defaulted constant template parameter. beman.transpose is built
-this way. This paper reports what a formal model of the Standard's
+through a defaulted constant template parameter. beman.transpose
+[@BEMAN-TRANSPOSE] is built this way. This paper reports what a formal model of the Standard's
 selection rules says about that encoding: what it guarantees by
 construction, what it leaves as an obligation on the typeclass author, the
 instance author and the user, and which of those obligations no compiler
@@ -26,7 +31,7 @@ The model is written in Lean 4. It transcribes template argument
 deduction, substitution failure, constraints and subsumption, Mandates,
 partial ordering, partial specialization matching and overload resolution,
 each rule cited by stable name and paragraph against the working draft
-N5054. Its predictions were checked against GCC 13 to 16 and Clang 17 to 24
+[@N5054]. Its predictions were checked against GCC 13 to 16 and Clang 17 to 24
 on 91 generated programs.
 
 The short form of the result is that the design is sound because it puts
@@ -419,14 +424,14 @@ conditions cannot fail that way.
   if it had none. The compilers do diagnose the lookup itself.
 - **Constraints before the function type.** Clang 17 to 20 substitute the
   function type, and check conversions to non-dependent parameters, before
-  checking constraints, the ordering CWG2369 replaced. The draft's own
+  checking constraints, the ordering CWG2369 [@CWG2369] replaced. The draft's own
   second example in [temp.deduct.general]/5 fails to compile on them, and
   a requires-clause does not shield a hard error in a parameter's type.
   Clang 21 to 24 and GCC 13 to 16 follow the current text.
 - **A perfect non-template match.** GCC skips deduction for template
   candidates when a non-template is an exact match, in some cases, and
   Clang 21 to 24 do so in more, including constraint satisfaction. This is
-  the direction of P3606. The two implementations disagree about what it
+  the direction of P3606 [@P3606R2]. The two implementations disagree about what it
   covers, which is evidence for what its wording needs to say.
 - **Placeholder type-constraints.** [temp.over.link]/6 makes constant
   template parameters equivalent ignoring type-constraints on placeholder
@@ -434,7 +439,7 @@ conditions cannot fail that way.
   [temp.func.order]/8 open. Clang 19 to 24 and GCC 16 agree. GCC 13 to 15
   and Clang 17 and 18 report the call ambiguous.
 - **A derived value for a base-typed constant parameter.** Under
-  [temp.arg.nontype] as rewritten by P2308R1, a derived class value is
+  [temp.arg.nontype] as rewritten by P2308R1 [@P2308R1], a derived class value is
   accepted for a constant template parameter of base class type, sliced,
   and identified with the equal base value. Clang does this. GCC 13 rejects
   it as not a converted constant expression, the rule before P2308R1.
@@ -486,13 +491,3 @@ The main results, by file:
 The encoding studied is a reduction of beman.transpose
 (`github.com/bemanproject/typeclass`), kept faithful to it in
 `src/smd/overload/encoding.hpp`.
-
-# References
-
-- N5054, Working Draft, Programming Languages — C++. All citations are to
-  this draft by stable name and paragraph.
-- P3606, on overload resolution with a perfect non-template match.
-- CWG2369, on the order of constraint checking in template argument
-  deduction.
-- P2308R1, on template parameter initialization.
-- beman.transpose, `github.com/bemanproject/typeclass`.
