@@ -14,19 +14,33 @@ Every row of the plan's table has its theorem or its counterexample.
 A typeclass in beman.transpose has two layers, and the rows below say
 which one they are about.
 
-- The instance is the bundle of operations: an object such as
-  `OptionalFunctorMap<V>`, whose members are the typeclass's operations,
-  `fmap` and `replace`. The lookup variable `functor<T>` names it.
-- Each named operation is also an operation object of its own:
-  `struct fmap_fn` with exactly one `operator()` template, and `inline
-  constexpr fmap_fn fmap{}`. Its `operator()` finds the instance through a
-  trailing `const auto &TC = functor<std::remove_cvref_t<T>>` and is
-  constrained on `TC.fmap(...)`. It is shaped like a customization point
-  object, but it dispatches through the lookup variable, not through
-  argument-dependent lookup or `tag_invoke`.
+- The instance is the bundle of operations, and it is the primary
+  interface: an object such as `OptionalFunctorMap<V>` or
+  `optional_applicative_map<V>`, whose members are the typeclass's
+  operations. The lookup variable `functor<T>` or `applicative<T>` names
+  it, and a user calls its members directly: `const auto &app =
+  applicative<std::optional<int>>; app.invoke(f, x, y)`.
+- Each named operation is also an operation object of its own, a
+  secondary interface over the first: `struct fmap_fn` with exactly one
+  `operator()` template, and `inline constexpr fmap_fn fmap{}`. Its
+  `operator()` finds the instance through a trailing `const auto &TC =
+  functor<std::remove_cvref_t<T>>` and is constrained on `TC.fmap(...)`.
+  It is shaped like a customization point object, but it dispatches
+  through the lookup variable, not through argument-dependent lookup or
+  `tag_invoke`.
 
 A call meets three overload sets, and they have different owners.
 
+- The member call `app.invoke(...)` or `TC.fmap(...)`, on the instance's
+  members, such as `derive_functor`'s constrained `fmap` and `replace`.
+  It is the primary interface, and the operation object's constraint and
+  body are this call. Member lookup finds the members of one class, and
+  argument-dependent lookup does not run for a member call. That overload
+  set belongs to the derivation base and the instance author. The model
+  does not resolve it: it is an atomic constraint, true when the lookup
+  selects an instance. The row for accurate member constraints is what
+  makes that atomic honest
+  ([findings](findings.md#about-the-library)).
 - The call `fmap(f, x)`. Name lookup finds the variable `fmap`, so the
   candidates are that object's one `operator()`, and nothing else: a
   variable cannot be overloaded, and argument-dependent lookup adds no
@@ -35,13 +49,9 @@ A call meets three overload sets, and they have different owners.
   (`fmapObject`). If a typeclass author made `fmap` a function template or
   an overload set instead, users and argument-dependent lookup could add
   overloads, and the rows marked for a design with overloads apply.
-- The call `TC.fmap(...)` inside the operation object, on the instance's
-  members, such as `derive_functor`'s constrained `fmap` and `replace`.
-  That overload set belongs to the instance author. The model does not
-  resolve it: it is an atomic constraint, true when the lookup selects an
-  instance.
-- A pinned call, `tc.fmap(f, v)`, on an instance object the caller names.
-  It never goes through an operation object.
+- A pinned call, `tc.fmap(f, v)`, on an instance object the caller names
+  in place of the lookup. It is a member call too, and never goes through
+  an operation object.
 
 ## Harvested
 
@@ -50,6 +60,7 @@ A call meets three overload sets, and they have different owners.
 | Canonicity: no two instances match a type with neither more specialized. | Instance author | `coherence`, `call_stability` | Compiler-checked under the text: an ambiguous lookup is ill-formed, at the lookup and at every call that substitutes it. The compilers diagnose the lookup itself (`instance_ambiguous`). At the call surface they do not: GCC 13 to 16 and Clang 17 to 24 treat the ambiguity as a deduction failure, and the type looks as if it had no instance ([findings](findings.md#compiler-disagreements)). | Held for the text. Failed for the compilers. |
 | Soft primary: the lookup's primary is a value, `std::false_type`, not a hard error. | Typeclass author | `call_stability`, `fmapObject_outcome`, `byValue_omitted_outcome` | By construction in the library: the primary is `std::false_type`. | Held. |
 | Soft failure: a missing instance makes the call not viable. | Typeclass author, or the author of a pinning function | `call_stability` | By construction for the operation object, whose constraint is the call through the instance (`fmapObject_outcome`). Library-checkable for the by-value route, through the shapeless default (`byValue_omitted_outcome`). Not discharged for the pinning pattern, which has no constraint: the call is viable and the error is in the body (`unpinned_deduce`). | Held for the operation object. Failed for pinning, where the obligation moves to the user. |
+| Accurate member constraints: each member an instance exposes is constrained so that a probe of it fails softly where the call is not viable, and succeeds only where it is. | Typeclass author, for the derivation base, and instance author | soft failure at the member call and through the operation object, whose constraint is the member call; the atomic `TC.fmap(...)` of the model | Not by construction. For Functor, `derive_functor`'s members are constrained. For Applicative, `derive_applicative::invoke` is unconstrained with a deduced return type, so a probe instantiates its body and a failure is hard ([dcl.spec.auto.general]/15). Every instance in the library meets it by re-exposing its implementation's constrained `invoke` with a using-declaration, which hides the derived one (convention). Not met for an `ap`-only basis, where the derived `invoke` accepts a function it cannot call ([findings](findings.md#about-the-library)). | Not predicted. Failed for an `ap`-only basis. |
 | Shapeless default: `std::false_type` has no instance's shape. | Typeclass author | `byValue_omitted_outcome` | Library-checkable: one `static_assert` per typeclass. | Held. |
 | Normalized lookup key: cv and reference qualifiers are removed before lookup. | Typeclass author | `fmapObject_outcome`, `unpinned_deduce` | By construction: the operation object looks up at `std::remove_cvref_t<T>`, and a `const C &` parameter deduces `C` without them (`op_object_normalized_key`). | Held. |
 | No other lookup on the name: the other candidates of a call such as `fmap(f, x)` do not consult the lookup. | Typeclass author | `call_stability` | By construction for the library, where each named operation is an object with one `operator()`: lookup of `fmap` finds a variable, which cannot be overloaded, so the call has no other candidates. Live where a named operation is a function template or an overload set, since anyone can add an overload of that name: each added overload must not consult the lookup. A design with route overloads must meet it per overload. | Not predicted. |

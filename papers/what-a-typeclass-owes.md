@@ -19,8 +19,9 @@ references:
 
 Typeclasses can be written in C++ as a library. An instance is a partial
 specialization of a variable template whose primary is `std::false_type`,
-and each operation is an object whose call operator finds the instance
-through a defaulted constant template parameter. beman.transpose
+and a user calls the instance's members. Each operation is also an object
+whose call operator finds the instance through a defaulted constant
+template parameter. beman.transpose
 [@BEMAN-TRANSPOSE] is built this way. This paper reports what a formal model of the Standard's
 selection rules says about that encoding: what it guarantees by
 construction, what it leaves as an obligation on the typeclass author, the
@@ -66,8 +67,9 @@ the disagreement is reported against the cited sentence.
 
 A typeclass has two layers.
 
-The instance is the bundle of operations. A lookup variable template
-names it, with `std::false_type` as the instance for types that have none:
+The instance is the bundle of operations, and it is the interface a user
+calls. A lookup variable template names it, with `std::false_type` as the
+instance for types that have none:
 
 ```cpp
 template <class T>
@@ -77,8 +79,31 @@ template <class V>
 inline constexpr auto functor<std::optional<V>> = OptionalFunctorMap<V>{};
 ```
 
-Each named operation is an operation object of its own, with one call
-operator. The call operator finds the instance through a trailing
+The instance's operations are its members. A user names the instance of
+record and calls them:
+
+```cpp
+const auto &app = applicative<std::optional<int>>;
+auto sum = app.invoke(sum3, std::optional{1}, std::optional{2},
+                      std::optional{3});
+```
+
+An instance is usually built from an implementation that supplies a
+minimal basis, through a derivation base that supplies the rest. The
+derivation base takes the implementation as a protected base, and the
+instance re-exposes the basis with using-declarations:
+
+```cpp
+template <class V>
+struct optional_applicative_map
+    : derive_applicative<optional_applicative_impl<V>> {
+    using optional_applicative_impl<V>::invoke;
+    using optional_applicative_impl<V>::pure;
+};
+```
+
+Each named operation is also an operation object of its own, a second
+interface over the first, with one call operator. The call operator finds the instance through a trailing
 constant template parameter, a reference defaulted to the lookup, and is
 constrained on the call through it:
 
@@ -157,8 +182,17 @@ when lookup is ambiguous. Declaring an instance leaves a call unchanged
 unless the instance matches the call's key. When it does, the call becomes
 viable through it, or is ill-formed by ambiguity.
 
-**The members.** With an instance in hand, `TC.fmap(...)` is member lookup
-in one class, which nothing at namespace scope can join.
+**The members.** With an instance in hand, `app.invoke(...)` or
+`TC.fmap(...)` is member lookup in one class, which nothing at namespace
+scope can join. Argument-dependent lookup applies only to an unqualified
+name ([basic.lookup.argdep]/1), and member lookup stops at the first class
+whose scope declares the name ([class.member.lookup]/3). The instance's
+using-declaration of its implementation's `invoke` therefore hides the
+derivation base's, and the call has one template. The model treats this
+call as a fact about the instance, true when the lookup selects one. That
+is the one place where the design relies on its authors more than on its
+shape, and the first obligation below on the typeclass author is what
+makes it true.
 
 Every hazard the model found is a place where an overload set comes back.
 
@@ -170,6 +204,19 @@ construction, compiler-checked, library-checkable, or undiagnosable.
 
 ## For the typeclass author
 
+- **The members are accurate.** Each member an instance exposes must be
+  constrained so that a probe of it fails softly where the call is not
+  viable, and succeeds only where it is. The operation object's
+  constraint is the member call, so it can be no more accurate than the
+  member. A derived member with no constraint and a deduced return type
+  fails this: a probe instantiates its body to deduce the type, and an
+  error there is not in the immediate context
+  ([dcl.spec.auto.general]/15). In beman.transpose the derived
+  Applicative `invoke` is such a member, and each instance hides it with
+  its implementation's constrained `invoke`. Where an implementation
+  supplies only `ap`, the derived `invoke` curries the function, and it
+  accepts a function that cannot take the arguments, returning an
+  unsaturated partial application in the context. *Not by construction.*
 - **The primary is soft.** The lookup's primary must be a value such as
   `std::false_type`, not a `static_assert`. A default template argument is
   substituted before constraints are checked, so a requires-clause on the
@@ -199,6 +246,12 @@ construction, compiler-checked, library-checkable, or undiagnosable.
   specialized. *Compiler-checked under the text*, at the lookup and at
   every call that substitutes it. At the call surface the compilers do not
   check it; see [Implementations].
+- **Re-expose the constrained basis.** Where the derivation base's own
+  member is unconstrained, the instance must bring its implementation's
+  constrained member into scope with a using-declaration, so that member
+  lookup finds it first. Without that, a call with an argument that has no
+  meaning in the context is a hard error, through the member call and
+  through the operation object. *Convention.*
 - **Visibility.** Every instance must be declared before any use of its
   lookup, the same in every translation unit. *Undiagnosable*; see
   [Across translation units].
@@ -458,6 +511,13 @@ conditions, not proved for every length. The conversion ranking covers
 identity, derived-to-base and reference binding; arithmetic conversions,
 user-defined conversions and access from inside a class are outside.
 Concept satisfaction is an oracle, not a semantics of expressions.
+The member overload set of an instance is not resolved: the model has no
+class member lookup, no using-declarations and no explicit object
+parameters, and takes the member call to be valid exactly when the lookup
+selects an instance. The member observations above come from compiling
+against beman.transpose, not from the model. Function parameter packs are
+outside the fragment. Applicative's `invoke` takes one after the argument
+that keys the lookup, and the pack does not enter the lookup.
 
 # Implementation experience
 

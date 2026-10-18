@@ -493,9 +493,10 @@ experience<span></span></a></li>
 <h1 data-number="1" id="abstract"><span class="header-section-number">1</span> Abstract<a href="#abstract" class="self-link"></a></h1>
 <p>Typeclasses can be written in C++ as a library. An instance is a
 partial specialization of a variable template whose primary is
-<code class="sourceCode default">std::false_type</code>, and each
-operation is an object whose call operator finds the instance through a
-defaulted constant template parameter. beman.transpose <span class="citation" data-cites="BEMAN-TRANSPOSE">[<a href="#ref-BEMAN-TRANSPOSE" role="doc-biblioref">beman.transpose</a>]</span> is built this way. This
+<code class="sourceCode default">std::false_type</code>, and a user
+calls the instance’s members. Each operation is also an object whose
+call operator finds the instance through a defaulted constant template
+parameter. beman.transpose <span class="citation" data-cites="BEMAN-TRANSPOSE">[<a href="#ref-BEMAN-TRANSPOSE" role="doc-biblioref">beman.transpose</a>]</span> is built this way. This
 paper reports what a formal model of the Standard’s selection rules says
 about that encoding: what it guarantees by construction, what it leaves
 as an obligation on the typeclass author, the instance author and the
@@ -533,27 +534,44 @@ experiments with one compiler. Where a compiler disagrees with the text,
 the disagreement is reported against the cited sentence.</p>
 <h1 data-number="3" id="the-encoding"><span class="header-section-number">3</span> The encoding<a href="#the-encoding" class="self-link"></a></h1>
 <p>A typeclass has two layers.</p>
-<p>The instance is the bundle of operations. A lookup variable template
-names it, with <code class="sourceCode default">std::false_type</code>
-as the instance for types that have none:</p>
+<p>The instance is the bundle of operations, and it is the interface a
+user calls. A lookup variable template names it, with
+<code class="sourceCode default">std::false_type</code> as the instance
+for types that have none:</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> T<span class="op">&gt;</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">inline</span> <span class="kw">constexpr</span> <span class="kw">auto</span> functor <span class="op">=</span> std<span class="op">::</span>false_type<span class="op">{}</span>;</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> V<span class="op">&gt;</span></span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">inline</span> <span class="kw">constexpr</span> <span class="kw">auto</span> functor<span class="op">&lt;</span>std<span class="op">::</span>optional<span class="op">&lt;</span>V<span class="op">&gt;&gt;</span> <span class="op">=</span> OptionalFunctorMap<span class="op">&lt;</span>V<span class="op">&gt;{}</span>;</span></code></pre></div>
-<p>Each named operation is an operation object of its own, with one call
-operator. The call operator finds the instance through a trailing
-constant template parameter, a reference defaulted to the lookup, and is
-constrained on the call through it:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> fmap_fn <span class="op">{</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> F, <span class="kw">class</span> T,</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>              <span class="kw">const</span> <span class="kw">auto</span> <span class="op">&amp;</span>TC <span class="op">=</span> functor<span class="op">&lt;</span>std<span class="op">::</span>remove_cvref_t<span class="op">&lt;</span>T<span class="op">&gt;&gt;&gt;</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>        <span class="kw">requires</span> <span class="kw">requires</span> <span class="op">{</span> TC<span class="op">.</span>fmap<span class="op">(</span>std<span class="op">::</span>declval<span class="op">&lt;</span>F<span class="op">&gt;()</span>, std<span class="op">::</span>declval<span class="op">&lt;</span>T<span class="op">&gt;())</span>; <span class="op">}</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">constexpr</span> <span class="kw">auto</span> <span class="kw">operator</span><span class="op">()(</span>F <span class="op">&amp;&amp;</span>f, T <span class="op">&amp;&amp;</span>t<span class="op">)</span> <span class="kw">const</span> <span class="op">{</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> TC<span class="op">.</span>fmap<span class="op">(</span>std<span class="op">::</span>forward<span class="op">&lt;</span>F<span class="op">&gt;(</span>f<span class="op">)</span>, std<span class="op">::</span>forward<span class="op">&lt;</span>T<span class="op">&gt;(</span>t<span class="op">))</span>;</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="kw">inline</span> <span class="kw">constexpr</span> fmap_fn fmap<span class="op">{}</span>;</span></code></pre></div>
+<p>The instance’s operations are its members. A user names the instance
+of record and calls them:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> <span class="kw">auto</span> <span class="op">&amp;</span>app <span class="op">=</span> applicative<span class="op">&lt;</span>std<span class="op">::</span>optional<span class="op">&lt;</span><span class="dt">int</span><span class="op">&gt;&gt;</span>;</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> sum <span class="op">=</span> app<span class="op">.</span>invoke<span class="op">(</span>sum3, std<span class="op">::</span>optional<span class="op">{</span><span class="dv">1</span><span class="op">}</span>, std<span class="op">::</span>optional<span class="op">{</span><span class="dv">2</span><span class="op">}</span>,</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>                      std<span class="op">::</span>optional<span class="op">{</span><span class="dv">3</span><span class="op">})</span>;</span></code></pre></div>
+<p>An instance is usually built from an implementation that supplies a
+minimal basis, through a derivation base that supplies the rest. The
+derivation base takes the implementation as a protected base, and the
+instance re-exposes the basis with using-declarations:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> V<span class="op">&gt;</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> optional_applicative_map</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">:</span> derive_applicative<span class="op">&lt;</span>optional_applicative_impl<span class="op">&lt;</span>V<span class="op">&gt;&gt;</span> <span class="op">{</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">using</span> optional_applicative_impl<span class="op">&lt;</span>V<span class="op">&gt;::</span>invoke;</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">using</span> optional_applicative_impl<span class="op">&lt;</span>V<span class="op">&gt;::</span>pure;</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span></code></pre></div>
+<p>Each named operation is also an operation object of its own, a second
+interface over the first, with one call operator. The call operator
+finds the instance through a trailing constant template parameter, a
+reference defaulted to the lookup, and is constrained on the call
+through it:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> fmap_fn <span class="op">{</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> F, <span class="kw">class</span> T,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>              <span class="kw">const</span> <span class="kw">auto</span> <span class="op">&amp;</span>TC <span class="op">=</span> functor<span class="op">&lt;</span>std<span class="op">::</span>remove_cvref_t<span class="op">&lt;</span>T<span class="op">&gt;&gt;&gt;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>        <span class="kw">requires</span> <span class="kw">requires</span> <span class="op">{</span> TC<span class="op">.</span>fmap<span class="op">(</span>std<span class="op">::</span>declval<span class="op">&lt;</span>F<span class="op">&gt;()</span>, std<span class="op">::</span>declval<span class="op">&lt;</span>T<span class="op">&gt;())</span>; <span class="op">}</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">constexpr</span> <span class="kw">auto</span> <span class="kw">operator</span><span class="op">()(</span>F <span class="op">&amp;&amp;</span>f, T <span class="op">&amp;&amp;</span>t<span class="op">)</span> <span class="kw">const</span> <span class="op">{</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> TC<span class="op">.</span>fmap<span class="op">(</span>std<span class="op">::</span>forward<span class="op">&lt;</span>F<span class="op">&gt;(</span>f<span class="op">)</span>, std<span class="op">::</span>forward<span class="op">&lt;</span>T<span class="op">&gt;(</span>t<span class="op">))</span>;</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="kw">inline</span> <span class="kw">constexpr</span> fmap_fn fmap<span class="op">{}</span>;</span></code></pre></div>
 <p>The operation object is shaped like a customization point object, but
 it does not dispatch through argument-dependent lookup or
 <code class="sourceCode default">tag_invoke</code>. It dispatches
@@ -617,8 +635,18 @@ instance leaves a call unchanged unless the instance matches the call’s
 key. When it does, the call becomes viable through it, or is ill-formed
 by ambiguity.</p>
 <p><strong>The members.</strong> With an instance in hand,
+<code class="sourceCode default">app.invoke(...)</code> or
 <code class="sourceCode default">TC.fmap(...)</code> is member lookup in
-one class, which nothing at namespace scope can join.</p>
+one class, which nothing at namespace scope can join. Argument-dependent
+lookup applies only to an unqualified name ([basic.lookup.argdep]/1),
+and member lookup stops at the first class whose scope declares the name
+([class.member.lookup]/3). The instance’s using-declaration of its
+implementation’s <code class="sourceCode default">invoke</code>
+therefore hides the derivation base’s, and the call has one template.
+The model treats this call as a fact about the instance, true when the
+lookup selects one. That is the one place where the design relies on its
+authors more than on its shape, and the first obligation below on the
+typeclass author is what makes it true.</p>
 <p>Every hazard the model found is a place where an overload set comes
 back.</p>
 <h1 data-number="6" id="obligations"><span class="header-section-number">6</span> Obligations<a href="#obligations" class="self-link"></a></h1>
@@ -627,6 +655,22 @@ language does not guarantee. Each is classed by how it is discharged: by
 construction, compiler-checked, library-checkable, or undiagnosable.</p>
 <h2 data-number="6.1" id="for-the-typeclass-author"><span class="header-section-number">6.1</span> For the typeclass author<a href="#for-the-typeclass-author" class="self-link"></a></h2>
 <ul>
+<li><strong>The members are accurate.</strong> Each member an instance
+exposes must be constrained so that a probe of it fails softly where the
+call is not viable, and succeeds only where it is. The operation
+object’s constraint is the member call, so it can be no more accurate
+than the member. A derived member with no constraint and a deduced
+return type fails this: a probe instantiates its body to deduce the
+type, and an error there is not in the immediate context
+([dcl.spec.auto.general]/15). In beman.transpose the derived Applicative
+<code class="sourceCode default">invoke</code> is such a member, and
+each instance hides it with its implementation’s constrained
+<code class="sourceCode default">invoke</code>. Where an implementation
+supplies only <code class="sourceCode default">ap</code>, the derived
+<code class="sourceCode default">invoke</code> curries the function, and
+it accepts a function that cannot take the arguments, returning an
+unsaturated partial application in the context. <em>Not by
+construction.</em></li>
 <li><strong>The primary is soft.</strong> The lookup’s primary must be a
 value such as <code class="sourceCode default">std::false_type</code>,
 not a <code class="sourceCode default">static_assert</code>. A default
@@ -664,6 +708,13 @@ requires-clause would win, without a diagnostic.
 neither more specialized. <em>Compiler-checked under the text</em>, at
 the lookup and at every call that substitutes it. At the call surface
 the compilers do not check it; see <a href="#implementations">Implementations</a>.</li>
+<li><strong>Re-expose the constrained basis.</strong> Where the
+derivation base’s own member is unconstrained, the instance must bring
+its implementation’s constrained member into scope with a
+using-declaration, so that member lookup finds it first. Without that, a
+call with an argument that has no meaning in the context is a hard
+error, through the member call and through the operation object.
+<em>Convention.</em></li>
 <li><strong>Visibility.</strong> Every instance must be declared before
 any use of its lookup, the same in every translation unit.
 <em>Undiagnosable</em>; see <a href="#across-translation-units">Across
@@ -709,26 +760,26 @@ follows C++26 and is where Clang and GCC currently differ.</p>
 <p><strong>Ranking beats refinement.</strong> A derived-to-base
 conversion has Conversion rank, and conversions are compared before the
 preference for non-templates or partial ordering.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> functor_i <span class="op">{}</span>;</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> applicative_i <span class="op">:</span> functor_i <span class="op">{}</span>;</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> monad_i <span class="op">:</span> applicative_i <span class="op">{}</span>;</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> T<span class="op">&gt;</span> <span class="dt">void</span> use<span class="op">(</span><span class="kw">const</span> T<span class="op">&amp;)</span>;   <span class="co">// #1</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> use<span class="op">(</span><span class="kw">const</span> applicative_i<span class="op">&amp;)</span>;          <span class="co">// #2</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>use<span class="op">(</span>applicative_i<span class="op">{})</span>;  <span class="co">// #2: conversions tie, the non-template is preferred</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>use<span class="op">(</span>monad_i<span class="op">{})</span>;        <span class="co">// #1: an exact match beats derived-to-base</span></span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> functor_i <span class="op">{}</span>;</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> applicative_i <span class="op">:</span> functor_i <span class="op">{}</span>;</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> monad_i <span class="op">:</span> applicative_i <span class="op">{}</span>;</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> T<span class="op">&gt;</span> <span class="dt">void</span> use<span class="op">(</span><span class="kw">const</span> T<span class="op">&amp;)</span>;   <span class="co">// #1</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> use<span class="op">(</span><span class="kw">const</span> applicative_i<span class="op">&amp;)</span>;          <span class="co">// #2</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>use<span class="op">(</span>applicative_i<span class="op">{})</span>;  <span class="co">// #2: conversions tie, the non-template is preferred</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>use<span class="op">(</span>monad_i<span class="op">{})</span>;        <span class="co">// #1: an exact match beats derived-to-base</span></span></code></pre></div>
 <p>Deriving one instance type from another moved the call to the less
 refined overload.</p>
 <p><strong>Deduction from a derived class.</strong> A parameter of class
 template form deduces from a class derived from it
 ([temp.deduct.call]/4).</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> I<span class="op">&gt;</span> <span class="kw">struct</span> derive_functor <span class="op">{}</span>;</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> opt_impl <span class="op">{}</span>;</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> opt_monad_map <span class="op">:</span> derive_functor<span class="op">&lt;</span>opt_impl<span class="op">&gt;</span> <span class="op">{}</span>;</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> I<span class="op">&gt;</span> <span class="dt">void</span> use<span class="op">(</span><span class="kw">const</span> derive_functor<span class="op">&lt;</span>I<span class="op">&gt;&amp;)</span>;</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>use<span class="op">(</span>opt_monad_map<span class="op">{})</span>;   <span class="co">// deduces I = opt_impl</span></span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> I<span class="op">&gt;</span> <span class="kw">struct</span> derive_functor <span class="op">{}</span>;</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> opt_impl <span class="op">{}</span>;</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> opt_monad_map <span class="op">:</span> derive_functor<span class="op">&lt;</span>opt_impl<span class="op">&gt;</span> <span class="op">{}</span>;</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> I<span class="op">&gt;</span> <span class="dt">void</span> use<span class="op">(</span><span class="kw">const</span> derive_functor<span class="op">&lt;</span>I<span class="op">&gt;&amp;)</span>;</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>use<span class="op">(</span>opt_monad_map<span class="op">{})</span>;   <span class="co">// deduces I = opt_impl</span></span></code></pre></div>
 <p>A Monad instance silently matches a Functor-shaped signature.</p>
 <p><strong>Two paths to the superclass.</strong> Slicing an instance to
 its base gives one Functor and lookup gives another, and they are
@@ -745,12 +796,12 @@ class goes through the protected base, so a function naming
 <code class="sourceCode default">Impl</code> is selected, and then the
 conversion makes the call ill-formed ([conv.ptr]/3,
 [dcl.init.ref]/4).</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> impl <span class="op">{}</span>;</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> derive_impl <span class="op">:</span> <span class="kw">protected</span> impl <span class="op">{}</span>;</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> map <span class="op">:</span> derive_impl <span class="op">{}</span>;</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> use<span class="op">(</span><span class="kw">const</span> impl<span class="op">&amp;)</span>;</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>use<span class="op">(</span>map<span class="op">{})</span>;   <span class="co">// selected, then ill-formed: impl is an inaccessible base</span></span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> impl <span class="op">{}</span>;</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> derive_impl <span class="op">:</span> <span class="kw">protected</span> impl <span class="op">{}</span>;</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> map <span class="op">:</span> derive_impl <span class="op">{}</span>;</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> use<span class="op">(</span><span class="kw">const</span> impl<span class="op">&amp;)</span>;</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>use<span class="op">(</span>map<span class="op">{})</span>;   <span class="co">// selected, then ill-formed: impl is an inaccessible base</span></span></code></pre></div>
 <p>The call is not merely not viable, so no other overload is tried.
 Inside a requires-expression the same failure is part of substitution
 and the requirement is simply false.</p>
@@ -805,10 +856,10 @@ into an ill-formed program, with no fallback to another overload.
 Turning a Mandate into a constraint does remove the candidate where the
 Mandate fails. Where it holds, the larger constraint can change partial
 ordering:</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> T<span class="op">&gt;</span> <span class="kw">requires</span> class_like<span class="op">&lt;</span>T<span class="op">&gt;</span> <span class="dt">void</span> g<span class="op">(</span>T<span class="op">)</span>;              <span class="co">// #1</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> T<span class="op">&gt;</span> <span class="dt">void</span> g<span class="op">(</span>T<span class="op">)</span> <span class="op">{</span> <span class="kw">static_assert</span><span class="op">(</span>empty_like<span class="op">&lt;</span>T<span class="op">&gt;)</span>; <span class="op">}</span>    <span class="co">// #2</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>g<span class="op">(</span>X<span class="op">{})</span>;   <span class="co">// #1, the more constrained; #2&#39;s Mandate is never checked</span></span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> T<span class="op">&gt;</span> <span class="kw">requires</span> class_like<span class="op">&lt;</span>T<span class="op">&gt;</span> <span class="dt">void</span> g<span class="op">(</span>T<span class="op">)</span>;              <span class="co">// #1</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> T<span class="op">&gt;</span> <span class="dt">void</span> g<span class="op">(</span>T<span class="op">)</span> <span class="op">{</span> <span class="kw">static_assert</span><span class="op">(</span>empty_like<span class="op">&lt;</span>T<span class="op">&gt;)</span>; <span class="op">}</span>    <span class="co">// #2</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>g<span class="op">(</span>X<span class="op">{})</span>;   <span class="co">// #1, the more constrained; #2&#39;s Mandate is never checked</span></span></code></pre></div>
 <p>Promote #2’s Mandate to
 <code class="sourceCode default">requires empty_like&lt;T&gt;</code>,
 and neither constraint subsumes the other: the call becomes ambiguous,
@@ -825,11 +876,11 @@ order differs: a requires-clause is checked before the function type is
 substituted, so it shields a hard error in a parameter’s type, while
 <code class="sourceCode default">enable_if</code> in the return type is
 checked only as that type is substituted, after the parameters:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> T<span class="op">&gt;</span> <span class="kw">requires</span> integral_like<span class="op">&lt;</span>T<span class="op">&gt;</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> f<span class="op">(</span>T, std<span class="op">::</span>remove_cvref_t<span class="op">&lt;</span><span class="kw">decltype</span><span class="op">(</span>lookup<span class="op">&lt;</span>T<span class="op">&gt;)&gt;)</span>;                <span class="co">// not viable</span></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> T<span class="op">&gt;</span></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> f<span class="op">(</span>T, std<span class="op">::</span>remove_cvref_t<span class="op">&lt;</span><span class="kw">decltype</span><span class="op">(</span>lookup<span class="op">&lt;</span>T<span class="op">&gt;)&gt;)</span> <span class="op">-&gt;</span> std<span class="op">::</span>enable_if_t<span class="op">&lt;</span>integral_like<span class="op">&lt;</span>T<span class="op">&gt;&gt;</span>;</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>                                                                    <span class="co">// hard error</span></span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> T<span class="op">&gt;</span> <span class="kw">requires</span> integral_like<span class="op">&lt;</span>T<span class="op">&gt;</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> f<span class="op">(</span>T, std<span class="op">::</span>remove_cvref_t<span class="op">&lt;</span><span class="kw">decltype</span><span class="op">(</span>lookup<span class="op">&lt;</span>T<span class="op">&gt;)&gt;)</span>;                <span class="co">// not viable</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> T<span class="op">&gt;</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> f<span class="op">(</span>T, std<span class="op">::</span>remove_cvref_t<span class="op">&lt;</span><span class="kw">decltype</span><span class="op">(</span>lookup<span class="op">&lt;</span>T<span class="op">&gt;)&gt;)</span> <span class="op">-&gt;</span> std<span class="op">::</span>enable_if_t<span class="op">&lt;</span>integral_like<span class="op">&lt;</span>T<span class="op">&gt;&gt;</span>;</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>                                                                    <span class="co">// hard error</span></span></code></pre></div>
 <p>where <code class="sourceCode default">lookup&lt;T&gt;</code> fails
 hard for the argument’s type. Substitution follows lexical order
 ([temp.deduct.general]/7), so a leading return type would check
@@ -910,7 +961,16 @@ prescribes. Dispatch styles are compared exhaustively over three
 conditions, not proved for every length. The conversion ranking covers
 identity, derived-to-base and reference binding; arithmetic conversions,
 user-defined conversions and access from inside a class are outside.
-Concept satisfaction is an oracle, not a semantics of expressions.</p>
+Concept satisfaction is an oracle, not a semantics of expressions. The
+member overload set of an instance is not resolved: the model has no
+class member lookup, no using-declarations and no explicit object
+parameters, and takes the member call to be valid exactly when the
+lookup selects an instance. The member observations above come from
+compiling against beman.transpose, not from the model. Function
+parameter packs are outside the fragment. Applicative’s
+<code class="sourceCode default">invoke</code> takes one after the
+argument that keys the lookup, and the pack does not enter the
+lookup.</p>
 <h1 data-number="12" id="implementation-experience"><span class="header-section-number">12</span> Implementation experience<a href="#implementation-experience" class="self-link"></a></h1>
 <p>The model and the generated tests are in the overload repository. The
 Lean sources are under
