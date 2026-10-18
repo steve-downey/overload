@@ -15,6 +15,13 @@ references:
     URL: https://github.com/bemanproject/typeclass
 ---
 
+```{=latex}
+% Latin Modern Mono has no U+2227; typeset it from math, keeping the
+% monospace font for the rest of each code span.
+\catcode`\∧=\active
+\protected\def∧{\ensuremath{\wedge}}
+```
+
 # Abstract
 
 Typeclasses can be written in C++ as a library. An instance is a partial
