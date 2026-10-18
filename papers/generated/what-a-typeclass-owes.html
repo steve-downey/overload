@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="mpark/wg21" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="dcterms.date" content="2026-10-17" />
+  <title>What a Typeclass Owes: Obligations of a Library Typeclass
+Encoding, from a Formal Model of Overload Resolution</title>
+  <style>
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+      div.csl-block{margin-left: 1.5em;}
+      ul.task-list{list-style: none;}
+      pre > code.sourceCode { white-space: pre; position: relative; }
+      pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+      pre > code.sourceCode > span:empty { height: 1.2em; }
+      .sourceCode { overflow: visible; }
+      code.sourceCode > span { color: inherit; text-decoration: inherit; }
+      div.sourceCode { margin: 1em 0; }
+      pre.sourceCode { margin: 0; }
+      @media screen {
+      div.sourceCode { overflow: auto; }
+      }
+      @media print {
+      pre > code.sourceCode { white-space: pre-wrap; }
+      pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+      }
+      pre.numberSource code
+        { counter-reset: source-line 0; }
+      pre.numberSource code > span
+        { position: relative; left: -4em; counter-increment: source-line; }
+      pre.numberSource code > span > a:first-child::before
+        { content: counter(source-line);
+          position: relative; left: -1em; text-align: right; vertical-align: baseline;
+          border: none; display: inline-block;
+          -webkit-touch-callout: none; -webkit-user-select: none;
+          -khtml-user-select: none; -moz-user-select: none;
+          -ms-user-select: none; user-select: none;
+          padding: 0 4px; width: 4em;
+          color: #aaaaaa;
+        }
+      pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+      div.sourceCode
+        {  background-color: #f6f8fa; }
+      @media screen {
+      pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+      }
+      code span { } /* Normal */
+      code span.al { color: #ff0000; } /* Alert */
+      code span.an { } /* Annotation */
+      code span.at { } /* Attribute */
+      code span.bn { color: #9f6807; } /* BaseN */
+      code span.bu { color: #9f6807; } /* BuiltIn */
+      code span.cf { color: #00607c; } /* ControlFlow */
+      code span.ch { color: #9f6807; } /* Char */
+      code span.cn { } /* Constant */
+      code span.co { color: #008000; font-style: italic; } /* Comment */
+      code span.cv { color: #008000; font-style: italic; } /* CommentVar */
+      code span.do { color: #008000; } /* Documentation */
+      code span.dt { color: #00607c; } /* DataType */
+      code span.dv { color: #9f6807; } /* DecVal */
+      code span.er { color: #ff0000; font-weight: bold; } /* Error */
+      code span.ex { } /* Extension */
+      code span.fl { color: #9f6807; } /* Float */
+      code span.fu { } /* Function */
+      code span.im { } /* Import */
+      code span.in { color: #008000; } /* Information */
+      code span.kw { color: #00607c; } /* Keyword */
+      code span.op { color: #af1915; } /* Operator */
+      code span.ot { } /* Other */
+      code span.pp { color: #6f4e37; } /* Preprocessor */
+      code span.re { } /* RegionMarker */
+      code span.sc { color: #9f6807; } /* SpecialChar */
+      code span.ss { color: #9f6807; } /* SpecialString */
+      code span.st { color: #9f6807; } /* String */
+      code span.va { } /* Variable */
+      code span.vs { color: #9f6807; } /* VerbatimString */
+      code span.wa { color: #008000; font-weight: bold; } /* Warning */
+      code.diff {color: #898887}
+      code.diff span.va {color: #006e28}
+      code.diff span.st {color: #bf0303}
+  </style>
+  <style type="text/css">
+body {
+margin: 5em;
+font-family: serif;
+
+hyphens: auto;
+line-height: 1.35;
+text-align: justify;
+}
+@media screen and (max-width: 30em) {
+body {
+margin: 1.5em;
+}
+}
+div.wrapper {
+max-width: 60em;
+margin: auto;
+}
+ul {
+list-style-type: none;
+padding-left: 2em;
+margin-top: -0.2em;
+margin-bottom: -0.2em;
+}
+a {
+text-decoration: none;
+color: #4183C4;
+}
+a.hidden_link {
+text-decoration: none;
+color: inherit;
+}
+li {
+margin-top: 0.6em;
+margin-bottom: 0.6em;
+}
+h1, h2, h3, h4 {
+position: relative;
+line-height: 1;
+}
+a.self-link {
+position: absolute;
+top: 0;
+left: calc(-1 * (3.5rem - 26px));
+width: calc(3.5rem - 26px);
+height: 2em;
+text-align: center;
+border: none;
+transition: opacity .2s;
+opacity: .5;
+font-family: sans-serif;
+font-weight: normal;
+font-size: 83%;
+}
+a.self-link:hover { opacity: 1; }
+a.self-link::before { content: "§"; }
+ul > li:before {
+content: "\2014";
+position: absolute;
+margin-left: -1.5em;
+}
+:target { background-color: #C9FBC9; }
+:target .codeblock { background-color: #C9FBC9; }
+:target ul { background-color: #C9FBC9; }
+.abbr_ref { float: right; }
+.folded_abbr_ref { float: right; }
+:target .folded_abbr_ref { display: none; }
+:target .unfolded_abbr_ref { float: right; display: inherit; }
+.unfolded_abbr_ref { display: none; }
+.secnum { display: inline-block; min-width: 35pt; }
+.header-section-number { display: inline-block; min-width: 35pt; }
+.annexnum { display: block; }
+div.sourceLinkParent {
+float: right;
+}
+a.sourceLink {
+position: absolute;
+opacity: 0;
+margin-left: 10pt;
+}
+a.sourceLink:hover {
+opacity: 1;
+}
+a.itemDeclLink {
+position: absolute;
+font-size: 75%;
+text-align: right;
+width: 5em;
+opacity: 0;
+}
+a.itemDeclLink:hover { opacity: 1; }
+span.marginalizedparent {
+position: relative;
+left: -5em;
+}
+li span.marginalizedparent { left: -7em; }
+li ul > li span.marginalizedparent { left: -9em; }
+li ul > li ul > li span.marginalizedparent { left: -11em; }
+li ul > li ul > li ul > li span.marginalizedparent { left: -13em; }
+div.footnoteNumberParent {
+position: relative;
+left: -4.7em;
+}
+a.marginalized {
+position: absolute;
+font-size: 75%;
+text-align: right;
+width: 5em;
+}
+a.enumerated_item_num {
+position: relative;
+left: -3.5em;
+display: inline-block;
+margin-right: -3em;
+text-align: right;
+width: 3em;
+}
+div.para { margin-bottom: 0.6em; margin-top: 0.6em; text-align: justify; }
+div.section { text-align: justify; }
+div.sentence { display: inline; }
+span.indexparent {
+display: inline;
+position: relative;
+float: right;
+right: -1em;
+}
+a.index {
+position: absolute;
+display: none;
+}
+a.index:before { content: "⟵"; }
+
+a.index:target {
+display: inline;
+}
+.indexitems {
+margin-left: 2em;
+text-indent: -2em;
+}
+div.itemdescr {
+margin-left: 3em;
+}
+.bnf {
+font-family: serif;
+margin-left: 40pt;
+margin-top: 0.5em;
+margin-bottom: 0.5em;
+}
+.ncbnf {
+font-family: serif;
+margin-top: 0.5em;
+margin-bottom: 0.5em;
+margin-left: 40pt;
+}
+.ncsimplebnf {
+font-family: serif;
+font-style: italic;
+margin-top: 0.5em;
+margin-bottom: 0.5em;
+margin-left: 40pt;
+background: inherit; 
+}
+span.textnormal {
+font-style: normal;
+font-family: serif;
+white-space: normal;
+display: inline-block;
+}
+span.rlap {
+display: inline-block;
+width: 0px;
+}
+span.descr { font-style: normal; font-family: serif; }
+span.grammarterm { font-style: italic; }
+span.term { font-style: italic; }
+span.terminal { font-family: monospace; font-style: normal; }
+span.nonterminal { font-style: italic; }
+span.tcode { font-family: monospace; font-style: normal; }
+span.textbf { font-weight: bold; }
+span.textsc { font-variant: small-caps; }
+a.nontermdef { font-style: italic; font-family: serif; }
+span.emph { font-style: italic; }
+span.techterm { font-style: italic; }
+span.mathit { font-style: italic; }
+span.mathsf { font-family: sans-serif; }
+span.mathrm { font-family: serif; font-style: normal; }
+span.textrm { font-family: serif; }
+span.textsl { font-style: italic; }
+span.mathtt { font-family: monospace; font-style: normal; }
+span.mbox { font-family: serif; font-style: normal; }
+span.ungap { display: inline-block; width: 2pt; }
+span.textit { font-style: italic; }
+span.texttt { font-family: monospace; }
+span.tcode_in_codeblock { font-family: monospace; font-style: normal; }
+span.phantom { color: white; }
+
+span.math { font-style: normal; }
+span.mathblock {
+display: block;
+margin-left: auto;
+margin-right: auto;
+margin-top: 1.2em;
+margin-bottom: 1.2em;
+text-align: center;
+}
+span.mathalpha {
+font-style: italic;
+}
+span.synopsis {
+font-weight: bold;
+margin-top: 0.5em;
+display: block;
+}
+span.definition {
+font-weight: bold;
+display: block;
+}
+.codeblock {
+margin-left: 1.2em;
+line-height: 127%;
+}
+.outputblock {
+margin-left: 1.2em;
+line-height: 127%;
+}
+div.itemdecl {
+margin-top: 2ex;
+}
+code.itemdeclcode {
+white-space: pre;
+display: block;
+}
+span.textsuperscript {
+vertical-align: super;
+font-size: smaller;
+line-height: 0;
+}
+.footnotenum { vertical-align: super; font-size: smaller; line-height: 0; }
+.footnote {
+font-size: small;
+margin-left: 2em;
+margin-right: 2em;
+margin-top: 0.6em;
+margin-bottom: 0.6em;
+}
+div.minipage {
+display: inline-block;
+margin-right: 3em;
+}
+div.numberedTable {
+text-align: center;
+margin: 2em;
+}
+div.figure {
+text-align: center;
+margin: 2em;
+}
+table {
+border: 1px solid black;
+border-collapse: collapse;
+margin-left: auto;
+margin-right: auto;
+margin-top: 0.8em;
+text-align: left;
+hyphens: none; 
+}
+td, th {
+padding-left: 1em;
+padding-right: 1em;
+vertical-align: top;
+}
+td.empty {
+padding: 0px;
+padding-left: 1px;
+}
+td.left {
+text-align: left;
+}
+td.right {
+text-align: right;
+}
+td.center {
+text-align: center;
+}
+td.justify {
+text-align: justify;
+}
+td.border {
+border-left: 1px solid black;
+}
+tr.rowsep, td.cline {
+border-top: 1px solid black;
+}
+tr.even, tr.odd {
+border-bottom: 1px solid black;
+}
+tr.capsep {
+border-top: 3px solid black;
+border-top-style: double;
+}
+tr.header {
+border-bottom: 3px solid black;
+border-bottom-style: double;
+}
+th {
+border-bottom: 1px solid black;
+}
+span.centry {
+font-weight: bold;
+}
+div.table {
+display: block;
+margin-left: auto;
+margin-right: auto;
+text-align: center;
+width: 90%;
+}
+span.indented {
+display: block;
+margin-left: 2em;
+margin-bottom: 1em;
+margin-top: 1em;
+}
+ol.enumeratea { list-style-type: none; background: inherit; }
+ol.enumerate { list-style-type: none; background: inherit; }
+
+code.sourceCode > span { display: inline; }
+</style>
+  <link href="data:image/x-icon;base64,AAABAAIAEBAAAAEAIABoBAAAJgAAACAgAAABACAAqBAAAI4EAAAoAAAAEAAAACAAAAABACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////AIJEAACCRAAAgkQAAIJEAACCRAAAgkQAVoJEAN6CRADegkQAWIJEAACCRAAAgkQAAIJEAACCRAAA////AP///wCCRAAAgkQAAIJEAACCRAAsgkQAvoJEAP+CRAD/gkQA/4JEAP+CRADAgkQALoJEAACCRAAAgkQAAP///wD///8AgkQAAIJEABSCRACSgkQA/IJEAP99PQD/dzMA/3czAP99PQD/gkQA/4JEAPyCRACUgkQAFIJEAAD///8A////AHw+AFiBQwDqgkQA/4BBAP9/PxP/uZd6/9rJtf/bybX/upd7/39AFP+AQQD/gkQA/4FDAOqAQgBc////AP///wDKklv4jlEa/3o7AP+PWC//8+3o///////////////////////z7un/kFox/35AAP+GRwD/mVYA+v///wD///8A0Zpk+NmibP+0d0T/8evj///////+/fv/1sKz/9bCs//9/fr//////+/m2/+NRwL/nloA/5xYAPj///8A////ANKaZPjRmGH/5cKh////////////k149/3UwAP91MQD/lmQ//86rhv+USg3/m1YA/5hSAP+bVgD4////AP///wDSmmT4zpJY/+/bx///////8+TV/8mLT/+TVx//gkIA/5lVAP+VTAD/x6B//7aEVv/JpH7/s39J+P///wD///8A0ppk+M6SWP/u2sf///////Pj1f/Nj1T/2KFs/8mOUv+eWhD/lEsA/8aee/+0glT/x6F7/7J8Rvj///8A////ANKaZPjRmGH/48Cf///////+/v7/2qt//82PVP/OkFX/37KJ/86siv+USg7/mVQA/5hRAP+bVgD4////AP///wDSmmT40ppk/9CVXP/69O////////7+/v/x4M//8d/P//7+/f//////9u7n/6tnJf+XUgD/nFgA+P///wD///8A0ppk+NKaZP/RmWL/1qNy//r07///////////////////////+vXw/9akdP/Wnmn/y5FY/6JfFvj///8A////ANKaZFTSmmTo0ppk/9GYYv/Ql1//5cWm//Hg0P/x4ND/5cWm/9GXYP/RmGH/0ppk/9KaZOjVnmpY////AP///wDSmmQA0ppkEtKaZI7SmmT60ppk/9CWX//OkVb/zpFW/9CWX//SmmT/0ppk/NKaZJDSmmQS0ppkAP///wD///8A0ppkANKaZADSmmQA0ppkKtKaZLrSmmT/0ppk/9KaZP/SmmT/0ppkvNKaZCrSmmQA0ppkANKaZAD///8A////ANKaZADSmmQA0ppkANKaZADSmmQA0ppkUtKaZNzSmmTc0ppkVNKaZADSmmQA0ppkANKaZADSmmQA////AP5/AAD4HwAA4AcAAMADAACAAQAAgAEAAIABAACAAQAAgAEAAIABAACAAQAAgAEAAMADAADgBwAA+B8AAP5/AAAoAAAAIAAAAEAAAAABACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////AP///wCCRAAAgkQAAIJEAACCRAAAgkQAAIJEAACCRAAAgkQAAIJEAACCRAAAgkQAAIJEAAyCRACMgkQA6oJEAOqCRACQgkQAEIJEAACCRAAAgkQAAIJEAACCRAAAgkQAAIJEAACCRAAAgkQAAIJEAACCRAAA////AP///wD///8A////AIJEAACCRAAAgkQAAIJEAACCRAAAgkQAAIJEAACCRAAAgkQAAIJEAACCRABigkQA5oJEAP+CRAD/gkQA/4JEAP+CRADqgkQAZoJEAACCRAAAgkQAAIJEAACCRAAAgkQAAIJEAACCRAAAgkQAAIJEAAD///8A////AP///wD///8AgkQAAIJEAACCRAAAgkQAAIJEAACCRAAAgkQAAIJEAACCRAA4gkQAwoJEAP+CRAD/gkQA/4JEAP+CRAD/gkQA/4JEAP+CRAD/gkQAxIJEADyCRAAAgkQAAIJEAACCRAAAgkQAAIJEAACCRAAAgkQAAP///wD///8A////AP///wCCRAAAgkQAAIJEAACCRAAAgkQAAIJEAACCRAAWgkQAmIJEAP+CRAD/gkQA/4JEAP+CRAD/gkQA/4JEAP+CRAD/gkQA/4JEAP+CRAD/gkQA/4JEAJyCRAAYgkQAAIJEAACCRAAAgkQAAIJEAACCRAAA////AP///wD///8A////AIJEAACCRAAAgkQAAIJEAACCRAAAgkQAdIJEAPCCRAD/gkQA/4JEAP+CRAD/gkQA/4JEAP+CRAD/gkQA/4JEAP+CRAD/gkQA/4JEAP+CRAD/gkQA/4JEAPSCRAB4gkQAAIJEAACCRAAAgkQAAIJEAAD///8A////AP///wD///8AgkQAAIJEAACCRAAAgkQASoJEANKCRAD/gkQA/4JEAP+CRAD/g0YA/39AAP9zLgD/bSQA/2shAP9rIQD/bSQA/3MuAP9/PwD/g0YA/4JEAP+CRAD/gkQA/4JEAP+CRADUgkQAToJEAACCRAAAgkQAAP///wD///8A////AP///wB+PwAAgkUAIoJEAKiCRAD/gkQA/4JEAP+CRAD/hEcA/4BBAP9sIwD/dTAA/5RfKv+viF7/vp56/76ee/+wiF7/lWAr/3YxAP9sIwD/f0AA/4RHAP+CRAD/gkQA/4JEAP+CRAD/gkQArIJEACaBQwAA////AP///wD///8A////AIBCAEBzNAD6f0EA/4NFAP+CRAD/gkQA/4VIAP92MwD/bSUA/6N1Tv/ezsL/////////////////////////////////38/D/6V3Uv9uJgD/dTEA/4VJAP+CRAD/gkQA/4JEAP+BQwD/fUAA/4FDAEj///8A////AP///wD///8AzJRd5qBlKf91NgD/dDUA/4JEAP+FSQD/cy4A/3YyAP/PuKP//////////////////////////////////////////////////////9K7qP94NQD/ciwA/4VJAP+CRAD/fkEA/35BAP+LSwD/mlYA6v///wD///8A////AP///wDdpnL/4qx3/8KJUv+PUhf/cTMA/3AsAP90LgD/4dK+/////////////////////////////////////////////////////////////////+TYxf91MAD/dTIA/31CAP+GRwD/llQA/6FcAP+gWwD8////AP///wD///8A////ANGZY/LSm2X/4ap3/92mcP+wdT3/byQA/8mwj////////////////////////////////////////////////////////////////////////////+LYxv9zLgP/jUoA/59bAP+hXAD/nFgA/5xYAPL///8A////AP///wD///8A0ppk8tKaZP/RmWL/1p9q/9ubXv/XqXj////////////////////////////7+fD/vZyG/6BxS/+gcUr/vJuE//r37f//////////////////////3MOr/5dQBf+dVQD/nVkA/5xYAP+cWAD/nFgA8v///wD///8A////AP///wDSmmTy0ppk/9KaZP/SmWP/yohJ//jo2P//////////////////////4NTG/4JDFf9lGAD/bSQA/20kAP9kGAD/fz8S/+Xb0f//////5NG9/6txN/+LOgD/m1QA/51aAP+cWAD/m1cA/5xYAP+cWADy////AP///wD///8A////ANKaZPLSmmT/0ppk/8+TWf/Unmv//v37//////////////////////+TWRr/VwsA/35AAP+ERgD/g0UA/4JGAP9lHgD/kFga/8KXX/+TRwD/jT4A/49CAP+VTQD/n10A/5xYAP+OQQD/lk4A/55cAPL///8A////AP///wD///8A0ppk8tKaZP/SmmT/y4tO/92yiP//////////////////////8NnE/8eCQP+rcTT/ez0A/3IyAP98PgD/gEMA/5FSAP+USwD/jj8A/5lUAP+JNwD/yqV2/694Mf+HNQD/jkAA/82rf/+laBj/jT4A8v///wD///8A////AP///wDSmmTy0ppk/9KaZP/LiUr/4byY///////////////////////gupX/0I5P/+Wuev/Lklz/l1sj/308AP+QSwD/ol0A/59aAP+aVQD/k0oA/8yoh///////+fXv/6pwO//Lp3v///////Pr4f+oay7y////AP///wD///8A////ANKaZPLSmmT/0ppk/8uJSv/hvJj//////////////////////+G7l//Jhkb/0ppk/96nc//fqXX/x4xO/6dkFP+QSQD/llEA/5xXAP+USgD/yaOA///////38uv/qG05/8ijdv//////8efb/6ZpLPL///8A////AP///wD///8A0ppk8tKaZP/SmmT/zIxO/9yxh///////////////////////7dbA/8iEQf/Sm2X/0Zlj/9ScZv/eqHf/2KJv/7yAQf+XTgD/iToA/5lSAP+JNgD/yKFv/611LP+HNQD/jT8A/8qmeP+kZRT/jT4A8v///wD///8A////AP///wDSmmTy0ppk/9KaZP/Pk1n/1J5q//78+//////////////////+/fv/1aFv/8iEQv/Tm2b/0ppl/9GZY//Wn2z/1pZc/9eldf/Bl2b/kUcA/4w9AP+OQAD/lUwA/59eAP+cWQD/jT8A/5ZOAP+eXADy////AP///wD///8A////ANKaZPLSmmT/0ppk/9KZY//KiEn/8d/P///////////////////////47+f/05tm/8iCP//KiEj/yohJ/8eCP//RmGH//vfy///////n1sP/rXQ7/4k4AP+TTAD/nVoA/5xYAP+cVwD/nFgA/5xYAPL///8A////AP///wD///8A0ppk8tKaZP/SmmT/0ptl/8uLTf/aq37////////////////////////////+/fz/6c2y/961jv/etY7/6Myx//78+v//////////////////////3MWv/5xXD/+ORAD/mFQA/51ZAP+cWAD/nFgA8v///wD///8A////AP///wDSmmTy0ppk/9KaZP/SmmT/0ppk/8mFRP/s1b//////////////////////////////////////////////////////////////////////////////+PD/0JFU/7NzMv+WUQD/kUsA/5tXAP+dWQDy////AP///wD///8A////ANKaZP/SmmT/0ppk/9KaZP/Sm2X/z5NZ/8yMT//z5NX/////////////////////////////////////////////////////////////////9Ofa/8yNUP/UmGH/36p5/8yTWv+qaSD/kksA/5ROAPz///8A////AP///wD///8A0ppk5NKaZP/SmmT/0ppk/9KaZP/TnGf/zY9T/82OUv/t1sD//////////////////////////////////////////////////////+7Yw//OkFX/zI5R/9OcZ//SmmP/26V0/9ymdf/BhUf/ol8R6P///wD///8A////AP///wDSmmQ80ppk9tKaZP/SmmT/0ppk/9KaZP/TnGj/zpFW/8qJSv/dson/8uHS//////////////////////////////////Lj0//etIv/y4lL/86QVf/TnGj/0ppk/9KaZP/RmWP/05xn/9ymdfjUnWdC////AP///wD///8A////ANKaZADSmmQc0ppkotKaZP/SmmT/0ppk/9KaZP/Tm2b/0Zli/8qJSf/NjlH/16Z3/+G8mP/myKr/5siq/+G8mP/Xp3f/zY5S/8qISf/RmGH/05tm/9KaZP/SmmT/0ppk/9KaZP/SmmSm0pljINWdaQD///8A////AP///wD///8A0ppkANKaZADSmmQA0ppkQtKaZMrSmmT/0ppk/9KaZP/SmmT/0ptl/9GYYf/Nj1P/y4lL/8qISP/KiEj/y4lK/82PU//RmGH/0ptl/9KaZP/SmmT/0ppk/9KaZP/SmmTO0ppkRtKaZADSmmQA0ppkAP///wD///8A////AP///wDSmmQA0ppkANKaZADSmmQA0ppkANKaZGzSmmTu0ppk/9KaZP/SmmT/0ppk/9KaZP/SmmT/0ppk/9KaZP/SmmT/0ppk/9KaZP/SmmT/0ppk/9KaZP/SmmTw0ppkcNKaZADSmmQA0ppkANKaZADSmmQA////AP///wD///8A////ANKaZADSmmQA0ppkANKaZADSmmQA0ppkANKaZBLSmmSQ0ppk/9KaZP/SmmT/0ppk/9KaZP/SmmT/0ppk/9KaZP/SmmT/0ppk/9KaZP/SmmT/0ppklNKaZBTSmmQA0ppkANKaZADSmmQA0ppkANKaZAD///8A////AP///wD///8A0ppkANKaZADSmmQA0ppkANKaZADSmmQA0ppkANKaZADSmmQy0ppkutKaZP/SmmT/0ppk/9KaZP/SmmT/0ppk/9KaZP/SmmT/0ppkvtKaZDbSmmQA0ppkANKaZADSmmQA0ppkANKaZADSmmQA0ppkAP///wD///8A////AP///wDSmmQA0ppkANKaZADSmmQA0ppkANKaZADSmmQA0ppkANKaZADSmmQA0ppkXNKaZODSmmT/0ppk/9KaZP/SmmT/0ppk5NKaZGDSmmQA0ppkANKaZADSmmQA0ppkANKaZADSmmQA0ppkANKaZADSmmQA////AP///wD///8A////ANKaZADSmmQA0ppkANKaZADSmmQA0ppkANKaZADSmmQA0ppkANKaZADSmmQA0ppkBtKaZIbSmmTo0ppk6tKaZIrSmmQK0ppkANKaZADSmmQA0ppkANKaZADSmmQA0ppkANKaZADSmmQA0ppkANKaZAD///8A////AP/8P///+B///+AH//+AAf//AAD//AAAP/AAAA/gAAAHwAAAA8AAAAPAAAADwAAAA8AAAAPAAAADwAAAA8AAAAPAAAADwAAAA8AAAAPAAAADwAAAA8AAAAPAAAADwAAAA+AAAAfwAAAP/AAAP/8AAP//gAH//+AH///4H////D//" rel="icon" />
+  
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<div class="wrapper">
+<header id="title-block-header">
+<h1 class="title" style="text-align:center">What a Typeclass Owes:
+Obligations of a Library Typeclass Encoding, from a Formal Model of
+Overload Resolution</h1>
+<table style="border:none;float:right">
+  <tr>
+    <td>Document #:</td>
+    <td>DXXXXR0</td>
+  </tr>
+  <tr>
+    <td>Date:</td>
+    <td>2026-10-17</td>
+  </tr>
+  <tr>
+    <td style="vertical-align:top">Project:</td>
+    <td>Programming Language C++</td>
+  </tr>
+  <tr>
+    <td style="vertical-align:top">Audience:</td>
+    <td>
+      LEWG, EWG<br>
+    </td>
+  </tr>
+  <tr>
+    <td style="vertical-align:top">Reply-to:</td>
+    <td>
+      Steve Downey<br>&lt;<a href="mailto:sdowney@gmail.com" class="email">sdowney@gmail.com</a>&gt;<br>
+    </td>
+  </tr>
+</table>
+</header>
+<div style="clear:both">
+<div id="TOC" role="doc-toc">
+<h1 id="toctitle">Contents</h1>
+<ul>
+<li><a href="#abstract" id="toc-abstract"><span class="toc-section-number">1</span> Abstract<span></span></a></li>
+<li><a href="#introduction" id="toc-introduction"><span class="toc-section-number">2</span> Introduction<span></span></a></li>
+<li><a href="#the-encoding" id="toc-the-encoding"><span class="toc-section-number">3</span> The encoding<span></span></a></li>
+<li><a href="#the-model" id="toc-the-model"><span class="toc-section-number">4</span> The model<span></span></a></li>
+<li><a href="#why-the-design-works-a-variable-cannot-be-overloaded" id="toc-why-the-design-works-a-variable-cannot-be-overloaded"><span class="toc-section-number">5</span> Why the design works: a variable
+cannot be overloaded<span></span></a></li>
+<li><a href="#obligations" id="toc-obligations"><span class="toc-section-number">6</span> Obligations<span></span></a>
+<ul>
+<li><a href="#for-the-typeclass-author" id="toc-for-the-typeclass-author"><span class="toc-section-number">6.1</span> For the typeclass
+author<span></span></a></li>
+<li><a href="#for-the-instance-author" id="toc-for-the-instance-author"><span class="toc-section-number">6.2</span> For the instance
+author<span></span></a></li>
+<li><a href="#for-users-and-the-authors-of-functions-on-instances" id="toc-for-users-and-the-authors-of-functions-on-instances"><span class="toc-section-number">6.3</span> For users and the authors of
+functions on instances<span></span></a></li>
+</ul></li>
+<li><a href="#inheritance-between-instance-types" id="toc-inheritance-between-instance-types"><span class="toc-section-number">7</span> Inheritance between instance
+types<span></span></a></li>
+<li><a href="#across-translation-units" id="toc-across-translation-units"><span class="toc-section-number">8</span> Across translation
+units<span></span></a></li>
+<li><a href="#results-about-dispatch-idioms" id="toc-results-about-dispatch-idioms"><span class="toc-section-number">9</span> Results about dispatch
+idioms<span></span></a></li>
+<li><a href="#findings-about-the-standard-and-implementations" id="toc-findings-about-the-standard-and-implementations"><span class="toc-section-number">10</span> Findings about the Standard and
+implementations<span></span></a>
+<ul>
+<li><a href="#the-standard" id="toc-the-standard"><span class="toc-section-number">10.1</span> The
+Standard<span></span></a></li>
+<li><a href="#implementations" id="toc-implementations"><span class="toc-section-number">10.2</span>
+Implementations<span></span></a></li>
+</ul></li>
+<li><a href="#limits-of-the-model" id="toc-limits-of-the-model"><span class="toc-section-number">11</span> Limits of the
+model<span></span></a></li>
+<li><a href="#implementation-experience" id="toc-implementation-experience"><span class="toc-section-number">12</span> Implementation
+experience<span></span></a></li>
+<li><a href="#bibliography" id="toc-bibliography"><span class="toc-section-number">13</span> References<span></span></a></li>
+</ul>
+</div>
+<h1 data-number="1" id="abstract"><span class="header-section-number">1</span> Abstract<a href="#abstract" class="self-link"></a></h1>
+<p>Typeclasses can be written in C++ as a library. An instance is a
+partial specialization of a variable template whose primary is
+<code class="sourceCode default">std::false_type</code>, and each
+operation is an object whose call operator finds the instance through a
+defaulted constant template parameter. beman.transpose <span class="citation" data-cites="BEMAN-TRANSPOSE">[<a href="#ref-BEMAN-TRANSPOSE" role="doc-biblioref">beman.transpose</a>]</span> is built this way. This
+paper reports what a formal model of the Standard’s selection rules says
+about that encoding: what it guarantees by construction, what it leaves
+as an obligation on the typeclass author, the instance author and the
+user, and which of those obligations no compiler can check.</p>
+<p>The model is written in Lean 4. It transcribes template argument
+deduction, substitution failure, constraints and subsumption, Mandates,
+partial ordering, partial specialization matching and overload
+resolution, each rule cited by stable name and paragraph against the
+working draft <span class="citation" data-cites="N5054">[<a href="#ref-N5054" role="doc-biblioref">N5054</a>]</span>. Its
+predictions were checked against GCC 13 to 16 and Clang 17 to 24 on 91
+generated programs.</p>
+<p>The short form of the result is that the design is sound because it
+puts a variable everywhere C++ would otherwise build an overload set,
+and its hazards appear exactly where an overload set comes back.</p>
+<h1 data-number="2" id="introduction"><span class="header-section-number">2</span> Introduction<a href="#introduction" class="self-link"></a></h1>
+<p>A typeclass names a set of operations and the laws they obey, and
+lets each type supply them separately from the type’s definition.
+Haskell selects the implementation by type; C++ has no such mechanism in
+the language, but it has three that can be combined to the same effect:
+partial specialization matching to pick an instance for a type, default
+template arguments to look it up at a call, and constraints to make a
+call with no instance not viable.</p>
+<p>The questions this paper answers are the ones a designer has to
+answer before recommending the technique:</p>
+<ul>
+<li>Is instance selection coherent: does a type get at most one
+instance, and never a silent choice between two?</li>
+<li>Is it stable: does adding an instance somewhere change only the
+calls it should change?</li>
+<li>What must each party do so that these hold, and which of those
+duties does a compiler check?</li>
+</ul>
+<p>The answers come from proofs about a model of the rules, not from
+experiments with one compiler. Where a compiler disagrees with the text,
+the disagreement is reported against the cited sentence.</p>
+<h1 data-number="3" id="the-encoding"><span class="header-section-number">3</span> The encoding<a href="#the-encoding" class="self-link"></a></h1>
+<p>A typeclass has two layers.</p>
+<p>The instance is the bundle of operations. A lookup variable template
+names it, with <code class="sourceCode default">std::false_type</code>
+as the instance for types that have none:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> T<span class="op">&gt;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">inline</span> <span class="kw">constexpr</span> <span class="kw">auto</span> functor <span class="op">=</span> std<span class="op">::</span>false_type<span class="op">{}</span>;</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> V<span class="op">&gt;</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">inline</span> <span class="kw">constexpr</span> <span class="kw">auto</span> functor<span class="op">&lt;</span>std<span class="op">::</span>optional<span class="op">&lt;</span>V<span class="op">&gt;&gt;</span> <span class="op">=</span> OptionalFunctorMap<span class="op">&lt;</span>V<span class="op">&gt;{}</span>;</span></code></pre></div>
+<p>Each named operation is an operation object of its own, with one call
+operator. The call operator finds the instance through a trailing
+constant template parameter, a reference defaulted to the lookup, and is
+constrained on the call through it:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> fmap_fn <span class="op">{</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> F, <span class="kw">class</span> T,</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>              <span class="kw">const</span> <span class="kw">auto</span> <span class="op">&amp;</span>TC <span class="op">=</span> functor<span class="op">&lt;</span>std<span class="op">::</span>remove_cvref_t<span class="op">&lt;</span>T<span class="op">&gt;&gt;&gt;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>        <span class="kw">requires</span> <span class="kw">requires</span> <span class="op">{</span> TC<span class="op">.</span>fmap<span class="op">(</span>std<span class="op">::</span>declval<span class="op">&lt;</span>F<span class="op">&gt;()</span>, std<span class="op">::</span>declval<span class="op">&lt;</span>T<span class="op">&gt;())</span>; <span class="op">}</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">constexpr</span> <span class="kw">auto</span> <span class="kw">operator</span><span class="op">()(</span>F <span class="op">&amp;&amp;</span>f, T <span class="op">&amp;&amp;</span>t<span class="op">)</span> <span class="kw">const</span> <span class="op">{</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> TC<span class="op">.</span>fmap<span class="op">(</span>std<span class="op">::</span>forward<span class="op">&lt;</span>F<span class="op">&gt;(</span>f<span class="op">)</span>, std<span class="op">::</span>forward<span class="op">&lt;</span>T<span class="op">&gt;(</span>t<span class="op">))</span>;</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="kw">inline</span> <span class="kw">constexpr</span> fmap_fn fmap<span class="op">{}</span>;</span></code></pre></div>
+<p>The operation object is shaped like a customization point object, but
+it does not dispatch through argument-dependent lookup or
+<code class="sourceCode default">tag_invoke</code>. It dispatches
+through the lookup variable.</p>
+<p>Two other ways to supply an instance exist beside the canonical
+lookup. A caller can name an instance object and call its member,
+<code class="sourceCode default">tc.fmap(f, v)</code>. And an operation
+can take the instance as a trailing by-value argument whose type
+defaults to the type of the looked-up instance, as
+<code class="sourceCode default">traverse</code> does with its
+policy.</p>
+<h1 data-number="4" id="the-model"><span class="header-section-number">4</span> The model<a href="#the-model" class="self-link"></a></h1>
+<p>The model gives each mechanism twice: as an inductive relation whose
+constructors transcribe the Standard’s sentences, each cited, and as an
+executable function, with a proof that the two agree. Every headline
+theorem is checked to rest on no unproven assumption.</p>
+<p>Where the Standard needs the meaning of an expression the model does
+not model, such as whether a concept is satisfied, an oracle answers,
+and the oracle says whether a failure is in the immediate context.
+Programs are lists of declarations, so “declared before use” is a
+property the model can state.</p>
+<p>The executable model emits each test case as a C++ translation unit
+whose <code class="sourceCode default">static_assert</code>s encode the
+model’s expectation, and the case is compiled with each compiler. The
+expectation is always what the text says. A compiler that disagrees is
+reported, never outvoted.</p>
+<h1 data-number="5" id="why-the-design-works-a-variable-cannot-be-overloaded"><span class="header-section-number">5</span> Why the design works: a variable
+cannot be overloaded<a href="#why-the-design-works-a-variable-cannot-be-overloaded" class="self-link"></a></h1>
+<p>The encoding puts a variable at each point where C++ would otherwise
+build an overload set, and most of its good behaviour follows.</p>
+<p><strong>The operation object.</strong>
+<code class="sourceCode default">fmap</code> is a variable. Name lookup
+for <code class="sourceCode default">fmap(f, x)</code> finds one entity,
+so the call has one candidate, the object’s call operator.
+Argument-dependent lookup does not run when ordinary lookup finds an
+object, and nobody can add an overload that competes with it.</p>
+<p><strong>The instance.</strong>
+<code class="sourceCode default">functor&lt;T&gt;</code> is a variable
+template. Choosing an instance is partial specialization matching, not
+overload resolution, so conversion ranking, argument-dependent lookup
+and the preference for non-templates never touch it. The model
+proves:</p>
+<ul>
+<li><em>Coherence.</em> For a type, lookup selects the most specialized
+matching instance, or reports ambiguity, or finds none and yields the
+primary. It never chooses silently between unordered instances.</li>
+<li><em>Stability.</em> Declaring an instance moves lookup only at types
+the new instance matches, and there only to the new instance or to
+ambiguity. Lookups of other typeclasses do not move.</li>
+<li><em>Separability.</em> For any two conversion rankings, if both
+select a candidate at a position, it is the same candidate with the same
+template arguments. The ranking decides which candidate wins; it cannot
+change the instance a candidate carries.</li>
+</ul>
+<p><strong>The call.</strong> At the call surface the same results hold
+for the operation object. Deducing it follows lookup at the argument’s
+type with cv and reference qualifiers removed. It succeeds when an
+instance is selected, fails softly, making the call not viable, when
+none is, and fails hard only when lookup is ambiguous. Declaring an
+instance leaves a call unchanged unless the instance matches the call’s
+key. When it does, the call becomes viable through it, or is ill-formed
+by ambiguity.</p>
+<p><strong>The members.</strong> With an instance in hand,
+<code class="sourceCode default">TC.fmap(...)</code> is member lookup in
+one class, which nothing at namespace scope can join.</p>
+<p>Every hazard the model found is a place where an overload set comes
+back.</p>
+<h1 data-number="6" id="obligations"><span class="header-section-number">6</span> Obligations<a href="#obligations" class="self-link"></a></h1>
+<p>Each obligation below is a hypothesis some theorem needs that the
+language does not guarantee. Each is classed by how it is discharged: by
+construction, compiler-checked, library-checkable, or undiagnosable.</p>
+<h2 data-number="6.1" id="for-the-typeclass-author"><span class="header-section-number">6.1</span> For the typeclass author<a href="#for-the-typeclass-author" class="self-link"></a></h2>
+<ul>
+<li><strong>The primary is soft.</strong> The lookup’s primary must be a
+value such as <code class="sourceCode default">std::false_type</code>,
+not a <code class="sourceCode default">static_assert</code>. A default
+template argument is substituted before constraints are checked, so a
+requires-clause on the same template cannot guard it. A hard primary
+makes every call ill-formed whose deduction reaches the lookup,
+including calls that would have chosen another overload. <em>By
+construction in beman.transpose.</em></li>
+<li><strong>The default is shapeless.</strong> A missing instance makes
+the call not viable only because
+<code class="sourceCode default">std::false_type</code> has no
+<code class="sourceCode default">fmap</code>. <em>Library-checkable: one
+<code class="sourceCode default">static_assert</code> per typeclass that
+the primary fails the shape.</em></li>
+<li><strong>The lookup key is normalized.</strong> The lookup is at
+<code class="sourceCode default">std::remove_cvref_t&lt;T&gt;</code>, so
+every spelling of a type reaches one instance. <em>By
+construction.</em></li>
+<li><strong>No other candidate consults the lookup.</strong> Stability
+at the call surface needs the call’s other candidates not to look the
+instance up. An operation object meets this by construction, since a
+variable cannot be overloaded. If a named operation were a function
+template or an overload set, anyone could add an overload, and each
+added overload would have to stay away from the lookup.</li>
+<li><strong>Refinement is visible.</strong> Write a refinement between
+conditions as constraints, so subsumption can see it. An
+<code class="sourceCode default">enable_if</code> encoding of the same
+condition has the same viable set, and loses every ordering a
+requires-clause would win, without a diagnostic.
+<em>Convention.</em></li>
+</ul>
+<h2 data-number="6.2" id="for-the-instance-author"><span class="header-section-number">6.2</span> For the instance author<a href="#for-the-instance-author" class="self-link"></a></h2>
+<ul>
+<li><strong>Canonicity.</strong> No two instances may match a type with
+neither more specialized. <em>Compiler-checked under the text</em>, at
+the lookup and at every call that substitutes it. At the call surface
+the compilers do not check it; see <a href="#implementations">Implementations</a>.</li>
+<li><strong>Visibility.</strong> Every instance must be declared before
+any use of its lookup, the same in every translation unit.
+<em>Undiagnosable</em>; see <a href="#across-translation-units">Across
+translation units</a>.</li>
+<li><strong>Distinct instance types.</strong> The by-value route
+identifies an instance by its type alone, so two instances of one
+typeclass must be objects of different types. <em>Convention.</em></li>
+<li><strong>Superclass coherence.</strong> A Functor derived from a
+stronger instance, as a Monad’s
+<code class="sourceCode default">as_functor</code> returns, should
+behave as the canonical Functor where one exists. The two are different
+template arguments, so they can agree only in behaviour. <em>A law;
+undiagnosable, and the program is well-formed either way.</em></li>
+</ul>
+<h2 data-number="6.3" id="for-users-and-the-authors-of-functions-on-instances"><span class="header-section-number">6.3</span> For users and the authors of
+functions on instances<a href="#for-users-and-the-authors-of-functions-on-instances" class="self-link"></a></h2>
+<ul>
+<li><strong>Exact-type use.</strong> A signature should take an instance
+at its deduced type and never name an instance type, not even as a base
+such as <code class="sourceCode default">derive_functor&lt;I&gt;</code>,
+nor an implementation an instance inherits through a protected base. See
+<a href="#inheritance-between-instance-types">Inheritance between
+instance types</a>. <em>Undiagnosable: the program is well-formed and
+calls what the author did not mean.</em></li>
+<li><strong>Soft failure for pinning functions.</strong> A function that
+takes an instance explicitly and has no constraint is viable for a type
+with no instance, and fails in its body. Whoever writes such a function
+owes the constraint.</li>
+</ul>
+<h1 data-number="7" id="inheritance-between-instance-types"><span class="header-section-number">7</span> Inheritance between instance
+types<a href="#inheritance-between-instance-types" class="self-link"></a></h1>
+<p>beman.transpose relates no two instance types by public inheritance,
+but inheritance is a choice an implementer can make, and the paper
+treats it as allowed. Forbidding it would need a means of enforcement
+that does not exist. The question is what it costs.</p>
+<p>Within one discipline it costs nothing. Replacing derivation between
+instance types by composition changes no call that uses every affected
+class at its exact type and never deduces through it as a base. The
+model proves this for its fragment. Outside that discipline there are
+five hazards. The first, second and fifth are confirmed on every
+compiler tested; the third is a theorem about identity; the fourth
+follows C++26 and is where Clang and GCC currently differ.</p>
+<p><strong>Ranking beats refinement.</strong> A derived-to-base
+conversion has Conversion rank, and conversions are compared before the
+preference for non-templates or partial ordering.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> functor_i <span class="op">{}</span>;</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> applicative_i <span class="op">:</span> functor_i <span class="op">{}</span>;</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> monad_i <span class="op">:</span> applicative_i <span class="op">{}</span>;</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> T<span class="op">&gt;</span> <span class="dt">void</span> use<span class="op">(</span><span class="kw">const</span> T<span class="op">&amp;)</span>;   <span class="co">// #1</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> use<span class="op">(</span><span class="kw">const</span> applicative_i<span class="op">&amp;)</span>;          <span class="co">// #2</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>use<span class="op">(</span>applicative_i<span class="op">{})</span>;  <span class="co">// #2: conversions tie, the non-template is preferred</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>use<span class="op">(</span>monad_i<span class="op">{})</span>;        <span class="co">// #1: an exact match beats derived-to-base</span></span></code></pre></div>
+<p>Deriving one instance type from another moved the call to the less
+refined overload.</p>
+<p><strong>Deduction from a derived class.</strong> A parameter of class
+template form deduces from a class derived from it
+([temp.deduct.call]/4).</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> I<span class="op">&gt;</span> <span class="kw">struct</span> derive_functor <span class="op">{}</span>;</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> opt_impl <span class="op">{}</span>;</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> opt_monad_map <span class="op">:</span> derive_functor<span class="op">&lt;</span>opt_impl<span class="op">&gt;</span> <span class="op">{}</span>;</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> I<span class="op">&gt;</span> <span class="dt">void</span> use<span class="op">(</span><span class="kw">const</span> derive_functor<span class="op">&lt;</span>I<span class="op">&gt;&amp;)</span>;</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>use<span class="op">(</span>opt_monad_map<span class="op">{})</span>;   <span class="co">// deduces I = opt_impl</span></span></code></pre></div>
+<p>A Monad instance silently matches a Functor-shaped signature.</p>
+<p><strong>Two paths to the superclass.</strong> Slicing an instance to
+its base gives one Functor and lookup gives another, and they are
+different template arguments.</p>
+<p><strong>Constant-parameter slicing.</strong> A derived instance
+passed as a constant template argument for a base-typed parameter is
+sliced and identified with the base value.</p>
+<p><strong>A protected base does not hide the implementation.</strong>
+<code class="sourceCode default">derive_functor&lt;Impl&gt;</code>
+inherits <code class="sourceCode default">Impl</code> protected, which
+reads as keeping it out of view. Implicit conversion sequences ignore
+accessibility ([over.best.ics.general]/2), and deduction from a derived
+class goes through the protected base, so a function naming
+<code class="sourceCode default">Impl</code> is selected, and then the
+conversion makes the call ill-formed ([conv.ptr]/3,
+[dcl.init.ref]/4).</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> impl <span class="op">{}</span>;</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> derive_impl <span class="op">:</span> <span class="kw">protected</span> impl <span class="op">{}</span>;</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> map <span class="op">:</span> derive_impl <span class="op">{}</span>;</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> use<span class="op">(</span><span class="kw">const</span> impl<span class="op">&amp;)</span>;</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>use<span class="op">(</span>map<span class="op">{})</span>;   <span class="co">// selected, then ill-formed: impl is an inaccessible base</span></span></code></pre></div>
+<p>The call is not merely not viable, so no other overload is tried.
+Inside a requires-expression the same failure is part of substitution
+and the requirement is simply false.</p>
+<p>All five come down to the exact-type rule above: inherit if you like,
+but never name an instance type, or what it is built from, in a
+signature.</p>
+<h1 data-number="8" id="across-translation-units"><span class="header-section-number">8</span> Across translation units<a href="#across-translation-units" class="self-link"></a></h1>
+<p>Some violations make a program ill-formed with no diagnostic
+required, because nothing useful can be said about one entity with two
+contrary definitions. The model follows the Standard’s lead. It treats a
+program as a list of translation units, each resolved on its own, and
+when units disagree it gives a verdict, ill-formed with no diagnostic
+required, naming the rule and the use, and says nothing more.</p>
+<p>A use of a lookup gets a verdict when its selection is not the one it
+would make with every instance of the program reachable:</p>
+<ul>
+<li>an instance declared later in the same unit gives the specialization
+a second point of instantiation with a different meaning
+([temp.point]/7);</li>
+<li>an instance declared only in another unit is not reachable from a
+use that would make use of it ([temp.spec.partial.general]/1).</li>
+</ul>
+<p>For a single unit, having no verdict is exactly the condition that
+every instance is declared before every use of its lookup. Stated per
+unit, stability at the call surface says a call sees what precedes it:
+an instance declared after the call cannot move it, and can only make
+the program ill-formed with no diagnostic required.</p>
+<p>The important result is about identity. One might expect a function
+whose behaviour depends on an instance to be safe across units whenever
+the instance is one of its template arguments, since units that select
+different instances would then have different specializations. The
+operation object does take the instance as a template argument, but as a
+reference to the lookup variable, <code class="sourceCode default">const auto &amp;TC = functor&lt;...&gt;</code>.
+A reference argument is the entity it designates, and
+<code class="sourceCode default">functor&lt;box&lt;int&gt;&gt;</code> is
+one entity in every unit, whatever its initializer selects. Two units
+that select different instances therefore deduce <em>one</em>
+specialization, and the program gives one function two meanings,
+ill-formed with no diagnostic required by [basic.def.odr]/16. Pinning
+names the instance object and does separate the units. The by-value
+policy names the instance’s type and separates them only when instances
+have distinct types.</p>
+<p>Being a variable is what makes the operation object immune to
+overloading, and what exposes it to the one-definition rule. Visibility
+is the obligation that keeps that exposure from mattering.</p>
+<h1 data-number="9" id="results-about-dispatch-idioms"><span class="header-section-number">9</span> Results about dispatch idioms<a href="#results-about-dispatch-idioms" class="self-link"></a></h1>
+<p>The model was used to compare idioms a typeclass author is likely to
+reach for.</p>
+<p><strong>Mandates.</strong> A Mandate, checked only after selection,
+never changes which candidate is selected; it can only turn a selection
+into an ill-formed program, with no fallback to another overload.
+Turning a Mandate into a constraint does remove the candidate where the
+Mandate fails. Where it holds, the larger constraint can change partial
+ordering:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> T<span class="op">&gt;</span> <span class="kw">requires</span> class_like<span class="op">&lt;</span>T<span class="op">&gt;</span> <span class="dt">void</span> g<span class="op">(</span>T<span class="op">)</span>;              <span class="co">// #1</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> T<span class="op">&gt;</span> <span class="dt">void</span> g<span class="op">(</span>T<span class="op">)</span> <span class="op">{</span> <span class="kw">static_assert</span><span class="op">(</span>empty_like<span class="op">&lt;</span>T<span class="op">&gt;)</span>; <span class="op">}</span>    <span class="co">// #2</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>g<span class="op">(</span>X<span class="op">{})</span>;   <span class="co">// #1, the more constrained; #2&#39;s Mandate is never checked</span></span></code></pre></div>
+<p>Promote #2’s Mandate to
+<code class="sourceCode default">requires empty_like&lt;T&gt;</code>,
+and neither constraint subsumes the other: the call becomes ambiguous,
+an outcome neither the old resolution nor removing #2 gives. So
+promotion is not merely removal.</p>
+<p><strong><code class="sourceCode default">enable_if</code> and
+requires-clauses.</strong> With the same condition, an
+<code class="sourceCode default">enable_if</code> in a trailing return
+type and a requires-clause give the same viable set, and the same
+resolution wherever ordering does not consult subsumption. They differ
+in two ways. A requires-clause wins orderings by subsumption that
+<code class="sourceCode default">enable_if</code> cannot. And the step
+order differs: a requires-clause is checked before the function type is
+substituted, so it shields a hard error in a parameter’s type, while
+<code class="sourceCode default">enable_if</code> in the return type is
+checked only as that type is substituted, after the parameters:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> T<span class="op">&gt;</span> <span class="kw">requires</span> integral_like<span class="op">&lt;</span>T<span class="op">&gt;</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> f<span class="op">(</span>T, std<span class="op">::</span>remove_cvref_t<span class="op">&lt;</span><span class="kw">decltype</span><span class="op">(</span>lookup<span class="op">&lt;</span>T<span class="op">&gt;)&gt;)</span>;                <span class="co">// not viable</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">template</span> <span class="op">&lt;</span><span class="kw">class</span> T<span class="op">&gt;</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> f<span class="op">(</span>T, std<span class="op">::</span>remove_cvref_t<span class="op">&lt;</span><span class="kw">decltype</span><span class="op">(</span>lookup<span class="op">&lt;</span>T<span class="op">&gt;)&gt;)</span> <span class="op">-&gt;</span> std<span class="op">::</span>enable_if_t<span class="op">&lt;</span>integral_like<span class="op">&lt;</span>T<span class="op">&gt;&gt;</span>;</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>                                                                    <span class="co">// hard error</span></span></code></pre></div>
+<p>where <code class="sourceCode default">lookup&lt;T&gt;</code> fails
+hard for the argument’s type. Substitution follows lexical order
+([temp.deduct.general]/7), so a leading return type would check
+<code class="sourceCode default">enable_if</code> first; the result
+above is specific to the trailing form.</p>
+<p><strong>Dispatch styles.</strong> For an ordered list of conditions,
+constraint exclusion, priority tags and an
+<code class="sourceCode default">if constexpr</code> chain select the
+same candidate. With no condition holding, the first two leave the call
+not viable and the chain is ill-formed. They also differ in which
+conditions are evaluated. The chain stops at the first that holds, and
+so does exclusion written with the negations first, since a conjunction
+is checked left to right. Priority tags check every overload’s
+condition, because every overload is a candidate, so a later condition
+that fails hard breaks the call. The library’s lookups default to
+<code class="sourceCode default">std::false_type</code>, so its own
+conditions cannot fail that way.</p>
+<h1 data-number="10" id="findings-about-the-standard-and-implementations"><span class="header-section-number">10</span> Findings about the Standard and
+implementations<a href="#findings-about-the-standard-and-implementations" class="self-link"></a></h1>
+<h2 data-number="10.1" id="the-standard"><span class="header-section-number">10.1</span> The Standard<a href="#the-standard" class="self-link"></a></h2>
+<ul>
+<li>[temp.constr.order]/2, a note, says subsumption “defines a partial
+ordering on constraints”. It is reflexive and transitive, but
+<code class="sourceCode default">A ∧ B</code> and
+<code class="sourceCode default">B ∧ A</code> subsume each other and are
+different constraints, so it is a preorder. It is a partial order on
+constraints taken up to mutual subsumption, which is presumably what is
+meant. Normative text is unaffected.</li>
+</ul>
+<h2 data-number="10.2" id="implementations"><span class="header-section-number">10.2</span> Implementations<a href="#implementations" class="self-link"></a></h2>
+<ul>
+<li><strong>An ambiguous instance is treated as no instance.</strong> At
+a type two instances match with neither more specialized, the use of the
+lookup in the operation object’s default template argument is ill-formed
+by [temp.spec.partial.match]/1, and since it is an instantiation it is
+outside the immediate context ([temp.deduct.general]/8), so the call is
+ill-formed. GCC 13 to 16 and Clang 17 to 24 instead treat the call as a
+deduction failure and select another overload if there is one. The same
+holds for the by-value route. So canonicity is not checked at the call
+surface in practice: overlapping instances make a type silently look as
+if it had none. The compilers do diagnose the lookup itself.</li>
+<li><strong>Constraints before the function type.</strong> Clang 17 to
+20 substitute the function type, and check conversions to non-dependent
+parameters, before checking constraints, the ordering CWG2369 <span class="citation" data-cites="CWG2369">[<a href="#ref-CWG2369" role="doc-biblioref">CWG2369</a>]</span> replaced. The draft’s own
+second example in [temp.deduct.general]/5 fails to compile on them, and
+a requires-clause does not shield a hard error in a parameter’s type.
+Clang 21 to 24 and GCC 13 to 16 follow the current text.</li>
+<li><strong>A perfect non-template match.</strong> GCC skips deduction
+for template candidates when a non-template is an exact match, in some
+cases, and Clang 21 to 24 do so in more, including constraint
+satisfaction. This is the direction of P3606 <span class="citation" data-cites="P3606R2">[<a href="#ref-P3606R2" role="doc-biblioref">P3606R2</a>]</span>. The two implementations
+disagree about what it covers, which is evidence for what its wording
+needs to say.</li>
+<li><strong>Placeholder type-constraints.</strong> [temp.over.link]/6
+makes constant template parameters equivalent ignoring type-constraints
+on placeholder types, so <code class="sourceCode default">auto</code>
+and <code class="sourceCode default">shape auto</code> parameters leave
+the tie-break of [temp.func.order]/8 open. Clang 19 to 24 and GCC 16
+agree. GCC 13 to 15 and Clang 17 and 18 report the call ambiguous.</li>
+<li><strong>A derived value for a base-typed constant
+parameter.</strong> Under [temp.arg.nontype] as rewritten by P2308R1
+<span class="citation" data-cites="P2308R1">[<a href="#ref-P2308R1" role="doc-biblioref">P2308R1</a>]</span>, a derived class value is
+accepted for a constant template parameter of base class type, sliced,
+and identified with the equal base value. Clang does this. GCC 13
+rejects it as not a converted constant expression, the rule before
+P2308R1.</li>
+</ul>
+<h1 data-number="11" id="limits-of-the-model"><span class="header-section-number">11</span> Limits of the model<a href="#limits-of-the-model" class="self-link"></a></h1>
+<p>The model covers a fragment. Partial ordering is proved transitive
+for templates of type parameters whose parameter types have no
+references; with references, the tie-breaks of [temp.deduct.partial]/9
+enter, and the evidence is a search over 5832 triples of parameter
+shapes that found no counterexample. Deduction is proved sound and most
+general on the first-order fragment; references nested in a parameter
+type have two solutions under reference collapsing, and deduction gives
+the one the form <code class="sourceCode default">T&amp;</code>
+prescribes. Dispatch styles are compared exhaustively over three
+conditions, not proved for every length. The conversion ranking covers
+identity, derived-to-base and reference binding; arithmetic conversions,
+user-defined conversions and access from inside a class are outside.
+Concept satisfaction is an oracle, not a semantics of expressions.</p>
+<h1 data-number="12" id="implementation-experience"><span class="header-section-number">12</span> Implementation experience<a href="#implementation-experience" class="self-link"></a></h1>
+<p>The model and the generated tests are in the overload repository. The
+Lean sources are under
+<code class="sourceCode default">Overload/</code>, built with Lean 4.35
+and Batteries, and every result named here is audited to depend on no
+unproven axiom.
+<code class="sourceCode default">make differential</code> emits the 91
+C++ programs and compiles each with the listed compilers; <code class="sourceCode default">differential/known-disagreements.txt</code>
+lists each case and compiler where an implementation departs from the
+text.</p>
+<p>The main results, by file:</p>
+<ul>
+<li><code class="sourceCode default">Overload/Typeclass.lean</code>:
+<code class="sourceCode default">coherence</code>,
+<code class="sourceCode default">stability</code>,
+<code class="sourceCode default">fmapObject_deduce</code>,
+<code class="sourceCode default">call_stability</code>, and the
+explicit-instance routes.</li>
+<li><code class="sourceCode default">Overload/Separability.lean</code>:
+<code class="sourceCode default">separability</code>,
+<code class="sourceCode default">rank_beats_refinement</code>.</li>
+<li><code class="sourceCode default">Overload/Inheritance.lean</code>:
+<code class="sourceCode default">inheritance_erasure</code>,
+<code class="sourceCode default">derived_class_deduction</code>,
+<code class="sourceCode default">superclass_identity</code>.</li>
+<li><code class="sourceCode default">Overload/Access.lean</code>: <code class="sourceCode default">protected_base_selected_ill_formed</code>,
+<code class="sourceCode default">protected_base_deduced_ill_formed</code>.</li>
+<li><code class="sourceCode default">Overload/Units.lean</code>:
+<code class="sourceCode default">verdicts_single</code>,
+<code class="sourceCode default">operation_object_not_separated</code>,
+<code class="sourceCode default">byValue_separated</code>,
+<code class="sourceCode default">call_stability_unit</code>.</li>
+<li><code class="sourceCode default">Overload/Mandates.lean</code>:
+<code class="sourceCode default">mandate_inertness</code>,
+<code class="sourceCode default">constraint_promotion</code>,
+<code class="sourceCode default">promotion_reorders</code>.</li>
+<li><code class="sourceCode default">Overload/Sfinae.lean</code>:
+<code class="sourceCode default">sfinae_requires</code>,
+<code class="sourceCode default">sfinae_loses_subsumption</code>,
+<code class="sourceCode default">sfinae_unshielded</code>.</li>
+<li><code class="sourceCode default">Overload/Dispatch.lean</code>:
+<code class="sourceCode default">dispatch_styles</code>,
+<code class="sourceCode default">dispatch_hard_condition</code>.</li>
+<li><code class="sourceCode default">Overload/Generality.lean</code> and
+<code class="sourceCode default">Overload/Transitivity.lean</code>:
+soundness and generality of deduction, and transitivity of partial
+ordering.</li>
+</ul>
+<p>The encoding studied is a reduction of beman.transpose (<code class="sourceCode default">github.com/bemanproject/typeclass</code>),
+kept faithful to it in
+<code class="sourceCode default">src/smd/overload/encoding.hpp</code>.</p>
+<h1 data-number="13" id="bibliography"><span class="header-section-number">13</span> References<a href="#bibliography" class="self-link"></a></h1>
+<div id="refs" class="references csl-bib-body hanging-indent" role="doc-bibliography">
+<div id="ref-BEMAN-TRANSPOSE" class="csl-entry" role="doc-biblioentry">
+[beman.transpose] beman.transpose: typeclasses for C++ as a library. <a href="https://github.com/bemanproject/typeclass"><div class="csl-block">https://github.com/bemanproject/typeclass</div></a>
+</div>
+<div id="ref-CWG2369" class="csl-entry" role="doc-biblioentry">
+[CWG2369] Agustin Bergé. 2017-10-09. Ordering between constraints and
+substitution. <a href="https://wg21.link/cwg2369"><div class="csl-block">https://wg21.link/cwg2369</div></a>
+</div>
+<div id="ref-N5054" class="csl-entry" role="doc-biblioentry">
+[N5054] Thomas Köppe. 2026-07-16. Working Draft, Programming Languages —
+C++. <a href="https://wg21.link/n5054"><div class="csl-block">https://wg21.link/n5054</div></a>
+</div>
+<div id="ref-P2308R1" class="csl-entry" role="doc-biblioentry">
+[P2308R1] S. Davis Herring. 2023-12-18. Template parameter
+initialization. <a href="https://wg21.link/p2308r1"><div class="csl-block">https://wg21.link/p2308r1</div></a>
+</div>
+<div id="ref-P3606R2" class="csl-entry" role="doc-biblioentry">
+[P3606R2] Corentin Jabot, Younan Zhang. 2026-09-21. On Overload
+Resolution, Exact Matches and Clever Implementations. <a href="https://wg21.link/p3606r2"><div class="csl-block">https://wg21.link/p3606r2</div></a>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>
