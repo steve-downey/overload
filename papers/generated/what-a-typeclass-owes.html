@@ -662,15 +662,36 @@ object’s constraint is the member call, so it can be no more accurate
 than the member. A derived member with no constraint and a deduced
 return type fails this: a probe instantiates its body to deduce the
 type, and an error there is not in the immediate context
-([dcl.spec.auto.general]/15). In beman.transpose the derived Applicative
-<code class="sourceCode default">invoke</code> is such a member, and
-each instance hides it with its implementation’s constrained
-<code class="sourceCode default">invoke</code>. Where an implementation
-supplies only <code class="sourceCode default">ap</code>, the derived
-<code class="sourceCode default">invoke</code> curries the function, and
-it accepts a function that cannot take the arguments, returning an
+([dcl.spec.auto.general]/15). So does a constraint with an alternative
+weaker than the body it selects. A probe of every typeclass in
+beman.transpose found members of each kind in every derivation base, and
+two members that are wrong about the call, not only about the probe.
+<code class="sourceCode default">any_of</code> with a predicate that
+cannot be called reports the call as valid, and the call fails. The
+optional Monad’s <code class="sourceCode default">bind</code> accepts a
+function that does not return an optional, and returns a plain value.
+Where an implementation supplies only
+<code class="sourceCode default">ap</code>, the derived
+<code class="sourceCode default">invoke</code> curries the function. It
+accepts a function that cannot take the arguments and returns an
 unsaturated partial application in the context. <em>Not by
 construction.</em></li>
+<li><strong>Instances of std types live with the typeclass.</strong> An
+instance must be visible wherever its lookup is used on its type. For a
+library type the type’s own header is enough, since every use has to
+include it. For a std type the only header every use is guaranteed to
+include is the typeclass’s. An instance in a header of its own, as
+beman.transpose declares the instances for
+<code class="sourceCode default">std::array</code>,
+<code class="sourceCode default">std::expected</code>,
+<code class="sourceCode default">std::simd::basic_vec</code> and, for
+folding and traversal,
+<code class="sourceCode default">std::vector</code>, makes a program
+that includes it late, or in some translation units and not others,
+ill-formed with no diagnostic required. GCC diagnoses the late case.
+Clang keeps the first answer, and the instance stays invisible after its
+header is included. This is Haskell’s orphan rule with a well-formedness
+consequence. <em>Undiagnosable.</em></li>
 <li><strong>The primary is soft.</strong> The lookup’s primary must be a
 value such as <code class="sourceCode default">std::false_type</code>,
 not a <code class="sourceCode default">static_assert</code>. A default
@@ -708,13 +729,18 @@ requires-clause would win, without a diagnostic.
 neither more specialized. <em>Compiler-checked under the text</em>, at
 the lookup and at every call that substitutes it. At the call surface
 the compilers do not check it; see <a href="#implementations">Implementations</a>.</li>
-<li><strong>Re-expose the constrained basis.</strong> Where the
-derivation base’s own member is unconstrained, the instance must bring
-its implementation’s constrained member into scope with a
-using-declaration, so that member lookup finds it first. Without that, a
-call with an argument that has no meaning in the context is a hard
-error, through the member call and through the operation object.
-<em>Convention.</em></li>
+<li><strong>Expose the accurate member.</strong> A using-declaration of
+an implementation’s member hides the derivation base’s member of that
+name. That is right when the implementation’s member is the accurate
+one, as for every Applicative
+<code class="sourceCode default">invoke</code> in beman.transpose, and
+wrong when it is not: the optional and vector Functor implementations’
+<code class="sourceCode default">fmap</code> is unconstrained, and
+re-exposing it hides
+<code class="sourceCode default">derive_functor</code>’s constrained
+<code class="sourceCode default">fmap</code>. A call with a function
+that cannot take the element is then a hard error, through the member
+call and through the operation object. <em>Convention.</em></li>
 <li><strong>Visibility.</strong> Every instance must be declared before
 any use of its lookup, the same in every translation unit.
 <em>Undiagnosable</em>; see <a href="#across-translation-units">Across
@@ -961,13 +987,17 @@ prescribes. Dispatch styles are compared exhaustively over three
 conditions, not proved for every length. The conversion ranking covers
 identity, derived-to-base and reference binding; arithmetic conversions,
 user-defined conversions and access from inside a class are outside.
-Concept satisfaction is an oracle, not a semantics of expressions. The
-member overload set of an instance is not resolved: the model has no
-class member lookup, no using-declarations and no explicit object
-parameters, and takes the member call to be valid exactly when the
-lookup selects an instance. The member observations above come from
-compiling against beman.transpose, not from the model. Function
-parameter packs are outside the fragment. Applicative’s
+Concept satisfaction is an oracle, not a semantics of expressions. A
+registry that tests for an instance by completeness, as
+beman.transpose’s <code class="sourceCode default">Monoid</code> does,
+is a third encoding the model does not cover. Its stability rests on a
+third rule, a satisfaction result that differs at two points
+([temp.constr.atomic]/3). The member overload set of an instance is not
+resolved: the model has no class member lookup, no using-declarations
+and no explicit object parameters, and takes the member call to be valid
+exactly when the lookup selects an instance. The member observations
+above come from compiling against beman.transpose, not from the model.
+Function parameter packs are outside the fragment. Applicative’s
 <code class="sourceCode default">invoke</code> takes one after the
 argument that keys the lookup, and the pack does not enter the
 lookup.</p>
@@ -1019,6 +1049,11 @@ explicit-instance routes.</li>
 soundness and generality of deduction, and transitivity of partial
 ordering.</li>
 </ul>
+<p>The probes of beman.transpose’s own typeclasses, one translation unit
+per call, are in
+<code class="sourceCode default">probes/library/</code>, with their
+results at the commit probed in
+<code class="sourceCode default">docs/probes.md</code>.</p>
 <p>The encoding studied is a reduction of beman.transpose (<code class="sourceCode default">github.com/bemanproject/typeclass</code>),
 kept faithful to it in
 <code class="sourceCode default">src/smd/overload/encoding.hpp</code>.</p>

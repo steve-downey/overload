@@ -218,12 +218,29 @@ construction, compiler-checked, library-checkable, or undiagnosable.
   member. A derived member with no constraint and a deduced return type
   fails this: a probe instantiates its body to deduce the type, and an
   error there is not in the immediate context
-  ([dcl.spec.auto.general]/15). In beman.transpose the derived
-  Applicative `invoke` is such a member, and each instance hides it with
-  its implementation's constrained `invoke`. Where an implementation
-  supplies only `ap`, the derived `invoke` curries the function, and it
-  accepts a function that cannot take the arguments, returning an
-  unsaturated partial application in the context. *Not by construction.*
+  ([dcl.spec.auto.general]/15). So does a constraint with an alternative
+  weaker than the body it selects. A probe of every typeclass in
+  beman.transpose found members of each kind in every derivation base,
+  and two members that are wrong about the call, not only about the
+  probe. `any_of` with a predicate that cannot be called reports the
+  call as valid, and the call fails. The optional Monad's `bind` accepts
+  a function that does not return an optional, and returns a plain value.
+  Where an implementation supplies only `ap`, the derived `invoke`
+  curries the function. It accepts a function that cannot take the
+  arguments and returns an unsaturated partial application in the
+  context. *Not by construction.*
+- **Instances of std types live with the typeclass.** An instance must be
+  visible wherever its lookup is used on its type. For a library type the
+  type's own header is enough, since every use has to include it. For a
+  std type the only header every use is guaranteed to include is the
+  typeclass's. An instance in a header of its own, as beman.transpose
+  declares the instances for `std::array`, `std::expected`,
+  `std::simd::basic_vec` and, for folding and traversal, `std::vector`,
+  makes a program that includes it late, or in some translation units
+  and not others, ill-formed with no diagnostic required. GCC diagnoses
+  the late case. Clang keeps the first answer, and the instance stays
+  invisible after its header is included. This is Haskell's orphan rule
+  with a well-formedness consequence. *Undiagnosable.*
 - **The primary is soft.** The lookup's primary must be a value such as
   `std::false_type`, not a `static_assert`. A default template argument is
   substituted before constraints are checked, so a requires-clause on the
@@ -253,12 +270,15 @@ construction, compiler-checked, library-checkable, or undiagnosable.
   specialized. *Compiler-checked under the text*, at the lookup and at
   every call that substitutes it. At the call surface the compilers do not
   check it; see [Implementations].
-- **Re-expose the constrained basis.** Where the derivation base's own
-  member is unconstrained, the instance must bring its implementation's
-  constrained member into scope with a using-declaration, so that member
-  lookup finds it first. Without that, a call with an argument that has no
-  meaning in the context is a hard error, through the member call and
-  through the operation object. *Convention.*
+- **Expose the accurate member.** A using-declaration of an
+  implementation's member hides the derivation base's member of that
+  name. That is right when the implementation's member is the accurate
+  one, as for every Applicative `invoke` in beman.transpose, and wrong
+  when it is not: the optional and vector Functor implementations' `fmap`
+  is unconstrained, and re-exposing it hides `derive_functor`'s
+  constrained `fmap`. A call with a function that cannot take the element
+  is then a hard error, through the member call and through the operation
+  object. *Convention.*
 - **Visibility.** Every instance must be declared before any use of its
   lookup, the same in every translation unit. *Undiagnosable*; see
   [Across translation units].
@@ -518,7 +538,11 @@ conditions, not proved for every length. The conversion ranking covers
 identity, derived-to-base and reference binding; arithmetic conversions,
 user-defined conversions and access from inside a class are outside.
 Concept satisfaction is an oracle, not a semantics of expressions.
-The member overload set of an instance is not resolved: the model has no
+A registry that tests for an instance by completeness, as
+beman.transpose's `Monoid` does, is a third encoding the model does not
+cover. Its stability rests on a third rule, a satisfaction result that
+differs at two points ([temp.constr.atomic]/3). The member overload set
+of an instance is not resolved: the model has no
 class member lookup, no using-declarations and no explicit object
 parameters, and takes the member call to be valid exactly when the lookup
 selects an instance. The member observations above come from compiling
@@ -554,6 +578,10 @@ The main results, by file:
 - `Overload/Dispatch.lean`: `dispatch_styles`, `dispatch_hard_condition`.
 - `Overload/Generality.lean` and `Overload/Transitivity.lean`: soundness
   and generality of deduction, and transitivity of partial ordering.
+
+The probes of beman.transpose's own typeclasses, one translation unit
+per call, are in `probes/library/`, with their results at the commit
+probed in `docs/probes.md`.
 
 The encoding studied is a reduction of beman.transpose
 (`github.com/bemanproject/typeclass`), kept faithful to it in

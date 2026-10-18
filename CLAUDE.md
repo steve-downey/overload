@@ -96,6 +96,12 @@ from its descriptions; `docs/probes.md` records which cells reproduce. Keep
 them compiling on GCC 13 and Clang 18 with `-std=c++23`, since those are
 the versions the plan's table was made on.
 
+`probes/library/` is different: it probes beman.transpose itself, one call
+per translation unit, for the accurate-members and placement obligations
+(`make probes-library BEMAN_TRANSPOSE_INCLUDE=dir`). The library needs
+deducing this, so it runs on GCC 14 and Clang 19 or later. Record each run
+in `docs/probes.md` with the commit it was taken at.
+
 ## Prose
 
 Docs follow the author's voice: short declarative sentences, concrete

@@ -134,3 +134,52 @@ C++26. A derived instance supplied as a literal template argument for a
 base-typed constant parameter is sliced and identified with the base value.
 The obligation that instances are taken at their deduced exact type now
 covers constant parameters as well as function parameters.
+
+## Library probes
+
+The probes in `probes/library/` check beman.transpose itself, not the
+model's reductions. Each line of `probes.txt` asks whether one call into the
+library is a valid expression. It is compiled as its own translation unit and
+classified as soft (not a valid expression, the clean answer), valid, or
+hard (checking the call is itself an error). `make probes-library
+BEMAN_TRANSPOSE_INCLUDE=dir` reruns them. The library needs deducing this:
+GCC 14 and Clang 19 are the oldest that compile it here, and Clang 18
+crashes on it.
+
+They test two obligations from [obligations](obligations.md#harvested):
+that every member an instance exposes is accurate, and that an instance is
+visible wherever its lookup is used. The findings are in
+[findings](findings.md#about-the-library).
+
+Recorded at beman.transpose `30a707d`, GCC 16 and Clang 23. Both compilers
+give the same answer on every row, so one column is shown. Every probe not
+listed is soft, as required, and the three controls are valid.
+
+| Probe | Required | Observed | Cause |
+|---|---|---|---|
+| `fmap(not_callable, optional)`, and the member call | soft | hard | The optional and vector Functor impls' `fmap` is unconstrained with a deduced return type, and the instances' using-declarations hide `derive_functor`'s constrained `fmap` |
+| `invoke(not_callable, array)` | soft | hard | `array_applicative_impl::invoke` is constrained on shape only |
+| `applicative<optional>.invoke_with(…, not_callable, …)` | soft | hard | unconstrained derived member |
+| `bind(optional, inc)` | soft | valid | `OptionalMonadImpl::bind` does not require the function to return an optional; the call returns `int` |
+| `join(optional<int>)` | soft | valid | through the same `bind` |
+| `kleisli<optional>(not_callable, not_callable)`, and the member call | soft | valid | `requires … \|\| true`; the error moves to the composed function's call |
+| `monad<optional>.bind_with(…, not_callable)` | soft | hard | unconstrained derived member |
+| `monad<optional>.invoke(not_callable, …)` | soft | hard | derived member whose constraint is weaker than its body |
+| `fold_left`, `fold_right`, `find_first` with `not_callable`, and the member `fold_left` | soft | hard | the second disjunct of the constraint passes and the body fails |
+| `any_of`, `all_of` with `not_callable` | soft | valid | the constraint passes; the call is then a hard error |
+| `traversable<vector>.for_each`, both `traverse_with` | soft | hard | unconstrained derived members |
+
+`late_array.cpp` uses the `std::array` instance before and after
+`array.hpp` is included.
+
+| Variant | GCC 16 | Clang 23 |
+|---|---|---|
+| P: probe before the include only | error: partial specialization after instantiation | compiles |
+| A: also assert the instance is visible after it | error | error: the stale answer stands |
+| C: call through it after it | error | error: no matching function |
+
+Both are conforming. The program is ill-formed with no diagnostic required
+([temp.spec.partial.general]/1). GCC diagnoses it, and Clang keeps the first
+answer.
+
+Reported upstream as steve-downey/typeclass#6, #7, #10 to #14.

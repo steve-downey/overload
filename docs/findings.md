@@ -504,8 +504,10 @@ and described here as they arrive.
     error. Every instance in the library re-exposes its implementation's
     constrained `invoke` with a using-declaration, which hides the derived
     one. An instance without that loses soft failure for `invoke` and for
-    `invoke_fn`. Functor does not have this problem, since
-    `derive_functor::fmap` is constrained.
+    `invoke_fn`. (Corrected 18 October 2026: Functor has the same
+    problem the other way round. Its implementations' `fmap` is the
+    unconstrained member, and the using-declarations hide
+    `derive_functor`'s constrained one. See the audit below.)
   - *An `ap`-only basis accepts a function it cannot call.* Where the
     implementation supplies `ap` and no `invoke`, the derived `invoke`
     curries through `terminating_partial`. When the function cannot take
@@ -515,6 +517,81 @@ and described here as they arrive.
     probe reports the call as valid. This is neither a soft failure nor an
     error. It is a wrong answer, and a bug in the library. No instance in
     the library uses an `ap`-only basis, so nothing that ships shows it.
+
+- **The library's members, audited** (18 October 2026). Every typeclass
+  in beman.transpose at `30a707d` was probed for the two obligations
+  that the model takes as given: that each member an instance exposes is
+  accurate, and that each instance is visible wherever its lookup is
+  used. The lookups themselves meet every other obligation: the primary
+  is `std::false_type` for `functor`, `applicative`,
+  `accumulating_applicative`, `monad`, `foldable` and `traversable`. Each
+  operation object keys at `std::remove_cvref_t`. No type has two
+  instances of one typeclass. Each typeclass has its own instance type,
+  and no instance type derives from another. A missing instance fails
+  softly through every operation object. The members do not all meet the
+  first obligation, and the placement of instances for std types does not
+  meet the second. The probes and their table are in
+  [probes](probes.md#library-probes).
+  - *Re-exposure is only as good as what it exposes.* The optional and
+    vector Functor implementations' `fmap` is unconstrained with a
+    deduced return type, and the instances' using-declarations hide
+    `derive_functor`'s constrained `fmap`. A call with a function the
+    element cannot be passed to is a hard error. The `std::array`
+    Applicative implementation constrains `invoke` on shape alone, with
+    the same result. Whichever member lookup finds has to be accurate.
+    Hiding the derived member is right only when the implementation's
+    member is the more accurate of the two.
+  - *Derived members whose constraint is weaker than their body.*
+    `invoke_with`, `bind_with`, `for_each` and `traverse_with` are
+    unconstrained. `derive_monad::invoke`, `fold_left`, `fold_right` and
+    `find_first` have a disjunct that passes where the body then fails.
+    All are hard errors on a probe. `any_of` and `all_of` are worse: the
+    probe says the call is valid, and the call is a hard error.
+    `kleisli`'s constraint ends `|| true`, which moves the error to the
+    call of the composed function.
+  - *A non-monadic function is accepted by `bind`.* `OptionalMonadImpl::
+    bind` returns whatever the function returns, value-initialized for
+    the empty case. `bind(std::optional<int>{}, inc)` is `0`, an `int`,
+    and `join(std::optional<int>{1})` compiles through it. That is a type
+    error the library accepts, not an overload hazard. The probe of the
+    call is accurate about the member, and the member is wrong.
+  - *Instances for std types away from their typeclass.*
+    `applicative<std::array>` is in `array.hpp`. The `std::expected`
+    instances are in `expected.hpp`, `applicative<std::simd::basic_vec>`
+    in `simd.hpp`, and `foldable` and `traversable` for `std::vector` in
+    `sequence.hpp`. None of these is the header of the typeclass or of
+    the type. A use of the lookup before the instance's header is
+    included, in a unit that includes it later or alongside a unit that
+    includes it, is ill-formed with no diagnostic required
+    ([temp.spec.partial.general]/1). This is the verdict
+    `late_insertion_verdict` predicts, reached through shipped headers.
+    GCC 16 diagnoses the late partial specialization. Clang 23 keeps the
+    first answer: after `array.hpp` is included, `invoke` on a
+    `std::array` still finds no instance. The instances for library types
+    (`zip_list`, `sender`, `simd_lanes`) sit in the type's own header,
+    which every use of the type has to include, so they are safe.
+  - *Monoid is a third encoding.* `Monoid<V>` is a class template
+    declared and never defined. An instance is a specialization of it,
+    and `detail::has_registered_monoid` tests for one by completeness,
+    `requires { Monoid<V>{}; }`. The variable `monoid<V>` is a hard
+    error for a type without one, so the soft-primary obligation fails
+    for it. Every use in the folds goes through the concept first, so
+    nothing reaches the hard error. The concept's answer for a type
+    changes when a specialization is declared, which is ill-formed with
+    no diagnostic required by a third rule, a satisfaction result that
+    differs at two points ([temp.constr.atomic]/3). It is the same hazard
+    under a different citation.
+  - *Two `operator()`s in one operation object.* `fold_map_fn` and
+    `combine_all_fn` each have two, one taking an explicit monoid and one
+    taking none. They differ by arity, and the lookup default comes after
+    the parameter that the shorter call cannot deduce. A call of one
+    arity therefore fails deduction in the other before that one reaches
+    the lookup. The operation object is no longer a single candidate, but
+    no candidate the call does not mean consults the lookup.
+
+  Reported as steve-downey/typeclass#10 (Functor impls), #11 (`std::array`
+  impl), #12 (derived members), #13 (`bind`) and #14 (placement). A
+  correction to #6 is posted on it.
 
 ## Design note
 
@@ -547,8 +624,8 @@ and described here as they arrive.
   an instance type (`rank_beats_refinement`, `derived_class_deduction`,
   `protected_base_selected_ill_formed`), and the instance's own members,
   such as `derive_functor`'s constrained `fmap` and `replace`, an overload
-  set its author owns. For Applicative that set is soft only because each
-  instance re-exposes its implementation's constrained `invoke`.
+  set its author owns. It is accurate only where its author made it so:
+  the audit found members on every typeclass that are not.
 
   The one hazard runs the other way. Because the operation object names
   the lookup variable, which is one entity in every translation unit, two
