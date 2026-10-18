@@ -625,9 +625,14 @@ and described here as they arrive.
     empty, so nothing in the library is affected.
 
   None of these changes the value a computation returns. The silent ones
-  lose a callable's state, an object's state, or error evidence. Coherence between two
-  instances for one context is beyond the model, which has one instance
-  per key.
+  lose a callable's state, an object's state, or error evidence.
+  Coherence between two instances for one context is beyond the model,
+  which has one instance per key. What the model does prove is the
+  algorithm's side of accuracy. An algorithm whose constraint is the
+  conjunction of its member calls answers as they do, in the order
+  written (`algorithm_transfer`), and is accurate when they are
+  (`algorithm_accurate`). A guard written after the call it protects
+  protects nothing (`call_order_matters`).
 
 ## Design note
 

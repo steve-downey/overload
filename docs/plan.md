@@ -401,7 +401,7 @@ Status, 15 October 2026:
 
 ## Target theorems
 
-Sixteen theorems carry the results. A theorem that fails is recorded with
+Seventeen theorems carry the results. A theorem that fails is recorded with
 its counterexample and is a finding, not a setback.
 
 | Theorem | Statement | Phase |
@@ -421,6 +421,7 @@ its counterexample and is a finding, not a setback.
 | member-transfer | The operation object's call is viable, not viable or ill-formed exactly as the member call through the instance is. The object adds nothing and loses nothing. Added 18 October 2026, from the library audit (`findings.md`). | audit |
 | arity-disjoint | An operation object whose `operator()`s differ by arity is stable as one with a single `operator()`, when each puts its lookup default after a parameter a shorter call cannot deduce. Added 18 October 2026. | audit |
 | registry-verdicts | A registry tested by completeness has the verdicts of a variable-template lookup, at the same uses, under [temp.constr.atomic]/3 where the test's answer changes. Added 18 October 2026. | audit, 8 |
+| algorithm-transfer | An algorithm over an instance whose constraint is the conjunction of its member calls answers as those calls do, in the order written, and is accurate when they are. Added 18 October 2026, from the algorithm probes (`probes.md`). | algorithm |
 | dispatch-styles | For one ordered candidate list, the constraint-exclusion, if-constexpr and priority-tag encodings select the same candidate. They differ in whether having no candidate is a soft or a hard failure, and in which conditions are checked: priority tags check all of them. Restated 17 October 2026 (`findings.md`). | 5, 6 |
 
 Stability is the theorem that says open polymorphism has no surprises. Its
@@ -686,16 +687,16 @@ one there.
 
 ### Work
 
-1. This branch: the probes, `probes.md`, this section and a findings
-   entry.
-2. Lean, `Overload/Members.lean`: `algorithm_transfer`. An algorithm
+1. Done: the probes, `probes.md`, this section and a findings entry.
+2. Done. Lean, `Overload/Members.lean`: `algorithm_transfer`, with
+   `algorithm_accurate` and `call_order_matters`. An algorithm
    object whose body makes several member calls is viable, not viable or
    ill-formed as the conjunction of those calls is. It is accurate when
    its constraint is that conjunction and each member is accurate. This is
    `member_transfer` generalized, with no new rules. A counterexample to
    witness checking is not planned: the probes put the practical gap on
    one axis, and the model has no copy semantics.
-3. `obligations.md` and the paper: an algorithm-author section with
+3. Done. `obligations.md` and the paper: an algorithm-author section with
    algorithm-constraint-accuracy, instance-coherence and instance-state.
    On the instance side: callable-copying and result-context-formable,
    folded into accurate members. On the typeclass side: capability-tests.
