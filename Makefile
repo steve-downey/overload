@@ -173,6 +173,12 @@ drift-check-current: lean-build ## Also compare each cited paragraph with the dr
 probes: ## Run the hand-written C++ probes on each compiler
 	bash probes/run.sh $(PROBE_COMPILERS)
 
+BEMAN_TRANSPOSE_INCLUDE ?= ../typeclass/include
+
+.PHONY: probes-library
+probes-library: ## Probe beman.transpose's typeclasses (BEMAN_TRANSPOSE_INCLUDE=dir)
+	bash probes/library/run.sh $(BEMAN_TRANSPOSE_INCLUDE) $(PROBE_COMPILERS)
+
 .PHONY: differential
 differential: lean-build ## Emit the model's C++ programs and compile them with each compiler
 	bash scripts/differential.sh $(PROBE_COMPILERS)
