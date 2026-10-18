@@ -468,6 +468,8 @@ author<span></span></a></li>
 author<span></span></a></li>
 <li><a href="#for-users-and-the-authors-of-functions-on-instances" id="toc-for-users-and-the-authors-of-functions-on-instances"><span class="toc-section-number">6.3</span> For users and the authors of
 functions on instances<span></span></a></li>
+<li><a href="#for-the-author-of-an-algorithm" id="toc-for-the-author-of-an-algorithm"><span class="toc-section-number">6.4</span> For the author of an
+algorithm<span></span></a></li>
 </ul></li>
 <li><a href="#inheritance-between-instance-types" id="toc-inheritance-between-instance-types"><span class="toc-section-number">7</span> Inheritance between instance
 types<span></span></a></li>
@@ -499,8 +501,9 @@ call operator finds the instance through a defaulted constant template
 parameter. beman.transpose <span class="citation" data-cites="BEMAN-TRANSPOSE">[<a href="#ref-BEMAN-TRANSPOSE" role="doc-biblioref">beman.transpose</a>]</span> is built this way. This
 paper reports what a formal model of the Standard’s selection rules says
 about that encoding: what it guarantees by construction, what it leaves
-as an obligation on the typeclass author, the instance author and the
-user, and which of those obligations no compiler can check.</p>
+as an obligation on the typeclass author, the instance author, the user
+and the author of an algorithm written against a typeclass, and which of
+those obligations no compiler can check.</p>
 <p>The model is written in Lean 4. It transcribes template argument
 deduction, substitution failure, constraints and subsumption, Mandates,
 partial ordering, partial specialization matching and overload
@@ -677,7 +680,23 @@ Where an implementation supplies only
 <code class="sourceCode default">ap</code>, the derived
 <code class="sourceCode default">invoke</code> curries the function. It
 accepts a function that cannot take the arguments and returns an
-unsaturated partial application in the context. <em>Not by
+unsaturated partial application in the context. Three more causes appear
+when the callable varies. A member may copy the callable it is given, as
+the Standard’s algorithms may ([algorithms.requirements]/9), but then
+its constraint has to say the copy can be made:
+<code class="sourceCode default">zip_list</code>’s
+<code class="sourceCode default">invoke</code> is a hard error for a
+move-only lvalue, and the sender’s reports the call valid and then
+fails. A member whose context cannot hold the result has to check for
+it: <code class="sourceCode default">invoke</code> with a function
+returning <code class="sourceCode default">void</code> names
+<code class="sourceCode default">std::optional&lt;void&gt;</code>. And
+an operation an instance refuses has to be refused as a constraint. The
+accumulating Applicative for
+<code class="sourceCode default">std::expected</code> refuses
+<code class="sourceCode default">bind</code> with a
+<code class="sourceCode default">static_assert</code> in a deduced body,
+so asking whether that object is a Monad is a hard error. <em>Not by
 construction.</em></li>
 <li><strong>Instances of std types live with the typeclass.</strong> An
 instance must be visible wherever its lookup is used on its type. For a
@@ -779,6 +798,56 @@ calls what the author did not mean.</em></li>
 takes an instance explicitly and has no constraint is viable for a type
 with no instance, and fails in its body. Whoever writes such a function
 owes the constraint.</li>
+</ul>
+<h2 data-number="6.4" id="for-the-author-of-an-algorithm"><span class="header-section-number">6.4</span> For the author of an
+algorithm<a href="#for-the-author-of-an-algorithm" class="self-link"></a></h2>
+<p>An algorithm written against a typeclass, one that takes an
+Applicative or a Monoid and calls its members, is one more operation
+object over an instance. It owes what the operation objects owe, and
+three things more, from sitting between a caller and an instance it did
+not choose. The weighing is for accident: the question for each gap is
+what an ordinary mistake does, and what closing it would forbid.</p>
+<ul>
+<li><strong>State the member calls.</strong> An algorithm that others
+will constrain on should state, as its constraint, the member calls its
+body makes. With that constraint it answers exactly as its members do,
+call by call in the order written, and it is accurate when they are. The
+order is part of the answer: conjunction checks its right operand only
+when the left is satisfied ([temp.constr.op]/2), so a guard written
+after the call it protects protects nothing. beman.transpose’s folds
+test for a registered <code class="sourceCode default">Monoid</code>
+before they name one. An algorithm nobody checks owes nothing here: a
+weaker constraint is a hard error at its call, never a program that
+compiles and should not. <em>Convention.</em></li>
+<li><strong>Use the instance given.</strong> Every operation on a
+context comes from the object the algorithm was handed. A context can
+have two instances:
+<code class="sourceCode default">std::expected</code> has a
+short-circuit Applicative, which the lookup finds, and an accumulating
+one, which a caller passes by name. Under the accumulating one, a single
+call of the <code class="sourceCode default">invoke</code> operation
+object, or of <code class="sourceCode default">bind</code>, in place of
+the object’s member keeps the first error and drops the rest, and
+compiles. The cost stays bounded because of a rule on the typeclass
+author: an alternative instance that changes values gets its own
+carrier, as the zip Applicative has
+<code class="sourceCode default">zip_list</code>, and only one that
+changes evidence shares a carrier. <em>Undiagnosable.</em></li>
+<li><strong>Use the object passed.</strong> An algorithm that constructs
+a fresh instance from its type assumes the instance has no state. All of
+beman.transpose’s typeclass objects are empty, but a caller’s may carry
+an allocator, a scheduler or a log.
+<code class="sourceCode default">lifted_monoid</code> and
+<code class="sourceCode default">kleisli_monoid</code> construct their
+own, and a stateful object passed by type is never consulted. Hold the
+object, which costs nothing for an empty one, or require
+<code class="sourceCode default">std::is_empty_v</code>.
+<em>Library-checkable.</em></li>
+<li><strong>Pass <code class="sourceCode default">std::ref</code> for
+identity.</strong> An instance may run a copy of a callable, so an
+algorithm that needs the caller’s own object, to count or accumulate in
+it, passes a reference wrapper, as for the Standard’s algorithms.
+<em>Convention.</em></li>
 </ul>
 <h1 data-number="7" id="inheritance-between-instance-types"><span class="header-section-number">7</span> Inheritance between instance
 types<a href="#inheritance-between-instance-types" class="self-link"></a></h1>
@@ -1006,11 +1075,15 @@ changes, a satisfaction result that differs at two points
 ([temp.constr.atomic]/3). The member overload set of an instance is not
 resolved: the model has no class member lookup, no using-declarations
 and no explicit object parameters. It takes the member call’s answer as
-a parameter, and proves only what the operation object makes of it.
-Which members are accurate comes from compiling against beman.transpose,
-not from the model. Function parameter packs are outside the fragment.
-Applicative’s <code class="sourceCode default">invoke</code> takes one
-after the argument that keys the lookup, and the pack does not enter the
+a parameter, and proves only what the operation object and an algorithm
+over the instance make of it. Which members are accurate comes from
+compiling against beman.transpose, not from the model. The model has one
+instance per key, and no copies or object state, so the obligations on
+an algorithm to use the instance and the object it was given, and to
+pass a reference for identity, rest on probes alone. Function parameter
+packs are outside the fragment. Applicative’s
+<code class="sourceCode default">invoke</code> takes one after the
+argument that keys the lookup, and the pack does not enter the
 lookup.</p>
 <h1 data-number="12" id="implementation-experience"><span class="header-section-number">12</span> Implementation experience<a href="#implementation-experience" class="self-link"></a></h1>
 <p>The model and the generated tests are in the overload repository. The
@@ -1043,7 +1116,10 @@ explicit-instance routes.</li>
 <code class="sourceCode default">fmapObject_member</code>,
 <code class="sourceCode default">call_stability_arity</code>,
 <code class="sourceCode default">arity_order_matters</code>,
-<code class="sourceCode default">registry_verdicts</code>.</li>
+<code class="sourceCode default">registry_verdicts</code>,
+<code class="sourceCode default">algorithm_transfer</code>,
+<code class="sourceCode default">algorithm_accurate</code>,
+<code class="sourceCode default">call_order_matters</code>.</li>
 <li><code class="sourceCode default">Overload/Units.lean</code>:
 <code class="sourceCode default">verdicts_single</code>,
 <code class="sourceCode default">operation_object_not_separated</code>,
@@ -1069,7 +1145,10 @@ ordering.</li>
 per call, are in
 <code class="sourceCode default">probes/library/</code>, with their
 results at the commit probed in
-<code class="sourceCode default">docs/probes.md</code>.</p>
+<code class="sourceCode default">docs/probes.md</code>. They include 88
+calls of instance members with the callables a user would pass, and
+runtime probes of a second instance for one context, of instance state
+and of a stateful callable.</p>
 <p>The encoding studied is a reduction of beman.transpose (<code class="sourceCode default">github.com/bemanproject/typeclass</code>),
 kept faithful to it in
 <code class="sourceCode default">src/smd/overload/encoding.hpp</code>.</p>

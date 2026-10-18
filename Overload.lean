@@ -142,3 +142,7 @@ axiom untagged. The headline theorems are audited here as they arrive.
 #audit Overload.registry_verdicts
 #audit Overload.registry_verdicts_single
 #audit Overload.registry_late_verdict
+#audit Overload.satisfied_allCalls
+#audit Overload.algorithm_transfer
+#audit Overload.algorithm_accurate
+#audit Overload.call_order_matters

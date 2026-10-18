@@ -17,6 +17,7 @@
 
 #include <array>
 #include <expected>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -33,6 +34,46 @@ using arr = std::array<int, 3>;
 
 inline constexpr auto inc = [](int x) { return x + 1; };
 inline constexpr auto inc_opt = [](int x) { return std::optional<int>{x + 1}; };
+
+// Callables an algorithm might pass on to an instance member, for the
+// parametricity probes. Each is a reasonable thing for a user to hand an
+// algorithm; the probe asks whether every instance that accepts the
+// concept's witness also accepts it.
+inline constexpr auto by_cref = [](const int &x) { return x + 1; };
+inline constexpr auto generic = [](auto x) { return x + 1; };
+inline constexpr auto by_rref = [](int &&x) { return x + 1; };
+inline constexpr auto ret_void = [](int) {};
+inline constexpr auto ret_ref = [](const int &x) -> const int & { return x; };
+inline constexpr int (*fn_ptr)(int) = [](int x) { return x + 1; };
+struct move_only {
+    std::unique_ptr<int> p;
+    auto operator()(int x) const -> int { return x; }
+};
+struct mutable_fn {
+    int n = 0;
+    auto operator()(int x) -> int { return x + n++; }
+};
+struct move_only_opt {
+    std::unique_ptr<int> p;
+    auto operator()(int x) const -> std::optional<int> { return x; }
+};
+struct mutable_opt {
+    int n = 0;
+    auto operator()(int x) -> std::optional<int> { return x + n++; }
+};
+inline constexpr auto generic_opt = [](auto x) { return std::optional{x}; };
+inline constexpr std::optional<int> (*fn_ptr_opt)(int) = [](int x) {
+    return std::optional<int>{x};
+};
+inline constexpr auto inc_exp = [](int x) { return exp_t{x + 1}; };
+
+using acc_t =
+    std::remove_cvref_t<decltype(bt::accumulating_applicative<exp_t>)>;
+using app_opt_t = std::remove_cvref_t<decltype(bt::applicative<opt>)>;
+using monad_opt_t = std::remove_cvref_t<decltype(bt::monad<opt>)>;
+using app_exp_t = std::remove_cvref_t<decltype(bt::applicative<exp_t>)>;
+using monad_exp_t = std::remove_cvref_t<decltype(bt::monad<exp_t>)>;
+using functor_base_t = bt::derive_functor<bt::OptionalFunctorImpl<int>>;
 
 template <class D, class T>
 struct depw {

@@ -32,8 +32,8 @@ template parameter. beman.transpose
 [@BEMAN-TRANSPOSE] is built this way. This paper reports what a formal model of the Standard's
 selection rules says about that encoding: what it guarantees by
 construction, what it leaves as an obligation on the typeclass author, the
-instance author and the user, and which of those obligations no compiler
-can check.
+instance author, the user and the author of an algorithm written against a
+typeclass, and which of those obligations no compiler can check.
 
 The model is written in Lean 4. It transcribes template argument
 deduction, substitution failure, constraints and subsumption, Mandates,
@@ -231,7 +231,17 @@ construction, compiler-checked, library-checkable, or undiagnosable.
   Where an implementation supplies only `ap`, the derived `invoke`
   curries the function. It accepts a function that cannot take the
   arguments and returns an unsaturated partial application in the
-  context. *Not by construction.*
+  context. Three more causes appear when the callable varies. A member
+  may copy the callable it is given, as the Standard's algorithms may
+  ([algorithms.requirements]/9), but then its constraint has to say the
+  copy can be made: `zip_list`'s `invoke` is a hard error for a move-only
+  lvalue, and the sender's reports the call valid and then fails. A
+  member whose context cannot hold the result has to check for it:
+  `invoke` with a function returning `void` names `std::optional<void>`.
+  And an operation an instance refuses has to be refused as a
+  constraint. The accumulating Applicative for `std::expected` refuses
+  `bind` with a `static_assert` in a deduced body, so asking whether that
+  object is a Monad is a hard error. *Not by construction.*
 - **Instances of std types live with the typeclass.** An instance must be
   visible wherever its lookup is used on its type. For a library type the
   type's own header is enough, since every use has to include it. For a
@@ -312,6 +322,48 @@ construction, compiler-checked, library-checkable, or undiagnosable.
   explicitly and has no constraint is viable for a type with no instance,
   and fails in its body. Whoever writes such a function owes the
   constraint.
+
+## For the author of an algorithm
+
+An algorithm written against a typeclass, one that takes an Applicative
+or a Monoid and calls its members, is one more operation object over an
+instance. It owes what the operation objects owe, and three things more,
+from sitting between a caller and an instance it did not choose. The
+weighing is for accident: the question for each gap is what an ordinary
+mistake does, and what closing it would forbid.
+
+- **State the member calls.** An algorithm that others will constrain
+  on should state, as its constraint, the member calls its body makes.
+  With that constraint it answers exactly as its members do, call by
+  call in the order written, and it is accurate when they are. The order
+  is part of the answer: conjunction checks its right operand only when
+  the left is satisfied ([temp.constr.op]/2), so a guard written after
+  the call it protects protects nothing. beman.transpose's folds test
+  for a registered `Monoid` before they name one. An algorithm nobody
+  checks owes nothing here: a weaker constraint is a hard error at its
+  call, never a program that compiles and should not. *Convention.*
+- **Use the instance given.** Every operation on a context comes from
+  the object the algorithm was handed. A context can have two
+  instances: `std::expected` has a short-circuit Applicative, which the
+  lookup finds, and an accumulating one, which a caller passes by name.
+  Under the accumulating one, a single call of the `invoke` operation
+  object, or of `bind`, in place of the object's member keeps the first
+  error and drops the rest, and compiles. The cost stays bounded because
+  of a rule on the typeclass author: an alternative instance that
+  changes values gets its own carrier, as the zip Applicative has
+  `zip_list`, and only one that changes evidence shares a carrier.
+  *Undiagnosable.*
+- **Use the object passed.** An algorithm that constructs a fresh
+  instance from its type assumes the instance has no state. All of
+  beman.transpose's typeclass objects are empty, but a caller's may
+  carry an allocator, a scheduler or a log. `lifted_monoid` and
+  `kleisli_monoid` construct their own, and a stateful object passed by
+  type is never consulted. Hold the object, which costs nothing for an
+  empty one, or require `std::is_empty_v`. *Library-checkable.*
+- **Pass `std::ref` for identity.** An instance may run a copy of a
+  callable, so an algorithm that needs the caller's own object, to count
+  or accumulate in it, passes a reference wrapper, as for the Standard's
+  algorithms. *Convention.*
 
 # Inheritance between instance types
 
@@ -555,8 +607,11 @@ at two points ([temp.constr.atomic]/3). The member overload set of an
 instance is not resolved: the model has no class member lookup, no
 using-declarations and no explicit object parameters. It takes the member
 call's answer as a parameter, and proves only what the operation object
-makes of it. Which members are accurate comes from compiling against
-beman.transpose, not from the model. Function parameter packs are
+and an algorithm over the instance make of it. Which members are accurate comes from compiling against
+beman.transpose, not from the model. The model has one instance per
+key, and no copies or object state, so the obligations on an algorithm
+to use the instance and the object it was given, and to pass a reference
+for identity, rest on probes alone. Function parameter packs are
 outside the fragment. Applicative's `invoke` takes one after the argument
 that keys the lookup, and the pack does not enter the lookup.
 
@@ -579,7 +634,8 @@ The main results, by file:
 - `Overload/Access.lean`: `protected_base_selected_ill_formed`,
   `protected_base_deduced_ill_formed`.
 - `Overload/Members.lean`: `fmapObject_member`, `call_stability_arity`,
-  `arity_order_matters`, `registry_verdicts`.
+  `arity_order_matters`, `registry_verdicts`, `algorithm_transfer`,
+  `algorithm_accurate`, `call_order_matters`.
 - `Overload/Units.lean`: `verdicts_single`,
   `operation_object_not_separated`, `byValue_separated`,
   `call_stability_unit`.
@@ -593,7 +649,9 @@ The main results, by file:
 
 The probes of beman.transpose's own typeclasses, one translation unit
 per call, are in `probes/library/`, with their results at the commit
-probed in `docs/probes.md`.
+probed in `docs/probes.md`. They include 88 calls of instance members
+with the callables a user would pass, and runtime probes of a second
+instance for one context, of instance state and of a stateful callable.
 
 The encoding studied is a reduction of beman.transpose
 (`github.com/bemanproject/typeclass`), kept faithful to it in

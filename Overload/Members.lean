@@ -34,6 +34,11 @@ about it.
 * A registry that tests for an instance by completeness, as `Monoid` does,
   has exactly the verdicts of a lookup, under a third rule where the answer
   of the test changes ([temp.constr.atomic]/3; `registry_verdicts`).
+* An algorithm over an instance whose constraint is the conjunction of its
+  member calls answers as those calls do, in the order written
+  (`algorithm_transfer`), and is accurate when they are
+  (`algorithm_accurate`). A call written after one that is not satisfied
+  is never checked (`call_order_matters`).
 -/
 
 namespace Overload
@@ -419,5 +424,173 @@ theorem registry_late_verdict :
     Units.registryVerdicts [registryLate] ["Monoid"] = [.satisfactionChanged 0 0 "Monoid" (.named "std::string")] ∧
     Units.verdicts [registryLate] = [.laterInUnit 0 0 "Monoid" (.named "std::string")] := by
   decide
+
+/-! ## An algorithm over an instance
+
+An algorithm written against a typeclass takes an instance and calls its
+members. To the model it is one more function template: its constraint
+is what it states about those calls, and the member calls' answers come
+from the environment, as the operation object's does. When the
+constraint is the conjunction of the member calls the body makes, the
+algorithm answers as its members do, call by call, in the order the
+constraint writes them (`algorithm_transfer`). It is accurate when they
+are (`algorithm_accurate`). The order is part of the answer: a call
+written after one that is not satisfied is never checked, so a hard
+error there does not count, and written first it does
+(`call_order_matters`).
+-/
+
+/-- An algorithm's constraint that states its member calls, in the order
+written: the first call, then each of the rest, joined by conjunction. -/
+def allCalls : Constraint.Atomic → List Constraint.Atomic → Constraint
+  | (e, m), [] => .atomic e m
+  | (e, m), b :: bs => .conj (.atomic e m) (allCalls b bs)
+
+/-- The answer of each member call, once the algorithm's deduced
+arguments are substituted. -/
+def callAnswers (oracle : Constraint.Oracle) (σ : Bindings) (calls : List Constraint.Atomic) :
+    List (Subst Bool) :=
+  calls.map fun c => oracle c.1 (c.2.map (Ty.subst σ))
+
+/-- How a conjunction of member calls reads their answers: left to right,
+stopping at the first that is not valid and true. -/
+def answersAll : List (Subst Bool) → Subst Bool
+  | [] => .ok true
+  | v :: vs =>
+    match atomicAnswer v with
+    | .ok true => answersAll vs
+    | r => r
+
+/-- What the constraint step makes of that reading. The reading is never
+`soft`, since an invalid call is read as not satisfied. -/
+def callsOutcome (σ : Bindings) : Subst Bool → Subst Bindings
+  | .ok true => .ok σ
+  | .ok false => .soft "associated constraints not satisfied"
+  | .soft r => .soft r
+  | .hard r => .hard r
+
+/-- A conjunction of member calls is satisfied as its answers are read in
+order: the first call is checked, and the rest only if it is satisfied. -/
+@[std theorem "temp.constr.op#2.sentence-3"]
+theorem satisfied_allCalls (oracle : Constraint.Oracle) (σ : Bindings) (a : Constraint.Atomic)
+    (as : List Constraint.Atomic) :
+    Constraint.satisfied oracle σ (allCalls a as) = answersAll (callAnswers oracle σ (a :: as)) := by
+  induction as generalizing a with
+  | nil =>
+    obtain ⟨e, m⟩ := a
+    simp only [allCalls, callAnswers, List.map, answersAll, satisfied_atomic]
+    cases atomicAnswer (oracle e (m.map (Ty.subst σ))) with
+    | ok b => cases b <;> rfl
+    | soft _ => rfl
+    | hard _ => rfl
+  | cons b bs ih =>
+    obtain ⟨e, m⟩ := a
+    simp only [allCalls, Constraint.satisfied]
+    rw [ih b]
+    simp only [callAnswers, List.map, answersAll]
+    cases oracle e (m.map (Ty.subst σ)) with
+    | ok v => cases v <;> rfl
+    | soft _ => rfl
+    | hard _ => rfl
+
+theorem constraintStep_allCalls (env : Env) (a : Constraint.Atomic) (as : List Constraint.Atomic)
+    (σ : Bindings) :
+    constraintStep env (some (allCalls a as)) σ =
+      callsOutcome σ (answersAll (callAnswers env.atomic σ (a :: as))) := by
+  simp only [constraintStep, satisfied_allCalls, Subst.bind_eq]
+  cases answersAll (callAnswers env.atomic σ (a :: as)) with
+  | ok v => cases v <;> rfl
+  | soft _ => rfl
+  | hard _ => rfl
+
+theorem answersAll_prefix (pre post : List (Subst Bool)) (v : Subst Bool)
+    (hpre : ∀ u ∈ pre, u = .ok true) :
+    answersAll (pre ++ v :: post) = answersAll (v :: post) := by
+  induction pre with
+  | nil => rfl
+  | cons u us ih =>
+    have hu : u = .ok true := hpre u (List.mem_cons_self ..)
+    subst hu
+    simp only [List.cons_append, answersAll, atomicAnswer]
+    exact ih fun w hw => hpre w (List.mem_cons_of_mem _ hw)
+
+theorem answersAll_true (vs : List (Subst Bool)) (h : ∀ v ∈ vs, v = .ok true) :
+    answersAll vs = .ok true := by
+  induction vs with
+  | nil => rfl
+  | cons u us ih =>
+    have hu : u = .ok true := h u (List.mem_cons_self ..)
+    subst hu
+    simp only [answersAll, atomicAnswer]
+    exact ih fun w hw => h w (List.mem_cons_of_mem _ hw)
+
+section algorithm
+
+variable (env : Env) (a : Constraint.Atomic) (as : List Constraint.Atomic) (σ : Bindings)
+
+/-- An algorithm whose constraint is the conjunction of its member calls
+answers as its members do. Every call valid and true, the constraint step
+passes. Otherwise the first call that is not decides: not valid or false,
+a constraint not satisfied; a hard error, a hard error. Nothing the
+algorithm adds changes a member's answer, and nothing a later call
+answers is consulted. -/
+theorem algorithm_transfer :
+    let r := constraintStep env (some (allCalls a as)) σ
+    let vs := callAnswers env.atomic σ (a :: as)
+    ((∀ v ∈ vs, v = .ok true) → r = .ok σ) ∧
+    (∀ pre v post, vs = pre ++ v :: post → (∀ u ∈ pre, u = .ok true) →
+      (v = .ok false ∨ ∃ e, v = .soft e) → ∃ e, r = .soft e) ∧
+    (∀ pre e post, vs = pre ++ .hard e :: post → (∀ u ∈ pre, u = .ok true) → r = .hard e) := by
+  intro r vs
+  have hr : r = callsOutcome σ (answersAll vs) := constraintStep_allCalls env a as σ
+  refine ⟨fun h => ?_, fun pre v post hvs hpre hv => ?_, fun pre e post hvs hpre => ?_⟩
+  · rw [hr, answersAll_true vs h]; rfl
+  · rw [hr, hvs, answersAll_prefix pre post v hpre]
+    rcases hv with h | ⟨e, h⟩ <;> (subst h; exact ⟨_, rfl⟩)
+  · rw [hr, hvs, answersAll_prefix pre post _ hpre]; rfl
+
+/-- Accurate members make an accurate algorithm. When no member call is
+a hard error to check, neither is the algorithm's constraint: a call of
+it is viable so far or a constraint not satisfied. -/
+theorem algorithm_accurate (h : ∀ v ∈ callAnswers env.atomic σ (a :: as), ∀ e, v ≠ .hard e) :
+    ∀ e, constraintStep env (some (allCalls a as)) σ ≠ .hard e := by
+  intro e
+  rw [constraintStep_allCalls]
+  generalize callAnswers env.atomic σ (a :: as) = vs at h
+  suffices hs : ∀ e, answersAll vs ≠ .hard e by
+    cases hv : answersAll vs with
+    | ok b => cases b <;> simp [callsOutcome]
+    | soft _ => simp [callsOutcome]
+    | hard r => exact absurd hv (hs r)
+  induction vs with
+  | nil => simp [answersAll]
+  | cons v vs ih =>
+    intro e'
+    have hv := h v (List.mem_cons_self ..)
+    have ih' := ih fun w hw => h w (List.mem_cons_of_mem _ hw)
+    cases v with
+    | ok b => cases b <;> simp [answersAll, atomicAnswer, ih']
+    | soft _ => simp [answersAll, atomicAnswer]
+    | hard r => exact absurd rfl (hv r)
+
+end algorithm
+
+/-- Two member calls, one not satisfied and one a hard error to check.
+Written with the unsatisfied call first, the algorithm is a constraint not
+satisfied, and the hard error is never reached; written the other way,
+the algorithm is a hard error. This is why the folds test for a
+registered `Monoid` before they name one. -/
+def orderEnv : Env :=
+  { Env.ofProgram [] with
+    atomic := fun e _ =>
+      if e = "registered" then .ok false else if e = "combine_call" then .hard "Monoid<V> is incomplete"
+      else .ok true }
+
+theorem call_order_matters :
+    constraintStep orderEnv (some (allCalls ("registered", []) [("combine_call", [])])) [] =
+      .soft "associated constraints not satisfied" ∧
+    constraintStep orderEnv (some (allCalls ("combine_call", []) [("registered", [])])) [] =
+      .hard "Monoid<V> is incomplete" := by
+  constructor <;> rfl
 
 end Overload
