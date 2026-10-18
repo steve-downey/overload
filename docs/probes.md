@@ -258,3 +258,12 @@ one in. The sum is right and none of the object's calls are logged.
 count through every member probed except `zip_list`'s `invoke`, which runs
 a copy. The caller's object sees no calls. `std::ref(f)` gives the right
 count, and `std::cref` lets the sender take a move-only callable.
+
+Rerun at beman.transpose `9014608`, GCC 16 and Clang 23, on 18 October
+2026. Every algorithm probe answers as above, and the sender's move-only
+lvalue call still fails. In the library probes, `invoke_with`,
+`bind_with`, `for_each` and both `traverse_with` rows now answer soft, as
+required, after PRs #9, #15 and #16. Every other library probe answers as
+recorded at `30a707d`.
+
+Reported upstream as steve-downey/typeclass#17 to #20.

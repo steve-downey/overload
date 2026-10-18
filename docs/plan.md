@@ -700,7 +700,7 @@ one there.
    algorithm-constraint-accuracy, instance-coherence and instance-state.
    On the instance side: callable-copying and result-context-formable,
    folded into accurate members. On the typeclass side: capability-tests.
-4. Upstream issues, when asked: the `zip_list` and sender copies
+4. Filed as steve-downey/typeclass#17 to #20: the `zip_list` and sender copies
    (callable-copying), `void` results (result-context-formable), the
    accumulating `bind` (capability-tests), and `lifted_monoid` and
    `kleisli_monoid` (instance-state).

@@ -634,6 +634,10 @@ and described here as they arrive.
   (`algorithm_accurate`). A guard written after the call it protects
   protects nothing (`call_order_matters`).
 
+  Reported as steve-downey/typeclass#17 (callable copies), #18 (`void`
+  results), #19 (the accumulating `bind`) and #20 (`lifted_monoid` and
+  `kleisli_monoid`).
+
 ## Design note
 
 - **A variable cannot be overloaded** (17 October 2026). The typeclass
