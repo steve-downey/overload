@@ -451,6 +451,71 @@ and described here as they arrive.
   reconstructed; step-order B and tie-break C did not reproduce at first,
   and tie-break C still does not. Details in `probes.md`.
 
+## About the library
+
+- **Applicative's interface is the instance** (17 October 2026). In
+  beman.transpose the call a user writes is a member call on the instance
+  of record: `const auto &app = applicative<std::optional<int>>;
+  app.invoke(f, x, y, z)` (`examples/transpose/apply_example.cpp`). The
+  operation object `invoke_fn` is a secondary interface over it, with one
+  `operator()` constrained on `TC.invoke(...)`. Functor's `fmap_fn` is the
+  same secondary layer, and `encoding.hpp` reduces to it. The theorems
+  still apply:
+  - The lookup theorems are about the variable template, which a direct
+    use names exactly as the operation object does: `coherence`,
+    `stability`, `verdicts_single`, `late_insertion_verdict`. A direct use
+    in a non-template function has no template argument to carry the
+    instance, so it is no better separated across units than the
+    operation object (`operation_object_not_separated`).
+  - The call-surface theorems apply to `invoke_fn` as to `fmap_fn`. It
+    has one `operator()`, keyed at `std::remove_cvref_t` of its first
+    in-context argument. Its trailing pack is outside the model's
+    fragment, and does not enter the lookup. The key is the first
+    argument only, so the instance has to constrain the rest, as
+    `optional_applicative_impl` does with `is_optional_v<REST>`.
+  - The member call `app.invoke(...)` gets no argument-dependent lookup,
+    which applies only to an unqualified name ([basic.lookup.argdep]/1).
+    Member lookup stops at the first class whose scope declares the name
+    ([class.member.lookup]/3), so `optional_applicative_map`'s
+    using-declaration of its implementation's `invoke` hides
+    `derive_applicative`'s, and the call has one template.
+  - The using-declaration is what lets a member out of the protected
+    base. Each member takes `this auto &&`, and the explicit object
+    parameter deduces as the instance type. No derived-to-base conversion
+    is formed, so `protected_base_selected_ill_formed` is not reached.
+  - The derived operations call `self.invoke(...)` with `self` deduced as
+    the instance, so they use the most-derived instance's surface, by
+    hiding and not by virtual dispatch. Their specializations carry the
+    instance type, which separates them as `byValue_separated` does, to
+    the extent instance types are distinct.
+
+  What changes is the weight of one hypothesis. The model treats
+  `TC.fmap(...)` as an atomic constraint, true when the lookup selects an
+  instance. For the primary interface that member overload set is the
+  whole call, and getting it right is the job of the derivation base and
+  the instance. Two observations against beman.transpose at `30a707d`, on
+  GCC 16 and Clang 23 (GCC 13 and Clang 17 lack deducing this):
+  - *Re-exposure carries the soft failure.* `derive_applicative::invoke`
+    has no constraint and a deduced return type. A probe of it, either
+    `requires { app.invoke(f, x); }` or the operation object's constraint,
+    instantiates its body to deduce the type. Errors there are not in the
+    immediate context ([dcl.spec.auto.general]/15), so the body's
+    `static_assert` fires and a call that should not be viable is a hard
+    error. Every instance in the library re-exposes its implementation's
+    constrained `invoke` with a using-declaration, which hides the derived
+    one. An instance without that loses soft failure for `invoke` and for
+    `invoke_fn`. Functor does not have this problem, since
+    `derive_functor::fmap` is constrained.
+  - *An `ap`-only basis accepts a function it cannot call.* Where the
+    implementation supplies `ap` and no `invoke`, the derived `invoke`
+    curries through `terminating_partial`. When the function cannot take
+    the arguments, the partial adds the argument to its bound arguments
+    and does not fail. `app.invoke(not_callable{}, box<int>{1})`
+    compiles and yields a `box` holding an unsaturated partial, and the
+    probe reports the call as valid. This is neither a soft failure nor an
+    error. It is a wrong answer, and a bug in the library. No instance in
+    the library uses an `ap`-only basis, so nothing that ships shows it.
+
 ## Design note
 
 - **A variable cannot be overloaded** (17 October 2026). The typeclass
@@ -470,7 +535,10 @@ and described here as they arrive.
     matching alone (`coherence`, `stability`), and no ranking can change
     the instance a call selects (`separability`).
   - The members. With an instance in hand, `TC.fmap(...)` is member
-    lookup in one class, which nothing at namespace scope can join.
+    lookup in one class, which nothing at namespace scope can join. This
+    is the primary interface. A user writes `app.invoke(...)` on the
+    instance of record, and the operation objects are a layer over it
+    ([applicative](#about-the-library)).
 
   The trouble the model found is where an overload set comes back: route
   overloads beside the canonical `operator()` (`routes_type_ambiguous_hard`,
@@ -479,7 +547,8 @@ and described here as they arrive.
   an instance type (`rank_beats_refinement`, `derived_class_deduction`,
   `protected_base_selected_ill_formed`), and the instance's own members,
   such as `derive_functor`'s constrained `fmap` and `replace`, an overload
-  set its author owns.
+  set its author owns. For Applicative that set is soft only because each
+  instance re-exposes its implementation's constrained `invoke`.
 
   The one hazard runs the other way. Because the operation object names
   the lookup variable, which is one entity in every translation unit, two
