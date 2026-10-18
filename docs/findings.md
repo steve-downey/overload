@@ -601,6 +601,33 @@ and described here as they arrive.
   Reported as steve-downey/typeclass#10 (Functor impls), #11 (`std::array`
   impl), #12 (derived members), #13 (`bind`) and #14 (placement). A
   correction to #6 is posted on it.
+- **What an algorithm can rely on** (18 October 2026). An algorithm that
+  takes an instance relies on more than the concept checks. The algorithm
+  probes (`probes.md`) size each gap, and
+  [plan.md](plan.md#algorithm-author-obligations) weighs them.
+  - *The witness is a good proxy, except for copies.* Each concept checks
+    its members with one fixed callable. Of 88 member and callable pairs,
+    85 behave as the witness predicts. The three that do not are all the
+    callable being copied. `zip_list`'s `invoke` runs a copy of a stateful
+    lvalue callable, so the caller's object never sees the calls, which is
+    silent. The sender's `invoke` says a move-only lvalue is valid, and
+    the call then fails.
+  - *A second instance is reachable by accident.* Under the accumulating
+    object, an algorithm that slips once to `bt::invoke` or `bt::bind`
+    keeps the first error and drops the rest, and compiles. The library's
+    own derived members and `traverse` use the object they are given.
+  - *Asking is sometimes an error.* `monad_object` of the accumulating
+    object is a hard error, because its refused `bind` is a
+    `static_assert` in a deduced body.
+  - *Fresh instances drop state.* `lifted_monoid` and `kleisli_monoid`
+    make their own applicative or monad object, so a stateful one passed
+    by type is never consulted. Every registered typeclass object is
+    empty, so nothing in the library is affected.
+
+  None of these changes the value a computation returns. The silent ones
+  lose a callable's state, an object's state, or error evidence. Coherence between two
+  instances for one context is beyond the model, which has one instance
+  per key.
 
 ## Design note
 

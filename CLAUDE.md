@@ -98,6 +98,7 @@ the versions the plan's table was made on.
 
 `probes/library/` is different: it probes beman.transpose itself, one call
 per translation unit, for the accurate-members and placement obligations
+and for what an algorithm handed an instance can rely on
 (`make probes-library BEMAN_TRANSPOSE_INCLUDE=dir`). The library needs
 deducing this, so it runs on GCC 14 and Clang 19 or later. Record each run
 in `docs/probes.md` with the commit it was taken at.

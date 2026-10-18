@@ -183,3 +183,78 @@ Both are conforming. The program is ill-formed with no diagnostic required
 answer.
 
 Reported upstream as steve-downey/typeclass#6, #7, #10 to #14.
+
+## Algorithm probes
+
+These ask what an algorithm written against a typeclass can rely on when it
+is handed an instance. `parametricity.txt` asks whether each member that
+accepts the concept's witness accepts the callables a user would pass.
+`algorithms.txt` asks which objects satisfy which concepts. Three runtime
+probes print what the library does with a second instance for one context
+(`coherence.cpp`), with instance state (`state.cpp`) and with a stateful
+callable (`callable_state.cpp`). `make probes-library` runs them all.
+
+Recorded at beman.transpose `30a707d`, GCC 16 and Clang 23, on 18 October
+2026. The compilers agree on every row.
+
+Parametricity covers ten members: `invoke` on the optional, expected,
+accumulating expected, array, `zip_list` and sender objects, optional
+`map`, optional and vector `fmap`, and vector `any_of`. Each gets seven
+callables a member should accept: by value, by `const&`, generic, function
+pointer, move-only as an rvalue and as an lvalue, and a non-`const` call
+operator as an lvalue. Optional `bind`, the vector `traverse` member and
+the `traverse` operation object get six monadic ones. Of the 88 cells, 85
+are valid and the call compiles when it is made. The other three all come
+from the member copying the callable. The `void`-result, `int&&` and
+non-callable rows were run alongside them.
+
+| Probe | Required | Observed | Cause |
+|---|---|---|---|
+| `zip_list` `invoke`, move-only lvalue | valid | hard | the body copies the callable into a local; the return type is deduced |
+| sender `invoke`, move-only lvalue | valid | valid, and the call does not compile | the trailing return type asks only `invoke_result`; the body copies the callable into the deferred lambda |
+| sender `invoke`, non-`const` call operator | valid | soft | the deferred lambda calls the stored copy as `const`; the trailing return type says so |
+| optional, array, `zip_list`, sender `invoke` and optional `map`, `void` result | soft | hard | `std::optional<void>` or the context's equivalent is named outside the immediate context |
+| optional and vector `fmap`, `int&&` parameter | any | hard | the unconstrained impl `fmap` (#10) |
+| vector `any_of`, `void` predicate | soft | valid | the constraint passes and the body fails (#12) |
+
+`std::expected<void, E>` is a type, so a `void` result there is valid and
+correct. Every other row not listed answers as required.
+
+| Probe (`algorithms.txt` and the capability rows) | Required | Observed |
+|---|---|---|
+| `monad_object` of the accumulating object | soft | hard: its `bind` is a `static_assert` in a deduced body |
+| `accumulating_applicative<E>.bind(…)` | soft | hard, the same |
+| `applicative_object` of the accumulating object | valid | valid |
+| `monad_object` of `applicative<optional>`, of `applicative<expected>` | either | soft |
+| `applicative_object` of `monad<optional>`, of `monad<expected>` | either | soft |
+| `traverse` with `monad<optional>` or `monad<expected>` as policy | either | soft |
+| `applicative<optional>.collect(…)` | soft | soft |
+| `fmap(not_callable, …)` through a `const derive_functor<…>&` | soft | hard, as through the instance: the base's constraint asks the impl |
+
+No registered object is both an applicative object and a monad object, so
+a monad object cannot be passed where an applicative object is asked for.
+
+`coherence.cpp`, two failing operands under the accumulating object, at
+`std::expected<int, error_set<alpha, beta>>`:
+
+| Computation | alpha | beta |
+|---|---|---|
+| `acc.invoke(plus, a, b)` | kept | kept |
+| `bt::invoke(plus, a, b)` in an algorithm given `acc` | kept | lost |
+| `bt::bind` in an algorithm given `acc` | kept | lost |
+| `acc.zip_with`, `discard_first`, `discard_second`, `invoke_with` | kept | kept |
+| `traverse(f, v, acc)` | kept | kept |
+| `traverse(f, v)` | kept | lost, as documented |
+
+`state.cpp`: every registered applicative, monad, functor, foldable and
+traversable object, `Monoid<std::string>` and `sum_monoid<int>` is empty
+and default-initializable. `lifted_monoid<…, sum_monoid<int>>` is not
+empty, since it holds its element monoid. A stateful applicative object
+used through `lifted_monoid` is never consulted: `lifted_monoid` makes a
+fresh one with `APPLICATIVE_OBJECT{}`, and the type gives no way to pass
+one in. The sum is right and none of the object's calls are logged.
+
+`callable_state.cpp`: a stateful callable passed as an lvalue keeps its
+count through every member probed except `zip_list`'s `invoke`, which runs
+a copy. The caller's object sees no calls. `std::ref(f)` gives the right
+count, and `std::cref` lets the sender take a move-only callable.

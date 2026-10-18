@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #
-# Probe beman.transpose's typeclasses for the accurate-members obligation and
-# the placement of std instances. Each line of probes.txt is compiled as its
+# Probe beman.transpose's typeclasses for the accurate-members obligation,
+# parametricity in the callable, and the placement of std instances. Each
+# line of probes.txt and parametricity.txt is compiled as its
 # own translation unit with each compiler, and classified as soft, valid or
 # hard. A row is marked `!` when a compiler's outcome is not what the
 # obligation requires.
@@ -41,6 +42,9 @@ classify() {
     fi
 }
 
+read -r -a tables <<<"${PROBE_TABLES:-probes parametricity algorithms}"
+for table in "${tables[@]}"; do
+printf '\n%s.txt\n' "$table"
 printf '%-36s %-8s' probe required
 for cxx in "${compilers[@]}"; do printf ' %-12s' "$(basename "$cxx")"; done
 printf '\n'
@@ -52,11 +56,16 @@ while IFS='|' read -r name required call; do
     printf '%-36s %-8s' "$name" "$required"
     for cxx in "${compilers[@]}"; do
         got=$(classify "$cxx" "$src")
-        [[ $got != "$required" ]] && mark="!"
+        if [[ $required == any ]]; then
+            [[ $got == hard ]] && mark="!"
+        elif [[ $got != "$required" ]]; then
+            mark="!"
+        fi
         printf ' %-12s' "$got"
     done
     printf ' %s\n' "$mark"
-done <"$script_dir/probes.txt"
+done <"$script_dir/$table.txt"
+done
 
 printf '\nlate_array.cpp\n'
 for v in P A C; do
@@ -70,4 +79,18 @@ for v in P A C; do
         fi
     done
     printf '\n'
+done
+
+# Runtime probes: each prints its own table.
+for prog in coherence state callable_state; do
+    printf '\n%s.cpp\n' "$prog"
+    for cxx in "${compilers[@]}"; do
+        printf ' %s\n' "$(basename "$cxx")"
+        if "$cxx" "$std" -I"$include" "$script_dir/$prog.cpp" \
+            -o "$work/$prog" >"$work/$prog.log" 2>&1; then
+            "$work/$prog"
+        else
+            echo "  does not compile"
+        fi
+    done
 done

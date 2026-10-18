@@ -1,0 +1,14 @@
+# probes/library/algorithms.txt
+# name | required | call
+# What an algorithm written against a typeclass meets: which objects satisfy
+# which concepts, whether a stronger object serves where a weaker one is
+# asked for, and what a base-typed reference to an instance answers.
+# `any` accepts soft or valid; see docs/probes.md.
+refine-app-opt-monad_object|any|requires bt::monad_object<DEP(app_opt_t), opt>
+refine-monad-opt-applicative_object|any|requires bt::applicative_object<DEP(monad_opt_t), opt>
+refine-app-exp-monad_object|any|requires bt::monad_object<DEP(app_exp_t), exp_t>
+refine-monad-exp-applicative_object|any|requires bt::applicative_object<DEP(monad_exp_t), exp_t>
+refine-traverse-monad-opt-policy|any|bt::traverse(inc_opt, std::declval<DEP(vec)>(), bt::monad<opt>)
+refine-traverse-monad-exp-policy|any|bt::traverse(inc_exp, std::declval<DEP(vec)>(), bt::monad<exp_t>)
+exact-base-fmap-noncallable|soft|static_cast<const functor_base_t &>(bt::functor<opt>).fmap(DEP(not_callable){}, DEP(opt){})
+exact-base-fmap-valid|valid|static_cast<const functor_base_t &>(bt::functor<opt>).fmap(inc, DEP(opt){})

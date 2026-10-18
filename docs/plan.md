@@ -551,6 +551,159 @@ single translation unit axiom hides, and they bear on the comparison with
 Concept Maps: explicit opt-in removes accidental syntactic matches but not
 these.
 
+## Algorithm-author obligations
+
+Planned 18 October 2026. The obligations above belong to typeclass
+authors, instance authors and users of explicit instances. A fourth party
+writes an algorithm that needs an Applicative or a Monoid and takes one,
+`auto&& app` or a policy parameter. Some obligations carry over to that
+author unchanged, since the algorithm is one more operation object over an
+instance. Others come from where the algorithm sits, between a caller and
+an instance it did not choose. Each question below is sized by the
+algorithm probes (`probes.md`) at beman.transpose `30a707d`.
+
+The weighing is for accident, not malice. A gap matters by what an
+ordinary mistake does. Worst is a program that compiles and gives a wrong
+answer. Next is a check that says yes and a call that then fails; then a
+hard error where a clean no was owed. A gap whose cost is only a worse
+diagnostic is weighed against what closing it costs and what it forbids.
+A case it forbids only matters if the case would otherwise have worked.
+
+### algorithm-constraint-accuracy
+
+Does the algorithm's constraint have to imply its body? It is the
+accurate-members obligation again, owed by the algorithm. With a deduced
+return type, a weaker constraint makes every check of the call a hard
+error. Width: as wide as the members it calls. The library's own
+`traverse` and `transpose` objects answer every probe correctly. A
+violation is safe, since nothing compiles that should not. It matters
+only when someone checks the call, and that is what an algorithm meant to
+be built on gets. Cost: a trailing return type or restated constraints.
+Restating is close to free when the members are accurate, because the
+constraint is the conjunction of the member calls. Recommendation: owe it
+for algorithms offered for others to constrain on, not for leaf code. The
+Lean side is `algorithm_transfer`, below.
+
+### callable-copying
+
+May a member copy the callable it is given? The probes say the concepts'
+witness is a good proxy except on this one axis. The three failures in 88
+cells are all the callable being copied: `zip_list` copies into a local,
+and the sender copies into its deferred work, which it must do. The silent
+one is `zip_list` running a copy of a stateful lvalue callable, so the
+caller's object never changes. The Standard's answer for its own
+algorithms is the note in [algorithms.requirements]/9: they may copy
+function objects freely, and `reference_wrapper` is the way to keep
+identity. `std::ref` works through every instance probed. Forbidding
+copies would forbid deferred contexts, which cannot hold a reference to the
+caller's callable. Recommendation: adopt the Standard's rule. An instance
+may copy. An instance that copies says so in its constraint (constructible
+from the argument), which turns the sender's yes-then-fails into a clean
+no. An algorithm that needs identity passes `std::ref`. Nothing that works
+today is lost.
+
+### result-context-formable
+
+Must a member's constraint check that its result context exists?
+`invoke` with a `void`-returning callable names `std::optional<void>`, a
+hard error. Width: every member whose context cannot hold the result.
+Safe, and a plausible accident, since a lambda written for its side effect
+returns `void`. Cost: one concept per context. It forbids nothing that
+compiles today. Recommendation: fold it into the instance's accurate
+members rather than make it a separate obligation.
+
+### instance-coherence
+
+May an algorithm given an instance also reach the canonical one for the
+same context? A slip through an operation object, or through `bind`, under
+the accumulating object keeps the first error and drops the rest. It
+compiles silently. Width: today the only same-carrier pair is
+`std::expected`'s two applicatives, and they differ in evidence, never in
+whether the result fails. The library keeps a value-changing alternative,
+the zip applicative, apart by giving it its own carrier, `zip_list`.
+Nothing in the language can check the obligation. Cost of a mechanism:
+high, and it would forbid the ordinary use of operation objects inside
+algorithms. Recommendation: an algorithm-author obligation by convention,
+"take every operation on a context from the object you were given", plus
+a typeclass-author obligation, "an alternative instance that changes
+values gets its own carrier; one that changes only evidence may share it
+as an explicit object". The model has no second instance for one key, so
+a theorem would need a modelling decision first. Not planned.
+
+### capability-tests
+
+Can an algorithm ask what an object can do? `monad_object` of the
+accumulating object is a hard error, because its `bind` is a
+`static_assert` in a deduced body. The accumulating object is the one a
+caller passes to `traverse`. So an algorithm generic over applicative and
+monad objects, dispatching with `if constexpr (monad_object<P, C>)`, fails
+to compile on the object it was meant for. Safe, but it blocks the obvious
+dispatch. Cost: replace the `static_assert` with a deleted function,
+`= delete("…")` keeping the message, which is a clean no on a check.
+Nothing is forbidden. Recommendation: an obligation on typeclass and
+instance authors that a refused operation is refused as a constraint, and
+an upstream issue for the accumulating `bind`. `traverse`'s own
+capability test, `collect`, answers correctly.
+
+### typeclass-refinement
+
+Can a stronger object be used where a weaker one is asked for? No
+registered monad object is an applicative object, so `traverse` refuses
+`monad<optional>` as a policy, cleanly. No registered object satisfies
+both concepts either, so overloads on the two are never ambiguous today.
+`monad_object` is not written in terms of `applicative_object`, so a user
+object that satisfies both makes such overloads ambiguous. Width: narrow,
+since `applicative<C>` is registered wherever `monad<C>` is. Cost:
+deriving the Applicative members in `derive_monad` is moderate.
+Recommendation: when Monad comes to refine Applicative, write
+`monad_object` as `applicative_object && …`. This is the plan's
+visible-refinement obligation, which nothing has needed yet. No change
+now.
+
+### instance-state
+
+May an algorithm make a fresh instance of the type it is given?
+`lifted_monoid` and `kleisli_monoid` do, with `APPLICATIVE_OBJECT{}`. A
+stateful object, such as one carrying an allocator, scheduler or log, is
+silently not consulted. Every registered typeclass object is empty, so
+requiring emptiness costs the library nothing today. It would forbid
+stateful policies, which `traverse` already supports by taking the object.
+`lifted_monoid` itself is not empty, so the rule cannot extend to monoid
+objects, whose state `monoid.hpp` allows. Recommendation: an algorithm
+either uses the object it was passed or requires `std::is_empty_v` of the
+type it constructs. For `lifted_monoid` and `kleisli_monoid`, holding the
+object as a `[[no_unique_address]]` member does both at no cost. Upstream
+issue.
+
+### instance-exact-type
+
+Must an algorithm take its instance at its exact type? Yes, as for
+operation objects, since members are found by static type. Width: nil in
+practice. Spelling a base requires an exposition-only name, and the one
+probe through a base reference gives the instance's answer. Recommendation:
+fold it into the existing exact-type row; no probe or theorem beyond the
+one there.
+
+### Work
+
+1. This branch: the probes, `probes.md`, this section and a findings
+   entry.
+2. Lean, `Overload/Members.lean`: `algorithm_transfer`. An algorithm
+   object whose body makes several member calls is viable, not viable or
+   ill-formed as the conjunction of those calls is. It is accurate when
+   its constraint is that conjunction and each member is accurate. This is
+   `member_transfer` generalized, with no new rules. A counterexample to
+   witness checking is not planned: the probes put the practical gap on
+   one axis, and the model has no copy semantics.
+3. `obligations.md` and the paper: an algorithm-author section with
+   algorithm-constraint-accuracy, instance-coherence and instance-state.
+   On the instance side: callable-copying and result-context-formable,
+   folded into accurate members. On the typeclass side: capability-tests.
+4. Upstream issues, when asked: the `zip_list` and sender copies
+   (callable-copying), `void` results (result-context-formable), the
+   accumulating `bind` (capability-tests), and `lifted_monoid` and
+   `kleisli_monoid` (instance-state).
+
 ## Draft citations and prior art
 
 The draft paragraphs this plan leans on were read in the working draft at
