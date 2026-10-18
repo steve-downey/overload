@@ -384,10 +384,24 @@ Status, 15 October 2026:
   (`derived_class_deduction`). Erasure therefore also asks that no
   argument of a touched class be deduced from as a derived class. The
   dispatch-styles check is under phase 5.
+- The library audit, 18 October 2026, came after phase 8. Probing
+  beman.transpose's own typeclasses (`probes/library/`, `probes.md`)
+  found the member call through an instance, which the model took as
+  accurate, inaccurate in every typeclass. `Overload/Members.lean` makes
+  that answer a parameter. Whatever it is, the operation object passes it
+  on unchanged (`fmapObject_member`, `member_transfer`), and the
+  program's environment is the accurate case (`ofProgram_member`). Two
+  further shapes the audit found are theorems too. An operation object
+  with `operator()`s of different arity keeps stability when no other
+  `operator()` reaches the lookup (`call_stability_arity`), and the
+  placement of the lookup default decides whether it does
+  (`arity_order_matters`). A registry tested by completeness, as
+  `Monoid` is, has the verdicts of a lookup under a third rule
+  (`registry_verdicts`).
 
 ## Target theorems
 
-Thirteen theorems carry the results. A theorem that fails is recorded with
+Sixteen theorems carry the results. A theorem that fails is recorded with
 its counterexample and is a finding, not a setback.
 
 | Theorem | Statement | Phase |
@@ -404,6 +418,9 @@ its counterexample and is a finding, not a setback.
 | superclass-coherence | The Functor derived from a stronger instance, such as `derive_functor<M>`, behaves as the canonical Functor instance where one exists. This is extensional equality of the operations, since the two are different types and so different template arguments. | 6 |
 | termination | Lookup terminates under the restriction chosen in termination-condition. | 6 |
 | divergence-separation | If two translation units resolve an instance differently, every function whose behaviour depends on that instance has a different identity in the two units. Expected to hold when the instance is a template argument of the function, and to fail when lookup happens inside a body. Fails too for an instance passed as a reference to the lookup variable, which is the canonical route. Restated 17 October 2026 (`findings.md`). | 8 |
+| member-transfer | The operation object's call is viable, not viable or ill-formed exactly as the member call through the instance is. The object adds nothing and loses nothing. Added 18 October 2026, from the library audit (`findings.md`). | audit |
+| arity-disjoint | An operation object whose `operator()`s differ by arity is stable as one with a single `operator()`, when each puts its lookup default after a parameter a shorter call cannot deduce. Added 18 October 2026. | audit |
+| registry-verdicts | A registry tested by completeness has the verdicts of a variable-template lookup, at the same uses, under [temp.constr.atomic]/3 where the test's answer changes. Added 18 October 2026. | audit, 8 |
 | dispatch-styles | For one ordered candidate list, the constraint-exclusion, if-constexpr and priority-tag encodings select the same candidate. They differ in whether having no candidate is a soft or a hard failure, and in which conditions are checked: priority tags check all of them. Restated 17 October 2026 (`findings.md`). | 5, 6 |
 
 Stability is the theorem that says open polymorphism has no surprises. Its
