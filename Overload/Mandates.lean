@@ -1,6 +1,6 @@
 -- Overload/Mandates.lean                                             -*-lean-*-
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-import Overload.Inheritance
+import Overload.Separability
 
 /-!
 # Mandates

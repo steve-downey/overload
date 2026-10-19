@@ -17,8 +17,17 @@ them.
 ## Two sides, one Makefile
 
 - **Lean** lives at the root: `lakefile.toml`, `Overload/`, `OverloadTest/`,
-  `Tools/`. `lake build` builds the model and runs the citation lint and the
-  axiom audits in `Overload.lean`; `lake test` runs the `#guard` tests.
+  `Tools/`. `lake build` builds the model and runs the citation lint, the
+  layering lint and the axiom audits in `Overload.lean`; `lake test` runs
+  the `#guard` tests. The model has two sides. `Overload/*.lean` is the
+  Standard side: rules transcribed from the draft and theorems about
+  them, with no mention of the typeclass encoding beyond a pointer.
+  `Overload/Typeclass/*.lean` defines the encoding of beman.transpose on
+  top of it. Nothing on the Standard side imports the typeclass side;
+  `#check_layering` fails the build if it does. A new theorem about the
+  language goes on the Standard side with neutral example names (`trait`,
+  not `functor`); a theorem about the encoding goes under `Typeclass`.
+  `docs/guide.md` is the map.
 - **C++** is the Copier-generated layout from steve-downey/example: `src/`,
   `CMakeLists.txt`, `infra/`, `etc/`, `installtest/`, `papers/wg21`. The
   library `src/smd/overload/encoding.hpp` is the typeclass encoding under
@@ -74,7 +83,9 @@ section of `docs/decisions.md`.
 ## Differential testing
 
 `Overload/Emit.lean` turns cases into C++ translation units whose
-`static_assert`s check the model's expectation in unevaluated contexts.
+`static_assert`s check the model's expectation in unevaluated contexts;
+the encoding's cases are in `Overload/Typeclass/Emit.lean`, with their own
+prelude, and `Tools/Emit.lean` emits both lists.
 `make differential` emits them and compiles each with every compiler in
 `PROBE_COMPILERS` (default `g++ clang++`). A disagreement is a finding
 against the cited sentence: describe it in `docs/findings.md`, then list it

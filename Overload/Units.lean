@@ -1,37 +1,39 @@
 -- Overload/Units.lean                                                -*-lean-*-
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-import Overload.Sfinae
+import Overload.Environment
+import Overload.Resolution
 
 /-!
 # Translation units, and what cannot be said about them
 
-Phase 8. A program is a list of translation units, each resolved on its
-own as before. The model gives no meaning to a program in which one
-entity has two contrary definitions. It reports that the program is
-ill-formed with no diagnostic required, names the rule and the use, and
-says nothing more (`decisions.md#single-tu`).
+A program is a list of translation units, each resolved on its own. The
+model gives no meaning to a program in which one entity has two contrary
+definitions. It reports that the program is ill-formed with no diagnostic
+required, names the rule and the use, and says nothing more
+(`decisions.md#single-tu`).
 
-The verdicts are about instance lookup. A use of a lookup, `tc<a>`,
-selects among the partial specializations it can reach. The selection
-must be the one it would make with every partial specialization of the
-program reachable:
+The verdicts are about variable template lookup. A use of a lookup,
+`tc<a>`, selects among the partial specializations it can reach. The
+selection must be the one it would make with every partial specialization
+of the program reachable:
 
 * one declared later in the same unit gives the specialization a second
   point of instantiation, at the end of the unit, with a different
   meaning ([temp.point]/7);
 * one declared only in another unit is not reachable from a use that
-  would make use of it ([temp.spec.partial.general]/1).
+  would make use of it ([temp.spec.partial.general]/1);
+* where the use is a test of a registry for completeness, a specialization
+  that changes the test's answer makes one satisfaction result differ at
+  two points ([temp.constr.atomic]/3).
 
-For one unit, the old standing assumption is exactly what rules both out
-(`verdicts_single`).
-
-divergence-separation compares what two units resolve when their lookups
-differ. The plan expected separation wherever the instance is a template
-argument. The canonical operation object has the instance as a template
-argument, but as a reference to the lookup variable, which is one entity
-in every unit: both units name one specialization with two meanings
-(`operation_object_not_separated`). Pinning and the by-value policy name
-the instance itself, and separate.
+For one unit, the standing assumption of `single-tu` is exactly what
+rules every verdict out (`verdicts_single`, `registry_verdicts_single`).
+Per unit, a call sees only the declarations before it, so a partial
+specialization declared after a use leaves the use as it was and either
+leaves the program free of a verdict or gives it the verdict of
+[temp.point]/7 (`callAt_insert_after`, `late_insertion_verdict`). What the
+typeclass encoding makes of this, divergence between units and stability
+of a call per unit, is in `Overload/Typeclass/Units.lean`.
 -/
 
 namespace Overload
@@ -67,8 +69,8 @@ inductive IllFormedNdr where
   | notReachable (unit pos : Nat) (tc : String) (arg : Ty)
   /-- A use that tests a registry for completeness, `requires { R<a>{}; }`,
   answers differently from the answer it would give with every
-  specialization reachable: one satisfaction result at two points
-  (`Overload/Members.lean`). -/
+  specialization reachable: one satisfaction result at two points (the
+  registry section below). -/
   | satisfactionChanged (unit pos : Nat) (registry : String) (arg : Ty)
   deriving Repr, DecidableEq
 
@@ -141,174 +143,41 @@ private def int : Ty := .named "int"
 /-- A unit that declares an instance for `box<T>` and uses the lookup at
 `box<int>`. -/
 def unitWithInstance : Program :=
-  [ .classTemplate "box" [{ kind := .type }], .lookup "functor"
-  , .instance "functor" [{ kind := .type }] (box T), .use "functor" (box int) ]
+  [ .classTemplate "box" [{ kind := .type }], .lookup "trait"
+  , .instance "trait" [{ kind := .type }] (box T), .use "trait" (box int) ]
 
 /-- A unit that uses the lookup at `box<int>` without the instance. -/
 def unitWithoutInstance : Program :=
-  [ .classTemplate "box" [{ kind := .type }], .lookup "functor", .use "functor" (box int) ]
+  [ .classTemplate "box" [{ kind := .type }], .lookup "trait", .use "trait" (box int) ]
 
 /-- A unit that declares the instance after its use. -/
 def unitLateInstance : Program :=
-  [ .classTemplate "box" [{ kind := .type }], .lookup "functor", .use "functor" (box int)
-  , .instance "functor" [{ kind := .type }] (box T) ]
+  [ .classTemplate "box" [{ kind := .type }], .lookup "trait", .use "trait" (box int)
+  , .instance "trait" [{ kind := .type }] (box T) ]
 
 /-- Each unit alone is a well-formed program; together they are
 ill-formed with no diagnostic required, at the use of the unit without
 the instance. -/
 theorem missing_instance_verdict :
     Units.verdicts [unitWithoutInstance] = [] ∧ Units.verdicts [unitWithInstance] = [] ∧
-      Units.verdicts [unitWithInstance, unitWithoutInstance] = [.notReachable 1 2 "functor" (box int)] := by
+      Units.verdicts [unitWithInstance, unitWithoutInstance] = [.notReachable 1 2 "trait" (box int)] := by
   refine ⟨rfl, rfl, rfl⟩
 
 /-- An instance declared after a use gives the lookup a second point of
 instantiation with a different meaning. -/
 theorem late_instance_verdict :
-    Units.verdicts [unitLateInstance] = [.laterInUnit 0 2 "functor" (box int)] := rfl
+    Units.verdicts [unitLateInstance] = [.laterInUnit 0 2 "trait" (box int)] := rfl
 
-/-! ## divergence-separation -/
-
-section separation
-
-variable (pA pB : Program) (tc : String) (f x : CallArg)
-
-/-- The canonical operation object does not separate. In two units whose
-lookups at the key both select an instance, whichever it is, deduction
-produces one specialization, which names the lookup variable. The units
-then give that one function two meanings, which the one-definition rule
-forbids with no diagnostic required ([basic.def.odr]/16: corresponding
-names denote the same entity after matching of partial specialization).
--/
-theorem operation_object_not_separated (hf : f.ty.isType = true) (hx : x.ty.isType = true)
-    (hfF : f.ty.formed = true) (hxF : x.ty.formed = true)
-    (hfr : f.ty.isRef = false) (hxr : x.ty.isRef = false) (hxd : x.ty.dependent = false)
-    (hlA : pA.any (fun | .lookup c => c = tc | _ => false) = true)
-    (hhA : pA.any (fun | .lookupHard c => c = tc | _ => false) = false)
-    (hlB : pB.any (fun | .lookup c => c = tc | _ => false) = true)
-    (hhB : pB.any (fun | .lookupHard c => c = tc | _ => false) = false)
-    (i j : Nat) (hA : pA.selectInstance tc x.ty.stripConst = .selected i)
-    (hB : pB.selectInstance tc x.ty.stripConst = .selected j) :
-    deduceTemplate (Env.ofProgram pA) (fmapObject tc) [] [f, x] =
-      deduceTemplate (Env.ofProgram pB) (fmapObject tc) [] [f, x] := by
-  rw [fmapObject_deduce pA tc f x hf hx hfF hxF hfr hxr hxd hlA hhA,
-    fmapObject_deduce pB tc f x hf hx hfF hxF hfr hxr hxd hlB hhB, hA, hB]
-  rfl
-
-theorem parameterListStep_ok (env : Env) (h : Head) (σ σ' : Bindings)
-    (e : parameterListStep env h σ = .ok σ') : σ' = σ := by
-  simp only [parameterListStep, Subst.bind_eq] at e
-  revert e
-  generalize formAll env _ = r
-  intro e
-  cases r with
-  | ok _ => simp only [Subst.bind_ok, Subst.pure_eq, Subst.ok.injEq] at e; exact e.symm
-  | soft _ => cases e
-  | hard _ => cases e
-
-theorem constraintStep_ok (env : Env) (c : Option Constraint) (σ σ' : Bindings)
-    (e : constraintStep env c σ = .ok σ') : σ' = σ := by
-  cases c with
-  | none => simp only [constraintStep, Subst.ok.injEq] at e; exact e.symm
-  | some c =>
-    simp only [constraintStep, Subst.bind_eq] at e
-    cases hs : Constraint.satisfied env.atomic σ c with
-    | ok b =>
-      rw [hs] at e
-      cases b
-      · cases e
-      · simp only [Subst.bind_ok, ↓reduceIte, Subst.pure_eq, Subst.ok.injEq] at e; exact e.symm
-    | soft _ => rw [hs] at e; cases e
-    | hard _ => rw [hs] at e; cases e
-
-theorem functionTypeStep_args (env : Env) (ft : FunctionTemplate) (σ : Bindings) (s : Specialization)
-    (e : functionTypeStep env ft σ = .ok s) : s.args = σ := by
-  simp only [functionTypeStep, Subst.bind_eq] at e
-  cases hp : formAll env (ft.params.map (Ty.subst σ)) with
-  | ok _ =>
-    rw [hp] at e
-    simp only [Subst.bind_ok] at e
-    cases hr : form env (ft.ret.subst σ) with
-    | ok _ => rw [hr] at e; simp only [Subst.bind_ok, Subst.pure_eq, Subst.ok.injEq] at e; rw [← e]
-    | soft _ => rw [hr] at e; cases e
-    | hard _ => rw [hr] at e; cases e
-  | soft _ => rw [hp] at e; cases e
-  | hard _ => rw [hp] at e; cases e
-
-/-- The by-value policy type the omitted route defaults to: the type of
-the value the unit's lookup gives. -/
-def policyOf (v : Ty) : Ty := if v.dependent then .typeOf v else v.typeOfValue
-
-/-- With the policy omitted, a deduced specialization of the by-value
-route carries as its policy the type of the value the unit's lookup
-gives. -/
-theorem byValue_policy (p : Program) (hx : x.ty.isType = true) (hf : f.ty.isType = true)
-    (hxF : x.ty.formed = true) (hxr : x.ty.isRef = false) (hxd : x.ty.dependent = false)
-    (s : Specialization)
-    (h : deduceTemplate (Env.ofProgram p) (byValueObject tc) [] [f, x] = .ok s) :
-    ∃ v, (Env.ofProgram p).instantiate tc x.ty.stripConst = .ok v ∧ s.args.lookup 2 = some (policyOf v) := by
-  simp only [deduceTemplate] at h
-  rw [byValue_call_omitted _ tc f x hf hx] at h
-  simp only [Subst.bind_eq, Subst.bind_ok] at h
-  rw [byValue_defaults tc f x _ hx hxF hxr hxd] at h
-  cases hv : (Env.ofProgram p).instantiate tc x.ty.stripConst with
-  | ok v =>
-    rw [hv] at h
-    refine ⟨v, rfl, ?_⟩
-    simp only [Subst.bind_ok] at h
-    generalize hσ : ((2, if v.dependent then .typeOf v else v.typeOfValue) :: [(1, forwarded x), (0, forwarded f)] : Bindings) = σ at h
-    cases h₁ : parameterListStep (Env.ofProgram p) (byValueObject tc).head σ with
-    | ok σ₁ =>
-      rw [h₁] at h
-      have e₁ := parameterListStep_ok _ _ _ _ h₁
-      simp only [Subst.bind_ok] at h
-      cases h₂ : constraintStep (Env.ofProgram p) (byValueObject tc).constraint σ₁ with
-      | ok σ₂ =>
-        rw [h₂] at h
-        have e₂ := constraintStep_ok _ _ _ _ h₂
-        simp only [Subst.bind_ok] at h
-        cases h₃ : nonDependentStep (Env.ofProgram p) (byValueObject tc).params [f, x] σ₂ with
-        | ok σ₃ =>
-          rw [h₃] at h
-          have e₃ := nonDependentStep_ok _ _ _ _ _ h₃
-          simp only [Subst.bind_ok] at h
-          rw [functionTypeStep_args _ _ _ _ h, e₃, e₂, e₁, ← hσ]
-          simp [Bindings.lookup, policyOf]
-        | soft _ => rw [h₃] at h; cases h
-        | hard _ => rw [h₃] at h; cases h
-      | soft _ => rw [h₂] at h; cases h
-      | hard _ => rw [h₂] at h; cases h
-    | soft _ => rw [h₁] at h; cases h
-    | hard _ => rw [h₁] at h; cases h
-  | soft _ => rw [hv] at h; cases h
-  | hard _ => rw [hv] at h; cases h
-
-/-- The by-value route separates, as far as instance types do. In two
-units whose lookups at the key give values of different types, the
-deduced specializations differ. -/
-theorem byValue_separated (hx : x.ty.isType = true) (hf : f.ty.isType = true)
-    (hxF : x.ty.formed = true) (hxr : x.ty.isRef = false) (hxd : x.ty.dependent = false)
-    (sA sB : Specialization)
-    (hA : deduceTemplate (Env.ofProgram pA) (byValueObject tc) [] [f, x] = .ok sA)
-    (hB : deduceTemplate (Env.ofProgram pB) (byValueObject tc) [] [f, x] = .ok sB)
-    (hne : ∀ vA vB, (Env.ofProgram pA).instantiate tc x.ty.stripConst = .ok vA →
-      (Env.ofProgram pB).instantiate tc x.ty.stripConst = .ok vB → policyOf vA ≠ policyOf vB) :
-    sA ≠ sB := by
-  obtain ⟨vA, hvA, hpA⟩ := byValue_policy tc f x pA hx hf hxF hxr hxd sA hA
-  obtain ⟨vB, hvB, hpB⟩ := byValue_policy tc f x pB hx hf hxF hxr hxd sB hB
-  intro e
-  subst e
-  rw [hpA] at hpB
-  exact hne vA vB hvA hvB (Option.some.inj hpB)
-
-end separation
 
 /-! ## Stability, per unit -/
 
 /-- A call as the declarations of its unit before it see it: the call is
-at position `pos`, and only what precedes it is reachable. -/
-def callAt (p : Program) (pos : Nat) (r : Ranking Conv) (decls : List Decl) (args : List CallArg) :
-    Resolution Candidate :=
-  resolve .text (Env.ofProgram (p.take pos)) r decls args
+at position `pos`, and only what precedes it is reachable. `envOf` is how
+a program becomes an environment, `Env.ofProgram` or a layer's extension
+of it. -/
+def callAt (envOf : Program → Env) (p : Program) (pos : Nat) (r : Ranking Conv) (decls : List Decl)
+    (args : List CallArg) : Resolution Candidate :=
+  resolve .text (envOf (p.take pos)) r decls args
 
 theorem take_insert_after (p : Program) (j pos : Nat) (inst : Decl) (hj : j ≤ p.length)
     (hpos : pos < j) : (p.take j ++ inst :: p.drop j).take pos = p.take pos := by
@@ -316,9 +185,9 @@ theorem take_insert_after (p : Program) (j pos : Nat) (inst : Decl) (hj : j ≤ 
   rw [List.take_append_of_le_length hl, List.take_take, Nat.min_eq_left (by omega)]
 
 /-- An instance declared after a call leaves the call as it was. -/
-theorem callAt_insert_after (p : Program) (j pos : Nat) (inst : Decl) (r : Ranking Conv)
-    (decls : List Decl) (args : List CallArg) (hj : j ≤ p.length) (hpos : pos < j) :
-    callAt (p.take j ++ inst :: p.drop j) pos r decls args = callAt p pos r decls args := by
+theorem callAt_insert_after (envOf : Program → Env) (p : Program) (j pos : Nat) (inst : Decl)
+    (r : Ranking Conv) (decls : List Decl) (args : List CallArg) (hj : j ≤ p.length) (hpos : pos < j) :
+    callAt envOf (p.take j ++ inst :: p.drop j) pos r decls args = callAt envOf p pos r decls args := by
   unfold callAt
   rw [take_insert_after p j pos inst hj hpos]
 
@@ -334,42 +203,6 @@ theorem take_insert_before (p : Program) (j pos : Nat) (inst : Decl) (hj : j ≤
       show pos + 1 - j = (pos - j) + 1 by omega, List.take_succ_cons]
   · conv => lhs; rw [← List.take_append_drop j p]
     rw [List.take_append, hl, List.take_of_length_le (by omega)]
-
-/-- Stability at the call surface, per unit. An instance declared after
-the call leaves it unchanged. An instance declared before it moves the
-call as `call_stability` says, on the declarations that precede the
-call. The single translation unit assumption is no longer built into
-the environment: a call sees what precedes it, and a later instance its
-use would select is the business of `late_insertion_verdict`. -/
-theorem call_stability_unit (p : Program) (j pos : Nat) (tc : String) (h : Head) (pat : Ty)
-    (r : Ranking Conv) (decls : List Decl) (f x : CallArg) (hpos : pos ≤ p.length)
-    (hf : f.ty.isType = true) (hx : x.ty.isType = true)
-    (hfF : f.ty.formed = true) (hxF : x.ty.formed = true)
-    (hfr : f.ty.isRef = false) (hxr : x.ty.isRef = false) (hxd : x.ty.dependent = false)
-    (hm : .functionTemplate (fmapObject tc) ∈ decls) :
-    let p' := p.take j ++ .instance tc h pat :: p.drop j
-    (pos < j → j ≤ p.length → callAt p' pos r decls [f, x] = callAt p pos r decls [f, x]) ∧
-    (j ≤ pos →
-      (p.take pos).any (fun | .lookup c => c = tc | _ => false) = true →
-      (p.take pos).any (fun | .lookupHard c => c = tc | _ => false) = false →
-      (∀ ft, .functionTemplate ft ∈ decls → ft ≠ fmapObject tc →
-        deduceTemplate (Env.ofProgram (p'.take (pos + 1))) ft [] [f, x] =
-          deduceTemplate (Env.ofProgram (p.take pos)) ft [] [f, x]) →
-      callAt p' (pos + 1) r decls [f, x] = callAt p pos r decls [f, x] ∨
-        (PatternMatches h pat x.ty.stripConst ∧
-          (Program.selectInstance (p'.take (pos + 1)) tc x.ty.stripConst =
-              Resolution.selected (Program.instancesOf (p.take j) tc).length ∨
-            ∃ e, callAt p' (pos + 1) r decls [f, x] = .illFormed e))) := by
-  intro p'
-  refine ⟨fun hlt hj => callAt_insert_after p j pos _ r decls _ hj hlt, ?_⟩
-  intro hj hsoft hhard hothers
-  obtain ⟨e', e⟩ := take_insert_before p j pos (.instance tc h pat) hj hpos
-  unfold callAt
-  simp only [p'] at hothers ⊢
-  rw [e', e] at hothers ⊢
-  rw [e] at hsoft hhard
-  exact call_stability (p.take j) ((p.drop j).take (pos - j)) tc h pat r decls f x hf hx hfF hxF hfr
-    hxr hxd hsoft hhard hm hothers
 
 /-- An instance declared after a use of the lookup leaves what the use
 selects as it was. The program stays free of a verdict at the use when
@@ -398,5 +231,83 @@ theorem late_insertion_verdict (p : Program) (j pos : Nat) (tc c : String) (h : 
     have he' := he
     simp only [before] at he
     exact ⟨by simp [he], he'⟩
+
+
+/-! ## A registry tested by completeness
+
+A registry is a class template declared and never defined, `Registry<V>`.
+An entry is a specialization of it, explicit or partial, and a use tests
+for one by completeness, `requires { Registry<V>{}; }`. In the model a
+registry's specializations are `Decl.instance` declarations and a test is
+a `Decl.use`, so its selection is computed as a lookup's is. Its test
+answers whether that selection finds a specialization. beman.transpose's
+`Monoid` is one (`Overload/Typeclass/Members.lean`). -/
+
+/-- What a completeness test answers, given the specializations it can
+reach: whether one matches. -/
+def completeAt (insts : List (Head × Ty)) (registry : String) (a : Ty) : Bool :=
+  (selection insts registry a).toOption.isSome
+
+/-- Where a verdict is: its unit, the position of the use, the name and the
+argument. -/
+def IllFormedNdr.site : IllFormedNdr → Nat × Nat × String × Ty
+  | .laterInUnit u pos tc a | .notReachable u pos tc a | .satisfactionChanged u pos tc a => (u, pos, tc, a)
+
+/-- The rule a verdict at a registry's use falls under. Where the test's
+answer itself changes, from incomplete to complete, the use is one
+satisfaction result at two points ([temp.constr.atomic]/3). Where only the
+specialization selected changes, it is the rule the lookup's verdict
+already names. -/
+def registryCite (us : Units) (registries : List String) : IllFormedNdr → IllFormedNdr
+  | .laterInUnit u pos tc a =>
+    let p := us.getD u []
+    if tc ∈ registries ∧
+        completeAt (reachable (p.take pos) tc) tc a ≠ completeAt (reachable p tc) tc a then
+      .satisfactionChanged u pos tc a
+    else .laterInUnit u pos tc a
+  | .notReachable u pos tc a =>
+    let p := us.getD u []
+    if tc ∈ registries ∧
+        completeAt (reachable (p.take pos) tc) tc a ≠ completeAt (us.instancesOf tc) tc a then
+      .satisfactionChanged u pos tc a
+    else .notReachable u pos tc a
+  | v => v
+
+/-- The verdicts of a program in which the uses of `registries` are
+completeness tests. -/
+def Units.registryVerdicts (us : Units) (registries : List String) : List IllFormedNdr :=
+  us.verdicts.map (registryCite us registries)
+
+theorem registryCite_site (us : Units) (registries : List String) (v : IllFormedNdr) :
+    (registryCite us registries v).site = v.site := by
+  cases v <;> simp only [registryCite] <;> split <;> rfl
+
+/-- A completeness registry has exactly the verdicts of a lookup: at the
+same uses, of the same name and argument. Only the rule may differ, where
+the test's answer changes. -/
+theorem registry_verdicts (us : Units) (registries : List String) :
+    (us.registryVerdicts registries).map IllFormedNdr.site = us.verdicts.map IllFormedNdr.site := by
+  simp only [Units.registryVerdicts, List.map_map]
+  congr 1
+  funext v
+  exact registryCite_site us registries v
+
+/-- For one unit, every specialization before every test is again exactly
+what keeps the program free of a verdict. -/
+theorem registry_verdicts_single (p : Program) (h : SingleTranslationUnit p) (registries : List String) :
+    Units.registryVerdicts [p] registries = [] := by
+  simp [Units.registryVerdicts, verdicts_single p h]
+
+/-- A registry tested at `std::string`, then specialized for it: the test
+answered incomplete, and with the specialization reachable it answers
+complete. -/
+def registryLate : Program :=
+  [ .use "Registry" (.named "std::string"), .instance "Registry" [] (.named "std::string") ]
+
+theorem registry_late_verdict :
+    Units.registryVerdicts [registryLate] ["Registry"] = [.satisfactionChanged 0 0 "Registry" (.named "std::string")] ∧
+    Units.verdicts [registryLate] = [.laterInUnit 0 0 "Registry" (.named "std::string")] := by
+  decide
+
 
 end Overload

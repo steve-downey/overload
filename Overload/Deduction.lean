@@ -112,7 +112,7 @@ inductive DeduceTy : Ty → Ty → Bindings → Bindings → Prop where
   | lookup (n : String) (p a : Ty) (σ : Bindings) :
       DeduceTy (.lookup n p) a σ σ
   /-- So is a reference constant template argument whose operand
-  references a template parameter, such as `functor<T>`; one whose operand
+  references a template parameter, such as `trait<T>`; one whose operand
   does not is the same object or no match, which the fragment's uses never
   ask, since the instance parameter is always defaulted. -/
   | ref (p a : Ty) (σ : Bindings) :

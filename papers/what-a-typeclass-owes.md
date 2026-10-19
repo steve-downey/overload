@@ -624,28 +624,38 @@ and every result named here is audited to depend on no unproven axiom.
 listed compilers; `differential/known-disagreements.txt` lists each case
 and compiler where an implementation departs from the text.
 
-The main results, by file:
+The sources have two sides. `Overload/` transcribes the Standard and
+proves properties of the rules alone; `Overload/Typeclass/` defines the
+encoding on top of it, and nothing on the Standard side imports it. The
+main results, by file:
 
-- `Overload/Typeclass.lean`: `coherence`, `stability`,
-  `fmapObject_deduce`, `call_stability`, and the explicit-instance routes.
-- `Overload/Separability.lean`: `separability`, `rank_beats_refinement`.
-- `Overload/Inheritance.lean`: `inheritance_erasure`,
-  `derived_class_deduction`, `superclass_identity`.
+- `Overload/Lookup.lean`: `coherence`, `stability`, for any variable
+  template with partial specializations.
+- `Overload/Separability.lean`: `separability`.
+- `Overload/Erasure.lean`: `inheritance_erasure`.
 - `Overload/Access.lean`: `protected_base_selected_ill_formed`,
   `protected_base_deduced_ill_formed`.
-- `Overload/Members.lean`: `fmapObject_member`, `call_stability_arity`,
-  `arity_order_matters`, `registry_verdicts`, `algorithm_transfer`,
-  `algorithm_accurate`, `call_order_matters`.
-- `Overload/Units.lean`: `verdicts_single`,
-  `operation_object_not_separated`, `byValue_separated`,
-  `call_stability_unit`.
+- `Overload/Units.lean`: `verdicts_single`, `late_insertion_verdict`,
+  `registry_verdicts`.
 - `Overload/Mandates.lean`: `mandate_inertness`, `constraint_promotion`,
   `promotion_reorders`.
 - `Overload/Sfinae.lean`: `sfinae_requires`, `sfinae_loses_subsumption`,
   `sfinae_unshielded`.
 - `Overload/Dispatch.lean`: `dispatch_styles`, `dispatch_hard_condition`.
+- `Overload/Conjunction.lean`: `conjunction_answers`,
+  `conjunction_no_hard`.
 - `Overload/Generality.lean` and `Overload/Transitivity.lean`: soundness
   and generality of deduction, and transitivity of partial ordering.
+- `Overload/Typeclass/Encoding.lean`: `fmapObject_deduce`,
+  `call_stability`; `Overload/Typeclass/Routes.lean`: the
+  explicit-instance routes.
+- `Overload/Typeclass/Inheritance.lean`: `rank_beats_refinement`,
+  `derived_class_deduction`, `superclass_identity`.
+- `Overload/Typeclass/Units.lean`: `operation_object_not_separated`,
+  `byValue_separated`, `call_stability_unit`.
+- `Overload/Typeclass/Members.lean`: `fmapObject_member`,
+  `call_stability_arity`, `arity_order_matters`, `algorithm_transfer`,
+  `algorithm_accurate`, `call_order_matters`.
 
 The probes of beman.transpose's own typeclasses, one translation unit
 per call, are in `probes/library/`, with their results at the commit

@@ -77,27 +77,6 @@ private theorem functionTypeStep_enableIf (env : Env) (ft : FunctionTemplate) (c
   | soft _ => rfl
   | hard _ => rfl
 
-theorem nonDependentStep_ok (env : Env) (ps : List Ty) (args : List CallArg) (σ σ' : Bindings)
-    (h : nonDependentStep env ps args σ = .ok σ') : σ' = σ := by
-  simp only [nonDependentStep] at h
-  induction ps generalizing args with
-  | nil => cases args <;> (simp only [nonDependentStep.go, Subst.ok.injEq] at h; exact h.symm)
-  | cons p ps ih =>
-    cases args with
-    | nil => simp only [nonDependentStep.go, Subst.ok.injEq] at h; exact h.symm
-    | cons a as =>
-      simp only [nonDependentStep.go] at h
-      split at h
-      · exact ih as h
-      · cases hc : env.convertible a p with
-        | ok b =>
-          rw [hc] at h
-          cases b
-          · cases h
-          · exact ih as h
-        | soft _ => rw [hc] at h; cases h
-        | hard _ => rw [hc] at h; cases h
-
 /-- Deducing the `enable_if` form is deducing the requires form, up to
 the template and the reason of a failure, provided the condition, the
 convertibility check and the function type never fail hard. -/
@@ -336,8 +315,8 @@ theorem sfinae_loses_subsumption :
 primary fails hard, under the condition `integral_like<T>`. -/
 def shieldProgram (sfinae : Bool) : Program :=
   let base : FunctionTemplate :=
-    { name := "f", head := [{ kind := .type }], params := [T, .typeOf (.lookup "functor" T)] }
-  [ .class "X", .lookupHard "functor", .concept "integral_like" "std::is_integral_v<T>"
+    { name := "f", head := [{ kind := .type }], params := [T, .typeOf (.lookup "trait" T)] }
+  [ .class "X", .lookupHard "trait", .concept "integral_like" "std::is_integral_v<T>"
   , .functionTemplate (if sfinae then enableIfForm base "integral_like" [T]
       else requiresForm base "integral_like" [T]) ]
 

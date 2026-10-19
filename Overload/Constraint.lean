@@ -63,6 +63,18 @@ theorem satisfied_atomic_soft (oracle : Oracle) (σ : Bindings) (e : String) (m 
     satisfied oracle σ (atomic e m) = .ok false := by
   simp [satisfied, h]
 
+/-- How satisfaction reads an atomic constraint's answer: an invalid
+expression is not satisfied, and anything else stands. -/
+def atomicAnswer : Subst Bool → Subst Bool
+  | .ok b => .ok b
+  | .soft _ => .ok false
+  | .hard r => .hard r
+
+theorem satisfied_atomic (oracle : Oracle) (σ : Bindings) (e : String) (m : List Ty) :
+    satisfied oracle σ (atomic e m) = atomicAnswer (oracle e (m.map (Ty.subst σ))) := by
+  simp only [satisfied]
+  cases oracle e (m.map (Ty.subst σ)) <;> rfl
+
 /-! ## Subsumption -/
 
 /-- An atomic constraint, as a clause element: the expression and the

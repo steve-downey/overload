@@ -303,4 +303,170 @@ theorem deduceTemplate_hard_iff (env : Env) (ft : FunctionTemplate) (explicit : 
   | soft _ => simp
   | hard _ => simp
 
+/-! ## Lemmas about the steps
+
+What the steps do on the shapes a call presents, and what an `ok` outcome
+of a step says about its bindings. These serve the theorems about
+particular templates, on both sides of the model. -/
+
+/-- A type that forming leaves as it is: no reference, pointer or
+`const` applied to a reference, and none of the constructs forming
+computes or instantiates. -/
+def Ty.formed : Ty → Bool
+  | .named _ | .nil | .value _ | .param _ => true
+  | .const t | .ptr t | .lref t | .rref t => t.formed && !t.isRef
+  | .spec _ as => as.formed
+  | .cons a as => a.formed && as.formed
+  | _ => false
+
+theorem form_formed (env : Env) (t : Ty) (h : t.formed = true) : form env t = .ok t := by
+  induction t with
+  | named _ | nil | value _ | param _ => rfl
+  | const t ih =>
+    simp only [Ty.formed, Bool.and_eq_true, Bool.not_eq_true'] at h
+    simp [form, ih h.1, formConst, h.2]
+  | ptr t ih =>
+    simp only [Ty.formed, Bool.and_eq_true, Bool.not_eq_true'] at h
+    simp [form, ih h.1, formPtr, h.2]
+  | lref t ih | rref t ih =>
+    simp only [Ty.formed, Bool.and_eq_true, Bool.not_eq_true'] at h
+    simp only [form, ih h.1, Subst.bind_eq, Subst.bind_ok, Subst.pure_eq]
+    cases t <;> simp_all [Ty.collapse, Ty.isRef]
+  | spec c as ih =>
+    simp only [Ty.formed] at h
+    simp [form, ih h]
+  | cons a as iha ihas =>
+    simp only [Ty.formed, Bool.and_eq_true] at h
+    simp [form, iha h.1, ihas h.2]
+  | _ => simp [Ty.formed] at h
+
+theorem formed_stripConst (t : Ty) (h : t.formed = true) : t.stripConst.formed = true := by
+  cases t <;> simp_all [Ty.stripConst, Ty.formed]
+
+theorem dependent_stripConst (t : Ty) : t.stripConst.dependent = t.dependent := by
+  cases t <;> rfl
+
+/-- The type a forwarding reference deduces from an argument: the
+argument's type, as an lvalue reference for an lvalue. -/
+def forwarded (a : CallArg) : Ty := if a.lvalue then .lref a.ty else a.ty
+
+theorem forwarded_formed (a : CallArg) (h : a.ty.formed = true) (hr : a.ty.isRef = false) :
+    (forwarded a).formed = true := by
+  unfold forwarded
+  split <;> simp [Ty.formed, h, hr]
+
+theorem forwarded_key (a : CallArg) (hr : a.ty.isRef = false) :
+    (forwarded a).referred.stripConst = a.ty.stripConst := by
+  unfold forwarded
+  split
+  · rfl
+  · cases h : a.ty <;> simp_all [Ty.referred, Ty.isRef]
+
+theorem forwarded_dependent (a : CallArg) : (forwarded a).dependent = a.ty.dependent := by
+  unfold forwarded
+  split <;> rfl
+
+theorem forwarded_isType (a : CallArg) (h : a.ty.isType = true) : (forwarded a).isType = true := by
+  unfold forwarded
+  split
+  · rfl
+  · exact h
+
+theorem collapse_rref_forwarded_formed (a : CallArg) (h : a.ty.formed = true)
+    (hr : a.ty.isRef = false) : (Ty.collapse (.rref (forwarded a))).formed = true := by
+  unfold forwarded
+  split
+  · simp [Ty.collapse, Ty.formed, h, hr]
+  · cases ha : a.ty <;> simp_all [Ty.collapse, Ty.formed, Ty.isRef]
+
+/-- A parameter bound to a type is replaced by it. -/
+theorem subst_param_type (σ : Bindings) (i : ParamIdx) (t : Ty) (hl : σ.lookup i = some t)
+    (ht : t.isType = true) : Ty.subst σ (.param i) = t := by
+  simp only [Ty.subst, hl]
+  split <;> simp_all [Ty.isType]
+
+/-- More arguments than parameters: deduction fails at the call, whatever
+the environment. -/
+theorem deduceCall_too_many (b : Bases) :
+    ∀ (ps : List Ty) (as : List CallArg) (σ : Bindings), ps.length < as.length → deduceCall b ps as σ = none
+  | [], _ :: _, _, _ => rfl
+  | p :: ps, a :: as, σ, h => by
+    simp only [deduceCall]
+    cases deduceParam b p a σ with
+    | none => rfl
+    | some σ' => exact deduceCall_too_many b ps as σ' (by simpa using h)
+
+theorem deduceTemplate_too_many (env : Env) (ft : FunctionTemplate) (args : List CallArg)
+    (h : ft.params.length < args.length) :
+    deduceTemplate env ft [] args = .soft "template argument deduction failed" := by
+  simp only [deduceTemplate, explicitStep, explicitStep.go, Subst.bind_eq, Subst.bind_ok, callStep]
+  rw [deduceCall_too_many _ _ _ _ (by simpa using h)]
+  rfl
+
+/-- The template parameter list step keeps the bindings. -/
+theorem parameterListStep_ok (env : Env) (h : Head) (σ σ' : Bindings)
+    (e : parameterListStep env h σ = .ok σ') : σ' = σ := by
+  simp only [parameterListStep, Subst.bind_eq] at e
+  revert e
+  generalize formAll env _ = r
+  intro e
+  cases r with
+  | ok _ => simp only [Subst.bind_ok, Subst.pure_eq, Subst.ok.injEq] at e; exact e.symm
+  | soft _ => cases e
+  | hard _ => cases e
+
+/-- The constraint step keeps the bindings. -/
+theorem constraintStep_ok (env : Env) (c : Option Constraint) (σ σ' : Bindings)
+    (e : constraintStep env c σ = .ok σ') : σ' = σ := by
+  cases c with
+  | none => simp only [constraintStep, Subst.ok.injEq] at e; exact e.symm
+  | some c =>
+    simp only [constraintStep, Subst.bind_eq] at e
+    cases hs : Constraint.satisfied env.atomic σ c with
+    | ok b =>
+      rw [hs] at e
+      cases b
+      · cases e
+      · simp only [Subst.bind_ok, ↓reduceIte, Subst.pure_eq, Subst.ok.injEq] at e; exact e.symm
+    | soft _ => rw [hs] at e; cases e
+    | hard _ => rw [hs] at e; cases e
+
+/-- The non-dependent step keeps the bindings. -/
+theorem nonDependentStep_ok (env : Env) (ps : List Ty) (args : List CallArg) (σ σ' : Bindings)
+    (h : nonDependentStep env ps args σ = .ok σ') : σ' = σ := by
+  simp only [nonDependentStep] at h
+  induction ps generalizing args with
+  | nil => cases args <;> (simp only [nonDependentStep.go, Subst.ok.injEq] at h; exact h.symm)
+  | cons p ps ih =>
+    cases args with
+    | nil => simp only [nonDependentStep.go, Subst.ok.injEq] at h; exact h.symm
+    | cons a as =>
+      simp only [nonDependentStep.go] at h
+      split at h
+      · exact ih as h
+      · cases hc : env.convertible a p with
+        | ok b =>
+          rw [hc] at h
+          cases b
+          · cases h
+          · exact ih as h
+        | soft _ => rw [hc] at h; cases h
+        | hard _ => rw [hc] at h; cases h
+
+/-- The specialization the function type step forms carries the bindings
+as its template arguments. -/
+theorem functionTypeStep_args (env : Env) (ft : FunctionTemplate) (σ : Bindings) (s : Specialization)
+    (e : functionTypeStep env ft σ = .ok s) : s.args = σ := by
+  simp only [functionTypeStep, Subst.bind_eq] at e
+  cases hp : formAll env (ft.params.map (Ty.subst σ)) with
+  | ok _ =>
+    rw [hp] at e
+    simp only [Subst.bind_ok] at e
+    cases hr : form env (ft.ret.subst σ) with
+    | ok _ => rw [hr] at e; simp only [Subst.bind_ok, Subst.pure_eq, Subst.ok.injEq] at e; rw [← e]
+    | soft _ => rw [hr] at e; cases e
+    | hard _ => rw [hr] at e; cases e
+  | soft _ => rw [hp] at e; cases e
+  | hard _ => rw [hp] at e; cases e
+
 end Overload

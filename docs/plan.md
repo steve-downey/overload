@@ -325,7 +325,7 @@ Status, 15 October 2026:
   [temp.spec.partial.general]/1 and [basic.def.odr]/16. Exact-type use and
   superclass coherence are undiagnosable too, but their programs are
   well-formed, so there is no rule to tie them to (`obligations.md`).
-- Phase 6 is open with canonical lookup. `Overload/Typeclass.lean` has
+- Phase 6 is open with canonical lookup. `Overload/Lookup.lean` has
   lookup over a program's instances (`Program.selectInstance`), with
   selection given as a relation as well (`Selects`, agreement theorem
   `select_iff`). Coherence and stability are proved and audited. Lookup
@@ -370,7 +370,7 @@ Status, 15 October 2026:
   the argument route cannot keep a default (`findings.md`). The
   obligations harvested so far are in `obligations.md`, with where each
   prediction held. Inheritance erasure is proved in
-  `Overload/Inheritance.lean` (`inheritance_erasure`). Erasing the base
+  `Overload/Erasure.lean` (`inheritance_erasure`). Erasing the base
   classes of a set of instance types changes no call that uses every
   class erasure touches at its exact type. Outside that fragment it does
   change outcomes (`erasure_needs_exact_type`). Superclass coherence
@@ -387,7 +387,7 @@ Status, 15 October 2026:
 - The library audit, 18 October 2026, came after phase 8. Probing
   beman.transpose's own typeclasses (`probes/library/`, `probes.md`)
   found the member call through an instance, which the model took as
-  accurate, inaccurate in every typeclass. `Overload/Members.lean` makes
+  accurate, inaccurate in every typeclass. `Overload/Typeclass/Members.lean` makes
   that answer a parameter. Whatever it is, the operation object passes it
   on unchanged (`fmapObject_member`, `member_transfer`), and the
   program's environment is the accurate case (`ofProgram_member`). Two
@@ -688,7 +688,7 @@ one there.
 ### Work
 
 1. Done: the probes, `probes.md`, this section and a findings entry.
-2. Done. Lean, `Overload/Members.lean`: `algorithm_transfer`, with
+2. Done. Lean, `Overload/Typeclass/Members.lean`: `algorithm_transfer`, with
    `algorithm_accurate` and `call_order_matters`. An algorithm
    object whose body makes several member calls is viable, not viable or
    ill-formed as the conjunction of those calls is. It is accurate when

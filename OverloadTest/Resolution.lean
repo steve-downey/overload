@@ -17,16 +17,16 @@ private def hazard (constrained : Bool) : FunctionTemplate :=
   { name := "f"
     head :=
       [ typeParam
-      , { kind := .const (.lref (.const (.named "auto"))), default := some (.lookup "functor" T) } ]
+      , { kind := .const (.lref (.const (.named "auto"))), default := some (.lookup "trait" T) } ]
     params := [T, int]
-    constraint := if constrained then some (.atomic "has_instance" [.named "functor", T]) else none }
+    constraint := if constrained then some (.atomic "has_instance" [.named "trait", T]) else none }
 
 private def hardProgram : Program :=
-  [.class "X", .lookupHard "functor", .functionTemplate (hazard false), .function "f" [X, int]]
+  [.class "X", .lookupHard "trait", .functionTemplate (hazard false), .function "f" [X, int]]
 private def softProgram : Program :=
-  [.class "X", .lookup "functor", .functionTemplate (hazard true), .function "f" [X, int]]
+  [.class "X", .lookup "trait", .functionTemplate (hazard true), .function "f" [X, int]]
 private def withInstance : Program :=
-  [ .class "X", .lookupHard "functor", .instance "functor" [] X
+  [ .class "X", .lookupHard "trait", .instance "trait" [] X
   , .functionTemplate (hazard false), .function "f" [X, int] ]
 
 private def run (mode : Mode) (p : Program) (args : List CallArg) : Resolution Nat :=
