@@ -7,7 +7,7 @@ holds on a call that takes instances at their deduced type, and fails on
 one that names a base instance type, where erasure changes the
 outcome. -/
 
-open Overload
+open Overload Overload.Typeclass
 
 /-- `ExactPair`, as a Boolean. -/
 private def exactPair (p : Program) (I : List String) (a : CallArg) (t : Ty) : Bool :=

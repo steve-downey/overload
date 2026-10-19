@@ -122,7 +122,7 @@ theorem dispatch_styles (b₀ b₁ b₂ : Bool) :
   cases b₀ <;> cases b₁ <;> cases b₂ <;> exact ⟨rfl, rfl, by first | rfl | exact ⟨_, rfl⟩⟩
 
 /-- The last condition names a lookup whose primary fails hard. -/
-def hardLast : Constraint := .atomic "lookup_formed" [.named "functor", T]
+def hardLast : Constraint := .atomic "lookup_formed" [.named "trait", T]
 
 /-- With the first condition holding and the last failing hard when
 checked: exclusion and if-constexpr never check the last and select the
@@ -130,8 +130,8 @@ first; priority tags check every overload's condition and make the call
 ill-formed. -/
 theorem dispatch_hard_condition :
     let bs := [true, false, false]
-    let ex := .lookupHard "functor" :: exclusionProgram bs hardLast
-    let tg := .lookupHard "functor" :: tagsProgram bs hardLast
+    let ex := .lookupHard "trait" :: exclusionProgram bs hardLast
+    let tg := .lookupHard "trait" :: tagsProgram bs hardLast
     exclusionCall ex (condAtomics bs) = .selected 0 ∧
       ifConstexprBranch ex (condAtomics bs) [cond 0, cond 1, hardLast] = .ok 0 ∧
       ∃ e, tagsCall tg (condAtomics bs) = .illFormed e :=

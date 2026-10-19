@@ -121,13 +121,13 @@ private def hazard (constrained : Bool) : FunctionTemplate :=
   { name := "f"
     head :=
       [ typeParam
-      , { kind := .const (.lref (.const (.named "auto"))), default := some (.lookup "functor" T) } ]
+      , { kind := .const (.lref (.const (.named "auto"))), default := some (.lookup "trait" T) } ]
     params := [T, int]
-    constraint := if constrained then some (.atomic "has_instance" [.named "functor", T]) else none }
+    constraint := if constrained then some (.atomic "has_instance" [.named "trait", T]) else none }
 
-private def hardProgram : Program := [.class "X", .lookupHard "functor"]
-private def softProgram : Program := [.class "X", .lookup "functor"]
-private def withInstance : Program := [.class "X", .lookupHard "functor", .instance "functor" [] (.named "X")]
+private def hardProgram : Program := [.class "X", .lookupHard "trait"]
+private def softProgram : Program := [.class "X", .lookup "trait"]
+private def withInstance : Program := [.class "X", .lookupHard "trait", .instance "trait" [] (.named "X")]
 private def callX : List CallArg := [{ ty := .named "X" }, { ty := int }]
 
 -- The hard design: the default's lookup fails hard, and that is the outcome.
@@ -152,5 +152,5 @@ private def callX : List CallArg := [{ ty := .named "X" }, { ty := int }]
 #guard form plain (.ptr (.lref int)) == .soft "pointer to reference"
 #guard form plain (.const (.lref int)) == .ok (.lref int)
 #guard form plain (.lref (.rref int)) == .ok (.lref int)
-#guard form plain (.lookup "functor" T) == .ok (.lookup "functor" T)
+#guard form plain (.lookup "trait" T) == .ok (.lookup "trait" T)
 #guard form plain (.spec' "box" [.ptr (.lref int)]) == .soft "pointer to reference"

@@ -7,7 +7,9 @@ overload resolution. The typeclass encoding of
 [beman.typeclass](https://github.com/bemanproject/typeclass) is defined on
 top of the model, and its properties are proved about that definition.
 The plan is in [`docs/plan.md`](docs/plan.md); it is the charter for the
-work and the phases are tracked there.
+work and the phases are tracked there. [`docs/guide.md`](docs/guide.md) is
+the map of the model: what is where, and what each theorem says in C++
+terms.
 
 Every rule in the model cites the sentence of the Standard it transcribes,
 as a checked attribute:
@@ -34,9 +36,12 @@ compilers or the plan are in [`docs/findings.md`](docs/findings.md).
 ## Layout
 
 ```txt
-Overload/            the model: Std (citation attribute), Syntax, Outcome,
-                     Deduction, Program, Emit (C++ emitter), Lint
-Overload.lean        imports everything and runs the citation lint and audits
+Overload/            the Standard side: Std (citation attribute), Syntax,
+                     Outcome, Deduction, Constraint, Steps, Ordering, Lookup,
+                     Resolution, Ranking, Units, ..., Emit (C++ emitter), Lint
+Overload/Typeclass/  the typeclass encoding, defined on top of the Standard
+                     side; nothing above imports it (`#check_layering`)
+Overload.lean        imports everything and runs the lints and audits
 OverloadTest/        #guard tests, run by `lake test`
 Tools/               lake exe citations (the index), lake exe emit (the C++)
 src/smd/overload/    the typeclass encoding under study, as C++, with tests

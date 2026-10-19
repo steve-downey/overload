@@ -466,7 +466,7 @@ repository's `include/beman/transpose/`):
 - 2026-10-16 — Decided. The model gains `Ty.ref`, a reference constant
   template argument whose identity is the designated object, and
   `Ty.removeCvref`. The operation object is emitted and computed as four
-  call cases (`op_object_*` in `Overload/Emit.lean`).
+  call cases (`op_object_*` in `Overload/Typeclass/Emit.lean`).
 - 2026-10-17 — The two user-side routes are modelled. Pinning is
   `pinTemplate`, after `fmap_plus_one` in the library's
   `examples/transpose/lookup_modes_example.cpp`, with an instance object
@@ -477,7 +477,7 @@ repository's `include/beman/transpose/`):
   cases (`pin_*`, `by_value_*`). The plan's three routes remain.
 - 2026-10-17 — The plan's three routes are modelled as an alternative
   design: `valueRoute`, `typeRoute` and `argumentRoute` in
-  `Overload/Typeclass.lean`, beside the canonical object in one overload
+  `Overload/Typeclass/Routes.lean`, beside the canonical object in one overload
   set, as eight emitted call cases (`routes_*`). Call cases gain explicit
   template arguments. Non-template functions in a call with explicit
   template arguments are out of the fragment; no case has one.

@@ -1,17 +1,16 @@
 -- Overload/Separability.lean                                         -*-lean-*-
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-import Overload.Typeclass
+import Overload.Environment
 
 /-!
 # Separability: what the conversion ranking cannot reach
 
-The plan's separability theorem: the instance selected is invariant under
-the choice of conversion ranking. The model makes it a statement about
+What a call selects, down to the template arguments of the selected
+specialization, is invariant under the choice of conversion ranking. The model makes it a statement about
 any two rankings, of any conversion types. If both select a candidate at
 the same position, they select the same candidate, specialization and
-all (`separability`). A specialization's template arguments are where an
-instance enters a function's identity, so the ranking chooses among
-candidates and never changes what a candidate is.
+all (`separability`). Whatever a template argument carries, the ranking
+chooses among candidates and never changes what a candidate is.
 
 One lemma per suspect of the plan:
 
@@ -229,8 +228,8 @@ theorem pairwise_index_eq {cs : List Candidate}
 
 /-- Separability: two rankings, of any conversion types, that both select
 a candidate at the same position select the same candidate, with the same
-specialization and so the same template arguments, instances included.
-The ranking chooses among candidates; it never changes one. -/
+specialization and so the same template arguments. The ranking chooses
+among candidates; it never changes one. -/
 theorem separability (mode : Mode) (env : Env) (r₁ : Ranking C₁) (r₂ : Ranking C₂)
     (decls : List Decl) (args : List CallArg) (explicit : List Ty) (c₁ c₂ : Candidate)
     (h₁ : resolve mode env r₁ decls args explicit = .selected c₁)
@@ -243,8 +242,8 @@ theorem separability (mode : Mode) (env : Env) (r₁ : Ranking C₁) (r₂ : Ran
   exact pairwise_index_eq (generate_go_sorted env args explicit _ decls 0 cs hcs).2 c₁ hm₁ c₂ hm₂ hi
 
 /-- The step-order suspect: a hard error while generating the candidates,
-such as a lookup failing outside the immediate context in a default
-template argument, is the outcome under every ranking. No ranking rescues
+such as a variable template failing to instantiate in a default template
+argument, is the outcome under every ranking. No ranking rescues
 the call. -/
 theorem separability_step_order (mode : Mode) (env : Env) (decls : List Decl)
     (args : List CallArg) (explicit : List Ty) (e : Reason)
@@ -253,9 +252,8 @@ theorem separability_step_order (mode : Mode) (env : Env) (decls : List Decl)
   simp [resolve, h]
 
 /-- The argument-identity suspect: the specialization of a selected
-template candidate, whose template arguments are where an instance
-enters the function's identity, is what deduction produced for its
-template. Deduction does not consult the ranking. -/
+template candidate, and so its template arguments, is what deduction
+produced for its template. Deduction does not consult the ranking. -/
 theorem separability_argument_identity (mode : Mode) (env : Env) (r : Ranking Conv)
     (decls : List Decl) (args : List CallArg) (explicit : List Ty) (c : Candidate)
     (sp : Specialization) (h : resolve mode env r decls args explicit = .selected c)
@@ -327,29 +325,6 @@ theorem ranking_live :
         (derivedChain.candidates "f") [{ ty := .named "C" }]).map (·.index) = .selected 1 ∧
       (resolve .text (Env.ofProgram derivedChain) identityRanking
         (derivedChain.candidates "f") [{ ty := .named "C" }]).map (·.index) = .noMatch := by
-  constructor <;> rfl
-
-/-! ## Inheritance leak 1: rank beats the preference for a refinement -/
-
-/-- An Applicative instance type derived from a Functor one, a Monad
-instance type derived from that, a generic `use(const T&)` and one that
-names the Applicative instance type concretely. -/
-def rankLeak : Program :=
-  [ .class "functor_i", .class "applicative_i" [.named "functor_i"], .class "monad_i" [.named "applicative_i"]
-  , .functionTemplate { name := "use", head := [{ kind := .type }], params := [.lref (.const (.param 0))] }
-  , .function "use" [.lref (.const (.named "applicative_i"))] ]
-
-/-- Leak 1 of the plan's instance inheritance: at the Applicative instance
-type, the non-template overload naming it wins the tie; at the Monad
-instance type derived from it, the generic template wins, because an
-exact match beats a derived-to-base conversion before the non-template
-preference is consulted. Deriving one instance type from another moves
-the call to the less refined overload. -/
-theorem rank_beats_refinement :
-    (resolve .text (Env.ofProgram rankLeak) rankLeak.ranking (rankLeak.candidates "use")
-        [{ ty := .named "applicative_i", lvalue := true }]).map (·.index) = .selected 1 ∧
-      (resolve .text (Env.ofProgram rankLeak) rankLeak.ranking (rankLeak.candidates "use")
-        [{ ty := .named "monad_i", lvalue := true }]).map (·.index) = .selected 0 := by
   constructor <;> rfl
 
 end Overload

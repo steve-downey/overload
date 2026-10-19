@@ -1,31 +1,31 @@
--- Overload/Inheritance.lean                                          -*-lean-*-
+-- Overload/Erasure.lean                                              -*-lean-*-
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-import Overload.Separability
+import Overload.Environment
+import Overload.Resolution
 
 /-!
-# Inheritance between instance types
+# Erasing derivation
 
-The plan's instance-inheritance question: may instance types for related
-typeclasses be related by inheritance? Inheritance erasure is the
-positive result. Erasing the base classes of a set of instance types `I`,
-which is replacing derivation with composition plus retrieval, changes no
-call that uses every class it touches at its exact type
-(`inheritance_erasure`). Outside that fragment erasure changes outcomes
-(`erasure_needs_exact_type`), and leaks 1 and 2 are the ways it does
-(`rank_beats_refinement`, `derived_class_deduction`).
+Replacing derivation between classes by composition is inert for a call
+that uses the classes concerned at their exact type. Erasing the base
+classes of a set of classes `I` changes no call in which every conversion
+the call can form, between an argument and a parameter, has the same class
+on both sides whenever either side is a class the erasure touches
+(`inheritance_erasure`). The classes erasure touches are the ones in `I`
+and the ones derived from one of them (`Program.touched`). Derivation from
+any other class is the same before and after (`derivesWithin_erase`), and
+so are lookup and the constraints (`selectInstance_erase`,
+`atomic_erase`).
 
-The classes erasure touches are the ones in `I` and the ones derived from
-one of them (`Program.touched`). Derivation from any other class is the
-same before and after (`derivesWithin_erase`). A call uses the touched
-classes at their exact type when every conversion it forms, between an
-argument and a parameter, has the same class on both sides if either side
-is touched (`ExactPair`).
-
-Deduction from a derived class ([temp.deduct.call]/4) is the other way
-erasure can change an outcome, leak 2 (`derived_class_deduction`), so
+The hypothesis is about the conversions, not the signatures, because a
+template parameter deduced from one argument can meet another argument of
+a derived type (`ExactPair`). Deduction from a derived class
+([temp.deduct.call]/4) is the other way erasure can change an outcome, so
 the theorem asks that no argument of a touched class be deduced from that
-way (`NoDerivedDeduction`). Access to a protected base, which
-`derive_functor` uses, is not modelled.
+way (`NoDerivedDeduction`). The question that asked for this theorem,
+whether instance types of a typeclass encoding may inherit from one
+another, and the counterexamples outside the fragment, are in
+`Overload/Typeclass/Inheritance.lean`.
 -/
 
 namespace Overload
@@ -341,14 +341,16 @@ theorem any_erase (p : Program) (I : List String) (f : Decl → Bool)
   | «class» n bs ps => exact hf n _ _ bs ps
   | _ => rfl
 
-theorem instantiate_erase (p : Program) (I : List String) (atomics : List (String × List Ty × Bool)) :
-    (Env.ofProgram (p.eraseBases I) atomics).instantiate = (Env.ofProgram p atomics).instantiate := by
+theorem instantiate_erase (p : Program) (I : List String) (atomics : List (String × List Ty × Bool))
+    (extra : Constraint.Oracle) :
+    (Env.ofProgram (p.eraseBases I) atomics extra).instantiate = (Env.ofProgram p atomics extra).instantiate := by
   funext n a
   simp only [Env.ofProgram, selectInstance_erase]
   rw [any_erase p I _ (fun _ _ _ _ _ => rfl), any_erase p I _ (fun _ _ _ _ _ => rfl)]
 
-theorem atomic_erase (p : Program) (I : List String) (atomics : List (String × List Ty × Bool)) :
-    (Env.ofProgram (p.eraseBases I) atomics).atomic = (Env.ofProgram p atomics).atomic := by
+theorem atomic_erase (p : Program) (I : List String) (atomics : List (String × List Ty × Bool))
+    (extra : Constraint.Oracle) :
+    (Env.ofProgram (p.eraseBases I) atomics extra).atomic = (Env.ofProgram p atomics extra).atomic := by
   funext e args
   simp only [Env.ofProgram, selectInstance_erase]
   split <;> try rfl
@@ -658,7 +660,7 @@ theorem bestViable_congr (r₁ : Ranking C₁) (r₂ : Ranking C₁)
   unfold bestViable
   simp only [hf]
 
-/-- Inheritance erasure: erasing the base classes of the instance types in
+/-- Inheritance erasure: erasing the base classes of the classes in
 `I`, which replaces derivation by composition, changes no call that uses
 every class erasure touches at its exact type. The hypotheses ask it of
 each conversion the call can form, at the non-dependent parameters that
@@ -666,27 +668,27 @@ deduction checks and at every parameter of every candidate, and of
 deduction: no argument of a touched class is deduced from as a derived
 class. -/
 theorem inheritance_erasure (mode : Mode) (p : Program) (I : List String)
-    (atomics : List (String × List Ty × Bool)) (decls : List Decl) (args : List CallArg)
-    (explicit : List Ty)
+    (atomics : List (String × List Ty × Bool)) (extra : Constraint.Oracle) (decls : List Decl)
+    (args : List CallArg) (explicit : List Ty)
     (hderived : ∀ ft, .functionTemplate ft ∈ decls → NoDerivedDeduction p I ft args)
     (hdeduce : ∀ ft, .functionTemplate ft ∈ decls → ∀ x ∈ args.zip ft.params,
       x.2.dependent = false → ExactPair p I x.1 x.2)
-    (huse : ∀ cs, generate mode (Env.ofProgram p atomics) decls args explicit = .ok cs →
+    (huse : ∀ cs, generate mode (Env.ofProgram p atomics extra) decls args explicit = .ok cs →
       ∀ c ∈ cs, ∀ x ∈ args.zip c.params, ExactPair p I x.1 x.2) :
-    resolve mode (Env.ofProgram (p.eraseBases I) atomics) (p.eraseBases I).ranking decls args explicit =
-      resolve mode (Env.ofProgram p atomics) p.ranking decls args explicit := by
-  have hgen : generate mode (Env.ofProgram (p.eraseBases I) atomics) decls args explicit =
-      generate mode (Env.ofProgram p atomics) decls args explicit := by
+    resolve mode (Env.ofProgram (p.eraseBases I) atomics extra) (p.eraseBases I).ranking decls args explicit =
+      resolve mode (Env.ofProgram p atomics extra) p.ranking decls args explicit := by
+  have hgen : generate mode (Env.ofProgram (p.eraseBases I) atomics extra) decls args explicit =
+      generate mode (Env.ofProgram p atomics extra) decls args explicit := by
     simp only [generate]
     refine generate_go_congr _ _ args explicit _ decls (fun ft hm => ?_) 0
-    refine deduceTemplate_congr (instantiate_erase p I atomics) (atomic_erase p I atomics) ft
+    refine deduceTemplate_congr (instantiate_erase p I atomics extra) (atomic_erase p I atomics extra) ft
       explicit args (fun c hc => ?_) (fun σ x hx hd hsp => ?_) (fun x hx hd => ?_)
     · simp only [Env.ofProgram, allBases_spec _ c hc]
     · simp only [Env.ofProgram, allBases_erase p I _ (hderived ft hm σ x hx hd hsp)]
     · simp only [Env.ofProgram, ics_erase p I x.1 x.2 (hdeduce ft hm x hx hd)]
   unfold resolve
   rw [hgen]
-  cases hg : generate mode (Env.ofProgram p atomics) decls args explicit with
+  cases hg : generate mode (Env.ofProgram p atomics extra) decls args explicit with
   | ok cs =>
     have hcs := huse cs hg
     simp only [viable, viable_erase p I args cs hcs]
@@ -701,69 +703,5 @@ theorem inheritance_erasure (mode : Mode) (p : Program) (I : List String)
   | soft _ => rfl
   | hard _ => rfl
 
-/-! ## Outside exact-type use, erasure changes the outcome -/
-
-/-- An Applicative instance type derived from a Functor one, and a
-function that names the Functor instance type. -/
-def namedBase : Program :=
-  [ .class "functor_i", .class "applicative_i" [.named "functor_i"]
-  , .function "use" [.lref (.const (.named "functor_i"))] ]
-
-/-- Erasure needs exact-type use: a function naming the base instance type
-accepts the derived one by a derived-to-base conversion, and after
-erasure it accepts nothing. The conversion is not at exact type, so
-`inheritance_erasure` does not apply. -/
-theorem erasure_needs_exact_type :
-    (resolve .text (Env.ofProgram namedBase) namedBase.ranking (namedBase.candidates "use")
-        [{ ty := .named "applicative_i", lvalue := true }]).map (·.index) = .selected 0 ∧
-      (resolve .text (Env.ofProgram (namedBase.eraseBases ["applicative_i"]))
-        (namedBase.eraseBases ["applicative_i"]).ranking
-        ((namedBase.eraseBases ["applicative_i"]).candidates "use")
-        [{ ty := .named "applicative_i", lvalue := true }]).map (·.index) = .noMatch := by
-  constructor <;> rfl
-
-/-! ## Inheritance leak 2: deduction from a derived class -/
-
-/-- A Monad instance type derived from a Functor instance type
-`derive_functor<opt_impl>`, and a function of Functor shape. -/
-def derivedShape : Program :=
-  [ .classTemplate "derive_functor" [{ kind := .type }], .class "opt_impl"
-  , .class "opt_monad_map" [.spec' "derive_functor" [.named "opt_impl"]]
-  , .functionTemplate
-      { name := "use", head := [{ kind := .type }]
-        params := [.lref (.const (.spec' "derive_functor" [.param 0]))] } ]
-
-/-- Leak 2 of the plan's instance inheritance: a parameter of the form
-`derive_functor<I>` deduces `I` from a class derived from it, so the
-Monad instance type silently matches the Functor-shaped signature. With
-the derivation replaced by composition it does not match. The deduction
-is from a derived class, so `inheritance_erasure` does not apply. -/
-theorem derived_class_deduction :
-    (resolve .text (Env.ofProgram derivedShape) derivedShape.ranking
-        (derivedShape.candidates "use") [{ ty := .named "opt_monad_map", lvalue := true }]).map
-        (·.index) = .selected 0 ∧
-      (resolve .text (Env.ofProgram (derivedShape.eraseBases ["opt_monad_map"]))
-        (derivedShape.eraseBases ["opt_monad_map"]).ranking
-        ((derivedShape.eraseBases ["opt_monad_map"]).candidates "use")
-        [{ ty := .named "opt_monad_map", lvalue := true }]).map (·.index) = .noMatch := by
-  constructor <;> rfl
-
-/-! ## Superclass coherence is a law, not an identity -/
-
-/-- A Functor retrieved from a stronger instance, `derive_functor<M>`, is
-a different object from the canonical Functor instance, so pinning one
-or the other gives different specializations of the same template. The
-two can agree only in behaviour, which the language does not check:
-superclass coherence is an obligation on instance authors. -/
-theorem superclass_identity (env : Env) (tc name canonical derived : String) (c : Ty)
-    (x : CallArg) (hc : c.isType = true) (hcd : c.dependent = false) (hcF : c.formed = true)
-    (hcr : c.isRef = false) (hne : canonical ≠ derived) :
-    deduceTemplate env (pinTemplate tc name) [c, .ref (.named canonical)] [x] ≠
-      deduceTemplate env (pinTemplate tc name) [c, .ref (.named derived)] [x] := by
-  rw [pinned_deduce env tc name canonical c x hc hcd hcF hcr,
-    pinned_deduce env tc name derived c x hc hcd hcF hcr]
-  intro h
-  simp [pinSpec] at h
-  exact hne h
 
 end Overload

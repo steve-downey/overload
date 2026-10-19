@@ -1,13 +1,13 @@
 -- Overload/Access.lean                                               -*-lean-*-
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-import Overload.Units
+import Overload.Mandates
 
 /-!
 # Access to a base class
 
-`derive_functor<Impl>` has `Impl` as a protected base, so the question
-the instance-inheritance ruling left open is what a non-public base does
-at a call.
+A derivation base that keeps its implementation as a protected base, as
+`derive_functor<Impl>` does in beman.transpose, raises the question what a
+non-public base does at a call.
 
 It does not hide the base from overload resolution. Implicit conversion
 sequences ignore the accessibility of the argument
@@ -57,29 +57,30 @@ def accessibleConversion (p : Program) (a : CallArg) (t : Ty) : Bool :=
   | some s => s.rank == .exactMatch || p.accessibleBase s.source s.target
   | none => true
 
-/-- A call, as a program evaluates it: overload resolution, which ignores
-access; then the access check on the selected function's conversions,
-an inaccessible base making the call ill-formed; then the selected
-specialization's Mandates. -/
+/-- A call, as a program evaluates it in an environment, normally the one
+the program defines (`Env.ofProgram`) or a layer above it: overload
+resolution, which ignores access; then the access check on the selected
+function's conversions, an inaccessible base making the call ill-formed;
+then the selected specialization's Mandates. -/
 @[std rule "dcl.init.ref#4.sentence-3"]
-def call (p : Program) (atomics : List (String × List Ty × Bool)) (decls : List Decl)
-    (args : List CallArg) (explicit : List Ty := []) : Resolution Candidate :=
-  match resolve .text (Env.ofProgram p atomics) p.ranking decls args explicit with
+def call (p : Program) (env : Env) (decls : List Decl) (args : List CallArg)
+    (explicit : List Ty := []) : Resolution Candidate :=
+  match resolve .text env p.ranking decls args explicit with
   | .selected c =>
     if (args.zip c.params).all fun (a, t) => p.accessibleConversion a t then
-      invoke .text (Env.ofProgram p atomics) p.ranking decls args explicit
+      invoke .text env p.ranking decls args explicit
     else .illFormed "conversion to an inaccessible base class"
-  | _ => invoke .text (Env.ofProgram p atomics) p.ranking decls args explicit
+  | _ => invoke .text env p.ranking decls args explicit
 
 end Program
 
 /-- When the selected function's conversions are accessible, the call is
 the evaluated call of `invoke`; access changes nothing else. -/
-theorem call_eq_invoke (p : Program) (atomics : List (String × List Ty × Bool)) (decls : List Decl)
-    (args : List CallArg) (explicit : List Ty)
-    (h : ∀ c, resolve .text (Env.ofProgram p atomics) p.ranking decls args explicit = .selected c →
+theorem call_eq_invoke (p : Program) (env : Env) (decls : List Decl) (args : List CallArg)
+    (explicit : List Ty)
+    (h : ∀ c, resolve .text env p.ranking decls args explicit = .selected c →
       ∀ x ∈ args.zip c.params, p.accessibleConversion x.1 x.2 = true) :
-    p.call atomics decls args explicit = invoke .text (Env.ofProgram p atomics) p.ranking decls args explicit := by
+    p.call env decls args explicit = invoke .text env p.ranking decls args explicit := by
   unfold Program.call
   split
   · rename_i c hc
@@ -88,9 +89,9 @@ theorem call_eq_invoke (p : Program) (atomics : List (String × List Ty × Bool)
 
 /-! ## A protected base -/
 
-/-- The shape of `derive_functor`: an implementation, a derivation base
-that has it as a protected base, and an instance type derived publicly
-from that; and a function that names the implementation. -/
+/-- An implementation, a derivation base that has it as a protected base,
+and a class derived publicly from that; and a function that names the
+implementation. -/
 def protectedProgram : Program :=
   [ .class "impl", .class "derive_impl" [] [.named "impl"], .class "map" [.named "derive_impl"]
   , .function "use" [.lref (.const (.named "impl"))] ]
@@ -102,7 +103,7 @@ theorem protected_base_selected_ill_formed :
     (resolve .text (Env.ofProgram protectedProgram) protectedProgram.ranking
         (protectedProgram.candidates "use") [{ ty := .named "map", lvalue := true }]).map (·.index) =
       .selected 0 ∧
-      ∃ e, protectedProgram.call [] (protectedProgram.candidates "use")
+      ∃ e, protectedProgram.call (Env.ofProgram protectedProgram) (protectedProgram.candidates "use")
         [{ ty := .named "map", lvalue := true }] = .illFormed e :=
   ⟨rfl, ⟨_, rfl⟩⟩
 
@@ -119,7 +120,7 @@ theorem protected_base_deduced_ill_formed :
     (resolve .text (Env.ofProgram protectedTemplateProgram) protectedTemplateProgram.ranking
         (protectedTemplateProgram.candidates "use") [{ ty := .named "int_map", lvalue := true }]).map
         (·.index) = .selected 0 ∧
-      ∃ e, protectedTemplateProgram.call [] (protectedTemplateProgram.candidates "use")
+      ∃ e, protectedTemplateProgram.call (Env.ofProgram protectedTemplateProgram) (protectedTemplateProgram.candidates "use")
         [{ ty := .named "int_map", lvalue := true }] = .illFormed e :=
   ⟨rfl, ⟨_, rfl⟩⟩
 

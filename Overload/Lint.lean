@@ -14,6 +14,10 @@ module is covered.
 axioms (`propext`, `Classical.choice`, `Quot.sound`) and tagged
 assumptions. A `sorry` is an axiom too, so a theorem that is not finished
 fails its audit.
+
+`#check_layering` fails the build when a module of the Standard side,
+`Overload.*` outside `Overload.Typeclass`, imports a module of the
+typeclass side. The Standard side is meant to stand alone.
 -/
 
 open Lean Elab Command
@@ -65,6 +69,29 @@ elab "#check_citations" : command => do
     logInfo m!"citations: {n} tagged declarations; every spec constructor is cited and every axiom is tagged"
   else
     throwError m!"citation lint failed:\n{String.intercalate "\n" problems.toList}"
+
+/-- Is the module on the typeclass side of the model? -/
+def isTypeclassModule (m : Name) : Bool := Name.isPrefixOf `Overload.Typeclass m
+
+/-- Modules of the Standard side that import the typeclass side. -/
+def layeringBreaches (env : Environment) : Array String := Id.run do
+  let mut out := #[]
+  for i in [:env.header.moduleNames.size] do
+    let m := env.header.moduleNames[i]!
+    if Name.isPrefixOf `Overload m && !isTypeclassModule m then
+      for imp in env.header.moduleData[i]!.imports do
+        if isTypeclassModule imp.module then
+          out := out.push s!"{m} imports {imp.module}"
+  return out
+
+/-- Fail the build if the Standard side imports the typeclass side. -/
+elab "#check_layering" : command => do
+  let env ← getEnv
+  let breaches := layeringBreaches env
+  if breaches.isEmpty then
+    logInfo m!"layering: no module of the Standard side imports Overload.Typeclass"
+  else
+    throwError m!"layering check failed:\n{String.intercalate "\n" breaches.toList}"
 
 /-- The axioms a headline theorem may rest on without a tag. -/
 def standardAxioms : List Name := [``propext, ``Classical.choice, ``Quot.sound]

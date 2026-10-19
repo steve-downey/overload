@@ -7,10 +7,11 @@ import Overload.Constraint
 # Programs as data
 
 A program is an ordered list of declarations, so declared-before-use is a
-checkable predicate. The declarations are the ones the typeclass encoding
-needs: classes and class templates for the types that take instances,
-functions and function templates as the candidates of a call, and the
-lookup variable template with its partial specializations, the instances.
+checkable predicate. The declarations are the ones the fragment needs:
+classes and class templates, functions and function templates as the
+candidates of a call, and a variable template with its partial
+specializations. The model calls the variable template a lookup and its
+partial specializations instances, after the use it was built for.
 
 Name lookup is out of scope: the candidate set of a call is the
 declarations with the callee's name, in order.
@@ -68,18 +69,18 @@ inductive Decl where
   | function (name : String) (params : List Ty)
   /-- A function template. -/
   | functionTemplate (ft : FunctionTemplate)
-  /-- The primary of a lookup variable template, `functor<T>`, with the
-  soft default instance, `std::false_type`. -/
-  | lookup (typeclass : String)
+  /-- The primary of a lookup variable template, `trait<T>`, with a value
+  of its own, `std::false_type`: the soft design. -/
+  | lookup (name : String)
   /-- The primary of a lookup variable template whose default fails hard:
   a `static_assert` fires when it is instantiated for a type without an
   instance. The design the step-order probe tests. -/
-  | lookupHard (typeclass : String)
-  /-- A partial specialization of a lookup variable template: an instance,
+  | lookupHard (name : String)
+  /-- A partial specialization of a lookup variable template, an instance,
   for the types matching `pattern` under `head`. -/
-  | instance (typeclass : String) (head : Head) (pattern : Ty)
+  | instance (name : String) (head : Head) (pattern : Ty)
   /-- A point of the program that instantiates the lookup for a type. -/
-  | use (typeclass : String) (ty : Ty)
+  | use (name : String) (ty : Ty)
   /-- An instance object declared outside lookup, `inline constexpr
   pinned_instance name{};`, for a user to pin by name. -/
   | object (name : String)
@@ -111,8 +112,8 @@ def isInstanceOf (tc : String) : Decl → Bool
   | .instance c _ _ => c == tc
   | _ => false
 
-/-- No instance of a typeclass is declared at or after a use of its
-lookup: every instance a use could select is declared before it. -/
+/-- No partial specialization of a lookup is declared at or after a use of
+it: every one a use could select is declared before it. -/
 def declaredBeforeUse (p : Program) : Bool :=
   p.zipIdx.all fun (d, j) =>
     match d with

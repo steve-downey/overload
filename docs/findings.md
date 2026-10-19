@@ -204,7 +204,7 @@ and described here as they arrive.
 - **The draft's first matching example reproduces** (16 October 2026).
   The five uses in the first example of [temp.spec.partial.match]/2,
   including a constant template parameter and the ambiguity between #3
-  and #5, come out as the draft says (`OverloadTest/Typeclass.lean`).
+  and #5, come out as the draft says (`OverloadTest/Lookup.lean`).
 
 ## About the plan
 

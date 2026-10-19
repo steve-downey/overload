@@ -6,7 +6,7 @@ import Overload.Std
 # Syntax as data
 
 Types, template arguments, and constant template argument values are
-inductive types. The fragment is the one the typeclass encoding exercises:
+inductive types. The fragment is the one the work needs:
 named types, template parameters, `const`, pointer and reference
 adjustments, class template specializations, constant template arguments,
 and the non-deduced context marker.
@@ -95,15 +95,14 @@ inductive Ty where
   substitution does ([temp.deduct.type]/4). -/
   | nondeduced : Ty → Ty
   /-- The value of a variable template specialization `name<arg>`, such as
-  `functor<T>`: a separately instantiated construct. Substituting into it
+  `trait<T>`: a separately instantiated construct. Substituting into it
   instantiates it, which is outside the immediate context, and the
   environment's oracle says what comes of that. -/
   | lookup : String → Ty → Ty
   /-- A constant template argument of reference type: the object the
   operand designates, such as the variable template specialization
-  `functor<T>` itself (`ref (lookup "functor" T)`). This is how
-  beman.transpose passes an instance: a `const auto &` constant template
-  parameter bound to the lookup variable. Its identity is the identity of
+  `trait<T>` itself (`ref (lookup "trait" T)`), as a `const auto &`
+  constant template parameter bound to the lookup variable receives. Its identity is the identity of
   the designated object, not the object's value ([temp.type]/2). -/
   | ref : Ty → Ty
   /-- `std::remove_cvref_t<T>`: an alias for a nested member type, so a

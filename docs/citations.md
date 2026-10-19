@@ -51,7 +51,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.constr.atomic]/3 sentence 1](https://eel.is/c++draft/temp.constr.atomic#3.sentence-1) | rule | `Overload.Constraint.satisfied` | `Overload.Constraint` |
 | [[temp.constr.atomic]/3 sentence 2](https://eel.is/c++draft/temp.constr.atomic#3.sentence-2) | rule | `Overload.Constraint.satisfied_atomic_soft` | `Overload.Constraint` |
 | [[temp.constr.atomic]/3 sentence 5](https://eel.is/c++draft/temp.constr.atomic#3.sentence-5) | rule | `Overload.IllFormedNdr.satisfactionChanged` | `Overload.Units` |
-| [[temp.constr.op]/2 sentence 3](https://eel.is/c++draft/temp.constr.op#2.sentence-3) | theorem | `Overload.satisfied_allCalls` | `Overload.Members` |
+| [[temp.constr.op]/2 sentence 3](https://eel.is/c++draft/temp.constr.op#2.sentence-3) | theorem | `Overload.satisfied_conjunctionOf` | `Overload.Conjunction` |
 | [[temp.constr.order]/1](https://eel.is/c++draft/temp.constr.order#1) | example | `Overload.Constraint.subsumes_example` | `Overload.Constraint` |
 | [[temp.constr.order]/1](https://eel.is/c++draft/temp.constr.order#1) | rule | `Overload.Constraint.cnf` | `Overload.Constraint` |
 | [[temp.constr.order]/1](https://eel.is/c++draft/temp.constr.order#1) | rule | `Overload.Constraint.dnf` | `Overload.Constraint` |
