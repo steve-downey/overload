@@ -10,13 +10,21 @@ it be judged a change in meaning. The finding is recorded in
 
 ## Mattermost post
 
-> Small one in [temp.constr.order]/2. Note 1 says "The subsumption
-> relation defines a partial ordering on constraints." It is a preorder,
-> not a partial ordering: `A && B` and `B && A` subsume each other and are
-> different constraints, so it is not antisymmetric. Nothing normative
-> depends on it, since /4 and /5 compare both directions and get a strict
-> partial order on declarations out of it. Would the editor take a fix to
-> the note as editorial, or does this want an issue?
+> Small one in [temp.constr.order]/2
+> (<https://eel.is/c++draft/temp.constr.order#2>). Note 1 says "The
+> subsumption relation defines a partial ordering on constraints"
+> (<https://eel.is/c++draft/temp.constr.order#2.sentence-1>). It is a
+> preorder, not a partial ordering: by the definition in /1
+> (<https://eel.is/c++draft/temp.constr.order#1>), `A && B` and `B && A`
+> subsume each other and are different constraints, so it is not
+> antisymmetric. Nothing normative depends on it, since /4 and /5
+> (<https://eel.is/c++draft/temp.constr.order#4>,
+> <https://eel.is/c++draft/temp.constr.order#5>) compare both directions
+> and get a strict partial order on declarations out of it. Would the
+> editor take a fix to the note as editorial, or does this want an issue?
+
+The sentence anchor is spelled as eel.is renders it and as the model's
+citations use it, `#2.sentence-1`.
 
 ## The text
 
