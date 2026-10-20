@@ -122,17 +122,39 @@ proof needs to see inside a call that a constraint depends on.
 
 **Question:** Is name lookup, including argument-dependent lookup, in the
 model?
-**Status:** DECIDED 13 October 2026.
-**Decision:** No. Whatever is found outside the model is not part of the
-model. A customization point object such as `fmap` that dispatches to an
-instance is in the model, as a fixed candidate set. A member such as a
-hypothetical `std::vector::fmap`, or a delegation to `ranges::transform`,
-is outside it and enters only as an opaque candidate.
+**Status:** DECIDED 13 October 2026; reversed 20 October 2026.
+**Decision:** Yes, for a fragment: namespace scopes and class scopes,
+unqualified lookup, argument-dependent lookup, member lookup, and the
+lookup of a dependent call in its two contexts, as P1787R6 wrote them and
+as they stand in N5054. Out of the fragment, and stated as such:
+using-directives and using-declarations, inline and unnamed namespaces,
+block scopes, modules and reachability by import, friends, splices,
+parenthesized callees, conversion-function-ids, explicit object
+parameters. A call's candidate set is computed from a program point and
+a scope; the existing resolution theorems keep their candidate-list
+parameter and the new theorems compose lookup with them.
+**Why:** The claims the obligations rest on are lookup claims: a variable
+cannot be overloaded, argument-dependent lookup adds nothing when ordinary
+lookup finds an object, member lookup stops at the first class that
+declares the name, the lookup variable is one entity in every unit. They
+were prose. P1787R6 gives each a single-search formulation that fits the
+relation-plus-function style, so they can be theorems. The plan's phase 9
+section has the cross-reference and the stages.
+**Decided by:** the author, on the plan of 20 October 2026.
 **Log:**
 
-- 2026-10-13 — Decided.
+- 2026-10-13 — Decided: no. Whatever is found outside the model is not
+  part of the model. A customization point object such as `fmap` that
+  dispatches to an instance is in the model, as a fixed candidate set. A
+  member such as a hypothetical `std::vector::fmap`, or a delegation to
+  `ranges::transform`, is outside it and enters only as an opaque
+  candidate.
 - 2026-10-15 — `Program.candidates` is the candidate set: the declarations
   with the callee's name, in order.
+- 2026-10-20 — Reversed, as above. `Program.candidates` stays as the
+  input of every existing theorem; a redeclaration in it is today two
+  candidates and a spurious ambiguity, which phase 9's first stage
+  repairs. The syntax is [scope-syntax](#scope-syntax).
 
 ---
 
@@ -298,6 +320,12 @@ It is written down as a tagged predicate so a later phase can remove it.
   typeclass is declared at or after a use of its lookup. It no longer
   depends on the lookup being declared. For one unit it is what keeps
   every use free of a verdict (`verdicts_single`).
+- 2026-10-20 — Phase 9 adds a fourth verdict, for a dependent call whose
+  definition and instantiation contexts miss a better-matching overload
+  in an associated namespace ([temp.dep.candidate]/1), and a fifth for
+  one entity with two definitions ([basic.def.odr]/16), which
+  `operation_object_not_separated` reports in prose today. `reachable`
+  is to cite [temp.spec.partial.general]/7, the sentence it transcribes.
 
 ---
 
@@ -372,6 +400,10 @@ step-order hazard, and GCC implements P3606 today.
   rule exactly as `.p3606` reads it, and GCC's is narrower. Clang 18 to
   20 follow the text. The question of what "perfect match" suppresses
   now has two shipping answers (`findings.md`). Default stays `.text`.
+- 2026-10-20 — Once phase 9 computes the candidate set, the perfect match
+  of `.p3606` ranges over the declarations lookup found, which for a call
+  of an object are its non-template call operators. That is the reading
+  of "candidate" the proposal uses; nothing in the mode changes.
 
 ---
 
@@ -481,3 +513,45 @@ repository's `include/beman/transpose/`):
   set, as eight emitted call cases (`routes_*`). Call cases gain explicit
   template arguments. Non-template functions in a call with explicit
   template arguments are out of the fragment; no case has one.
+
+---
+
+## scope-syntax
+
+**Question:** How do scopes enter the program syntax?
+**Status:** DECIDED 20 October 2026.
+**Decision:** A scope is a field. Each namespace-scope declaration
+(`Decl.function`, `Decl.functionTemplate` through `FunctionTemplate`,
+`Decl.class`, `Decl.classTemplate`, `Decl.object`) carries `scope :
+Scope := []`, a path of namespace and class steps from the global scope
+outward in. A member function is a function whose scope ends in its
+class; `Decl.class` gains no member list. An object carries the name of
+its class, so a call on it has a scope to search for `operator()`. The
+program stays a flat list, lookup is a layer in front of `resolve`, and
+the found declarations are handed to the existing resolution with
+`Candidate.index` their position in the found list, as `generate`
+numbers candidates today.
+**Why:** Counted against the sources on 20 October 2026: eleven pattern
+sites on `Decl.function`, fifteen on `Decl.functionTemplate`, five on
+`Decl.class`, two on `Decl.object`, two exhaustive matches, eight
+inductions on the candidate list and none on the program, and about
+fifteen theorems that reason positionally on the flat list
+(`declaredBeforeUse`, `stability`, the verdicts of `Units`,
+`call_stability_unit`). A field with a default leaves every program
+literal, every induction and every positional theorem as it is. A nesting
+constructor `Decl.namespace (decls : Program)` breaks the positional
+theorems and makes every new structural proof a nested recursion. A side
+table or enter-and-leave markers make a declaration's scope a function of
+its prefix, so every insertion lemma would need a balanced-markers
+hypothesis. A member list on `Decl.class` is a nested inductive again and
+breaks `eraseBases`, `directBases` and `allBases`.
+**Decided by:** the author, on the design review of 20 October 2026.
+**Facts recorded 20 October 2026:** an omitted trailing default field in
+a Lean pattern elaborates to the default value, not a wildcard, so `|
+.function _ _ => true` is false on a namespaced function. Every existing
+match on a declaration therefore gets an explicit placeholder, and a
+guard checks that a namespaced function is seen, because the compiler
+will not say.
+**Log:**
+
+- 2026-10-20 — Decided.

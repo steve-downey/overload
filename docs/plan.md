@@ -187,9 +187,10 @@ The four kinds of finding about the Standard are tabulated in
 
 ## Phases
 
-Nine phases, each closed by a theorem or a passing test set. The typeclass
+Ten phases, each closed by a theorem or a passing test set. The typeclass
 results first become reachable at phase 4, before any of call-site overload
-resolution exists.
+resolution exists. Phase 9 was added on 20 October 2026, after the others
+closed.
 
 | Phase | Builds | Exit criterion | Needs |
 |---|---|---|---|
@@ -202,6 +203,7 @@ resolution exists.
 | 6 Typeclass encoding | Canonical lookup, the three explicit-instance routes, superclass retrieval. | Coherence, stability, inheritance erasure, superclass coherence, and the obligations table. Settles missing-instance and instance-inheritance. | 4 for variable-template lookup, 5 for the call surface |
 | 7 Differential testing | The C++ emitter and compiler runs. Starts in phase 1 and grows with each phase. | Every in-scope draft example and every counterexample agrees on GCC and Clang, or the disagreement is filed per test-oracle. | 0 |
 | 8 Translation units | Points of instantiation, visibility, and the fourth substitution outcome. See single-tu. | Each obligation in the undiagnosable class is tied to a specific rule. | 6 |
+| 9 Declarations and lookup | Scopes, correspondence, unqualified and argument-dependent lookup, member lookup, the dependent-call verdict, entity identity across units, as P1787R6 rewrote them. See [below](#phase-9-declarations-and-where-to-find-them). | The candidate set of a call is computed, not given; every lookup claim the obligations rest on is a cited theorem. Settles lookup-scope and scope-syntax. | 5, 8 |
 
 Phase 6 can begin as soon as phase 4 closes. Phase 5 is on the critical
 path only for the function-call surface and the by-value explicit-instance
@@ -398,6 +400,11 @@ Status, 15 October 2026:
   (`arity_order_matters`). A registry tested by completeness, as
   `Monoid` is, has the verdicts of a lookup under a third rule
   (`registry_verdicts`).
+- Phase 9 is planned, 20 October 2026, and not started. The plan, the
+  cross-reference against P1787R6 and the stages are
+  [below](#phase-9-declarations-and-where-to-find-them). The in-scope
+  paragraphs are in `Overload.Std.inScope`, so `citations.md` lists them
+  as uncovered until each stage lands.
 
 ## Target theorems
 
@@ -423,6 +430,12 @@ its counterexample and is a finding, not a setback.
 | registry-verdicts | A registry tested by completeness has the verdicts of a variable-template lookup, at the same uses, under [temp.constr.atomic]/3 where the test's answer changes. Added 18 October 2026. | audit, 8 |
 | algorithm-transfer | An algorithm over an instance whose constraint is the conjunction of its member calls answers as those calls do, in the order written, and is accurate when they are. Added 18 October 2026, from the algorithm probes (`probes.md`). | algorithm |
 | dispatch-styles | For one ordered candidate list, the constraint-exclusion, if-constexpr and priority-tag encodings select the same candidate. They differ in whether having no candidate is a soft or a hard failure, and in which conditions are checked: priority tags check all of them. Restated 17 October 2026 (`findings.md`). | 5, 6 |
+| redeclaration-inert | A corresponding redeclaration of a function or function template changes no call. Added 20 October 2026. | 9 |
+| inner-hides-outer | An unqualified search finds nothing past the first enclosing scope that binds the name. Added 20 October 2026. | 9 |
+| object-suppresses-adl | When unqualified lookup binds the callee to an object, the candidate set is that object's call operators, whatever the associated namespaces declare. This makes the `hothers` hypothesis of `call_stability` a theorem for the object design, and a counterexample for a free-function design. Added 20 October 2026. | 9 |
+| member-hiding | A derived class's declaration of a name hides every base declaration of it, regardless of signature or constraint. Reproduces the library's hidden constrained member (`findings.md`). Added 20 October 2026. | 9 |
+| dependent-call-verdict | A dependent call whose definition and instantiation contexts miss a better-matching external-linkage overload in an associated namespace is ill-formed, no diagnostic required; the verdict cannot arise when the callee is bound to an object. Added 20 October 2026. | 9 |
+| entity-identity | The lookup variable's declarations across units declare one entity, by correspondence and linkage. Added 20 October 2026. | 9 |
 
 Stability is the theorem that says open polymorphism has no surprises. Its
 hypotheses are expected to include soft failure of a missing instance and
@@ -704,6 +717,154 @@ one there.
    (callable-copying), `void` results (result-context-formable), the
    accumulating `bind` (capability-tests), and `lifted_monoid` and
    `kleisli_monoid` (instance-state).
+
+## Phase 9: declarations and where to find them
+
+Planned 20 October 2026. The candidate set of a call is an input to the
+model, and `decisions.md#lookup-scope` said name lookup was out of scope.
+Several of the model's load-bearing claims are nevertheless claims about
+lookup, made in prose with no rule behind them:
+
+- A variable cannot be overloaded, and argument-dependent lookup adds no
+  candidates when ordinary lookup finds an object (`obligations.md`,
+  `findings.md`). This is the `hothers` hypothesis of `call_stability`,
+  met "by construction".
+- Member lookup stops at the first class whose scope declares the name,
+  the mechanism behind the library's hidden constrained member
+  (steve-downey/typeclass#10).
+- The lookup variable is one entity in every unit, behind
+  `operation_object_not_separated`.
+- A function declared twice is two candidates today, and `bestViable`
+  reports an ambiguity between a function and itself. The Standard says
+  the two declarations correspond and are one entity.
+
+P1787R6, *Declarations and where to find them* (S. Davis Herring, adopted
+November 2020, in C++23), is where the vocabulary those claims need was
+defined: *corresponds*, *precedes*, *single search*, *unqualified search*,
+*lookup set*, *overload set*, *associated entities*, *dependent call*.
+Phase 9 transcribes the rules the model leans on, so the prose claims
+become theorems with cited rules, and it re-examines every citation the
+paper touched.
+
+### What P1787R6 did to the sections the model cites
+
+Measured by diffing each section at the commit that applied the paper
+(cplusplus/draft `c7e89270`, 15 November 2020) against its parent and
+against the pinned tag `n5054`. Nothing the model cites was changed in
+substance; two labels were reworded in ways worth recording.
+
+| Cited section | P1787R6's change | Since then, to N5054 | Bearing |
+|---|---|---|---|
+| [temp.over.link]/6 sentence 2 (`paramEquivalent`) | Deleted "equivalent" and "functionally equivalent function templates" from this section; they became "corresponding overloads" in [basic.scope.scope]/4. Moved "lookup from the first declaration" to [temp.res.general]/1 (CWG1028). | CWG2603 holistic functional equivalence; P2841R7 bullets for concept and variable-template template parameters; the "constant template parameter" rename. | /6 stands. Correspondence of function templates uses the same equivalence as the gate of [temp.func.order]/8, so stage 1 reuses `paramEquivalent`. |
+| [temp.point]/7 (`laterInUnit`) | None. | Itemized 2023; P1306R5 added /8; P3596R3 annex tag. | Stands. |
+| [temp.spec.partial.general]/1 sentence 3 (`notReachable`) | "shall be declared before the first use ... in every translation unit" became "shall be reachable from any use"; /2 gained "two partial specialization declarations declare the same entity if ...". | Editorial. | Stands, and is P1787R6's wording. /7, "any reachable partial specializations ... are also considered", is what `Units.reachable` transcribes and should cite. |
+| [temp.func.order]/1 | "If a function template is overloaded" became "If multiple function templates share a name". | None. | Not cited. |
+| [class.access.base]/4, /5 | The naming class became "the class in whose scope name lookup performed a search that found the member" (CWG952). | None. | /4 stands; the fragment has no member access. |
+| [over.match.funcs.general]/8, [over.match.viable], [over.match.best.general], [temp.deduct.*], [temp.constr.*], [temp.type]/2 | None. | P0847R7 and CWG2762 reworded the implicit object parameter in [over.match.funcs.general]/2 to /5. | Stand. |
+| [temp.res.general] | Rewrote /1, a name in a template is looked up from where it appears, and folded [temp.nondep] into it. | CWG2720, CWG2810, CWG2746 restructured the IFNDR list of /6. | Not yet cited; stage 5 cites /1. |
+| [temp.dep.candidate]/1 | "undefined behavior" became "ill-formed, no diagnostic required"; the candidate-finding sentence moved to [basic.lookup.argdep]/4. | P3596R3 annex tag. | Not yet cited; stage 5's verdict. |
+
+### The rules to transcribe, as they stand in N5054
+
+Paragraph numbers are counted from `\pnum` in the pinned text, as the
+drift check counts them. "Since" names the commits between the paper and
+the pin that changed the paragraph's substance.
+
+| Rule | N5054, abbreviated | Since | Counterpart |
+|---|---|---|---|
+| [basic.scope.scope]/2 | A declaration inhabits the immediate scope at its locus; its names are bound to it in its target scope. | CWG3097, contracts. | A scope on each declaration. |
+| [basic.scope.scope]/4 | Two declarations correspond if they introduce the same name, unless one is a type and the other a variable or function, or each is a function or function template and they do not declare corresponding overloads: the same parameter-type-list and equivalent trailing requires-clauses, or corresponding signatures and equivalent template-heads. | P0847R7, CWG2603 (/3, corresponding signatures). | `Decl.corresponds`. |
+| [basic.scope.scope]/6 | Two declarations potentially conflict if they correspond and denote different entities; ill-formed when a name in one scope is bound to two such declarations, one preceding the other. | P2169R4. | `Program.conflicts`. |
+| [basic.scope.pdecl]/1 | The locus of a declarator is immediately after it. | None. | Position in the unit. |
+| [basic.lookup.general]/1 | Lookup associates a use with a set of declarations; none found is ill-formed; all functions or function templates form an overload set; otherwise, not all the same entity is ambiguous and ill-formed. | None. | `LookupResult`. |
+| [basic.lookup.general]/2 | A declaration precedes a program point in the same unit if its locus is before it. The module bullets are out of the fragment. | P2615R1. | `precedes`. |
+| [basic.lookup.general]/3 | A single search in a scope for a name from a point finds the declarations that precede the point to which the name is bound in that scope. | None. | `singleSearch`. |
+| [basic.lookup.unqual]/2, /3 | An unqualified search in S includes S; if nothing is found, the unqualified search in S's parent. Unqualified name lookup is an unqualified search in the immediate scope. Using-directives are out of the fragment. | Editorial. | `unqualifiedSearch`, `unqualifiedLookup`. |
+| [basic.lookup.argdep]/1 | Argument-dependent lookup applies when unqualified lookup finds no class member, no block-scope function, and no declaration that is not a function or function template. | None. | `adlApplies`. |
+| [basic.lookup.argdep]/3 | Associated entities: none for a fundamental type; for a class, the class, its enclosing class and, if complete, its bases; for a class template specialization also those of its type template arguments; pointers see through. | CWG2857, P2996R13, P2841R7. | `associatedEntities`, over `Program.allBases`. |
+| [basic.lookup.argdep]/4 | The associated namespaces are the innermost enclosing namespaces of the associated entities; the lookup finds every function and function template declaration of the name found by a search in any of them; for a dependent name, also from each point of the instantiation context. | CWG3186. | `associatedNamespaces`, `adl`; the last sentence in stage 5. |
+| [basic.lookup.argdep]/6, example | A call of `f` with an `NS::T` argument finds `NS::f` through the associated namespace although unqualified lookup found nothing. The example's second call, where a block-scope declaration suppresses argument-dependent lookup, is out of the fragment. | None. | A test of the first call. |
+| [over.call.func]/3 | In an unqualified call the candidates are the set found by name lookup. | P2996R13. | `callCandidates`. |
+| [over.call.object]/1 | For a call on an object of class type the candidates include the function call operators of its class, a search for `operator()` in its scope. | None. | `objectCallCandidates`. |
+| [class.member.lookup]/3 to /6 | The declaration set of a name in a class is a single search in its scope; if non-empty, done; otherwise the lookup sets of the direct bases are merged, with the hiding and ambiguity rules; an invalid set is ill-formed. | CWG2582, CWG2642. | `lookupSet`, `memberSearch`. |
+| [temp.dep.general]/2 | A dependent call is an unqualified-id called with a type-dependent argument; its name is looked up at the point of instantiation in both the definition and the instantiation contexts. | None. | `Decl.dependentCall`. |
+| [temp.res.general]/1 | A name in a template is looked up from where it appears. | Editorial. | The definition context. |
+| [temp.point]/1, /7 | The point of instantiation of a function template specialization follows the namespace-scope declaration that refers to it; the end of the unit is another. | As above. | The instantiation context. |
+| [module.context]/5, /7 | During instantiation the instantiation context holds the point of instantiation; otherwise a point's context is itself. | None. | With the above. |
+| [temp.dep.candidate]/1 | A dependent call that would be ill-formed, or find a better match, had the lookup considered every external-linkage function declaration in the associated namespaces of every unit, is ill-formed, no diagnostic required. | None. | `IllFormedNdr.betterMatchElsewhere`. |
+| [temp.spec.partial.general]/7 | When the primary template name is used, any reachable partial specializations are also considered. | None. | Cite on `Units.reachable`. |
+| [basic.link]/3, /4, /8 | A non-template const variable has internal linkage unless inline; a variable, function or template at namespace scope otherwise has external linkage; two declarations declare the same entity if they correspond, have the same target scope, and both have external linkage. | P2788R0, CWG2872. | `linkage`, `sameEntity`. |
+| [basic.def.odr]/16 | A definable item with definitions in several units: the same tokens, names denoting the same entity; otherwise ill-formed, a diagnostic required only for named modules. | Restructured 2023, CWG3093. | The rule `operation_object_not_separated` reports. |
+
+Out of the fragment, and said so in the decision: using-directives and
+using-declarations, inline and unnamed namespaces, block scopes, modules
+and reachability by import, friends, splices, parenthesized callees,
+conversion-function-ids, explicit object parameters.
+
+### Stages
+
+Each stage is a branch, closed by its theorems building under the
+citation lint, the layering lint and the audits, with `lake test` green
+and `citations.md` regenerated. Standard-side modules use neutral names;
+the encoding's theorems go under `Typeclass`. The syntax is settled by
+`decisions.md#scope-syntax`: a scope field on each namespace-scope
+declaration, the program still a flat list, lookup a layer in front of
+`resolve`, and every existing theorem untouched.
+
+1. [record-phase-nine](#phase-9-declarations-and-where-to-find-them):
+   this section, the decisions, `Overload.Std.inScope`. Done 20 October
+   2026.
+2. [correspondence](#phase-9-declarations-and-where-to-find-them):
+   `Decl.corresponds` ([basic.scope.scope]/4, over `paramEquivalent`),
+   `Program.conflicts` (/6), the overload set with one entry per entity
+   ([basic.lookup.general]/1). Theorems redeclaration-inert and
+   `overload_set_distinct`. The spurious ambiguity is a finding against
+   the model.
+3. [scoped-lookup](#phase-9-declarations-and-where-to-find-them): the
+   scope field; `precedes`, `singleSearch`, `unqualifiedSearch`,
+   `unqualifiedLookup`, each as relation and function. Theorem
+   inner-hides-outer. The emitter renders namespaces.
+4. [argument-dependent-lookup](#phase-9-declarations-and-where-to-find-them):
+   `associatedEntities`, `associatedNamespaces`, `adl`, `adlApplies`,
+   `callCandidates` ([over.call.func]/3), fed to `Program.call`.
+   Theorems object-suppresses-adl and `free_function_admits_adl`; on the
+   typeclass side, `call_stability` restated over the computed candidates
+   with `hothers` discharged. The "no other lookup on the name" row of
+   `obligations.md` moves from "by construction" to "by theorem".
+5. [member-lookup](#phase-9-declarations-and-where-to-find-them): members
+   as functions scoped in a class; `lookupSet` with the merge rule,
+   `memberSearch`, `objectCallCandidates` ([over.call.object]/1), which
+   is what a call of the operation object resolves. Theorems
+   member-hiding and `ambiguous_bases_ill_formed`; the library's hidden
+   constrained member reproduced. Where the member call can be computed,
+   `ofProgram_member` becomes a theorem about computed lookup, the oracle
+   kept for what the fragment cannot express.
+6. [dependent-call-verdict](#phase-9-declarations-and-where-to-find-them):
+   `Decl.dependentCall`, with its position as the definition context and
+   the unit's end as the instantiation context; the verdict of
+   [temp.dep.candidate]/1 beside the three of phase 8. Theorems
+   `late_adl_overload_verdict` and `object_design_no_adl_verdict`; the
+   [temp.res.general]/1 example as a test.
+7. [entity-identity](#phase-9-declarations-and-where-to-find-them):
+   `linkage` and `sameEntity` across units ([basic.link]/8); theorem
+   `lookup_variable_one_entity`, and a verdict constructor for
+   [basic.def.odr]/16 so `operation_object_not_separated` cites a rule.
+8. [lookup-differential](#phase-9-declarations-and-where-to-find-them):
+   emitter support for namespaces, class members and objects; the cases
+   of stages 3 to 6 compiled with GCC and Clang. The verdict of stage 6
+   is not compiler-checkable and is emitted per unit, as phase 8's are.
+9. [lookup-docs](#phase-9-declarations-and-where-to-find-them): the
+   guide, the obligations table, findings, this status, the drift check
+   against the draft's main.
+
+Known hazards for the implementation: an omitted trailing default field
+in a Lean pattern elaborates to the default value, not a wildcard, so
+every existing match on a declaration gets an explicit placeholder and a
+guard checks that a namespaced function is seen; `Candidate.index` stays
+the position among the declarations lookup found, with
+`callAt_eq_call_global` keeping every existing case's numbers; the P3606
+perfect match ranges over the found list, which for an object call is
+its non-template call operators.
 
 ## Draft citations and prior art
 

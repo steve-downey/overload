@@ -246,6 +246,17 @@ def inScope : List (String × Nat) :=
   , ("temp.arg.nontype", 1), ("temp.arg.nontype", 3)
   , ("over.match.funcs.general", 8)
   , ("over.match.best.general", 2)
-  , ("over.best.ics.general", 7) ]
+  , ("over.best.ics.general", 7)
+  -- Phase 9, declarations and lookup (docs/plan.md, phase 9).
+  , ("basic.scope.scope", 4), ("basic.scope.scope", 6)
+  , ("basic.lookup.general", 1), ("basic.lookup.general", 2), ("basic.lookup.general", 3)
+  , ("basic.lookup.unqual", 2), ("basic.lookup.unqual", 3)
+  , ("basic.lookup.argdep", 1), ("basic.lookup.argdep", 3), ("basic.lookup.argdep", 4)
+  , ("over.call.func", 3), ("over.call.object", 1)
+  , ("class.member.lookup", 3), ("class.member.lookup", 4), ("class.member.lookup", 5)
+  , ("class.member.lookup", 6)
+  , ("temp.dep.general", 2), ("temp.res.general", 1), ("temp.point", 1)
+  , ("temp.dep.candidate", 1), ("temp.spec.partial.general", 7)
+  , ("basic.link", 8), ("basic.def.odr", 16) ]
 
 end Overload.Std
