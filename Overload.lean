@@ -23,6 +23,7 @@ import Overload.Dispatch
 import Overload.Units
 import Overload.Access
 import Overload.Conjunction
+import Overload.Scope
 import Overload.Emit
 import Overload.Typeclass
 import Overload.Lint
@@ -141,6 +142,18 @@ is the map.
 #audit Overload.call_eq_invoke
 #audit Overload.protected_base_selected_ill_formed
 #audit Overload.protected_base_deduced_ill_formed
+
+-- Correspondence and the overload set.
+#audit Overload.corresponds_iff
+#audit Overload.scopesWellFormed_iff
+#audit Overload.overloadSet_pairwise
+#audit Overload.overloadSet_eq_candidates
+#audit Overload.redeclaration_inert
+#audit Overload.redeclaration_inert_resolve
+#audit Overload.redeclaration_inert_invoke
+#audit Overload.candidates_redeclaration_ambiguous
+#audit Overload.scope_scope_4_example
+#audit Overload.object_function_conflict
 
 -- Translation units.
 #audit Overload.verdicts_single

@@ -8,6 +8,16 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 
 | Citation | Role | Declaration | Module |
 |---|---|---|---|
+| [[basic.link]/11](https://eel.is/c++draft/basic.link#11) | rule | `Overload.sameKind` | `Overload.Scope` |
+| [[basic.lookup.general]/1 sentence 4](https://eel.is/c++draft/basic.lookup.general#1.sentence-4) | rule | `Overload.entities` | `Overload.Scope` |
+| [[basic.scope.scope]/4](https://eel.is/c++draft/basic.scope.scope#4) | example | `Overload.scope_scope_4_example` | `Overload.Scope` |
+| [[basic.scope.scope]/4](https://eel.is/c++draft/basic.scope.scope#4) | rule | `Overload.Corresponds.overloads` | `Overload.Scope` |
+| [[basic.scope.scope]/4](https://eel.is/c++draft/basic.scope.scope#4) | rule | `Overload.Corresponds.sameName` | `Overload.Scope` |
+| [[basic.scope.scope]/4](https://eel.is/c++draft/basic.scope.scope#4) | rule | `Overload.Corresponds.templateOverloads` | `Overload.Scope` |
+| [[basic.scope.scope]/4](https://eel.is/c++draft/basic.scope.scope#4) | rule | `Overload.correspondingOverloads` | `Overload.Scope` |
+| [[basic.scope.scope]/4](https://eel.is/c++draft/basic.scope.scope#4) | rule | `Overload.corresponds` | `Overload.Scope` |
+| [[basic.scope.scope]/6 sentence 1](https://eel.is/c++draft/basic.scope.scope#6.sentence-1) | rule | `Overload.potentiallyConflict` | `Overload.Scope` |
+| [[basic.scope.scope]/6 sentence 2](https://eel.is/c++draft/basic.scope.scope#6.sentence-2) | rule | `Overload.Program.conflicts` | `Overload.Scope` |
 | [[class.access.base]/4](https://eel.is/c++draft/class.access.base#4) | rule | `Overload.Program.accessibleBase` | `Overload.Access` |
 | [[class.derived.general]/2](https://eel.is/c++draft/class.derived.general#2) | rule | `Overload.Program.derives` | `Overload.Ranking` |
 | [[conv.ptr]/3 sentence 2](https://eel.is/c++draft/conv.ptr#3.sentence-2) | rule | `Overload.Program.accessibleConversion` | `Overload.Access` |
@@ -138,9 +148,6 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 - [[temp.deduct.general]/12](https://eel.is/c++draft/temp.deduct.general#12)
 - [[temp.arg.nontype]/1](https://eel.is/c++draft/temp.arg.nontype#1)
 - [[temp.arg.nontype]/3](https://eel.is/c++draft/temp.arg.nontype#3)
-- [[basic.scope.scope]/4](https://eel.is/c++draft/basic.scope.scope#4)
-- [[basic.scope.scope]/6](https://eel.is/c++draft/basic.scope.scope#6)
-- [[basic.lookup.general]/1](https://eel.is/c++draft/basic.lookup.general#1)
 - [[basic.lookup.general]/2](https://eel.is/c++draft/basic.lookup.general#2)
 - [[basic.lookup.general]/3](https://eel.is/c++draft/basic.lookup.general#3)
 - [[basic.lookup.unqual]/2](https://eel.is/c++draft/basic.lookup.unqual#2)

@@ -140,6 +140,22 @@ and described here as they arrive.
 
 ## About the model
 
+- **A redeclaration was two candidates** (20 October 2026). The candidate
+  set of a call was every declaration with the callee's name, so
+  `void f(int); void f(int);` gave `f(1)` two candidates with one
+  signature, neither better than the other, and the model reported an
+  ambiguity between a function and itself
+  (`candidates_redeclaration_ambiguous`). The two declarations correspond
+  ([basic.scope.scope]/4) and declare one function. The overload set now
+  keeps one declaration per entity (`Program.overloadSet`, `entities`),
+  resolution over it selects the function, and a redeclaration after the
+  entity's first declaration changes no call (`redeclaration_inert`). The
+  emitter numbers a redeclaration with its entity, since a redeclaration
+  with a different return type is ill-formed C++
+  (`basic_scope_scope_4_redeclaration.cpp`). Nothing emitted before had a
+  redeclaration, so no earlier expectation moves
+  (`overloadSet_eq_candidates`).
+
 - **Deduction is most general only without nested references** (17
   October 2026). On the first-order fragment deduction is matching, and
   it finds the least bindings that solve `P = A` (`deduceTy_most_general`).

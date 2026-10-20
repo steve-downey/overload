@@ -182,8 +182,9 @@ functions, function templates (`FunctionTemplate`: head, parameter types,
 default arguments, return type, associated constraint, Mandates), a
 variable template as `lookup` or `lookupHard` (a primary with a value, or
 one whose instantiation fails), its partial specializations as `instance`,
-a use of it, an object, a concept. `Program.candidates` is the candidate
-set of a call by name, since name lookup is out of scope.
+a use of it, an object, a concept. `Program.candidates` is every
+declaration with a name, in order; `Scope` reduces it to the overload set,
+one declaration per entity, and lookup proper is phase 9's work.
 `SingleTranslationUnit` is the one tagged assumption of the development:
 every partial specialization is declared before any use of its variable
 template. `Units` removes it.
@@ -476,6 +477,33 @@ valid and true, and otherwise the first that is not decides; a hard error
 in a conjunct that is never reached does not count. `conjunction_no_hard`:
 no hard conjunct, no hard conjunction. A guard belongs before the thing
 it guards.
+
+### Scope
+
+`Overload/Scope.lean`: which declarations are one entity. `corresponds`
+transcribes [basic.scope.scope]/4: two declarations correspond when they
+introduce the same name, unless one declares a type and the other a
+variable or function, or each is a function or function template and
+they are not corresponding overloads, functions with the same
+parameter-type-list or function templates with equivalent heads (the
+equivalence of [temp.over.link]/6 that the tie-break gate uses),
+parameter lists and return types. `Corresponds` is the relation,
+`corresponds_iff` the agreement. `potentiallyConflict` and
+`Program.conflicts` are /6: corresponding declarations of different kinds
+of entity under one name, such as an object and a function both named
+`fmap`, make the program ill-formed (`scopesWellFormed_iff`).
+
+`entities` keeps one declaration per entity, the first, since a later
+corresponding declaration is a redeclaration ([basic.lookup.general]/1),
+and `Program.overloadSet` is the candidates reduced that way. No two
+members correspond (`overloadSet_pairwise`); without a corresponding
+pair the overload set is the candidate list (`overloadSet_eq_candidates`);
+and a redeclaration after its entity's first declaration changes no
+call (`redeclaration_inert`, `redeclaration_inert_resolve`,
+`redeclaration_inert_invoke`). `candidates_redeclaration_ambiguous` is
+what the candidate list got wrong before this module
+([findings.md](findings.md#about-the-model)). The emitter computes call
+expectations over the overload set.
 
 ### Emit
 
