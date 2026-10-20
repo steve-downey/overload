@@ -40,6 +40,21 @@ structure TemplateParam where
 /-- A template head: the parameters, by position. -/
 abbrev Head := List TemplateParam
 
+/-- One step of a scope path: a namespace or a class, each introduced by
+a declaration in the enclosing scope ([basic.scope.scope]/1). -/
+inductive ScopeStep where
+  /-- `namespace name { ... }`. -/
+  | «namespace» (name : String)
+  /-- The scope of the class `name`. -/
+  | «class» (name : String)
+  deriving Repr, DecidableEq, Inhabited
+
+/-- A scope, as the path from the global scope inward: `[]` is the global
+scope, `[.namespace "a", .namespace "b"]` is `a::b`. The decision is
+`decisions.md#scope-syntax`: a scope is a field of each namespace-scope
+declaration, and the program stays a flat list. -/
+abbrev Scope := List ScopeStep
+
 /-- A function template: what [temp.deduct.general] deduces for. -/
 structure FunctionTemplate where
   name : String
@@ -56,17 +71,22 @@ structure FunctionTemplate where
   library's wording, checked only once overload resolution has selected
   the specialization and its definition is instantiated. -/
   mandate : Option Constraint := none
+  /-- The scope the template inhabits. -/
+  scope : Scope := []
   deriving Repr, DecidableEq, Inhabited
 
-/-- A declaration. -/
+/-- A declaration. Every namespace-scope declaration carries the scope it
+inhabits, defaulting to the global scope; a declaration whose scope ends
+in a class step is a member of that class. -/
 inductive Decl where
   /-- `struct name : public bases..., protected protectedBases... {};`.
   A base may be a class template specialization. -/
   | «class» (name : String) (bases : List Ty := []) (protectedBases : List Ty := [])
+      (scope : Scope := [])
   /-- `template <head> struct name {};` -/
-  | classTemplate (name : String) (head : Head)
+  | classTemplate (name : String) (head : Head) (scope : Scope := [])
   /-- A non-template function, by name and parameter types. -/
-  | function (name : String) (params : List Ty)
+  | function (name : String) (params : List Ty) (scope : Scope := [])
   /-- A function template. -/
   | functionTemplate (ft : FunctionTemplate)
   /-- The primary of a lookup variable template, `trait<T>`, with a value
@@ -81,9 +101,10 @@ inductive Decl where
   | instance (name : String) (head : Head) (pattern : Ty)
   /-- A point of the program that instantiates the lookup for a type. -/
   | use (name : String) (ty : Ty)
-  /-- An instance object declared outside lookup, `inline constexpr
-  pinned_instance name{};`, for a user to pin by name. -/
-  | object (name : String)
+  /-- An object, `inline constexpr cls name{};`: an instance object
+  declared outside lookup for a user to pin by name, or an operation
+  object whose class has the call operators. -/
+  | object (name : String) (cls : String := "pinned_instance") (scope : Scope := [])
   /-- `template <class T> concept name = body;`, for the emitted C++; the
   model sees the concept only as an atomic constraint by name. -/
   | concept (name : String) (body : String)
@@ -97,7 +118,7 @@ namespace Program
 /-- The declarations with a name, in order: the candidate set of a call. -/
 def candidates (p : Program) (name : String) : List Decl :=
   p.filter fun
-    | .function n _ => n = name
+    | .function n _ _ => n = name
     | .functionTemplate ft => ft.name = name
     | _ => false
 

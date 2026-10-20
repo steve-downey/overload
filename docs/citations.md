@@ -8,8 +8,26 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 
 | Citation | Role | Declaration | Module |
 |---|---|---|---|
+| [[basic.link]/8](https://eel.is/c++draft/basic.link#8) | rule | `Overload.sameEntity` | `Overload.Scope` |
 | [[basic.link]/11](https://eel.is/c++draft/basic.link#11) | rule | `Overload.sameKind` | `Overload.Scope` |
+| [[basic.lookup.general]/1](https://eel.is/c++draft/basic.lookup.general#1) | rule | `Overload.lookupResult` | `Overload.Names` |
+| [[basic.lookup.general]/1 sentence 3](https://eel.is/c++draft/basic.lookup.general#1.sentence-3) | rule | `Overload.LookupResult.none` | `Overload.Names` |
+| [[basic.lookup.general]/1 sentence 4](https://eel.is/c++draft/basic.lookup.general#1.sentence-4) | rule | `Overload.LookupResult.overloadSet` | `Overload.Names` |
 | [[basic.lookup.general]/1 sentence 4](https://eel.is/c++draft/basic.lookup.general#1.sentence-4) | rule | `Overload.entities` | `Overload.Scope` |
+| [[basic.lookup.general]/1 sentence 5](https://eel.is/c++draft/basic.lookup.general#1.sentence-5) | rule | `Overload.LookupResult.ambiguous` | `Overload.Names` |
+| [[basic.lookup.general]/1 sentence 5](https://eel.is/c++draft/basic.lookup.general#1.sentence-5) | rule | `Overload.LookupResult.entity` | `Overload.Names` |
+| [[basic.lookup.general]/2 sentence 2](https://eel.is/c++draft/basic.lookup.general#2.sentence-2) | rule | `Overload.follows` | `Overload.Names` |
+| [[basic.lookup.general]/2 sentence 3](https://eel.is/c++draft/basic.lookup.general#2.sentence-3) | rule | `Overload.precedes` | `Overload.Names` |
+| [[basic.lookup.general]/3 sentence 1](https://eel.is/c++draft/basic.lookup.general#3.sentence-1) | rule | `Overload.SingleSearch.found` | `Overload.Names` |
+| [[basic.lookup.general]/3 sentence 1](https://eel.is/c++draft/basic.lookup.general#3.sentence-1) | rule | `Overload.singleSearch` | `Overload.Names` |
+| [[basic.lookup.general]/4 sentence 2](https://eel.is/c++draft/basic.lookup.general#4.sentence-2) | rule | `Overload.discardTypes` | `Overload.Names` |
+| [[basic.lookup.unqual]/2](https://eel.is/c++draft/basic.lookup.unqual#2) | rule | `Overload.unqualifiedSearch` | `Overload.Names` |
+| [[basic.lookup.unqual]/2 sentence 1](https://eel.is/c++draft/basic.lookup.unqual#2.sentence-1) | rule | `Overload.UnqualifiedSearch.here` | `Overload.Names` |
+| [[basic.lookup.unqual]/2 sentence 2](https://eel.is/c++draft/basic.lookup.unqual#2.sentence-2) | rule | `Overload.UnqualifiedSearch.global` | `Overload.Names` |
+| [[basic.lookup.unqual]/2 sentence 2](https://eel.is/c++draft/basic.lookup.unqual#2.sentence-2) | rule | `Overload.UnqualifiedSearch.parent` | `Overload.Names` |
+| [[basic.lookup.unqual]/3](https://eel.is/c++draft/basic.lookup.unqual#3) | rule | `Overload.unqualifiedLookup` | `Overload.Names` |
+| [[basic.scope.scope]/2](https://eel.is/c++draft/basic.scope.scope#2) | rule | `Overload.Decl.binds` | `Overload.Names` |
+| [[basic.scope.scope]/2](https://eel.is/c++draft/basic.scope.scope#2) | rule | `Overload.Scope.parent?` | `Overload.Names` |
 | [[basic.scope.scope]/4](https://eel.is/c++draft/basic.scope.scope#4) | example | `Overload.scope_scope_4_example` | `Overload.Scope` |
 | [[basic.scope.scope]/4](https://eel.is/c++draft/basic.scope.scope#4) | rule | `Overload.Corresponds.overloads` | `Overload.Scope` |
 | [[basic.scope.scope]/4](https://eel.is/c++draft/basic.scope.scope#4) | rule | `Overload.Corresponds.sameName` | `Overload.Scope` |
@@ -26,6 +44,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[dcl.ref]/1 sentence 3](https://eel.is/c++draft/dcl.ref#1.sentence-3) | rule | `Overload.formConst` | `Overload.Steps` |
 | [[dcl.ref]/5 sentence 1](https://eel.is/c++draft/dcl.ref#5.sentence-1) | rule | `Overload.formPtr` | `Overload.Steps` |
 | [[over.best.ics.general]/7](https://eel.is/c++draft/over.best.ics.general#7) | rule | `Overload.Program.baseConv` | `Overload.Ranking` |
+| [[over.call.func]/3 sentence 2](https://eel.is/c++draft/over.call.func#3.sentence-2) | rule | `Overload.Program.callAt` | `Overload.Names` |
 | [[over.ics.rank]/1 sentence 1](https://eel.is/c++draft/over.ics.rank#1.sentence-1) | theorem | `Overload.better_asymm` | `Overload.Ranking` |
 | [[over.ics.rank]/3](https://eel.is/c++draft/over.ics.rank#3) | rule | `Overload.BetterConv.qualification` | `Overload.Ranking` |
 | [[over.ics.rank]/3](https://eel.is/c++draft/over.ics.rank#3) | rule | `Overload.BetterConv.rvalueBinding` | `Overload.Ranking` |
@@ -148,14 +167,9 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 - [[temp.deduct.general]/12](https://eel.is/c++draft/temp.deduct.general#12)
 - [[temp.arg.nontype]/1](https://eel.is/c++draft/temp.arg.nontype#1)
 - [[temp.arg.nontype]/3](https://eel.is/c++draft/temp.arg.nontype#3)
-- [[basic.lookup.general]/2](https://eel.is/c++draft/basic.lookup.general#2)
-- [[basic.lookup.general]/3](https://eel.is/c++draft/basic.lookup.general#3)
-- [[basic.lookup.unqual]/2](https://eel.is/c++draft/basic.lookup.unqual#2)
-- [[basic.lookup.unqual]/3](https://eel.is/c++draft/basic.lookup.unqual#3)
 - [[basic.lookup.argdep]/1](https://eel.is/c++draft/basic.lookup.argdep#1)
 - [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3)
 - [[basic.lookup.argdep]/4](https://eel.is/c++draft/basic.lookup.argdep#4)
-- [[over.call.func]/3](https://eel.is/c++draft/over.call.func#3)
 - [[over.call.object]/1](https://eel.is/c++draft/over.call.object#1)
 - [[class.member.lookup]/3](https://eel.is/c++draft/class.member.lookup#3)
 - [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4)
@@ -166,7 +180,6 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 - [[temp.point]/1](https://eel.is/c++draft/temp.point#1)
 - [[temp.dep.candidate]/1](https://eel.is/c++draft/temp.dep.candidate#1)
 - [[temp.spec.partial.general]/7](https://eel.is/c++draft/temp.spec.partial.general#7)
-- [[basic.link]/8](https://eel.is/c++draft/basic.link#8)
 - [[basic.def.odr]/16](https://eel.is/c++draft/basic.def.odr#16)
 
 ## Assumptions

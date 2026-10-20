@@ -24,6 +24,7 @@ import Overload.Units
 import Overload.Access
 import Overload.Conjunction
 import Overload.Scope
+import Overload.Names
 import Overload.Emit
 import Overload.Typeclass
 import Overload.Lint
@@ -154,6 +155,14 @@ is the map.
 #audit Overload.candidates_redeclaration_ambiguous
 #audit Overload.scope_scope_4_example
 #audit Overload.object_function_conflict
+
+-- Name lookup.
+#audit Overload.singleSearch_iff
+#audit Overload.unqualifiedSearch_iff
+#audit Overload.inner_hides_outer
+#audit Overload.unqualifiedSearch_scope
+#audit Overload.callAt_eq_call_global
+#audit Overload.hiding_example
 
 -- Translation units.
 #audit Overload.verdicts_single

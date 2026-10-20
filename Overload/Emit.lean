@@ -8,6 +8,7 @@ import Overload.Dispatch
 import Overload.Units
 import Overload.Access
 import Overload.Scope
+import Overload.Names
 
 /-!
 # The C++ emitter
@@ -56,7 +57,7 @@ inductive Query where
   any; `expected` names the candidate by its index among the candidates
   with that name. -/
   | call (callee : String) (args : List CallArg) (expected : Resolution Nat)
-      (explicit : List Ty := [])
+      (explicit : List Ty := []) (scope : Scope := [])
   /-- Hand-written C++ with its own assertions, and whether it is
   well-formed. -/
   | raw (cpp : String) (wellFormed : Bool := true)
@@ -75,7 +76,8 @@ def commonPrelude : String :=
   "template <class...> struct deduced {};\n" ++
   "template <auto V> struct value_of {};\n" ++
   "template <class T> struct instance_of {};\n" ++
-  "template <const auto &R> struct ref_of {};\n"
+  "template <const auto &R> struct ref_of {};\n" ++
+  "template <int J> struct hidden {};\n"
 
 /-- The default fixture of a case: `selected<K>` with no members. -/
 def defaultPrelude : String := "template <int K> struct selected {};\n"
@@ -106,7 +108,7 @@ structure Case where
 def Case.wellFormed (c : Case) : Bool :=
   match c.query with
   | .deduction .. => true
-  | .call _ _ (.illFormed _) _ => false
+  | .call _ _ (.illFormed _) _ _ => false
   | .call .. => true
   | .raw _ wf => wf
   | .lookup _ _ (.ambiguous _) | .lookup _ _ (.illFormed _) => false
@@ -270,63 +272,78 @@ def evaluatedCall (callee : String) (explicit : List Ty) (as : List CallArg) : S
     if a.lvalue then s!"a{i}" else s!"static_cast<{ty a.ty}&&>(a{i})"
   s!"void evaluated({String.intercalate ", " ps}) \{ {name}({String.intercalate ", " es}); }\n"
 
-/-- The index of a declaration's entity among the callee's entities
-declared so far, and the entities after it: a redeclaration shares its
-entity's index, and gets the same return type, as C++ requires. -/
-private def entityIndex (ents : List Decl) (d : Decl) : Nat × List Decl :=
-  match ents.findIdx? (corresponds · d) with
-  | some k => (k, ents)
-  | none => (ents.length, ents ++ [d])
+/-- Wrap C++ in the namespaces of a scope, outermost first. A class step
+is rendered by its class, which a later stage supplies; here it is
+passed over. -/
+def inScope (s : Scope) (text : String) : String :=
+  s.foldr (fun step acc =>
+    match step with
+    | .namespace n => s!"namespace {n} \{\n{acc}}\n"
+    | .class _ => acc) text
 
-/-- The declarations of a program, as C++; functions named `callee` get
-the return type `ret k` for the `k`th entity of that name, which is its
-index in the overload set. -/
-def program (p : Program) (callee : String) (ret : Nat → Head → String) : String := Id.run do
+/-- The declarations of a program, as C++, each in its namespaces.
+Functions named `callee` get the return type `ret k` when `index` gives
+them `k`, the position of their entity among the declarations the
+call's lookup finds, so a redeclaration shares its entity's return type;
+one lookup does not find gets `hidden<j>`. -/
+def program (p : Program) (callee : String) (ret : Nat → Head → String)
+    (index : Decl → Option Nat) : String := Id.run do
   let mut out := ""
-  let mut ents : List Decl := []
+  let mut hidden := 0
   let mut instances : List (String × Nat) := []
   for d in p do
+    let mut text := ""
     match d with
-    | .class n [] [] => out := out ++ s!"struct {n} \{};\n"
-    | .class n bases prot =>
+    | .class n [] [] _ => text := s!"struct {n} \{};\n"
+    | .class n bases prot _ =>
       let specs := bases.map (s!"public {ty ·}") ++ prot.map (s!"protected {ty ·}")
-      out := out ++ s!"struct {n} : {String.intercalate ", " specs} \{};\n"
-    | .classTemplate n h => out := out ++ s!"{head h}\nstruct {n} \{};\n"
-    | .function n ps =>
+      text := s!"struct {n} : {String.intercalate ", " specs} \{};\n"
+    | .classTemplate n h _ => text := s!"{head h}\nstruct {n} \{};\n"
+    | .function n ps _ =>
       if n = callee then
-        let (k, ents') := entityIndex ents d
-        ents := ents'
-        out := out ++ s!"{ret k []} {n}({params ps});\n"
+        let r := match index d with
+          | some k => ret k []
+          | none => s!"hidden<{hidden}>"
+        if (index d).isNone then hidden := hidden + 1
+        text := s!"{r} {n}({params ps});\n"
       else
-        out := out ++ s!"void {n}({params ps});\n"
+        text := s!"void {n}({params ps});\n"
     | .functionTemplate ft =>
       let req := match ft.constraint with
         | some c => s!"\n    requires {constraint c}"
         | none => ""
       if ft.name = callee then
-        let (k, ents') := entityIndex ents d
-        ents := ents'
-        out := out ++ s!"{head ft.head}{req}\n{declarator ft (ret k ft.head) (params ft.params ft.defaultArgs)}{body ft (ret k ft.head)}\n"
+        let r := match index d with
+          | some k => ret k ft.head
+          | none => s!"hidden<{hidden}>"
+        if (index d).isNone then hidden := hidden + 1
+        text := s!"{head ft.head}{req}\n{declarator ft r (params ft.params ft.defaultArgs)}{body ft r}\n"
       else
-        out := out ++ s!"{head ft.head}{req}\n{declarator ft "void" (params ft.params ft.defaultArgs)}{body ft "void"}\n"
+        text := s!"{head ft.head}{req}\n{declarator ft "void" (params ft.params ft.defaultArgs)}{body ft "void"}\n"
     | .lookup c =>
-      out := out ++ s!"template <class T>\ninline constexpr auto {c} = std::false_type\{};\n"
+      text := s!"template <class T>\ninline constexpr auto {c} = std::false_type\{};\n"
     | .lookupHard c =>
-      out := out ++ s!"template <class T>\nstruct {c}_instance \{\n"
-      out := out ++ s!"    static_assert(sizeof(T) == 0, \"no {c} instance for this type\");\n"
-      out := out ++ s!"    static constexpr int value = 0;\n};\n"
-      out := out ++ s!"template <class T>\ninline constexpr auto {c} = {c}_instance<T>::value;\n"
+      text := s!"template <class T>\nstruct {c}_instance \{\n"
+      text := text ++ s!"    static_assert(sizeof(T) == 0, \"no {c} instance for this type\");\n"
+      text := text ++ s!"    static constexpr int value = 0;\n};\n"
+      text := text ++ s!"template <class T>\ninline constexpr auto {c} = {c}_instance<T>::value;\n"
     | .instance c h pat =>
       let i := (instances.find? (·.1 == c)).map (·.2) |>.getD 0
       instances := (c, i + 1) :: instances.filter (·.1 != c)
-      out := out ++ s!"{head h}\ninline constexpr selected<{i}> {c}<{ty pat}>\{};\n"
+      text := s!"{head h}\ninline constexpr selected<{i}> {c}<{ty pat}>\{};\n"
     | .concept n body =>
-      out := out ++ s!"template <class T>\nconcept {n} = {body};\n"
+      text := s!"template <class T>\nconcept {n} = {body};\n"
     | .use c t =>
-      out := out ++ s!"static_assert(sizeof({c}<{ty t}>) > 0);\n"
-    | .object n =>
-      out := out ++ s!"inline constexpr pinned_instance {n}\{};\n"
+      text := s!"static_assert(sizeof({c}<{ty t}>) > 0);\n"
+    | .object n cls _ =>
+      text := s!"inline constexpr {cls} {n}\{};\n"
+    out := out ++ inScope d.scope text
   return out
+
+/-- The declarations a call's lookup finds, one per entity, in the order
+`Candidate.index` numbers them. -/
+def foundEntities (p : Program) (scope : Scope) (callee : String) : List Decl :=
+  entities (discardTypes (unqualifiedLookup p p.length scope callee))
 
 /-- The whole translation unit for a case. -/
 def render (c : Case) : String := Id.run do
@@ -342,30 +359,34 @@ def render (c : Case) : String := Id.run do
   | .deduction callee as expected explicit =>
     let p := c.program
     let h := (p.functionTemplate? callee).map (·.head) |>.getD []
-    out := out ++ program p callee (fun _ h => deducedType h) ++ "\n"
+    out := out ++ program p callee (fun _ h => deducedType h) (fun _ => some 0) ++ "\n"
     match expected with
     | some σ =>
       out := out ++ s!"static_assert(std::is_same_v<decltype({callExpr callee explicit as}), {expectedDeduced h σ}>);\n"
     | none =>
       out := out ++ notViable callee explicit as
-  | .call callee as expected explicit =>
-    out := out ++ program c.program callee (fun k _ => s!"selected<{k}>") ++ "\n"
+  | .call callee as expected explicit scope =>
+    let found := foundEntities c.program scope callee
+    out := out ++ program c.program callee (fun k _ => s!"selected<{k}>")
+      (fun d => found.findIdx? (sameEntity · d)) ++ "\n"
+    let mut q := ""
     match expected with
     | .selected k =>
-      out := out ++ s!"static_assert(std::is_same_v<decltype({callExpr callee explicit as}), selected<{k}>>);\n"
+      q := q ++ s!"static_assert(std::is_same_v<decltype({callExpr callee explicit as}), selected<{k}>>);\n"
     | .noMatch | .ambiguous _ =>
-      out := out ++ notViable callee explicit as
+      q := q ++ notViable callee explicit as
     | .illFormed r =>
-      out := out ++ s!"// the model expects a hard error: {r}\n"
-      out := out ++ s!"using probe = decltype({callExpr callee explicit as});\n"
+      q := q ++ s!"// the model expects a hard error: {r}\n"
+      q := q ++ s!"using probe = decltype({callExpr callee explicit as});\n"
     if hasMandates c.program then
       match expected with
-      | .selected _ | .illFormed _ => out := out ++ evaluatedCall callee explicit as
+      | .selected _ | .illFormed _ => q := q ++ evaluatedCall callee explicit as
       | _ => pure ()
+    out := out ++ inScope scope q
   | .raw cpp _ =>
-    out := out ++ program c.program "" (fun _ _ => "void") ++ "\n" ++ cpp
+    out := out ++ program c.program "" (fun _ _ => "void") (fun _ => none) ++ "\n" ++ cpp
   | .lookup tc a expected =>
-    out := out ++ program c.program "" (fun _ _ => "void") ++ "\n"
+    out := out ++ program c.program "" (fun _ _ => "void") (fun _ => none) ++ "\n"
     let value := s!"std::remove_cvref_t<decltype({tc}<{ty a}>)>"
     match expected with
     | .selected k =>
@@ -470,6 +491,73 @@ def redeclarationNotOverload : Case :=
     program := redeclaredProgram
     query := .call "f" [{ ty := int }] (.selected 0)
     source := "computed by resolve over the overload set" }
+
+/-! ### [basic.lookup.unqual]/2: an inner scope hides an outer one
+
+Unqualified lookup stops at the first enclosing scope that binds the
+name, so a declaration in an inner namespace hides every outer one,
+whatever the signatures. The arguments are an `int` or a class of the
+global namespace, so argument-dependent lookup adds nothing. -/
+
+private def user : Scope := [.namespace "user"]
+private def xClass : Ty := .named "X"
+
+/-- `struct X {}; void f(int);` at global scope, `void f(X);` in `user`,
+and `f(1)` written in `user`: the exact match outside is never a
+candidate, and the call is not viable. -/
+def innerHidesOuter : Case :=
+  { name := "basic_lookup_unqual_2_inner_hides_outer"
+    cite := cite "basic.lookup.unqual#2.sentence-1"
+    program := hidingProgram
+    query := .call "f" [{ ty := int }] .noMatch [] user
+    source := "computed by resolve over unqualified lookup" }
+
+/-- The same, called with an `X`: the inner declaration is selected. -/
+def innerSelected : Case :=
+  { name := "basic_lookup_unqual_2_inner_selected"
+    cite := cite "basic.lookup.unqual#2.sentence-1"
+    program := hidingProgram
+    query := .call "f" [{ ty := xClass }] (.selected 0) [] user
+    source := "computed by resolve over unqualified lookup" }
+
+/-- The same declarations and the same call at global scope: the inner
+declaration is not visible there, and the outer one is selected. -/
+def outerAtGlobal : Case :=
+  { name := "basic_lookup_unqual_2_outer_at_global"
+    cite := cite "basic.lookup.unqual#2.sentence-1"
+    program := hidingProgram
+    query := .call "f" [{ ty := int }] (.selected 0)
+    source := "computed by resolve over unqualified lookup" }
+
+/-- `f(1)` written in `user`, which declares no `f`: the search continues
+in the parent scope and finds the global declaration. -/
+def parentFound : Case :=
+  { name := "basic_lookup_unqual_2_parent_found"
+    cite := cite "basic.lookup.unqual#2.sentence-2"
+    program := [.function "f" [int], .function "g" [int] user]
+    query := .call "f" [{ ty := int }] (.selected 0) [] user
+    source := "computed by resolve over unqualified lookup" }
+
+/-- `f(x)` written in `a::b`, with `f` declared in `a` and at global
+scope and neither in `a::b`: the nearer enclosing scope wins. The global
+`f(int)`, which argument-dependent lookup also reaches, is not viable for
+an `X`. -/
+def nearestEnclosing : Case :=
+  { name := "basic_lookup_unqual_2_nearest_enclosing"
+    cite := cite "basic.lookup.unqual#2.sentence-2"
+    program := [ .class "X", .function "f" [int], .function "f" [xClass] [.namespace "a"]
+               , .function "g" [int] [.namespace "a", .namespace "b"] ]
+    query := .call "f" [{ ty := xClass }] (.selected 0) [] [.namespace "a", .namespace "b"]
+    source := "computed by resolve over unqualified lookup" }
+
+/-- No declaration of `f` precedes the call: lookup finds nothing and the
+program is ill-formed. -/
+def nothingFound : Case :=
+  { name := "basic_lookup_general_1_nothing_found"
+    cite := cite "basic.lookup.general#1.sentence-3"
+    program := [.function "g" [int]]
+    query := .call "f" [{ ty := int }] (.illFormed "no declaration of f is found") [] user
+    source := "computed by lookup" }
 
 /-! ### [temp.deduct.general]/5, the first example
 
@@ -1171,6 +1259,7 @@ def publicBaseSelected : Case :=
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
   , specialization, pointerMismatch, inconsistent, nonTemplatePreferred, redeclarationNotOverload
+  , innerHidesOuter, innerSelected, outerAtGlobal, parentFound, nearestEnclosing, nothingFound
   , draftDeductGeneral5_both, draftDeductGeneral5_default, draftDeductGeneral5_undeduced
   , draftDeductGeneral5_explicit, draftDeductGeneral5_explicitBoth
   , draftDeductGeneral5_stepOrder, draftDeductGeneral8_immediate, stepOrderHazard
@@ -1217,8 +1306,8 @@ the selected function's Mandates, as candidate indices; `none` when the
 case is not a call case. -/
 def computedCallWith (envOf : EnvOf) (c : Case) : Option (Resolution Nat) :=
   match c.query with
-  | .call callee as _ explicit =>
-    some ((c.program.call (envOf c.program c.atomics) (c.program.overloadSet callee) as explicit).map
+  | .call callee as _ explicit scope =>
+    some ((c.program.callAt (envOf c.program c.atomics) c.program.length scope callee as explicit).map
       (·.index))
   | _ => none
 

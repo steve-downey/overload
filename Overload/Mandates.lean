@@ -60,7 +60,7 @@ theorem deduceTemplate_mandate (env : Env) (ft : FunctionTemplate) (m : Option C
 under the text: a candidate, nothing, or a hard error. -/
 def contribution (env : Env) (args : List CallArg) (explicit : List Ty) : Decl → Nat →
     Subst (Option Candidate)
-  | .function _ ps, i => .ok (some { index := i, params := ps })
+  | .function _ ps _, i => .ok (some { index := i, params := ps })
   | .functionTemplate ft, i =>
     match deduceTemplate env ft explicit args with
     | .ok sp => .ok (some { index := i, params := sp.params, defaultArgs := ft.defaultArgs

@@ -33,7 +33,7 @@ namespace Program
 def publicBases (p : Program) : Ty → List Ty
   | .named n =>
     (p.findSome? fun
-      | .class m bs _ => if m = n then some bs else none
+      | .class m bs _ _ => if m = n then some bs else none
       | _ => none).getD []
   | _ => []
 

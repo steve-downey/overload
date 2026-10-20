@@ -36,7 +36,8 @@ namespace Overload
 its definition and loses its base classes. -/
 def Program.eraseBases (p : Program) (I : List String) : Program :=
   p.map fun
-    | .class n bs ps => .class n (if I.contains n then [] else bs) (if I.contains n then [] else ps)
+    | .class n bs ps sc =>
+      .class n (if I.contains n then [] else bs) (if I.contains n then [] else ps) sc
     | d => d
 
 /-- Is the type a class whose bases erasing `I` removes? -/
@@ -331,14 +332,14 @@ theorem selectInstance_erase (p : Program) (I : List String) (tc : String) (a : 
   simp only [Program.selectInstance, instancesOf_erase]
 
 theorem any_erase (p : Program) (I : List String) (f : Decl → Bool)
-    (hf : ∀ n bs ps bs' ps', f (.class n bs ps) = f (.class n bs' ps')) :
+    (hf : ∀ n bs ps bs' ps' sc, f (.class n bs ps sc) = f (.class n bs' ps' sc)) :
     (p.eraseBases I).any f = p.any f := by
   unfold Program.eraseBases
   rw [List.any_map]
   apply any_congr_mem
   intro d _
   cases d with
-  | «class» n bs ps => exact hf n _ _ bs ps
+  | «class» n bs ps sc => exact hf n _ _ bs ps sc
   | _ => rfl
 
 theorem instantiate_erase (p : Program) (I : List String) (atomics : List (String × List Ty × Bool))
@@ -346,7 +347,7 @@ theorem instantiate_erase (p : Program) (I : List String) (atomics : List (Strin
     (Env.ofProgram (p.eraseBases I) atomics extra).instantiate = (Env.ofProgram p atomics extra).instantiate := by
   funext n a
   simp only [Env.ofProgram, selectInstance_erase]
-  rw [any_erase p I _ (fun _ _ _ _ _ => rfl), any_erase p I _ (fun _ _ _ _ _ => rfl)]
+  rw [any_erase p I _ (fun _ _ _ _ _ _ => rfl), any_erase p I _ (fun _ _ _ _ _ _ => rfl)]
 
 theorem atomic_erase (p : Program) (I : List String) (atomics : List (String × List Ty × Bool))
     (extra : Constraint.Oracle) :
@@ -355,7 +356,7 @@ theorem atomic_erase (p : Program) (I : List String) (atomics : List (String × 
   simp only [Env.ofProgram, selectInstance_erase]
   split <;> try rfl
   rename_i c a
-  rw [any_erase p I _ (fun _ _ _ _ _ => rfl)]
+  rw [any_erase p I _ (fun _ _ _ _ _ _ => rfl)]
 
 /-! ## Conversions at exact type do not see erasure -/
 
