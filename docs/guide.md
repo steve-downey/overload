@@ -457,6 +457,33 @@ honest reading of "no diagnostic required".
   test's answer changes, and none for one unit
   (`registry_verdicts_single`).
 
+### DependentCandidate
+
+`Overload/DependentCandidate.lean`: dependent calls and the fourth
+verdict. `Decl.dependentCall` is a call written in a template defined at
+its position and instantiated with the arguments it carries. Its name is
+looked up from where it appears, unqualified lookup and
+argument-dependent lookup, and argument-dependent lookup runs again from
+the instantiation context, the end of the unit ([temp.res.general]/1,
+[basic.lookup.argdep]/4, [temp.point]/7; `Program.dependentLookup`,
+`Program.dependentCandidates`, `Program.dependentCallAt`). The verdict
+of [temp.dep.candidate]/1, `IllFormedNdr.dependentCandidate`: the call
+resolves differently over what its two contexts find and over that with
+every other unit's associated-namespace functions as well
+(`dependentVerdict`, `Units.dependentVerdicts`, and `Units.allVerdicts`
+with phase 8's three).
+
+- `dependentVerdicts_single`: one unit, no verdict.
+- `object_design_no_adl_verdict`: a callee bound to anything but a
+  function, the operation object for one, cannot get the verdict in any
+  program, since argument-dependent lookup never applies to it. The
+  free-function design can (`late_adl_overload_verdict`): a better
+  overload in an associated namespace of another unit, which neither
+  context sees, is the verdict.
+- `temp_res_general_1_example`: the draft's example, `f(t)` instantiated
+  at a type declared after the template, finds the later `f(E)` through
+  the instantiation context and selects it.
+
 ### Access
 
 `Overload/Access.lean`: `Program.call`, a call as a program evaluates it
@@ -630,7 +657,11 @@ its qualified name wherever a type mentions it, a call case carries the
 scope it is written in, and the functions the call resolves over are
 numbered by entity in the lookup's order; a declaration of the callee's
 name lookup does not find gets a `hidden<j>` return type. A
-`memberCall` query is `obj.f(args)` on an object of a class. A `Case` is a program, a query
+`memberCall` query is `obj.f(args)` on an object of a class, and a
+`dependentCall` query instantiates the dependent call declared at a
+position, rendered as a template whose trailing return type names the
+call, so the function selected is observable and a lookup failure is a
+substitution failure. A `Case` is a program, a query
 (deduction, call, lookup, or raw C++) and the expected outcome. `render`
 writes a translation unit whose `static_assert`s check the outcome in
 unevaluated contexts; a case carries its own `prelude` of fixtures beyond

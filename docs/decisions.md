@@ -334,6 +334,10 @@ It is written down as a tagged predicate so a later phase can remove it.
   one entity with two definitions ([basic.def.odr]/16), which
   `operation_object_not_separated` reports in prose today. `reachable`
   is to cite [temp.spec.partial.general]/7, the sentence it transcribes.
+- 2026-10-20 — The fourth verdict is in (`IllFormedNdr.dependentCandidate`,
+  `Units.dependentVerdicts`, `Units.allVerdicts`). The instantiation
+  context of a dependent call is the end of its unit, as `laterInUnit`
+  already takes it, and the units compared are the program's.
 
 ---
 

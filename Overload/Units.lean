@@ -72,11 +72,17 @@ inductive IllFormedNdr where
   specialization reachable: one satisfaction result at two points (the
   registry section below). -/
   | satisfactionChanged (unit pos : Nat) (registry : String) (arg : Ty)
+  /-- A dependent call would be ill-formed, or would find a better match,
+  had its lookup considered every external-linkage function declaration
+  in its associated namespaces in every unit, not only those of its
+  definition and instantiation contexts (`Overload/DependentCandidate.lean`). -/
+  | dependentCandidate (unit pos : Nat) (callee : String) (args : List CallArg)
   deriving Repr, DecidableEq
 
 attribute [std rule "temp.point#7"] IllFormedNdr.laterInUnit
 attribute [std rule "temp.spec.partial.general#1.sentence-3"] IllFormedNdr.notReachable
 attribute [std rule "temp.constr.atomic#3.sentence-5"] IllFormedNdr.satisfactionChanged
+attribute [std rule "temp.dep.candidate#1"] IllFormedNdr.dependentCandidate
 
 /-- The verdict at one use, the `pos`th declaration of unit `u`. -/
 def useVerdict (us : Units) (u pos : Nat) (p : Program) (tc : String) (a : Ty) : Option IllFormedNdr :=
@@ -252,6 +258,7 @@ def completeAt (insts : List (Head × Ty)) (registry : String) (a : Ty) : Bool :
 argument. -/
 def IllFormedNdr.site : IllFormedNdr → Nat × Nat × String × Ty
   | .laterInUnit u pos tc a | .notReachable u pos tc a | .satisfactionChanged u pos tc a => (u, pos, tc, a)
+  | .dependentCandidate u pos callee args => (u, pos, callee, Ty.args (args.map (·.ty)))
 
 /-- The rule a verdict at a registry's use falls under. Where the test's
 answer itself changes, from incomplete to complete, the use is one

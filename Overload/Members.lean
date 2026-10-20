@@ -308,14 +308,14 @@ its scope. Surrogate call functions are out of the fragment. -/
 def Program.callOperators (p : Program) (pos : Nat) (cls : String) : Resolution (List Decl) :=
   p.memberSearch pos cls "operator()"
 
-/-- The candidates a call from a point resolves over: the overload set
-name lookup found, or, when the name denotes an object of class type,
-the function call operators of its class, one declaration per entity.
-Anything else is ill-formed. -/
+/-- The candidates a call resolves over, given what lookup found for its
+name: the overload set, or, when the name denotes an object of class
+type, the function call operators of its class, one declaration per
+entity. Anything else is ill-formed. -/
 @[std rule "over.match.call.general#1"]
-def Program.callCandidates (p : Program) (pos : Nat) (s : Scope) (callee : String)
-    (args : List CallArg) : Resolution (List Decl) :=
-  match lookupResult (p.callLookup pos s callee args) with
+def Program.candidatesOf (p : Program) (pos : Nat) (found : List Decl) (callee : String) :
+    Resolution (List Decl) :=
+  match lookupResult found with
   | .overloadSet fs => .selected fs
   | .entity (.object _ cls _) =>
     if (p.classScope? cls).isNone then .illFormed s!"the class {cls} of {callee} is not declared"
@@ -328,6 +328,12 @@ def Program.callCandidates (p : Program) (pos : Nat) (s : Scope) (callee : Strin
   | .entity _ => .illFormed s!"{callee} does not denote a function or an object"
   | .none => .illFormed s!"no declaration of {callee} is found"
   | .ambiguous _ => .illFormed s!"the lookup of {callee} is ambiguous"
+
+/-- The candidates a call from a point resolves over: those of what the
+call's lookup found. -/
+def Program.callCandidates (p : Program) (pos : Nat) (s : Scope) (callee : String)
+    (args : List CallArg) : Resolution (List Decl) :=
+  p.candidatesOf pos (p.callLookup pos s callee args) callee
 
 /-- A call from a program point in a scope: the candidates, resolved as
 `Program.call` does. -/
@@ -359,9 +365,9 @@ theorem object_call_candidates (p : Program) (pos : Nat) (s : Scope) (callee cls
     exact h
   have hnone : (p.classScope? cls).isNone = false := by
     cases h : p.classScope? cls <;> simp_all
-  simp [Program.callCandidates, hl, lookupResult, discardTypes, Decl.declaresType, Decl.kind?,
-    Decl.declaresFunction, entities, entities.go, List.filter_cons, List.filter_nil, List.any_cons,
-    List.any_nil, List.all_cons, List.all_nil, hnone]
+  simp [Program.callCandidates, Program.candidatesOf, hl, lookupResult, discardTypes,
+    Decl.declaresType, Decl.kind?, Decl.declaresFunction, entities, entities.go, List.filter_cons,
+    List.filter_nil, List.any_cons, List.any_nil, List.all_cons, List.all_nil, hnone]
 
 /-- A member call, `obj.name(args)` on an object of class `cls`: the
 members the search finds, resolved over the explicit arguments. -/
@@ -484,8 +490,8 @@ theorem callAt_eq_call_global (p : Program) (env : Env) (callee : String) (args 
     cases e <;> simp_all [Decl.declaresType, Decl.declaresFunction, Decl.kind?]
   have hall : ((d :: ds).all (·.declaresFunction)) = true :=
     List.all_eq_true.2 fun e he => hfn e (hds ▸ he)
-  simp only [Program.callAt, Program.callCandidates, hfound, hds, lookupResult, discardTypes, hnotype,
-    ↓reduceIte, hfilter, hall, Program.overloadSet]
+  simp only [Program.callAt, Program.callCandidates, Program.candidatesOf, hfound, hds, lookupResult,
+    discardTypes, hnotype, ↓reduceIte, hfilter, hall, Program.overloadSet]
 
 /-! ## On programs -/
 
