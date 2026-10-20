@@ -3,7 +3,7 @@
 
 cmake_minimum_required(VERSION 4.0..4.2)
 
-project(encoding VERSION 0.0.0 LANGUAGES CXX)
+project(overload.encoding VERSION 0.0.0 LANGUAGES CXX)
 
 # Instrumentation query
 # find_package(Python COMPONENTS Interpreter)
