@@ -25,6 +25,7 @@ import Overload.Access
 import Overload.Conjunction
 import Overload.Scope
 import Overload.Names
+import Overload.Adl
 import Overload.Emit
 import Overload.Typeclass
 import Overload.Lint
@@ -161,8 +162,18 @@ is the map.
 #audit Overload.unqualifiedSearch_iff
 #audit Overload.inner_hides_outer
 #audit Overload.unqualifiedSearch_scope
-#audit Overload.callAt_eq_call_global
 #audit Overload.hiding_example
+
+-- Argument-dependent lookup.
+#audit Overload.associatedEntities_iff
+#audit Overload.adl_iff
+#audit Overload.object_suppresses_adl
+#audit Overload.adl_functions
+#audit Overload.adl_scope
+#audit Overload.callAt_eq_call_global
+#audit Overload.hiding_call_example
+#audit Overload.argdep_1_example
+#audit Overload.free_function_admits_adl
 
 -- Translation units.
 #audit Overload.verdicts_single

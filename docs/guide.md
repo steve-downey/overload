@@ -525,8 +525,6 @@ lookup from a point is that search in the point's immediate scope
 [basic.lookup.general]/1 after classes are discarded when anything else
 was found (`LookupResult`, `lookupResult`, `discardTypes`): nothing, an
 overload set with one declaration per entity, one entity, or ambiguous.
-`Program.callAt` is a call from a point in a scope: lookup, then
-`Program.call` over the overload set ([over.call.func]/3).
 
 - `inner_hides_outer`: when the immediate scope binds the name, the
   search is the single search there, whatever every enclosing scope
@@ -535,20 +533,58 @@ overload set with one declaration per entity, one entity, or ambiguous.
   `f(1)` written in `user` not viable.
 - `unqualifiedSearch_scope`: everything found inhabits one enclosing
   scope.
+- `singleSearch_global_eq_candidates`: a single search in the global
+  scope over a unit whose declarations of the name are all functions
+  there is the candidate list.
+
+### Adl
+
+`Overload/Adl.lean`: argument-dependent lookup and the call from a
+point. The associated entities of an argument type are, for a class,
+the class and its bases, for a class template specialization the
+specialization and the entities of its type template arguments, and
+through cv-qualification, pointers and references those of the referenced
+type; a fundamental type has none (`Program.associatedEntities`,
+`AssociatedEntity`, `associatedEntities_iff`, [basic.lookup.argdep]/3).
+The associated namespaces are their innermost enclosing namespaces
+(`Program.associatedNamespaces`, /4). The lookup finds every function
+and function template declaration of the name a search in an associated
+namespace finds (`Program.adl`, `Adl`, `adl_iff`), and it applies when
+unqualified lookup found no class member and nothing that is not a
+function (`adlApplies`, /1). `Program.callLookup` is unqualified lookup
+plus that, and `Program.callAt` resolves a call from a point in a scope
+over what it found ([over.call.func]/3). The fragment names a class by
+its name alone, so two classes of one name in different namespaces are
+outside it.
+
+- `object_suppresses_adl`: a name that unqualified lookup binds to
+  anything but a function suppresses argument-dependent lookup, so an
+  object named like the callee is the whole of what lookup finds,
+  whatever the associated namespaces declare. This is the rule the
+  typeclass encoding's operation objects rest on, stated in
+  `obligations.md` as "a variable cannot be overloaded".
+- `adl_functions`, `adl_scope`: argument-dependent lookup adds only
+  functions and function templates, only from associated namespaces.
 - `callAt_eq_call_global`: with every declaration of the name a function
   at global scope, a call from the end of the unit is the call over the
   candidate list's overload set, which is why no earlier case moved.
+- `argdep_1_example`: the draft's example, `f(s)` finding `N::f` through
+  the argument's namespace. `free_function_admits_adl`: with the
+  operation a function template, a user's `fmap(X)` beside the user's
+  class is found and wins; with it an object, lookup finds the object and
+  nothing else. `hiding_call_example`: what the hiding cases select.
 
-Argument-dependent lookup and member lookup are later stages of phase 9;
-until then a call whose name denotes an object is reported, not resolved.
+Member lookup is the next stage; until then a call whose name denotes an
+object is reported, not resolved.
 
 ### Emit
 
 `Overload/Emit.lean`: the C++ emitter. Each declaration is rendered in
-its namespaces, a call case carries the scope it is written in, and the
-functions the call's lookup finds are numbered by entity in that lookup's
-order; a declaration lookup does not find gets a `hidden<j>` return
-type. A `Case` is a program, a query
+its namespaces, a class or class template declared in a namespace is
+named by its qualified name wherever a type mentions it, a call case
+carries the scope it is written in, and the functions the call's lookup
+finds are numbered by entity in that lookup's order; a declaration
+lookup does not find gets a `hidden<j>` return type. A `Case` is a program, a query
 (deduction, call, lookup, or raw C++) and the expected outcome. `render`
 writes a translation unit whose `static_assert`s check the outcome in
 unevaluated contexts; a case carries its own `prelude` of fixtures beyond

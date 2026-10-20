@@ -10,6 +10,21 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 |---|---|---|---|
 | [[basic.link]/8](https://eel.is/c++draft/basic.link#8) | rule | `Overload.sameEntity` | `Overload.Scope` |
 | [[basic.link]/11](https://eel.is/c++draft/basic.link#11) | rule | `Overload.sameKind` | `Overload.Scope` |
+| [[basic.lookup.argdep]/1](https://eel.is/c++draft/basic.lookup.argdep#1) | example | `Overload.argdep_1_example` | `Overload.Adl` |
+| [[basic.lookup.argdep]/1](https://eel.is/c++draft/basic.lookup.argdep#1) | rule | `Overload.Program.callLookup` | `Overload.Adl` |
+| [[basic.lookup.argdep]/1](https://eel.is/c++draft/basic.lookup.argdep#1) | rule | `Overload.adlApplies` | `Overload.Adl` |
+| [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.base` | `Overload.Adl` |
+| [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.cv` | `Overload.Adl` |
+| [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.lvalueReference` | `Overload.Adl` |
+| [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.pointer` | `Overload.Adl` |
+| [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.rvalueReference` | `Overload.Adl` |
+| [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.self` | `Overload.Adl` |
+| [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.specialization` | `Overload.Adl` |
+| [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.typeArgument` | `Overload.Adl` |
+| [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.Program.associatedEntities` | `Overload.Adl` |
+| [[basic.lookup.argdep]/4 sentence 1](https://eel.is/c++draft/basic.lookup.argdep#4.sentence-1) | rule | `Overload.Program.associatedNamespaces` | `Overload.Adl` |
+| [[basic.lookup.argdep]/4 sentence 2](https://eel.is/c++draft/basic.lookup.argdep#4.sentence-2) | rule | `Overload.Adl.found` | `Overload.Adl` |
+| [[basic.lookup.argdep]/4 sentence 2](https://eel.is/c++draft/basic.lookup.argdep#4.sentence-2) | rule | `Overload.Program.adl` | `Overload.Adl` |
 | [[basic.lookup.general]/1](https://eel.is/c++draft/basic.lookup.general#1) | rule | `Overload.lookupResult` | `Overload.Names` |
 | [[basic.lookup.general]/1 sentence 3](https://eel.is/c++draft/basic.lookup.general#1.sentence-3) | rule | `Overload.LookupResult.none` | `Overload.Names` |
 | [[basic.lookup.general]/1 sentence 4](https://eel.is/c++draft/basic.lookup.general#1.sentence-4) | rule | `Overload.LookupResult.overloadSet` | `Overload.Names` |
@@ -44,7 +59,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[dcl.ref]/1 sentence 3](https://eel.is/c++draft/dcl.ref#1.sentence-3) | rule | `Overload.formConst` | `Overload.Steps` |
 | [[dcl.ref]/5 sentence 1](https://eel.is/c++draft/dcl.ref#5.sentence-1) | rule | `Overload.formPtr` | `Overload.Steps` |
 | [[over.best.ics.general]/7](https://eel.is/c++draft/over.best.ics.general#7) | rule | `Overload.Program.baseConv` | `Overload.Ranking` |
-| [[over.call.func]/3 sentence 2](https://eel.is/c++draft/over.call.func#3.sentence-2) | rule | `Overload.Program.callAt` | `Overload.Names` |
+| [[over.call.func]/3 sentence 2](https://eel.is/c++draft/over.call.func#3.sentence-2) | rule | `Overload.Program.callAt` | `Overload.Adl` |
 | [[over.ics.rank]/1 sentence 1](https://eel.is/c++draft/over.ics.rank#1.sentence-1) | theorem | `Overload.better_asymm` | `Overload.Ranking` |
 | [[over.ics.rank]/3](https://eel.is/c++draft/over.ics.rank#3) | rule | `Overload.BetterConv.qualification` | `Overload.Ranking` |
 | [[over.ics.rank]/3](https://eel.is/c++draft/over.ics.rank#3) | rule | `Overload.BetterConv.rvalueBinding` | `Overload.Ranking` |
@@ -167,9 +182,6 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 - [[temp.deduct.general]/12](https://eel.is/c++draft/temp.deduct.general#12)
 - [[temp.arg.nontype]/1](https://eel.is/c++draft/temp.arg.nontype#1)
 - [[temp.arg.nontype]/3](https://eel.is/c++draft/temp.arg.nontype#3)
-- [[basic.lookup.argdep]/1](https://eel.is/c++draft/basic.lookup.argdep#1)
-- [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3)
-- [[basic.lookup.argdep]/4](https://eel.is/c++draft/basic.lookup.argdep#4)
 - [[over.call.object]/1](https://eel.is/c++draft/over.call.object#1)
 - [[class.member.lookup]/3](https://eel.is/c++draft/class.member.lookup#3)
 - [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4)

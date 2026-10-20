@@ -9,6 +9,7 @@ import Overload.Units
 import Overload.Access
 import Overload.Scope
 import Overload.Names
+import Overload.Adl
 
 /-!
 # The C++ emitter
@@ -342,11 +343,98 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
 
 /-- The declarations a call's lookup finds, one per entity, in the order
 `Candidate.index` numbers them. -/
-def foundEntities (p : Program) (scope : Scope) (callee : String) : List Decl :=
-  entities (discardTypes (unqualifiedLookup p p.length scope callee))
+def foundEntities (p : Program) (scope : Scope) (callee : String) (as : List CallArg) : List Decl :=
+  entities (discardTypes (p.callLookup p.length scope callee as))
 
-/-- The whole translation unit for a case. -/
-def render (c : Case) : String := Id.run do
+/-! ### Qualified names
+
+A class declared in a namespace is spelled `N::X` from anywhere else, and
+spelling it so inside `N` is valid too. The model names a class by its
+name alone, so before rendering every type in a case is rewritten to
+name each class and class template by its qualified name. Class steps in
+a scope are passed over, as `inScope` passes them. -/
+
+/-- The qualified name of a scope's namespaces, `a::b::`. -/
+def qualifier (s : Scope) : String :=
+  String.join (s.filterMap fun
+    | .namespace n => some s!"{n}::"
+    | .class _ => none)
+
+/-- The classes and class templates of a program in a namespace, with
+their qualifiers. -/
+def qualifiers (p : Program) : List (String × String) :=
+  p.filterMap fun
+    | .class n _ _ s => if s.isEmpty then none else some (n, qualifier s)
+    | .classTemplate n _ s => if s.isEmpty then none else some (n, qualifier s)
+    | _ => none
+
+/-- Qualify every class and class template name in a type. -/
+partial def qualifyTy (q : List (String × String)) : Ty → Ty
+  | .named n => .named (((q.lookup n).getD "") ++ n)
+  | .spec c as => .spec (((q.lookup c).getD "") ++ c) (qualifyTy q as)
+  | .const t => .const (qualifyTy q t)
+  | .ptr t => .ptr (qualifyTy q t)
+  | .lref t => .lref (qualifyTy q t)
+  | .rref t => .rref (qualifyTy q t)
+  | .cons a as => .cons (qualifyTy q a) (qualifyTy q as)
+  | .nondeduced t => .nondeduced (qualifyTy q t)
+  | .lookup n a => .lookup n (qualifyTy q a)
+  | .ref t => .ref (qualifyTy q t)
+  | .removeCvref t => .removeCvref (qualifyTy q t)
+  | .typeOf t => .typeOf (qualifyTy q t)
+  | .enableIf c as t => .enableIf c (qualifyTy q as) (qualifyTy q t)
+  | t => t
+
+/-- Qualify the types of a template parameter. -/
+def qualifyParam (q : List (String × String)) (tp : TemplateParam) : TemplateParam :=
+  { kind := match tp.kind with
+      | .type => .type
+      | .const t => .const (qualifyTy q t)
+    default := tp.default.map (qualifyTy q) }
+
+/-- Qualify the types a constraint maps. -/
+def qualifyConstraint (q : List (String × String)) : Constraint → Constraint
+  | .atomic e ts => .atomic e (ts.map (qualifyTy q))
+  | .conj a b => .conj (qualifyConstraint q a) (qualifyConstraint q b)
+  | .disj a b => .disj (qualifyConstraint q a) (qualifyConstraint q b)
+
+/-- Qualify the types of a declaration; its own name stays as declared. -/
+def qualifyDecl (q : List (String × String)) : Decl → Decl
+  | .class n bs ps s => .class n (bs.map (qualifyTy q)) (ps.map (qualifyTy q)) s
+  | .classTemplate n h s => .classTemplate n (h.map (qualifyParam q)) s
+  | .function n ps s => .function n (ps.map (qualifyTy q)) s
+  | .functionTemplate ft =>
+    .functionTemplate { ft with head := ft.head.map (qualifyParam q), params := ft.params.map (qualifyTy q)
+                                ret := qualifyTy q ft.ret, constraint := ft.constraint.map (qualifyConstraint q)
+                                mandate := ft.mandate.map (qualifyConstraint q) }
+  | .instance c h pat => .instance c (h.map (qualifyParam q)) (qualifyTy q pat)
+  | .use c t => .use c (qualifyTy q t)
+  | d => d
+
+/-- Qualify the types of a case, program and query alike. -/
+def qualifyCase (c : Case) : Case :=
+  let q := qualifiers c.program
+  let arg (a : CallArg) : CallArg := { a with ty := qualifyTy q a.ty }
+  { c with
+    program := c.program.map (qualifyDecl q)
+    query := match c.query with
+      | .deduction callee as expected explicit =>
+        .deduction callee (as.map arg) expected (explicit.map (qualifyTy q))
+      | .call callee as expected explicit scope =>
+        .call callee (as.map arg) expected (explicit.map (qualifyTy q)) scope
+      | .raw cpp wf => .raw cpp wf
+      | .lookup tc a expected => .lookup tc (qualifyTy q a) expected }
+
+/-- The whole translation unit for a case. The lookup that numbers the
+candidates runs on the case as stated; the rendering uses qualified
+names. -/
+def render (c₀ : Case) : String := Id.run do
+  let found := match c₀.query with
+    | .call callee as _ _ scope => foundEntities c₀.program scope callee as
+    | _ => []
+  let q := qualifiers c₀.program
+  let found := found.map (qualifyDecl q)
+  let c := qualifyCase c₀
   let mut out := ""
   out := out ++ s!"// expect: {if c.wellFormed then "well-formed" else "ill-formed"}\n"
   out := out ++ s!"// case: {c.name}\n"
@@ -366,7 +454,6 @@ def render (c : Case) : String := Id.run do
     | none =>
       out := out ++ notViable callee explicit as
   | .call callee as expected explicit scope =>
-    let found := foundEntities c.program scope callee
     out := out ++ program c.program callee (fun k _ => s!"selected<{k}>")
       (fun d => found.findIdx? (sameEntity · d)) ++ "\n"
     let mut q := ""
@@ -557,6 +644,64 @@ def nothingFound : Case :=
     cite := cite "basic.lookup.general#1.sentence-3"
     program := [.function "g" [int]]
     query := .call "f" [{ ty := int }] (.illFormed "no declaration of f is found") [] user
+    source := "computed by lookup" }
+
+/-! ### [basic.lookup.argdep]: argument-dependent lookup
+
+A call written where unqualified lookup finds nothing, or finds only
+functions, also finds the functions of the arguments' associated
+namespaces: the class's namespace, its bases' namespaces, and for a
+class template specialization its type arguments' namespaces. -/
+
+private def N : Scope := [.namespace "N"]
+
+/-- The example of [basic.lookup.argdep]/1: `namespace N { struct S { };
+void f(S); }` and `f(s)` at global scope calls `N::f`. -/
+def argdepExample : Case :=
+  { name := "basic_lookup_argdep_1_example"
+    cite := cite "basic.lookup.argdep#1"
+    program := argdepProgram
+    query := .call "f" [{ ty := .named "S", lvalue := true }] (.selected 0)
+    source := "computed by resolve over the call's lookup" }
+
+/-- With the operation a function template at global scope, a user's
+`fmap(X)` beside the user's class is found through the argument's
+namespace and wins as a non-template exact match. -/
+def freeFunctionAdmitsAdl : Case :=
+  { name := "basic_lookup_argdep_1_free_function_admits"
+    cite := cite "basic.lookup.argdep#1"
+    program := freeFunctionProgram
+    query := .call "fmap" [{ ty := .named "X" }] (.selected 1)
+    source := "computed by resolve over the call's lookup" }
+
+/-- A base class's namespace is associated: `struct D : N::B {}` at
+global scope, `void f(B);` in `N`, and `f(d)` at global scope selects it
+through the derived-to-base conversion. -/
+def adlThroughBase : Case :=
+  { name := "basic_lookup_argdep_3_base"
+    cite := cite "basic.lookup.argdep#3"
+    program := [ .class "B" [] [] N, .function "f" [.named "B"] N, .class "D" [.named "B"] ]
+    query := .call "f" [{ ty := .named "D", lvalue := true }] (.selected 0)
+    source := "computed by resolve over the call's lookup" }
+
+/-- A type template argument's namespace is associated: `box<N::S>` with
+`box` at global scope reaches `void f(box<S>);` in `N`. -/
+def adlThroughTemplateArgument : Case :=
+  { name := "basic_lookup_argdep_3_template_argument"
+    cite := cite "basic.lookup.argdep#3"
+    program := [ .classTemplate "box" [typeParam], .class "S" [] [] N
+               , .function "f" [.spec' "box" [.named "S"]] N ]
+    query := .call "f" [{ ty := .spec' "box" [.named "S"], lvalue := true }] (.selected 0)
+    source := "computed by resolve over the call's lookup" }
+
+/-- A fundamental type has no associated namespace: `void f(int);` in
+`N` is not found by `f(1)` at global scope, where nothing else declares
+`f`, so the program is ill-formed. -/
+def noAdlForFundamental : Case :=
+  { name := "basic_lookup_argdep_3_fundamental"
+    cite := cite "basic.lookup.argdep#3"
+    program := [ .function "f" [int] N ]
+    query := .call "f" [{ ty := int }] (.illFormed "no declaration of f is found")
     source := "computed by lookup" }
 
 /-! ### [temp.deduct.general]/5, the first example
@@ -1260,6 +1405,8 @@ def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
   , specialization, pointerMismatch, inconsistent, nonTemplatePreferred, redeclarationNotOverload
   , innerHidesOuter, innerSelected, outerAtGlobal, parentFound, nearestEnclosing, nothingFound
+  , argdepExample, freeFunctionAdmitsAdl, adlThroughBase, adlThroughTemplateArgument
+  , noAdlForFundamental
   , draftDeductGeneral5_both, draftDeductGeneral5_default, draftDeductGeneral5_undeduced
   , draftDeductGeneral5_explicit, draftDeductGeneral5_explicitBoth
   , draftDeductGeneral5_stepOrder, draftDeductGeneral8_immediate, stepOrderHazard

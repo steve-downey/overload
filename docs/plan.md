@@ -414,7 +414,15 @@ Status, 15 October 2026:
   and unqualified search as relation and function, the classification of
   what lookup found, and a call from a point. inner-hides-outer is a
   theorem (`inner_hides_outer`), and five emitted cases agree with GCC
-  and Clang.
+  and Clang. Argument-dependent lookup is done: `Overload/Adl.lean` has
+  associated entities and namespaces, the lookup and when it applies,
+  each as relation and function, and the call from a point now resolves
+  over both lookups. object-suppresses-adl is a theorem on the Standard
+  side (`object_suppresses_adl`, with `free_function_admits_adl` the
+  contrast); its restatement for the encoding's `call_stability` waits
+  for the operation object to be an object with call operators, which
+  is member lookup's stage. Five more emitted cases agree with GCC and
+  Clang.
 
 ## Target theorems
 
@@ -837,11 +845,13 @@ declaration, the program still a flat list, lookup a layer in front of
    2026.
 4. [argument-dependent-lookup](#phase-9-declarations-and-where-to-find-them):
    `associatedEntities`, `associatedNamespaces`, `adl`, `adlApplies`,
-   `callCandidates` ([over.call.func]/3), fed to `Program.call`.
-   Theorems object-suppresses-adl and `free_function_admits_adl`; on the
-   typeclass side, `call_stability` restated over the computed candidates
-   with `hothers` discharged. The "no other lookup on the name" row of
-   `obligations.md` moves from "by construction" to "by theorem".
+   `callLookup` and `callAt` ([over.call.func]/3), fed to `Program.call`.
+   Theorems object-suppresses-adl and `free_function_admits_adl`. Done
+   20 October 2026. The typeclass side's `call_stability` over the
+   computed candidates, with `hothers` discharged, and the move of the
+   "no other lookup on the name" row of `obligations.md` from "by
+   construction" to "by theorem", go with member lookup, once the
+   operation object is an object with call operators.
 5. [member-lookup](#phase-9-declarations-and-where-to-find-them): members
    as functions scoped in a class; `lookupSet` with the merge rule,
    `memberSearch`, `objectCallCandidates` ([over.call.object]/1), which

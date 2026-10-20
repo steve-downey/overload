@@ -28,18 +28,17 @@ blocks, modules or friends (`decisions.md#lookup-scope`).
   function or function template, one entity, or ambiguous
   (`LookupResult`, `lookupResult`), after classes are discarded when
   anything else was found.
-* `Program.callAt` is a call from a point in a scope: lookup, then
-  resolution over the overload set.
 
 The theorems: an unqualified search stops at the first enclosing scope
 that binds the name, so an inner declaration hides every outer one
 whatever its signature (`inner_hides_outer`), and everything found
-inhabits one enclosing scope (`unqualifiedSearch_scope`). A program with
-every declaration of a name a function at global scope resolves a call
-from the end of the unit exactly as the candidate list did
-(`callAt_eq_call_global`), which is why no earlier case moves.
+inhabits one enclosing scope (`unqualifiedSearch_scope`). A single
+search in the global scope over a unit whose declarations of the name
+are all functions there is the candidate list
+(`singleSearch_global_eq_candidates`).
 
-Argument-dependent lookup and member lookup follow in their own stages.
+Argument-dependent lookup and the call from a point are in
+`Overload/Adl.lean`; member lookup follows in its own stage.
 -/
 
 namespace Overload
@@ -279,22 +278,6 @@ def lookupResult (found : List Decl) : LookupResult :=
       | [d] => .entity d
       | es => .ambiguous es
 
-/-! ## A call from a point -/
-
-/-- A call of an unqualified name from a program point in a scope: the
-candidate functions are the declarations name lookup found, resolved as
-`Program.call` does. A name that denotes an object is a call on that
-object, which member lookup will supply; until then it is reported, not
-resolved. -/
-@[std rule "over.call.func#3.sentence-2"]
-def Program.callAt (p : Program) (env : Env) (pos : Nat) (s : Scope) (callee : String)
-    (args : List CallArg) (explicit : List Ty := []) : Resolution Candidate :=
-  match lookupResult (unqualifiedLookup p pos s callee) with
-  | .overloadSet fs => p.call env fs args explicit
-  | .none => .illFormed s!"no declaration of {callee} is found"
-  | .entity _ => .illFormed s!"{callee} denotes an object; member lookup is not in the model yet"
-  | .ambiguous _ => .illFormed s!"the lookup of {callee} is ambiguous"
-
 /-- Over the whole unit, with every declaration of the name a function or
 function template at global scope, a single search in the global scope
 is the candidate list. -/
@@ -341,41 +324,6 @@ theorem singleSearch_global_eq_candidates (p : Program) (callee : String)
   | «instance» => simp [Decl.binds, Decl.name?]
   | use => simp [Decl.binds, Decl.name?]
 
-/-- Every earlier case keeps its answer: a call from the end of a unit in
-which every declaration of the name is a function at global scope
-resolves over the overload set of the candidate list. -/
-theorem callAt_eq_call_global (p : Program) (env : Env) (callee : String) (args : List CallArg)
-    (explicit : List Ty)
-    (hglobal : ∀ d ∈ p, d.name? = some callee → d.declaresFunction = true ∧ d.scope = [])
-    (hsome : p.candidates callee ≠ []) :
-    p.callAt env p.length [] callee args explicit = p.call env (p.overloadSet callee) args explicit := by
-  have hfound : unqualifiedLookup p p.length [] callee = p.candidates callee := by
-    simp only [unqualifiedLookup, unqualifiedSearch, List.reverse_nil, unqualifiedSearch.go]
-    exact singleSearch_global_eq_candidates p callee hglobal
-  have hfn : ∀ d ∈ p.candidates callee, d.declaresFunction = true := by
-    intro d hd
-    have := List.mem_filter.1 hd
-    cases d <;> simp_all [Decl.declaresFunction, Decl.kind?]
-  have hnotype : (p.candidates callee).any (fun d => !d.declaresType) = true := by
-    obtain ⟨d, hd⟩ := List.exists_mem_of_ne_nil _ hsome
-    refine List.any_eq_true.2 ⟨d, hd, ?_⟩
-    have := hfn d hd
-    cases d <;> simp_all [Decl.declaresType, Decl.declaresFunction, Decl.kind?]
-  have hfilter : (p.candidates callee).filter (fun d => !d.declaresType) = p.candidates callee := by
-    apply List.filter_eq_self.2
-    intro d hd
-    have := hfn d hd
-    cases d <;> simp_all [Decl.declaresType, Decl.declaresFunction, Decl.kind?]
-  obtain ⟨d, ds, hds⟩ : ∃ d ds, p.candidates callee = d :: ds := by
-    cases h : p.candidates callee with
-    | nil => exact absurd h hsome
-    | cons d ds => exact ⟨d, ds, rfl⟩
-  have hall : ((d :: ds).all (·.declaresFunction)) = true :=
-    List.all_eq_true.2 fun e he => hfn e (hds ▸ he)
-  rw [hds] at hnotype hfilter
-  simp only [Program.callAt, hfound, hds, lookupResult, discardTypes, hnotype, ↓reduceIte, hfilter,
-    hall, Program.overloadSet]
-
 /-! ## Hiding, on a program -/
 
 /-- `struct X {}; void f(int);` at global scope and `void f(X);` in
@@ -383,20 +331,14 @@ theorem callAt_eq_call_global (p : Program) (env : Env) (callee : String) (args 
 def hidingProgram : Program :=
   [ .class "X", .function "f" [.named "int"], .function "f" [.named "X"] [.namespace "user"] ]
 
-/-- From `user`, lookup of `f` finds the inner declaration only, so a
-call with an `int` is not viable there though the exact match exists
-outside, and a call with an `X` selects the inner one; from the global
-scope lookup finds the outer declaration. -/
+/-- From `user`, lookup of `f` finds the inner declaration only, though
+the outer one is the exact match for an `int`; from the global scope it
+finds the outer declaration. What the calls select is
+`hiding_call_example`, once argument-dependent lookup is in. -/
 theorem hiding_example :
     unqualifiedLookup hidingProgram 3 [.namespace "user"] "f" =
         [.function "f" [.named "X"] [.namespace "user"]] ∧
-      unqualifiedLookup hidingProgram 3 [] "f" = [.function "f" [.named "int"]] ∧
-      (hidingProgram.callAt (Env.ofProgram hidingProgram) 3 [.namespace "user"] "f"
-          [{ ty := .named "int" }]).map (·.index) = .noMatch ∧
-      (hidingProgram.callAt (Env.ofProgram hidingProgram) 3 [.namespace "user"] "f"
-          [{ ty := .named "X" }]).map (·.index) = .selected 0 ∧
-      (hidingProgram.callAt (Env.ofProgram hidingProgram) 3 [] "f"
-          [{ ty := .named "int" }]).map (·.index) = .selected 0 := by
-  refine ⟨by decide, by decide, by decide, by decide, by decide⟩
+      unqualifiedLookup hidingProgram 3 [] "f" = [.function "f" [.named "int"]] := by
+  refine ⟨by decide, by decide⟩
 
 end Overload
