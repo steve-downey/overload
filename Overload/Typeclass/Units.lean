@@ -36,9 +36,10 @@ variable (pA pB : Program) (tc : String) (f x : CallArg)
 lookups at the key both select an instance, whichever it is, deduction
 produces one specialization, which names the lookup variable. The units
 then give that one function two meanings, which the one-definition rule
-forbids with no diagnostic required ([basic.def.odr]/16: corresponding
-names denote the same entity after matching of partial specialization).
--/
+forbids with no diagnostic required: the verdict is
+`IllFormedNdr.odrMismatch` at the lookup the specialization names
+(`Units.odrVerdicts`, [basic.def.odr]/16), and `odr_verdict_implies_verdict`
+says a verdict of phase 8 is already there. -/
 theorem operation_object_not_separated (hf : f.ty.isType = true) (hx : x.ty.isType = true)
     (hfF : f.ty.formed = true) (hxF : x.ty.formed = true)
     (hfr : f.ty.isRef = false) (hxr : x.ty.isRef = false) (hxd : x.ty.dependent = false)

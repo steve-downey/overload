@@ -436,7 +436,14 @@ Status, 15 October 2026:
   (`object_design_no_adl_verdict`), the free-function design does
   (`late_adl_overload_verdict`), and the [temp.res.general]/1 example
   is a theorem and an emitted case. Three two-phase cases agree with
-  GCC and Clang.
+  GCC and Clang. Entity identity is done: every name of the fragment
+  has external linkage (`Decl.linkage`), `sameEntity` carries the
+  linkage condition of [basic.link]/8, and the one-definition rule's
+  verdict at a lookup is `IllFormedNdr.odrMismatch`
+  (`Units.odrVerdicts`), which `odr_verdict_implies_verdict` shows never
+  comes first. The remaining in-scope paragraphs without a counterpart
+  are the module-context and dependent-call definitions the fragment
+  reads through other sentences, listed in `citations.md`.
 
 ## Target theorems
 
@@ -888,9 +895,11 @@ declaration, the program still a flat list, lookup a layer in front of
    the model's ranking lacks, so it is not emitted. Done 20 October
    2026.
 7. [entity-identity](#phase-9-declarations-and-where-to-find-them):
-   `linkage` and `sameEntity` across units ([basic.link]/8); theorem
-   `lookup_variable_one_entity`, and a verdict constructor for
-   [basic.def.odr]/16 so `operation_object_not_separated` cites a rule.
+   `Decl.linkage` and `sameEntity` with the linkage condition
+   ([basic.link]/4, /8); the verdict `odrMismatch` for [basic.def.odr]/16
+   at a lookup two units instantiate differently, and the theorem that
+   it never comes first (`odr_verdict_implies_verdict`), so
+   `operation_object_not_separated` cites a rule. Done 20 October 2026.
 8. [lookup-differential](#phase-9-declarations-and-where-to-find-them):
    emitter support for namespaces, class members and objects; the cases
    of stages 3 to 6 compiled with GCC and Clang. The verdict of stage 6

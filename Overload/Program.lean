@@ -115,6 +115,8 @@ inductive Decl where
   | dependentCall (callee : String) (args : List CallArg) (scope : Scope := [])
   deriving Repr, DecidableEq, Inhabited
 
+attribute [std rule "temp.dep.general#2"] Decl.dependentCall
+
 /-- A program: declarations in order. -/
 abbrev Program := List Decl
 

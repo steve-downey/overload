@@ -13,5 +13,6 @@ import OverloadTest.Names
 import OverloadTest.Adl
 import OverloadTest.Members
 import OverloadTest.DependentCandidate
+import OverloadTest.Units
 import OverloadTest.Typeclass
 import OverloadTest.Emit

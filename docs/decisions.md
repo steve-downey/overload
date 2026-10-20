@@ -338,6 +338,10 @@ It is written down as a tagged predicate so a later phase can remove it.
   `Units.dependentVerdicts`, `Units.allVerdicts`). The instantiation
   context of a dependent call is the end of its unit, as `laterInUnit`
   already takes it, and the units compared are the program's.
+- 2026-10-20 — The fifth verdict is in (`IllFormedNdr.odrMismatch`,
+  `Units.odrVerdicts`), and `odr_verdict_implies_verdict` shows it is
+  never the first: the verdicts of phase 8 already cover a lookup two
+  units instantiate differently.
 
 ---
 

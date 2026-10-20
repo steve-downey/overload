@@ -211,6 +211,25 @@ theorem corresponds_iff (d₁ d₂ : Decl) : corresponds d₁ d₂ = true ↔ Co
 
 /-! ## Conflicts -/
 
+/-- The linkage of a name: external, module, internal or none. -/
+inductive Linkage where
+  | external
+  | module
+  | internal
+  | none
+  deriving Repr, DecidableEq, Inhabited
+
+/-- The linkage of the name a declaration introduces. The fragment has no
+`static`, no unnamed namespace, no module and no non-inline `const`
+variable, so every name that belongs to a namespace scope has external
+linkage, and a member has its class's ([basic.link]/3 to /5). A partial
+specialization, a use and a dependent call introduce no name. -/
+@[std rule "basic.link#4"]
+def Decl.linkage : Decl → Linkage
+  | .class .. | .classTemplate .. | .function .. | .functionTemplate _ | .object .. | .lookup _
+  | .lookupHard _ | .concept .. => .external
+  | .instance .. | .use .. | .dependentCall .. => .none
+
 /-- Two declarations of one entity declare the same kind of entity: a
 variable with a variable, a function with a function, a class template
 with a class template, and so on. -/
@@ -218,14 +237,14 @@ with a class template, and so on. -/
 def sameKind (d₁ d₂ : Decl) : Bool := d₁.kind? == d₂.kind?
 
 /-- Two declarations declare the same entity when they correspond, have
-the same target scope, and declare the same kind of entity, as two
-declarations of one entity must. Both have external linkage in the
-fragment, which has no `static`, no unnamed namespace and no non-inline
-`const` variable. Corresponding declarations of different kinds in one
-scope are a conflict, not a redeclaration. -/
+the same target scope, both declare names with external linkage, and
+declare the same kind of entity, as two declarations of one entity must.
+Module linkage is out of the fragment. Corresponding declarations of
+different kinds in one scope are a conflict, not a redeclaration. -/
 @[std rule "basic.link#8"]
 def sameEntity (d₁ d₂ : Decl) : Bool :=
-  corresponds d₁ d₂ && d₁.scope == d₂.scope && sameKind d₁ d₂
+  corresponds d₁ d₂ && d₁.scope == d₂.scope && d₁.linkage == .external &&
+    d₂.linkage == .external && sameKind d₁ d₂
 
 /-- Two declarations potentially conflict: they correspond and cause their
 shared name to denote different entities, which within one translation

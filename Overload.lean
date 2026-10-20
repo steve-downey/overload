@@ -195,6 +195,8 @@ is the map.
 #audit Overload.registry_verdicts
 #audit Overload.registry_verdicts_single
 #audit Overload.registry_late_verdict
+#audit Overload.odr_verdict_implies_verdict
+#audit Overload.odr_mismatch_example
 #audit Overload.dependentVerdicts_single
 #audit Overload.object_design_no_adl_verdict
 #audit Overload.late_adl_overload_verdict
