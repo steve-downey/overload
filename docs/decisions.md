@@ -29,6 +29,11 @@ read against.
   DIS, or the first post-DIS working draft with editorial changes, is to be
   confirmed against the editors' report N5055; the drift check will show
   which cited paragraphs differ if the pin moves to the DIS tag.
+- 2026-10-20 — `make drift-check-current` against the draft's main at
+  `47974a2`: one cited paragraph differs, [temp.spec.partial.general]/7,
+  cited by `reachable`. The change is markup in the example's comment,
+  "using-declaration" set as a grammar term; the sentence the model
+  transcribes is unchanged. No citation moves.
 
 ---
 

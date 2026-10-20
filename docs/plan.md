@@ -400,7 +400,10 @@ Status, 15 October 2026:
   (`arity_order_matters`). A registry tested by completeness, as
   `Monoid` is, has the verdicts of a lookup under a third rule
   (`registry_verdicts`).
-- Phase 9 is open, planned 20 October 2026. The plan, the
+- Phase 9 is closed, 20 October 2026, on its exit criterion: the
+  candidate set of a call is computed from a program point and a scope,
+  and every lookup claim the obligations rest on is a cited theorem.
+  Planned the same day. The plan, the
   cross-reference against P1787R6 and the stages are
   [below](#phase-9-declarations-and-where-to-find-them). The in-scope
   paragraphs are in `Overload.Std.inScope`, so `citations.md` lists them
@@ -441,9 +444,14 @@ Status, 15 October 2026:
   linkage condition of [basic.link]/8, and the one-definition rule's
   verdict at a lookup is `IllFormedNdr.odrMismatch`
   (`Units.odrVerdicts`), which `odr_verdict_implies_verdict` shows never
-  comes first. The remaining in-scope paragraphs without a counterpart
-  are the module-context and dependent-call definitions the fragment
-  reads through other sentences, listed in `citations.md`.
+  comes first. The one in-scope paragraph of the phase without a
+  counterpart is [temp.point]/1, the point of instantiation after the
+  declaration that refers to a specialization, which the fragment reads
+  through the end-of-unit point of /7 (`citations.md`). The emitted
+  cases of the phase number twenty-two and every one agrees with GCC 15
+  and Clang 24; `make drift-check-current` reports one cited paragraph
+  that differs on the draft's main, an editorial change
+  (`decisions.md#draft-pin`).
 
 ## Target theorems
 
@@ -901,12 +909,13 @@ declaration, the program still a flat list, lookup a layer in front of
    it never comes first (`odr_verdict_implies_verdict`), so
    `operation_object_not_separated` cites a rule. Done 20 October 2026.
 8. [lookup-differential](#phase-9-declarations-and-where-to-find-them):
-   emitter support for namespaces, class members and objects; the cases
-   of stages 3 to 6 compiled with GCC and Clang. The verdict of stage 6
-   is not compiler-checkable and is emitted per unit, as phase 8's are.
+   emitter support for namespaces, class members and objects, member
+   calls and dependent calls, each added with its stage; twenty-two
+   cases compiled with GCC and Clang, all in agreement. The verdicts are
+   not compiler-checkable and are theorems only. Done 20 October 2026.
 9. [lookup-docs](#phase-9-declarations-and-where-to-find-them): the
    guide, the obligations table, findings, this status, the drift check
-   against the draft's main.
+   against the draft's main. Done 20 October 2026.
 
 Known hazards for the implementation: an omitted trailing default field
 in a Lean pattern elaborates to the default value, not a wildcard, so

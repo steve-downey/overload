@@ -725,10 +725,30 @@ reaches. In detail:
   gate), [over.ics.rank]/1 sentence 1 (asymmetry of the ranking),
   [temp.constr.op]/2 sentence 3 (short-circuit of a conjunction). These are
   redundancies, benign, and they say which sentences carry the weight.
-- **Three in-scope paragraphs have no counterpart yet**:
+- **Name lookup is in the model, and the lookup claims are theorems.**
+  The candidate set of a call is computed from a program point and a
+  scope: unqualified lookup stops at the first enclosing scope that binds
+  the name (`inner_hides_outer`), argument-dependent lookup adds
+  functions of the associated namespaces and is suppressed by a name
+  bound to anything else (`object_suppresses_adl`), a class's own
+  members hide every base member of the name
+  (`derived_member_hides_base`), a call on an object resolves over its
+  class's call operators (`object_call_candidates`), and a redeclaration
+  is not an overload (`redeclaration_inert`), which the candidate list
+  had got wrong. Each mechanism is relation and function with its
+  agreement (`singleSearch_iff`, `unqualifiedSearch_iff`,
+  `associatedEntities_iff`, `adl_iff`, `lookupSet_iff`,
+  `corresponds_iff`). Two more verdicts join phase 8's: a dependent call
+  that misses a better overload another unit declares
+  ([temp.dep.candidate]/1), and a lookup two units instantiate
+  differently ([basic.def.odr]/16), which never comes first
+  (`odr_verdict_implies_verdict`).
+- **Four in-scope paragraphs have no counterpart yet**:
   [temp.deduct.general]/12 and [temp.arg.nontype]/1 and /3, the conversion
-  of template arguments. The index in [citations.md](citations.md) keeps
-  the list current.
+  of template arguments, and [temp.point]/1, the point of instantiation
+  after the declaration that refers to a specialization, which the
+  fragment reads through the end of the unit that [temp.point]/7 adds.
+  The index in [citations.md](citations.md) keeps the list current.
 - **Where the compilers disagree with the text**, the model is the
   tiebreaker and the disagreements are recorded, never settled by
   majority: the P3606 shortcut in two different widths (GCC and Clang 21
@@ -975,6 +995,20 @@ that transfer, stated without the typeclass vocabulary:
 - Resolution ignores access. A protected base is selected through and
   the call is ill-formed, not non-viable
   (`protected_base_selected_ill_formed`).
+- An operation declared as an object, a customization point object for
+  one, is the whole of what lookup finds for its name: no function of
+  that name in an argument's namespace is ever a candidate
+  (`object_suppresses_adl`, `object_design_candidates`), and no dependent
+  call of it can get the verdict of [temp.dep.candidate]/1
+  (`object_design_no_adl_verdict`). Declared as a function template, the
+  same operation admits a user's overload beside the user's class, which
+  wins (`free_function_admits_adl`), and a better overload in another
+  unit is ill-formed with no diagnostic required
+  (`late_adl_overload_verdict`).
+- A member declared in a derived class hides every base member of its
+  name, constrained or not (`derived_member_hides_base`). A probe through
+  the derived class never consults the base's constraint
+  (`unconstrained_member_hides_constrained`).
 
 ## Running things
 
