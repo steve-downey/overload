@@ -29,22 +29,15 @@ function or function template: a variable, for one.
   (`adlApplies`), and the lookup of a call's name
   (`Program.callLookup`): unqualified lookup, and argument-dependent
   lookup when it applies.
-* `Program.callAt`: a call from a point in a scope, resolved over what
-  that lookup found ([over.call.func]/3).
 
 The theorems: a name that unqualified lookup binds to anything that is
 not a function suppresses argument-dependent lookup, so a variable named
 like the callee is the whole of what lookup finds, whatever the
 associated namespaces declare (`object_suppresses_adl`);
 argument-dependent lookup adds functions and function templates only,
-from associated namespaces only (`adl_functions`, `adl_scope`); and a
-program whose declarations of the name are all functions at global scope
-resolves a call from the end of the unit as the candidate list did
-(`callAt_eq_call_global`). The example of [basic.lookup.argdep]/1 is a
-theorem (`argdep_1_example`), and `free_function_admits_adl` is the
-contrast the typeclass encoding rests on: with the operation an object, a
-user's function of the same name in the argument's namespace is never a
-candidate; with it a function template, that function is found and wins.
+from associated namespaces only (`adl_functions`, `adl_scope`). The
+call from a point, and the examples on programs, are in
+`Overload/Members.lean`, once a call on an object has its candidates.
 -/
 
 namespace Overload
@@ -294,20 +287,6 @@ def Program.callLookup (p : Program) (pos : Nat) (s : Scope) (name : String)
   let u := unqualifiedLookup p pos s name
   if adlApplies u then u ++ (p.adl pos name args).filter (!u.contains ·) else u
 
-/-- A call of an unqualified name from a program point in a scope: the
-candidate functions are the declarations name lookup found, resolved as
-`Program.call` does. A name that denotes an object is a call on that
-object, which member lookup will supply; until then it is reported, not
-resolved. -/
-@[std rule "over.call.func#3.sentence-2"]
-def Program.callAt (p : Program) (env : Env) (pos : Nat) (s : Scope) (callee : String)
-    (args : List CallArg) (explicit : List Ty := []) : Resolution Candidate :=
-  match lookupResult (p.callLookup pos s callee args) with
-  | .overloadSet fs => p.call env fs args explicit
-  | .none => .illFormed s!"no declaration of {callee} is found"
-  | .entity _ => .illFormed s!"{callee} denotes an object; member lookup is not in the model yet"
-  | .ambiguous _ => .illFormed s!"the lookup of {callee} is ambiguous"
-
 /-! ## What argument-dependent lookup can and cannot add -/
 
 /-- A name bound to anything but a function suppresses argument-dependent
@@ -337,114 +316,5 @@ theorem adl_scope (p : Program) (pos : Nat) (name : String) (args : List CallArg
   | found ns hns hd _ =>
     rw [singleSearch_scope p pos ns name d hd]
     exact hns
-
-/-- Every earlier case keeps its answer: a call from the end of a unit in
-which every declaration of the name is a function at global scope
-resolves over the overload set of the candidate list. Argument-dependent
-lookup can add nothing, since every declaration of the name is already
-found. -/
-theorem callAt_eq_call_global (p : Program) (env : Env) (callee : String) (args : List CallArg)
-    (explicit : List Ty)
-    (hglobal : ∀ d ∈ p, d.name? = some callee → d.declaresFunction = true ∧ d.scope = [])
-    (hsome : p.candidates callee ≠ []) :
-    p.callAt env p.length [] callee args explicit = p.call env (p.overloadSet callee) args explicit := by
-  have hu : unqualifiedLookup p p.length [] callee = p.candidates callee := by
-    simp only [unqualifiedLookup, unqualifiedSearch, List.reverse_nil, unqualifiedSearch.go]
-    exact singleSearch_global_eq_candidates p callee hglobal
-  have hfn : ∀ d ∈ p.candidates callee, d.declaresFunction = true := by
-    intro d hd
-    have := List.mem_filter.1 hd
-    cases d <;> simp_all [Decl.declaresFunction, Decl.kind?]
-  -- Argument-dependent lookup finds only declarations already found.
-  have hadl : ∀ d ∈ p.adl p.length callee args, d ∈ p.candidates callee := by
-    intro d hd
-    obtain ⟨ns, _, hd', _⟩ := (adl_iff p p.length callee args d).1 hd
-    have hmem := List.mem_filter.1 hd'
-    rw [List.take_length] at hmem
-    have hb := hmem.2
-    simp only [Decl.binds, Bool.and_eq_true, beq_iff_eq] at hb
-    obtain ⟨-, hs⟩ := hglobal d hmem.1 hb.1
-    rw [← hu]
-    simp only [unqualifiedLookup, unqualifiedSearch, List.reverse_nil, unqualifiedSearch.go,
-      singleSearch, List.take_length, List.mem_filter, Decl.binds, Bool.and_eq_true, beq_iff_eq]
-    exact ⟨hmem.1, hb.1, hs⟩
-  have hfound : p.callLookup p.length [] callee args = p.candidates callee := by
-    simp only [Program.callLookup, hu]
-    split
-    · rw [List.filter_eq_nil_iff.2 fun d hd => by simp [hadl d hd], List.append_nil]
-    · rfl
-  obtain ⟨d, ds, hds⟩ : ∃ d ds, p.candidates callee = d :: ds := by
-    cases h : p.candidates callee with
-    | nil => exact absurd h hsome
-    | cons d ds => exact ⟨d, ds, rfl⟩
-  have hnotype : ((d :: ds).any fun d => !d.declaresType) = true := by
-    refine List.any_eq_true.2 ⟨d, by simp, ?_⟩
-    have := hfn d (hds ▸ List.mem_cons_self ..)
-    cases d <;> simp_all [Decl.declaresType, Decl.declaresFunction, Decl.kind?]
-  have hfilter : (d :: ds).filter (fun d => !d.declaresType) = d :: ds := by
-    apply List.filter_eq_self.2
-    intro e he
-    have := hfn e (hds ▸ he)
-    cases e <;> simp_all [Decl.declaresType, Decl.declaresFunction, Decl.kind?]
-  have hall : ((d :: ds).all (·.declaresFunction)) = true :=
-    List.all_eq_true.2 fun e he => hfn e (hds ▸ he)
-  simp only [Program.callAt, hfound, hds, lookupResult, discardTypes, hnotype, ↓reduceIte, hfilter,
-    hall, Program.overloadSet]
-
-/-! ## On programs -/
-
-/-- From `user`, the call `f(1)` with `void f(int);` outside and
-`void f(X);` in `user` is not viable, since the inner declaration hides
-the outer and an `int` has no associated namespace; a call with an `X`
-selects the inner one; and at global scope `f(1)` selects the outer. -/
-theorem hiding_call_example :
-    (hidingProgram.callAt (Env.ofProgram hidingProgram) 3 [.namespace "user"] "f"
-          [{ ty := .named "int" }]).map (·.index) = .noMatch ∧
-      (hidingProgram.callAt (Env.ofProgram hidingProgram) 3 [.namespace "user"] "f"
-          [{ ty := .named "X" }]).map (·.index) = .selected 0 ∧
-      (hidingProgram.callAt (Env.ofProgram hidingProgram) 3 [] "f"
-          [{ ty := .named "int" }]).map (·.index) = .selected 0 := by
-  refine ⟨by decide, by decide, by decide⟩
-
-/-- `namespace N { struct S { }; void f(S); }`, the example of
-[basic.lookup.argdep]/1. The parenthesized call `(f)(s)`, which is not a
-call of an unqualified-id, is out of the fragment. -/
-def argdepProgram : Program :=
-  [ .class "S" [] [] [.namespace "N"], .function "f" [.named "S"] [.namespace "N"] ]
-
-/-- `f(s)` with `s` an `N::S`, written at global scope: unqualified lookup
-finds nothing, argument-dependent lookup finds `N::f`, and the call
-selects it. -/
-@[std example "basic.lookup.argdep#1"]
-theorem argdep_1_example :
-    unqualifiedLookup argdepProgram 2 [] "f" = [] ∧
-      argdepProgram.adl 2 "f" [{ ty := .named "S", lvalue := true }] =
-        [.function "f" [.named "S"] [.namespace "N"]] ∧
-      (argdepProgram.callAt (Env.ofProgram argdepProgram) 2 [] "f"
-          [{ ty := .named "S", lvalue := true }]).map (·.index) = .selected 0 := by
-  refine ⟨by decide, by decide, by decide⟩
-
-/-- An operation as a free function template at global scope, and a
-user's `fmap(X)` beside the user's class. -/
-def freeFunctionProgram : Program :=
-  [ .functionTemplate { name := "fmap", head := [{ kind := .type }], params := [.param 0] }
-  , .class "X" [] [] [.namespace "user"], .function "fmap" [.named "X"] [.namespace "user"] ]
-
-/-- The same operation as an object of a class, with the same user
-declarations. -/
-def objectProgram : Program :=
-  [ .class "fmap_fn", .object "fmap" "fmap_fn"
-  , .class "X" [] [] [.namespace "user"], .function "fmap" [.named "X"] [.namespace "user"] ]
-
-/-- With the operation a function template, the call `fmap(x)` at global
-scope finds the user's function through the argument's namespace, and
-it wins as a non-template exact match. With the operation an object,
-lookup finds the object and nothing else: the user's function is never a
-candidate. -/
-theorem free_function_admits_adl :
-    (freeFunctionProgram.callAt (Env.ofProgram freeFunctionProgram) 3 [] "fmap"
-          [{ ty := .named "X" }]).map (·.index) = .selected 1 ∧
-      objectProgram.callLookup 4 [] "fmap" [{ ty := .named "X" }] = [.object "fmap" "fmap_fn"] := by
-  refine ⟨by decide, by decide⟩
 
 end Overload

@@ -558,7 +558,7 @@ def promote (ft : FunctionTemplate) : FunctionTemplate :=
         | none => m)
       mandate := none }
 
-private theorem functionTypeStep_relabel (env : Env) (ft ft' : FunctionTemplate)
+theorem functionTypeStep_relabel (env : Env) (ft ft' : FunctionTemplate)
     (hp : ft'.params = ft.params) (hr : ft'.ret = ft.ret) (σ : Bindings) :
     functionTypeStep env ft' σ = (functionTypeStep env ft σ).map (Specialization.withTemplate ft') := by
   simp only [functionTypeStep, hp, hr]
@@ -569,7 +569,7 @@ private theorem functionTypeStep_relabel (env : Env) (ft ft' : FunctionTemplate)
   | soft _ => rfl
   | hard _ => rfl
 
-private theorem bind_map_relabel (x : Subst Bindings) (f : Bindings → Subst Specialization)
+theorem bind_map_relabel (x : Subst Bindings) (f : Bindings → Subst Specialization)
     (f' : Bindings → Subst Specialization) (g : Specialization → Specialization)
     (h : ∀ σ, f' σ = (f σ).map g) : (x >>= f') = (x >>= f).map g := by
   cases x with

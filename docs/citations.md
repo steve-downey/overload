@@ -10,7 +10,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 |---|---|---|---|
 | [[basic.link]/8](https://eel.is/c++draft/basic.link#8) | rule | `Overload.sameEntity` | `Overload.Scope` |
 | [[basic.link]/11](https://eel.is/c++draft/basic.link#11) | rule | `Overload.sameKind` | `Overload.Scope` |
-| [[basic.lookup.argdep]/1](https://eel.is/c++draft/basic.lookup.argdep#1) | example | `Overload.argdep_1_example` | `Overload.Adl` |
+| [[basic.lookup.argdep]/1](https://eel.is/c++draft/basic.lookup.argdep#1) | example | `Overload.argdep_1_example` | `Overload.Members` |
 | [[basic.lookup.argdep]/1](https://eel.is/c++draft/basic.lookup.argdep#1) | rule | `Overload.Program.callLookup` | `Overload.Adl` |
 | [[basic.lookup.argdep]/1](https://eel.is/c++draft/basic.lookup.argdep#1) | rule | `Overload.adlApplies` | `Overload.Adl` |
 | [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.base` | `Overload.Adl` |
@@ -53,13 +53,25 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[basic.scope.scope]/6 sentence 2](https://eel.is/c++draft/basic.scope.scope#6.sentence-2) | rule | `Overload.Program.conflicts` | `Overload.Scope` |
 | [[class.access.base]/4](https://eel.is/c++draft/class.access.base#4) | rule | `Overload.Program.accessibleBase` | `Overload.Access` |
 | [[class.derived.general]/2](https://eel.is/c++draft/class.derived.general#2) | rule | `Overload.Program.derives` | `Overload.Ranking` |
+| [[class.member.lookup]/3](https://eel.is/c++draft/class.member.lookup#3) | rule | `Overload.LookupSetRel.here` | `Overload.Members` |
+| [[class.member.lookup]/3 sentence 1](https://eel.is/c++draft/class.member.lookup#3.sentence-1) | rule | `Overload.Program.declarationSet` | `Overload.Members` |
+| [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4) | rule | `Overload.LookupSetRel.bases` | `Overload.Members` |
+| [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4) | rule | `Overload.LookupSetRel.exhausted` | `Overload.Members` |
+| [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4) | rule | `Overload.MergeBases.named` | `Overload.Members` |
+| [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4) | rule | `Overload.MergeBases.nil` | `Overload.Members` |
+| [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4) | rule | `Overload.MergeBases.other` | `Overload.Members` |
+| [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4) | rule | `Overload.Program.lookupSetWithin` | `Overload.Members` |
+| [[class.member.lookup]/5](https://eel.is/c++draft/class.member.lookup#5) | rule | `Overload.LookupSet.merge` | `Overload.Members` |
+| [[class.member.lookup]/6](https://eel.is/c++draft/class.member.lookup#6) | example | `Overload.ambiguous_bases_example` | `Overload.Members` |
+| [[class.member.lookup]/6](https://eel.is/c++draft/class.member.lookup#6) | rule | `Overload.Program.memberSearch` | `Overload.Members` |
 | [[conv.ptr]/3 sentence 2](https://eel.is/c++draft/conv.ptr#3.sentence-2) | rule | `Overload.Program.accessibleConversion` | `Overload.Access` |
 | [[dcl.init.ref]/4 sentence 2](https://eel.is/c++draft/dcl.init.ref#4.sentence-2) | rule | `Overload.Program.referenceCompatible` | `Overload.Ranking` |
 | [[dcl.init.ref]/4 sentence 3](https://eel.is/c++draft/dcl.init.ref#4.sentence-3) | rule | `Overload.Program.call` | `Overload.Access` |
 | [[dcl.ref]/1 sentence 3](https://eel.is/c++draft/dcl.ref#1.sentence-3) | rule | `Overload.formConst` | `Overload.Steps` |
 | [[dcl.ref]/5 sentence 1](https://eel.is/c++draft/dcl.ref#5.sentence-1) | rule | `Overload.formPtr` | `Overload.Steps` |
 | [[over.best.ics.general]/7](https://eel.is/c++draft/over.best.ics.general#7) | rule | `Overload.Program.baseConv` | `Overload.Ranking` |
-| [[over.call.func]/3 sentence 2](https://eel.is/c++draft/over.call.func#3.sentence-2) | rule | `Overload.Program.callAt` | `Overload.Adl` |
+| [[over.call.func]/3 sentence 2](https://eel.is/c++draft/over.call.func#3.sentence-2) | rule | `Overload.Program.callAt` | `Overload.Members` |
+| [[over.call.object]/1 sentence 2](https://eel.is/c++draft/over.call.object#1.sentence-2) | rule | `Overload.Program.callOperators` | `Overload.Members` |
 | [[over.ics.rank]/1 sentence 1](https://eel.is/c++draft/over.ics.rank#1.sentence-1) | theorem | `Overload.better_asymm` | `Overload.Ranking` |
 | [[over.ics.rank]/3](https://eel.is/c++draft/over.ics.rank#3) | rule | `Overload.BetterConv.qualification` | `Overload.Ranking` |
 | [[over.ics.rank]/3](https://eel.is/c++draft/over.ics.rank#3) | rule | `Overload.BetterConv.rvalueBinding` | `Overload.Ranking` |
@@ -81,6 +93,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.Resolution.selected` | `Overload.Outcome` |
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.Resolves.best` | `Overload.Specs` |
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.bestViable` | `Overload.Resolution` |
+| [[over.match.call.general]/1](https://eel.is/c++draft/over.match.call.general#1) | rule | `Overload.Program.callCandidates` | `Overload.Members` |
 | [[over.match.funcs.general]/8 sentence 1](https://eel.is/c++draft/over.match.funcs.general#8.sentence-1) | rule | `Overload.Resolves.generationSoft` | `Overload.Specs` |
 | [[over.match.funcs.general]/8 sentence 1](https://eel.is/c++draft/over.match.funcs.general#8.sentence-1) | rule | `Overload.generate` | `Overload.Resolution` |
 | [[over.match.general]/3 sentence 2](https://eel.is/c++draft/over.match.general#3.sentence-2) | rule | `Overload.BestViable.noViable` | `Overload.Specs` |
@@ -182,11 +195,6 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 - [[temp.deduct.general]/12](https://eel.is/c++draft/temp.deduct.general#12)
 - [[temp.arg.nontype]/1](https://eel.is/c++draft/temp.arg.nontype#1)
 - [[temp.arg.nontype]/3](https://eel.is/c++draft/temp.arg.nontype#3)
-- [[over.call.object]/1](https://eel.is/c++draft/over.call.object#1)
-- [[class.member.lookup]/3](https://eel.is/c++draft/class.member.lookup#3)
-- [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4)
-- [[class.member.lookup]/5](https://eel.is/c++draft/class.member.lookup#5)
-- [[class.member.lookup]/6](https://eel.is/c++draft/class.member.lookup#6)
 - [[temp.dep.general]/2](https://eel.is/c++draft/temp.dep.general#2)
 - [[temp.res.general]/1](https://eel.is/c++draft/temp.res.general#1)
 - [[temp.point]/1](https://eel.is/c++draft/temp.point#1)

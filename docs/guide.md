@@ -574,17 +574,63 @@ outside it.
   class is found and wins; with it an object, lookup finds the object and
   nothing else. `hiding_call_example`: what the hiding cases select.
 
-Member lookup is the next stage; until then a call whose name denotes an
-object is reported, not resolved.
+The call from a point is in `Members`, once a call on an object has its
+candidates.
+
+### Members
+
+`Overload/Members.lean`: member name lookup and the call on an object. A
+search in a class scope is the lookup set of [class.member.lookup]/2 to
+/5: the class's own declaration set when it is not empty (/3,
+`Program.declarationSet`), otherwise the lookup sets of the direct bases
+merged in turn (/4, `Program.lookupSet`) by the rule of /5
+(`LookupSet.merge`): a set found in a base subobject of one already found
+is hidden, differing declarations from unrelated subobjects make the set
+invalid, and the same declarations in several subobjects are shared. A
+subobject is the path of classes from the class searched down to it. The
+result is the declaration set, or ill-formed when invalid (/6,
+`Program.memberSearch`). `LookupSetRel` with `MergeBases` is the
+relation, `lookupSet_iff` the agreement. A call on an object of class
+type resolves over the function call operators of its class, a search
+for `operator()` in its scope ([over.call.object]/1,
+`Program.callOperators`); every call operator the fragment has is a const
+member of one class, so the implicit object parameter is left out.
+`Program.callCandidates` and `Program.callAt` are the call from a point:
+the overload set lookup found, or the call operators of the object it
+found, resolved as `Program.call` does; `Program.memberCallAt` is a
+member call `obj.f(args)`.
+
+- `derived_member_hides_base`: a class that declares the name is the
+  whole result, whatever every base declares and whatever the
+  signatures. `hiding_member_example` is the concrete shape.
+- `ambiguous_bases_example`: the example of [class.member.lookup]/6 with
+  two unrelated bases, invalid.
+- `object_call_candidates`: a callee bound to an object resolves over its
+  class's call operators and nothing else.
+- `deduceTemplate_at`, `resolve_at_single`: deduction and resolution read
+  a template's head, parameters, return type and constraint, never its
+  name or scope, so a result about a function template is a result about
+  the same template as the `operator()` of a class
+  (`FunctionTemplate.at`).
+- `callAt_eq_call_global`: with every declaration of the name a function
+  at global scope, a call from the end of the unit is the call over the
+  candidate list's overload set, which is why no earlier case moved.
+- `argdep_1_example`, `hiding_call_example`, `free_function_admits_adl`:
+  the examples on programs. The last is the contrast the encoding rests
+  on: an operation written as a function template admits a user's
+  function of the same name beside the user's class, and it wins; written
+  as an object, the user's function is never a candidate.
 
 ### Emit
 
 `Overload/Emit.lean`: the C++ emitter. Each declaration is rendered in
-its namespaces, a class or class template declared in a namespace is
-named by its qualified name wherever a type mentions it, a call case
-carries the scope it is written in, and the functions the call's lookup
-finds are numbered by entity in that lookup's order; a declaration
-lookup does not find gets a `hidden<j>` return type. A `Case` is a program, a query
+its namespaces, the members of a class in its body as const member
+functions, a class or class template declared in a namespace is named by
+its qualified name wherever a type mentions it, a call case carries the
+scope it is written in, and the functions the call resolves over are
+numbered by entity in the lookup's order; a declaration of the callee's
+name lookup does not find gets a `hidden<j>` return type. A
+`memberCall` query is `obj.f(args)` on an object of a class. A `Case` is a program, a query
 (deduction, call, lookup, or raw C++) and the expected outcome. `render`
 writes a translation unit whose `static_assert`s check the outcome in
 unevaluated contexts; a case carries its own `prelude` of fixtures beyond
@@ -758,6 +804,26 @@ first substitutes an ambiguous lookup in a call meant for another
 `operator()`. `algorithm_transfer`, `algorithm_accurate` and
 `call_order_matters` read the Standard side's `Conjunction` for an
 algorithm whose constraint is the member calls its body makes.
+
+### Lookup
+
+`Overload/Typeclass/Lookup.lean`: what lookup finds for the operation
+object as beman.transpose declares it, `struct fmap_fn { operator()...
+}; inline constexpr fmap_fn fmap{};` (`opClass`, with the `operator()`
+being `fmapObject` under that name in the class's scope,
+`operatorMember`). `object_design_candidates` and `opClass_candidates`:
+a call `fmap(f, x)` whose unqualified lookup binds `fmap` to the object
+resolves over the class's call operators and nothing else, whatever the
+argument types' namespaces declare. `call_stability_object`:
+resolution over the object's one `operator()` moves exactly as
+`call_stability` says, with `hothers` discharged, since there is no
+other candidate to consult the lookup. This is the "no other lookup on
+the name" row of [obligations.md](obligations.md), now a theorem of the
+lookup rules rather than a hypothesis.
+`unconstrained_member_hides_constrained`: the member call through an
+instance type whose own `fmap` is unconstrained never reaches the
+derivation base's constrained one, which is the audit's finding against
+the library's Functor instances as a theorem.
 
 ### Emit
 

@@ -140,6 +140,21 @@ and described here as they arrive.
 
 ## About the model
 
+- **The hidden constrained member is a theorem** (20 October 2026). The
+  audit found the library's Functor implementations hiding
+  `derive_functor`'s constrained `fmap` behind an unconstrained one of
+  their own, by member name lookup stopping at the first class whose
+  scope declares the name. With [class.member.lookup]/3 in the model
+  that is `derived_member_hides_base`, and the shape itself is
+  `unconstrained_member_hides_constrained`: a probe of `fmap` through
+  the instance resolves over the unconstrained member and the base's
+  constraint is never consulted
+  (`class_member_lookup_3_hidden_constrained_member.cpp`). The
+  "no other lookup on the name" obligation is a theorem too
+  (`object_design_candidates`): an object named `fmap` makes its class's
+  call operators the whole candidate set, and `call_stability_object` is
+  `call_stability` with that hypothesis discharged.
+
 - **A redeclaration was two candidates** (20 October 2026). The candidate
   set of a call was every declaration with the callee's name, so
   `void f(int); void f(int);` gave `f(1)` two candidates with one

@@ -155,6 +155,14 @@ section has the cross-reference and the stages.
   input of every existing theorem; a redeclaration in it is today two
   candidates and a spurious ambiguity, which phase 9's first stage
   repairs. The syntax is [scope-syntax](#scope-syntax).
+- 2026-10-20 — Landed through member lookup: `Overload/Scope.lean`,
+  `Names.lean`, `Adl.lean`, `Members.lean`. A call from a point
+  (`Program.callAt`) finds its candidates by unqualified lookup,
+  argument-dependent lookup when it applies, and for an object the call
+  operators of its class. The member call at the operation object's
+  constraint stays the oracle of [expression-depth](#expression-depth),
+  since a constraint's probe is an expression; `Program.memberCallAt`
+  computes a member call on the fragment's members.
 
 ---
 

@@ -10,6 +10,7 @@ import Overload.Access
 import Overload.Scope
 import Overload.Names
 import Overload.Adl
+import Overload.Members
 
 /-!
 # The C++ emitter
@@ -67,6 +68,11 @@ inductive Query where
   specializations of it, in order, `noMatch` is the primary, and
   `ambiguous` is ill-formed. -/
   | lookup (name : String) (arg : Ty) (expected : Resolution Nat)
+  /-- Resolve a member call `obj.callee(args)` on an object of class
+  `cls`; `expected` names the candidate by its index among the members
+  found. -/
+  | memberCall (cls callee : String) (args : List CallArg) (expected : Resolution Nat)
+      (explicit : List Ty := [])
   deriving Repr, Inhabited
 
 /-- The fixture every emitted unit declares: `deduced<...>` and
@@ -114,6 +120,8 @@ def Case.wellFormed (c : Case) : Bool :=
   | .raw _ wf => wf
   | .lookup _ _ (.ambiguous _) | .lookup _ _ (.illFormed _) => false
   | .lookup .. => true
+  | .memberCall _ _ _ (.illFormed _) _ => false
+  | .memberCall .. => true
 
 /-! ## The environment a program defines -/
 
@@ -252,10 +260,10 @@ in place of its own. `enable_if` in the return type keeps its condition
 and is spelled as a trailing return type: the model substitutes the
 return type after the parameters, which is the lexical order
 ([temp.deduct.general]/7) of a trailing return type. -/
-def declarator (ft : FunctionTemplate) (r : String) (ps : String) : String :=
+def declarator (ft : FunctionTemplate) (r : String) (ps : String) (cv : String := "") : String :=
   match ft.ret with
-  | .enableIf c as _ => s!"auto {ft.name}({ps}) -> {ty (.enableIf c as (.named r))}"
-  | _ => s!"{r} {ft.name}({ps})"
+  | .enableIf c as _ => s!"auto {ft.name}({ps}){cv} -> {ty (.enableIf c as (.named r))}"
+  | _ => s!"{r} {ft.name}({ps}){cv}"
 
 /-- Does any function template of the program have Mandates? -/
 def hasMandates (p : Program) : Bool :=
@@ -282,45 +290,67 @@ def inScope (s : Scope) (text : String) : String :=
     | .namespace n => s!"namespace {n} \{\n{acc}}\n"
     | .class _ => acc) text
 
-/-- The declarations of a program, as C++, each in its namespaces.
-Functions named `callee` get the return type `ret k` when `index` gives
-them `k`, the position of their entity among the declarations the
-call's lookup finds, so a redeclaration shares its entity's return type;
-one lookup does not find gets `hidden<j>`. -/
+/-- The return type each function of a program gets, by position:
+`ret k` when `index` gives it `k`, the position of its entity among the
+declarations the call's lookup finds; `hidden<j>` for a function of the
+callee's name lookup does not find, so that hidden overloads keep
+distinct types; `void` otherwise. -/
+def returnTypes (p : Program) (callee : String) (ret : Nat → Head → String)
+    (index : Decl → Option Nat) : Array String := Id.run do
+  let mut rs := #[]
+  let mut hidden := 0
+  for d in p do
+    let (name, h) := match d with
+      | .function n _ _ => (some n, [])
+      | .functionTemplate ft => (some ft.name, ft.head)
+      | _ => (none, [])
+    match name with
+    | none => rs := rs.push ""
+    | some n =>
+      match index d with
+      | some k => rs := rs.push (ret k h)
+      | none =>
+        if n = callee then
+          rs := rs.push s!"hidden<{hidden}>"
+          hidden := hidden + 1
+        else rs := rs.push "void"
+  return rs
+
+/-- A function or function template, as a declaration with the return
+type `r`, a member when `cv` is ` const`. -/
+def functionText (d : Decl) (r : String) (cv : String := "") : String :=
+  match d with
+  | .function n ps _ => s!"{r} {n}({params ps}){cv};\n"
+  | .functionTemplate ft =>
+    let req := match ft.constraint with
+      | some c => s!"\n    requires {constraint c}"
+      | none => ""
+    s!"{head ft.head}{req}\n{declarator ft r (params ft.params ft.defaultArgs) cv}{body ft r}\n"
+  | _ => ""
+
+/-- The declarations of a program, as C++, each in its namespaces, with
+the members of a class in its body. -/
 def program (p : Program) (callee : String) (ret : Nat → Head → String)
     (index : Decl → Option Nat) : String := Id.run do
+  let rs := returnTypes p callee ret index
   let mut out := ""
-  let mut hidden := 0
   let mut instances : List (String × Nat) := []
-  for d in p do
+  for (d, i) in p.zipIdx do
+    if d.isMember then continue
     let mut text := ""
     match d with
-    | .class n [] [] _ => text := s!"struct {n} \{};\n"
-    | .class n bases prot _ =>
+    | .class n bases prot sc =>
       let specs := bases.map (s!"public {ty ·}") ++ prot.map (s!"protected {ty ·}")
-      text := s!"struct {n} : {String.intercalate ", " specs} \{};\n"
+      let inherit := if specs.isEmpty then "" else s!" : {String.intercalate ", " specs}"
+      let members := p.zipIdx.filter fun (m, _) => m.scope == sc ++ [.class n]
+      if members.isEmpty then
+        text := s!"struct {n}{inherit} \{};\n"
+      else
+        let body := String.join (members.map fun (m, j) =>
+          "    " ++ (functionText m (rs.getD j "void") " const").replace "\n    " "\n        ")
+        text := s!"struct {n}{inherit} \{\n{body}};\n"
     | .classTemplate n h _ => text := s!"{head h}\nstruct {n} \{};\n"
-    | .function n ps _ =>
-      if n = callee then
-        let r := match index d with
-          | some k => ret k []
-          | none => s!"hidden<{hidden}>"
-        if (index d).isNone then hidden := hidden + 1
-        text := s!"{r} {n}({params ps});\n"
-      else
-        text := s!"void {n}({params ps});\n"
-    | .functionTemplate ft =>
-      let req := match ft.constraint with
-        | some c => s!"\n    requires {constraint c}"
-        | none => ""
-      if ft.name = callee then
-        let r := match index d with
-          | some k => ret k ft.head
-          | none => s!"hidden<{hidden}>"
-        if (index d).isNone then hidden := hidden + 1
-        text := s!"{head ft.head}{req}\n{declarator ft r (params ft.params ft.defaultArgs)}{body ft r}\n"
-      else
-        text := s!"{head ft.head}{req}\n{declarator ft "void" (params ft.params ft.defaultArgs)}{body ft "void"}\n"
+    | .function .. | .functionTemplate _ => text := functionText d (rs.getD i "void")
     | .lookup c =>
       text := s!"template <class T>\ninline constexpr auto {c} = std::false_type\{};\n"
     | .lookupHard c =>
@@ -329,9 +359,9 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
       text := text ++ s!"    static constexpr int value = 0;\n};\n"
       text := text ++ s!"template <class T>\ninline constexpr auto {c} = {c}_instance<T>::value;\n"
     | .instance c h pat =>
-      let i := (instances.find? (·.1 == c)).map (·.2) |>.getD 0
-      instances := (c, i + 1) :: instances.filter (·.1 != c)
-      text := s!"{head h}\ninline constexpr selected<{i}> {c}<{ty pat}>\{};\n"
+      let k := (instances.find? (·.1 == c)).map (·.2) |>.getD 0
+      instances := (c, k + 1) :: instances.filter (·.1 != c)
+      text := s!"{head h}\ninline constexpr selected<{k}> {c}<{ty pat}>\{};\n"
     | .concept n body =>
       text := s!"template <class T>\nconcept {n} = {body};\n"
     | .use c t =>
@@ -341,10 +371,20 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
     out := out ++ inScope d.scope text
   return out
 
-/-- The declarations a call's lookup finds, one per entity, in the order
-`Candidate.index` numbers them. -/
-def foundEntities (p : Program) (scope : Scope) (callee : String) (as : List CallArg) : List Decl :=
-  entities (discardTypes (p.callLookup p.length scope callee as))
+/-- The declarations a query's call resolves over, one per entity, in the
+order `Candidate.index` numbers them: what the call's lookup finds, the
+call operators of the object it finds, or the members a member call
+finds. -/
+def foundEntities (p : Program) : Query → List Decl
+  | .call callee as _ _ scope =>
+    match p.callCandidates p.length scope callee as with
+    | .selected fs => fs
+    | _ => []
+  | .memberCall cls callee _ _ _ =>
+    match p.memberSearch p.length cls callee with
+    | .selected ms => entities ms
+    | _ => []
+  | _ => []
 
 /-! ### Qualified names
 
@@ -423,15 +463,16 @@ def qualifyCase (c : Case) : Case :=
       | .call callee as expected explicit scope =>
         .call callee (as.map arg) expected (explicit.map (qualifyTy q)) scope
       | .raw cpp wf => .raw cpp wf
-      | .lookup tc a expected => .lookup tc (qualifyTy q a) expected }
+      | .lookup tc a expected => .lookup tc (qualifyTy q a) expected
+      | .memberCall cls callee as expected explicit =>
+        .memberCall (((q.lookup cls).getD "") ++ cls) callee (as.map arg) expected
+          (explicit.map (qualifyTy q)) }
 
 /-- The whole translation unit for a case. The lookup that numbers the
 candidates runs on the case as stated; the rendering uses qualified
 names. -/
 def render (c₀ : Case) : String := Id.run do
-  let found := match c₀.query with
-    | .call callee as _ _ scope => foundEntities c₀.program scope callee as
-    | _ => []
+  let found := foundEntities c₀.program c₀.query
   let q := qualifiers c₀.program
   let found := found.map (qualifyDecl q)
   let c := qualifyCase c₀
@@ -447,7 +488,8 @@ def render (c₀ : Case) : String := Id.run do
   | .deduction callee as expected explicit =>
     let p := c.program
     let h := (p.functionTemplate? callee).map (·.head) |>.getD []
-    out := out ++ program p callee (fun _ h => deducedType h) (fun _ => some 0) ++ "\n"
+    out := out ++ program p callee (fun _ h => deducedType h)
+      (fun d => if d.name? = some callee then some 0 else none) ++ "\n"
     match expected with
     | some σ =>
       out := out ++ s!"static_assert(std::is_same_v<decltype({callExpr callee explicit as}), {expectedDeduced h σ}>);\n"
@@ -472,6 +514,18 @@ def render (c₀ : Case) : String := Id.run do
     out := out ++ inScope scope q
   | .raw cpp _ =>
     out := out ++ program c.program "" (fun _ _ => "void") (fun _ => none) ++ "\n" ++ cpp
+  | .memberCall cls callee as expected explicit =>
+    out := out ++ program c.program callee (fun k _ => s!"selected<{k}>")
+      (fun d => found.findIdx? (sameEntity · d)) ++ "\n"
+    let member := s!"std::declval<const {cls}&>().{callee}"
+    match expected with
+    | .selected k =>
+      out := out ++ s!"static_assert(std::is_same_v<decltype({callExpr member explicit as}), selected<{k}>>);\n"
+    | .noMatch | .ambiguous _ =>
+      out := out ++ notViable member explicit as
+    | .illFormed r =>
+      out := out ++ s!"// the model expects a hard error: {r}\n"
+      out := out ++ s!"using probe = decltype({callExpr member explicit as});\n"
   | .lookup tc a expected =>
     out := out ++ program c.program "" (fun _ _ => "void") (fun _ => none) ++ "\n"
     let value := s!"std::remove_cvref_t<decltype({tc}<{ty a}>)>"
@@ -703,6 +757,63 @@ def noAdlForFundamental : Case :=
     program := [ .function "f" [int] N ]
     query := .call "f" [{ ty := int }] (.illFormed "no declaration of f is found")
     source := "computed by lookup" }
+
+/-! ### [class.member.lookup] and [over.call.object]: members and objects
+
+A class's own declarations of a name are the whole result of a search in
+its scope, so a member of a derived class hides every base member of the
+name; two unrelated bases that both declare it make the lookup
+ambiguous; and a call on an object resolves over the call operators of
+its class. -/
+
+private def inClass (c : String) : Scope := [.class c]
+
+/-- `struct A { void f(int); }; struct D : A { void f(X); };` and
+`d.f(1)`: the base's exact match is hidden, and the call is not viable. -/
+def derivedHidesBase : Case :=
+  { name := "class_member_lookup_3_derived_hides_base"
+    cite := cite "class.member.lookup#3.sentence-2"
+    program := [ .class "X", .class "A", .function "f" [int] (inClass "A")
+               , .class "D" [.named "A"], .function "f" [xClass] (inClass "D") ]
+    query := .memberCall "D" "f" [{ ty := int }] .noMatch
+    source := "computed by resolve over the member lookup" }
+
+/-- `struct D : A {}` with no `f` of its own: the search continues into
+the base. -/
+def baseMemberFound : Case :=
+  { name := "class_member_lookup_4_base_found"
+    cite := cite "class.member.lookup#4.sentence-1"
+    program := [ .class "A", .function "f" [int] (inClass "A"), .class "D" [.named "A"] ]
+    query := .memberCall "D" "f" [{ ty := int }] (.selected 0)
+    source := "computed by resolve over the member lookup" }
+
+/-- The example of [class.member.lookup]/6, with functions for members:
+`C` has two unrelated bases that declare `x`, and `c.x()` is ill-formed. -/
+def ambiguousBases : Case :=
+  { name := "class_member_lookup_6_ambiguous_bases"
+    cite := cite "class.member.lookup#6.sentence-2"
+    program := ambiguousBasesProgram
+    query := .memberCall "C" "x" [] (.illFormed "the lookup of x in C is ambiguous")
+    source := "computed by the member lookup" }
+
+/-- `struct fn { void operator()(int) const; }; inline constexpr fn f{};`
+and `f(1)`: the call resolves over the class's call operators. -/
+def objectCall : Case :=
+  { name := "over_call_object_1_call_operator"
+    cite := cite "over.call.object#1.sentence-2"
+    program := [ .class "fn", .function "operator()" [int] (inClass "fn"), .object "f" "fn" ]
+    query := .call "f" [{ ty := int }] (.selected 0)
+    source := "computed by resolve over the call operators" }
+
+/-- With the operation the `operator()` of an object, a user's `fmap(X)`
+beside the user's class is never a candidate: lookup binds `fmap` to the
+object, which suppresses argument-dependent lookup. -/
+def objectSuppressesAdl : Case :=
+  { name := "basic_lookup_argdep_1_object_suppresses"
+    cite := cite "basic.lookup.argdep#1"
+    program := objectProgram
+    query := .call "fmap" [{ ty := xClass }] (.selected 0)
+    source := "computed by resolve over the call operators" }
 
 /-! ### [temp.deduct.general]/5, the first example
 
@@ -1406,7 +1517,8 @@ def cases : List Case :=
   , specialization, pointerMismatch, inconsistent, nonTemplatePreferred, redeclarationNotOverload
   , innerHidesOuter, innerSelected, outerAtGlobal, parentFound, nearestEnclosing, nothingFound
   , argdepExample, freeFunctionAdmitsAdl, adlThroughBase, adlThroughTemplateArgument
-  , noAdlForFundamental
+  , noAdlForFundamental, derivedHidesBase, baseMemberFound, ambiguousBases, objectCall
+  , objectSuppressesAdl
   , draftDeductGeneral5_both, draftDeductGeneral5_default, draftDeductGeneral5_undeduced
   , draftDeductGeneral5_explicit, draftDeductGeneral5_explicitBoth
   , draftDeductGeneral5_stepOrder, draftDeductGeneral8_immediate, stepOrderHazard
@@ -1456,6 +1568,9 @@ def computedCallWith (envOf : EnvOf) (c : Case) : Option (Resolution Nat) :=
   | .call callee as _ explicit scope =>
     some ((c.program.callAt (envOf c.program c.atomics) c.program.length scope callee as explicit).map
       (·.index))
+  | .memberCall cls callee as _ explicit =>
+    some ((c.program.memberCallAt (envOf c.program c.atomics) c.program.length cls callee as
+      explicit).map (·.index))
   | _ => none
 
 /-- The Standard side's cases are computed in the program's own
