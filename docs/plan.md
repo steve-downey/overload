@@ -419,10 +419,16 @@ Status, 15 October 2026:
   each as relation and function, and the call from a point now resolves
   over both lookups. object-suppresses-adl is a theorem on the Standard
   side (`object_suppresses_adl`, with `free_function_admits_adl` the
-  contrast); its restatement for the encoding's `call_stability` waits
-  for the operation object to be an object with call operators, which
-  is member lookup's stage. Five more emitted cases agree with GCC and
-  Clang.
+  contrast). Member lookup is done: `Overload/Members.lean` has the
+  lookup set with its merge rule, the search in a class scope, the call
+  on an object through its call operators, and a template under another
+  name, so `Overload/Typeclass/Lookup.lean` can state the operation
+  object as declared. object-suppresses-adl holds for the encoding
+  (`object_design_candidates`), `call_stability` holds with `hothers`
+  discharged (`call_stability_object`), and member-hiding is a theorem
+  with the audit's hidden constrained member reproduced
+  (`derived_member_hides_base`, `unconstrained_member_hides_constrained`).
+  Nine more emitted cases agree with GCC and Clang.
 
 ## Target theorems
 
@@ -854,12 +860,15 @@ declaration, the program still a flat list, lookup a layer in front of
    operation object is an object with call operators.
 5. [member-lookup](#phase-9-declarations-and-where-to-find-them): members
    as functions scoped in a class; `lookupSet` with the merge rule,
-   `memberSearch`, `objectCallCandidates` ([over.call.object]/1), which
-   is what a call of the operation object resolves. Theorems
-   member-hiding and `ambiguous_bases_ill_formed`; the library's hidden
-   constrained member reproduced. Where the member call can be computed,
-   `ofProgram_member` becomes a theorem about computed lookup, the oracle
-   kept for what the fragment cannot express.
+   `memberSearch`, `callOperators` ([over.call.object]/1), which is what
+   a call of the operation object resolves over. Theorems member-hiding
+   and `ambiguous_bases_example`; the library's hidden constrained
+   member reproduced (`unconstrained_member_hides_constrained`), and the
+   encoding's `call_stability` restated through the object with
+   `hothers` discharged (`call_stability_object`). The member call at
+   the operation object's constraint stays an oracle, since a
+   constraint's probe is an expression; `Program.memberCallAt` computes
+   a member call on the fragment's members. Done 20 October 2026.
 6. [dependent-call-verdict](#phase-9-declarations-and-where-to-find-them):
    `Decl.dependentCall`, with its position as the definition context and
    the unit's end as the instantiation context; the verdict of

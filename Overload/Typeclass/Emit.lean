@@ -4,6 +4,7 @@ import Overload.Emit
 import Overload.Typeclass.Inheritance
 import Overload.Typeclass.Units
 import Overload.Typeclass.Members
+import Overload.Typeclass.Lookup
 
 /-!
 # The emitted cases of the encoding
@@ -116,6 +117,64 @@ def opObjectAmbiguousHard : Case :=
       (.illFormed "ambiguous partial specializations of functor<pair<int, int>>")
     source := "computed by resolve"
     prelude := prelude }
+
+/-! ### The operation object as declared
+
+`struct fmap_fn { template <...> operator()(...) const; }; inline constexpr
+fmap_fn fmap{};`: the same `operator()` as `opObject`, found through the
+object. A user's `fmap` beside the user's class is never a candidate. -/
+
+private def user : Scope := [.namespace "user"]
+
+private def objectProgram (extra : Program := []) : Program :=
+  [ .class "Fn", .classTemplate "box" [typeParam], .classTemplate "pair" [typeParam, typeParam]
+  , .lookup "functor", .instance "functor" [typeParam] (.spec' "box" [T]) ] ++
+  opClass "functor" ++ extra
+
+/-- The instance is found at the container's type, through the object. -/
+def opClassSelects : Case :=
+  { name := "op_class_selects"
+    cite := cite "over.call.object#1.sentence-2"
+    program := objectProgram
+    query := .call "fmap" [fn, { ty := .spec' "box" [int] }] (.selected 0)
+    source := "computed by resolve over the call operators"
+    prelude := prelude }
+
+/-- A user's `fmap(Fn, X)` beside the user's `X`, with an instance for
+`X`: through the object, the user's function is never a candidate and
+the operator is selected through the instance. -/
+def opClassSuppressesAdl : Case :=
+  { name := "op_class_suppresses_adl"
+    cite := cite "basic.lookup.argdep#1"
+    program := objectProgram
+      [ .class "X" [] [] user, .instance "functor" [] (.named "X")
+      , .function "fmap" [.named "Fn", .named "X"] user ]
+    query := .call "fmap" [fn, { ty := .named "X" }] (.selected 0)
+    source := "computed by resolve over the call operators"
+    prelude := prelude }
+
+/-- The same user declarations beside the operation as a free function
+template: the user's function is found through the argument's namespace
+and wins as a non-template exact match. -/
+def opFreeAdmitsAdl : Case :=
+  { name := "op_free_admits_adl"
+    cite := cite "basic.lookup.argdep#1"
+    program := opProgram [] [ .class "X" [] [] user, .instance "functor" [] (.named "X")
+                            , .function "fmap" [.named "Fn", .named "X"] user ]
+    query := .call "fmap" [fn, { ty := .named "X" }] (.selected 1)
+    source := "computed by resolve"
+    prelude := prelude }
+
+/-- The audit's hidden member: the instance type's unconstrained `fmap`
+hides the derivation base's constrained one, so a probe through the
+instance says yes where the base's constraint would say no. -/
+def hiddenConstrainedMember : Case :=
+  { name := "class_member_lookup_3_hidden_constrained_member"
+    cite := cite "class.member.lookup#3.sentence-2"
+    program := [.class "Fn", .concept "fmap_shape" "false"] ++ hidingInstanceProgram
+    query := .memberCall "opt_impl" "fmap" [fn, { ty := int }] (.selected 0)
+    source := "computed by resolve over the member lookup"
+    atomics := [("fmap_shape", [int], false)] }
 
 /-! ### Pinning
 
@@ -452,6 +511,7 @@ def leakDerivedComposed : Case :=
 /-- Every case of the encoding. -/
 def cases : List Case :=
   [ opObjectSelects, opObjectNormalizedKey, opObjectMissingSoft, opObjectAmbiguousHard
+  , opClassSelects, opClassSuppressesAdl, opFreeAdmitsAdl, hiddenConstrainedMember
   , pinCanonical, pinMissingViable, pinExplicit, pinExplicitAmbiguous, byValueCanonical
   , byValueMissingSoft, byValueExplicit, byValueExplicitAmbiguous, byValueAmbiguousHard
   , routesCanonical, routesValue, routesType, routesArgument, routesValueAmbiguous

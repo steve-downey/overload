@@ -11,5 +11,6 @@ import OverloadTest.Lookup
 import OverloadTest.Scope
 import OverloadTest.Names
 import OverloadTest.Adl
+import OverloadTest.Members
 import OverloadTest.Typeclass
 import OverloadTest.Emit

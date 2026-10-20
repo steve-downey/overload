@@ -5,6 +5,7 @@ import Overload.Typeclass.Routes
 import Overload.Typeclass.Inheritance
 import Overload.Typeclass.Units
 import Overload.Typeclass.Members
+import Overload.Typeclass.Lookup
 import Overload.Typeclass.Emit
 
 /-!

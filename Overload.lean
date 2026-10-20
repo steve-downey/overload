@@ -26,6 +26,7 @@ import Overload.Conjunction
 import Overload.Scope
 import Overload.Names
 import Overload.Adl
+import Overload.Members
 import Overload.Emit
 import Overload.Typeclass
 import Overload.Lint
@@ -170,6 +171,15 @@ is the map.
 #audit Overload.object_suppresses_adl
 #audit Overload.adl_functions
 #audit Overload.adl_scope
+
+-- Member lookup and the call on an object.
+#audit Overload.lookupSet_iff
+#audit Overload.derived_member_hides_base
+#audit Overload.ambiguous_bases_example
+#audit Overload.hiding_member_example
+#audit Overload.object_call_candidates
+#audit Overload.deduceTemplate_at
+#audit Overload.resolve_at_single
 #audit Overload.callAt_eq_call_global
 #audit Overload.hiding_call_example
 #audit Overload.argdep_1_example
@@ -218,3 +228,9 @@ is the map.
 #audit Overload.Typeclass.algorithm_transfer
 #audit Overload.Typeclass.algorithm_accurate
 #audit Overload.Typeclass.call_order_matters
+
+-- What lookup finds for the operation object.
+#audit Overload.Typeclass.object_design_candidates
+#audit Overload.Typeclass.opClass_candidates
+#audit Overload.Typeclass.call_stability_object
+#audit Overload.Typeclass.unconstrained_member_hides_constrained

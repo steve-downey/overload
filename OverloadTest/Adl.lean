@@ -59,7 +59,7 @@ private def p : Program :=
 #guard p.callLookup 8 N "f" [{ ty := .named "S" }] ==
   [.function "f" [.named "S"] N, .function "f" [int] N]
 #guard p.callLookup 8 [] "f" [{ ty := int }] == [.function "f" [int]]
-#guard objectProgram.callLookup 4 [] "fmap" [{ ty := .named "X" }] == [.object "fmap" "fmap_fn"]
+#guard objectProgram.callLookup 5 [] "fmap" [{ ty := .named "X" }] == [.object "fmap" "fmap_fn"]
 
 -- Calls.
 #guard (p.callAt (Env.ofProgram p) 8 [] "f" [{ ty := .named "S", lvalue := true }]).map (·.index) ==
@@ -73,5 +73,5 @@ private def p : Program :=
   [{ ty := .named "S", lvalue := true }]).map (·.index) == .selected 0
 #guard (freeFunctionProgram.callAt (Env.ofProgram freeFunctionProgram) 3 [] "fmap"
   [{ ty := .named "X" }]).map (·.index) == .selected 1
-#guard (objectProgram.callAt (Env.ofProgram objectProgram) 4 [] "fmap" [{ ty := .named "X" }])
-  matches .illFormed _
+#guard (objectProgram.callAt (Env.ofProgram objectProgram) 5 [] "fmap" [{ ty := .named "X" }]).map
+  (·.index) == .selected 0
