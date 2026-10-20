@@ -41,7 +41,7 @@ does not give class templates bases. -/
 def directBases (p : Program) : Ty → List Ty
   | .named n =>
     (p.findSome? fun
-      | .class m bs ps => if m = n then some (bs ++ ps) else none
+      | .class m bs ps _ => if m = n then some (bs ++ ps) else none
       | _ => none).getD []
   | _ => []
 

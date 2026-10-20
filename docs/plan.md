@@ -409,7 +409,12 @@ Status, 15 October 2026:
   agreement, conflicts, and the overload set with one declaration per
   entity. redeclaration-inert is a theorem (`redeclaration_inert`), and
   the candidate list's ambiguity between a function and itself is a
-  finding against the model (`findings.md`).
+  finding against the model (`findings.md`). Scoped lookup is done:
+  declarations carry their scope, and `Overload/Names.lean` has single
+  and unqualified search as relation and function, the classification of
+  what lookup found, and a call from a point. inner-hides-outer is a
+  theorem (`inner_hides_outer`), and five emitted cases agree with GCC
+  and Clang.
 
 ## Target theorems
 
@@ -828,7 +833,8 @@ declaration, the program still a flat list, lookup a layer in front of
 3. [scoped-lookup](#phase-9-declarations-and-where-to-find-them): the
    scope field; `precedes`, `singleSearch`, `unqualifiedSearch`,
    `unqualifiedLookup`, each as relation and function. Theorem
-   inner-hides-outer. The emitter renders namespaces.
+   inner-hides-outer. The emitter renders namespaces. Done 20 October
+   2026.
 4. [argument-dependent-lookup](#phase-9-declarations-and-where-to-find-them):
    `associatedEntities`, `associatedNamespaces`, `adl`, `adlApplies`,
    `callCandidates` ([over.call.func]/3), fed to `Program.call`.

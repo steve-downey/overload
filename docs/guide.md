@@ -182,9 +182,12 @@ functions, function templates (`FunctionTemplate`: head, parameter types,
 default arguments, return type, associated constraint, Mandates), a
 variable template as `lookup` or `lookupHard` (a primary with a value, or
 one whose instantiation fails), its partial specializations as `instance`,
-a use of it, an object, a concept. `Program.candidates` is every
-declaration with a name, in order; `Scope` reduces it to the overload set,
-one declaration per entity, and lookup proper is phase 9's work.
+a use of it, an object, a concept. Each namespace-scope declaration
+carries the scope it inhabits, a path of namespace and class steps from
+the global scope inward, `[]` by default (`decisions.md#scope-syntax`).
+`Program.candidates` is every declaration with a name, in order; `Scope`
+reduces it to the overload set, one declaration per entity, and `Names`
+computes what a call finds from a program point and a scope.
 `SingleTranslationUnit` is the one tagged assumption of the development:
 every partial specialization is declared before any use of its variable
 template. `Units` removes it.
@@ -505,9 +508,47 @@ what the candidate list got wrong before this module
 ([findings.md](findings.md#about-the-model)). The emitter computes call
 expectations over the overload set.
 
+### Names
+
+`Overload/Names.lean`: name lookup for the fragment, namespace and class
+scopes without using-directives, blocks or modules. A program point is a
+position in the unit's declaration list, and a declaration precedes it
+when it is earlier (`follows`, `precedes`, [basic.lookup.general]/2). A
+single search in a scope for a name from a point finds the declarations
+before the point that bind the name there (`singleSearch`,
+`SingleSearch`, `singleSearch_iff`, /3). An unqualified search is the
+single search in the scope, or, finding nothing, the unqualified search
+in the parent (`unqualifiedSearch`, `UnqualifiedSearch`,
+`unqualifiedSearch_iff`, [basic.lookup.unqual]/2), and unqualified name
+lookup from a point is that search in the point's immediate scope
+(`unqualifiedLookup`, /3). What lookup found is classified by
+[basic.lookup.general]/1 after classes are discarded when anything else
+was found (`LookupResult`, `lookupResult`, `discardTypes`): nothing, an
+overload set with one declaration per entity, one entity, or ambiguous.
+`Program.callAt` is a call from a point in a scope: lookup, then
+`Program.call` over the overload set ([over.call.func]/3).
+
+- `inner_hides_outer`: when the immediate scope binds the name, the
+  search is the single search there, whatever every enclosing scope
+  declares and whatever the signatures. `hiding_example` is the concrete
+  shape: `void f(int);` outside and `void f(X);` in `user` leave a call
+  `f(1)` written in `user` not viable.
+- `unqualifiedSearch_scope`: everything found inhabits one enclosing
+  scope.
+- `callAt_eq_call_global`: with every declaration of the name a function
+  at global scope, a call from the end of the unit is the call over the
+  candidate list's overload set, which is why no earlier case moved.
+
+Argument-dependent lookup and member lookup are later stages of phase 9;
+until then a call whose name denotes an object is reported, not resolved.
+
 ### Emit
 
-`Overload/Emit.lean`: the C++ emitter. A `Case` is a program, a query
+`Overload/Emit.lean`: the C++ emitter. Each declaration is rendered in
+its namespaces, a call case carries the scope it is written in, and the
+functions the call's lookup finds are numbered by entity in that lookup's
+order; a declaration lookup does not find gets a `hidden<j>` return
+type. A `Case` is a program, a query
 (deduction, call, lookup, or raw C++) and the expected outcome. `render`
 writes a translation unit whose `static_assert`s check the outcome in
 unevaluated contexts; a case carries its own `prelude` of fixtures beyond

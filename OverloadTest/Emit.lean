@@ -23,7 +23,7 @@ Mandates. -/
 private def callsAgree (computedCall : Case → Option (Resolution Nat)) (cs : List Case) : Bool :=
   cs.all fun c =>
     match c.query, computedCall c with
-    | .call _ _ expected _, some got => Resolution.agree expected got
+    | .call _ _ expected _ _, some got => Resolution.agree expected got
     | .call .., none => false
     | _, _ => true
 

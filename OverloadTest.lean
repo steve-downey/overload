@@ -9,5 +9,6 @@ import OverloadTest.Inheritance
 import OverloadTest.Ordering
 import OverloadTest.Lookup
 import OverloadTest.Scope
+import OverloadTest.Names
 import OverloadTest.Typeclass
 import OverloadTest.Emit

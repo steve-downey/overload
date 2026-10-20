@@ -555,3 +555,9 @@ will not say.
 **Log:**
 
 - 2026-10-20 — Decided.
+- 2026-10-20 — Landed. `ScopeStep`, `Scope` and the fields are in
+  `Overload/Program.lean`; every existing program literal, proof and
+  emitted case is unchanged, as the counts predicted. One correction on
+  the way: two declarations are one entity only when they also declare
+  the same kind (`sameEntity`), or an object and a function of one name
+  would merge instead of conflicting.

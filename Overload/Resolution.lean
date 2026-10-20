@@ -88,7 +88,7 @@ def perfectMatch (args : List CallArg) (params : List Ty) : Bool :=
 /-- Does the candidate set hold a non-template perfect match? -/
 def hasPerfectMatch (decls : List Decl) (args : List CallArg) : Bool :=
   decls.any fun
-    | .function _ ps => perfectMatch args ps
+    | .function _ ps _ => perfectMatch args ps
     | _ => false
 
 /-! ## Candidate functions -/
@@ -108,7 +108,7 @@ def generate (mode : Mode) (env : Env) (decls : List Decl) (args : List CallArg)
 where
   go : List Decl → Nat → Bool → Subst (List Candidate)
     | [], _, _ => .ok []
-    | .function _ ps :: ds, i, s => do
+    | .function _ ps _ :: ds, i, s => do
       return { index := i, params := ps } :: (← go ds (i + 1) s)
     | .functionTemplate ft :: ds, i, s =>
       if s then go ds (i + 1) s

@@ -56,12 +56,12 @@ inductive EntityKind where
 any. A partial specialization binds no name, and a use is not a
 declaration. -/
 def Decl.name? : Decl → Option String
-  | .class n _ _ => some n
-  | .classTemplate n _ => some n
-  | .function n _ => some n
+  | .class n _ _ _ => some n
+  | .classTemplate n _ _ => some n
+  | .function n _ _ => some n
   | .functionTemplate ft => some ft.name
   | .lookup n | .lookupHard n => some n
-  | .object n => some n
+  | .object n _ _ => some n
   | .concept n _ => some n
   | .instance .. | .use .. => none
 
@@ -72,9 +72,18 @@ def Decl.kind? : Decl → Option EntityKind
   | .function .. => some .function
   | .functionTemplate _ => some .functionTemplate
   | .lookup _ | .lookupHard _ => some .variableTemplate
-  | .object _ => some .variable
+  | .object .. => some .variable
   | .concept .. => some .concept
   | .instance .. | .use .. => none
+
+/-- The scope a declaration inhabits, its target scope in the fragment
+([basic.scope.scope]/2). A partial specialization, a use, a variable
+template and a concept are at global scope until lookup needs them
+elsewhere. -/
+def Decl.scope : Decl → Scope
+  | .class _ _ _ s | .classTemplate _ _ s | .function _ _ s | .object _ _ s => s
+  | .functionTemplate ft => ft.scope
+  | _ => []
 
 /-- Declares a type, and not a type alias: a class. A class template
 declares a template. -/
@@ -105,7 +114,7 @@ Equivalence of template parameters is [temp.over.link]/6, as the
 tie-break gate reads it. -/
 @[std rule "basic.scope.scope#4"]
 def correspondingOverloads : Decl → Decl → Bool
-  | .function _ ps, .function _ qs => ps == qs
+  | .function _ ps _, .function _ qs _ => ps == qs
   | .functionTemplate f, .functionTemplate g =>
     headsEquivalent f.head g.head && f.params == g.params && f.ret == g.ret &&
       f.constraint == g.constraint
@@ -132,7 +141,8 @@ name that the paragraph's exceptions do not separate. -/
 @[specification]
 inductive Corresponds : Decl → Decl → Prop where
   /-- Two function declarations with the same name and parameter-type-list. -/
-  | overloads (n : String) (ps : List Ty) : Corresponds (.function n ps) (.function n ps)
+  | overloads (n : String) (ps : List Ty) (s t : Scope) :
+      Corresponds (.function n ps s) (.function n ps t)
   /-- Two function template declarations with the same name, equivalent
   template-heads, parameter lists, return types and constraints. -/
   | templateOverloads (f g : FunctionTemplate) (hn : f.name = g.name)
@@ -152,7 +162,7 @@ attribute [std rule "basic.scope.scope#4"] Corresponds.sameName
 /-- The shapes on which `correspondingOverloads` holds. -/
 theorem correspondingOverloads_iff (d₁ d₂ : Decl) :
     correspondingOverloads d₁ d₂ = true ↔
-      (∃ n m ps, d₁ = .function n ps ∧ d₂ = .function m ps) ∨
+      (∃ n m ps s t, d₁ = .function n ps s ∧ d₂ = .function m ps t) ∨
       (∃ f g, d₁ = .functionTemplate f ∧ d₂ = .functionTemplate g ∧
         headsEquivalent f.head g.head = true ∧ f.params = g.params ∧ f.ret = g.ret ∧
         f.constraint = g.constraint) := by
@@ -177,16 +187,16 @@ theorem corresponds_iff (d₁ d₂ : Decl) : corresponds d₁ d₂ = true ↔ Co
           · rintro ⟨a, b⟩; simp_all
           · rintro ⟨a, b⟩; simp_all
           · rintro ⟨a, b⟩; simp_all
-        · rcases (correspondingOverloads_iff d₁ d₂).1 hf with ⟨a, b, ps, rfl, rfl⟩ |
+        · rcases (correspondingOverloads_iff d₁ d₂).1 hf with ⟨a, b, ps, s, t, rfl, rfl⟩ |
             ⟨f, g, rfl, rfl, hh, hp, hr, hc⟩
           · simp only [Decl.name?, Option.some.injEq] at hn₁ hn₂
             subst hn₁ hn₂
-            exact .overloads _ _
+            exact .overloads _ _ _ _
           · simp only [Decl.name?, Option.some.injEq] at hn₁ hn₂
             exact .templateOverloads f g (hn₁.trans hn₂.symm) hh hp hr hc
   · intro h
     cases h with
-    | overloads n ps => simp [corresponds, Decl.name?, correspondingOverloads, Decl.declaresType,
+    | overloads n ps s t => simp [corresponds, Decl.name?, correspondingOverloads, Decl.declaresType,
         Decl.kind?]
     | templateOverloads f g hn hh hp hr hc =>
       simp [corresponds, Decl.name?, correspondingOverloads, Decl.declaresType, Decl.kind?, hn, hh,
@@ -206,21 +216,32 @@ with a class template, and so on. -/
 @[std rule "basic.link#11"]
 def sameKind (d₁ d₂ : Decl) : Bool := d₁.kind? == d₂.kind?
 
+/-- Two declarations declare the same entity when they correspond, have
+the same target scope, and declare the same kind of entity, as two
+declarations of one entity must. Both have external linkage in the
+fragment, which has no `static`, no unnamed namespace and no non-inline
+`const` variable. Corresponding declarations of different kinds in one
+scope are a conflict, not a redeclaration. -/
+@[std rule "basic.link#8"]
+def sameEntity (d₁ d₂ : Decl) : Bool :=
+  corresponds d₁ d₂ && d₁.scope == d₂.scope && sameKind d₁ d₂
+
 /-- Two declarations potentially conflict: they correspond and cause their
-shared name to denote different entities, which in one scope of one
-translation unit means different kinds of entity. A variable and a
-function of one name are the case that matters: an operation object and
-a free function named alike cannot share a scope. -/
+shared name to denote different entities, which within one translation
+unit means different kinds of entity. A variable and a function of one
+name are the case that matters: an operation object and a free function
+named alike cannot share a scope. -/
 @[std rule "basic.scope.scope#6.sentence-1"]
 def potentiallyConflict (d₁ d₂ : Decl) : Bool := corresponds d₁ d₂ && !sameKind d₁ d₂
 
-/-- The pairs of a program that potentially conflict, the earlier
-declaration first. Every declaration inhabits one scope until the scope
-field arrives. -/
+/-- The pairs of a program bound in one scope that potentially conflict,
+the earlier declaration first. -/
 @[std rule "basic.scope.scope#6.sentence-2"]
 def Program.conflicts : Program → List (Decl × Decl)
   | [] => []
-  | d :: ds => (ds.filter (potentiallyConflict d)).map (d, ·) ++ Program.conflicts ds
+  | d :: ds =>
+    (ds.filter fun e => d.scope == e.scope && potentiallyConflict d e).map (d, ·) ++
+      Program.conflicts ds
 
 /-- No name is bound to two declarations that potentially conflict. -/
 def Program.scopesWellFormed (p : Program) : Prop := p.conflicts = []
@@ -230,7 +251,8 @@ instance (p : Program) : Decidable p.scopesWellFormed :=
 
 /-- Well-formed scopes, as a pairwise condition on the declarations. -/
 theorem scopesWellFormed_iff (p : Program) :
-    p.scopesWellFormed ↔ p.Pairwise fun a b => potentiallyConflict a b = false := by
+    p.scopesWellFormed ↔
+      p.Pairwise fun a b => (a.scope == b.scope && potentiallyConflict a b) = false := by
   induction p with
   | nil => simp [Program.scopesWellFormed, Program.conflicts]
   | cons d ds ih =>
@@ -242,12 +264,11 @@ theorem scopesWellFormed_iff (p : Program) :
 /-! ## The overload set -/
 
 /-- The entities a list of declarations declares, one declaration each:
-a declaration that corresponds to an entity already kept is a
-redeclaration of it and is dropped. `acc` holds the entities kept so
-far. -/
+a declaration of an entity already kept is a redeclaration of it and is
+dropped. `acc` holds the entities kept so far. -/
 def entities.go (acc : List Decl) : List Decl → List Decl
   | [] => []
-  | d :: ds => if acc.any (corresponds · d) then entities.go acc ds else d :: entities.go (d :: acc) ds
+  | d :: ds => if acc.any (sameEntity · d) then entities.go acc ds else d :: entities.go (d :: acc) ds
 
 /-- The entities a list of declarations declares, one declaration each,
 the first: the declarations found form an overload set, and a later
@@ -273,8 +294,8 @@ theorem entities_sublist (l : List Decl) : (entities l).Sublist l := entities_go
 /-- Nothing kept corresponds to anything in the accumulator, and no two
 kept declarations correspond. -/
 theorem entities_go_pairwise (l : List Decl) : ∀ acc,
-    (∀ a ∈ acc, ∀ b ∈ entities.go acc l, corresponds a b = false) ∧
-      (entities.go acc l).Pairwise fun a b => corresponds a b = false := by
+    (∀ a ∈ acc, ∀ b ∈ entities.go acc l, sameEntity a b = false) ∧
+      (entities.go acc l).Pairwise fun a b => sameEntity a b = false := by
   induction l with
   | nil => intro acc; simp [entities.go]
   | cons d ds ih =>
@@ -291,25 +312,25 @@ theorem entities_go_pairwise (l : List Decl) : ∀ acc,
         exact Bool.eq_false_iff.2 fun h => hno ⟨a, ha, h⟩
       · exact hacc a (by simp [ha]) b hb
 
-/-- No two members of an overload set correspond. -/
+/-- No two members of an overload set declare the same entity. -/
 theorem entities_pairwise (l : List Decl) :
-    (entities l).Pairwise fun a b => corresponds a b = false :=
+    (entities l).Pairwise fun a b => sameEntity a b = false :=
   (entities_go_pairwise l []).2
 
 theorem overloadSet_pairwise (p : Program) (name : String) :
-    (p.overloadSet name).Pairwise fun a b => corresponds a b = false :=
+    (p.overloadSet name).Pairwise fun a b => sameEntity a b = false :=
   entities_pairwise _
 
-/-- With no corresponding pair, the entities are the declarations. -/
+/-- With no two declarations of one entity, the entities are the declarations. -/
 theorem entities_go_eq_self (l : List Decl) : ∀ acc,
-    (∀ a ∈ acc, ∀ b ∈ l, corresponds a b = false) →
-      l.Pairwise (fun a b => corresponds a b = false) → entities.go acc l = l := by
+    (∀ a ∈ acc, ∀ b ∈ l, sameEntity a b = false) →
+      l.Pairwise (fun a b => sameEntity a b = false) → entities.go acc l = l := by
   induction l with
   | nil => intros; rfl
   | cons d ds ih =>
     intro acc hacc hpw
     rw [List.pairwise_cons] at hpw
-    have hno : acc.any (corresponds · d) = false := by
+    have hno : acc.any (sameEntity · d) = false := by
       simp only [List.any_eq_false]
       intro a ha
       simp [hacc a ha d (by simp)]
@@ -322,25 +343,25 @@ theorem entities_go_eq_self (l : List Decl) : ∀ acc,
 
 /-- Every program whose functions are declared once keeps its candidate
 set. -/
-theorem entities_eq_self (l : List Decl) (h : l.Pairwise fun a b => corresponds a b = false) :
+theorem entities_eq_self (l : List Decl) (h : l.Pairwise fun a b => sameEntity a b = false) :
     entities l = l :=
   entities_go_eq_self l [] (by simp) h
 
 theorem overloadSet_eq_candidates (p : Program) (name : String)
-    (h : (p.candidates name).Pairwise fun a b => corresponds a b = false) :
+    (h : (p.candidates name).Pairwise fun a b => sameEntity a b = false) :
     p.overloadSet name = p.candidates name :=
   entities_eq_self _ h
 
 /-- Inserting a declaration that corresponds to an entity already kept,
 in the accumulator or among those of the prefix, changes nothing. -/
 theorem entities_go_insert (l₁ : List Decl) (d : Decl) : ∀ acc l₂,
-    ((∃ e ∈ acc, corresponds e d = true) ∨ ∃ e ∈ entities.go acc l₁, corresponds e d = true) →
+    ((∃ e ∈ acc, sameEntity e d = true) ∨ ∃ e ∈ entities.go acc l₁, sameEntity e d = true) →
       entities.go acc (l₁ ++ d :: l₂) = entities.go acc (l₁ ++ l₂) := by
   induction l₁ with
   | nil =>
     intro acc l₂ h
     simp only [entities.go, List.not_mem_nil, false_and, exists_false, or_false] at h
-    have : acc.any (corresponds · d) = true := by
+    have : acc.any (sameEntity · d) = true := by
       simp only [List.any_eq_true]; exact h
     simp [entities.go, this]
   | cons x l₁ ih =>
@@ -361,16 +382,16 @@ theorem entities_go_insert (l₁ : List Decl) (d : Decl) : ∀ acc l₂,
 /-- Inserting a declaration that corresponds to an entity already
 declared changes nothing: the entity keeps its first declaration. -/
 theorem entities_insert_redecl (l₁ : List Decl) (d : Decl) (l₂ : List Decl)
-    (h : ∃ e ∈ entities l₁, corresponds e d = true) :
+    (h : ∃ e ∈ entities l₁, sameEntity e d = true) :
     entities (l₁ ++ d :: l₂) = entities (l₁ ++ l₂) :=
   entities_go_insert l₁ d [] l₂ (.inr h)
 
 /-- Redeclaration is inert: declaring a function or function template
-that corresponds to an entity the program already declares, anywhere
-after that entity's declaration, leaves the overload set of every name
-as it was. -/
+of an entity the program already declares, in that entity's scope and
+anywhere after its first declaration, leaves the overload set of every
+name as it was. -/
 theorem redeclaration_inert (p₁ p₂ : Program) (d : Decl) (name : String)
-    (hre : ∃ e ∈ p₁.overloadSet name, corresponds e d = true) :
+    (hre : ∃ e ∈ p₁.overloadSet name, sameEntity e d = true) :
     (p₁ ++ d :: p₂).overloadSet name = (p₁ ++ p₂).overloadSet name := by
   simp only [Program.overloadSet, Program.candidates, List.filter_append, List.filter_cons] at hre ⊢
   cases d <;> dsimp only at hre ⊢ <;> (try simp only [Bool.false_eq_true, ↓reduceIte]) <;>
@@ -380,7 +401,7 @@ theorem redeclaration_inert (p₁ p₂ : Program) (d : Decl) (name : String)
 the same, whatever the environment and the ranking. -/
 theorem redeclaration_inert_resolve (p₁ p₂ : Program) (d : Decl) (name : String)
     (mode : Mode) (env : Env) (r : Ranking Conv) (args : List CallArg) (explicit : List Ty)
-    (hre : ∃ e ∈ p₁.overloadSet name, corresponds e d = true) :
+    (hre : ∃ e ∈ p₁.overloadSet name, sameEntity e d = true) :
     resolve mode env r ((p₁ ++ d :: p₂).overloadSet name) args explicit =
       resolve mode env r ((p₁ ++ p₂).overloadSet name) args explicit := by
   rw [redeclaration_inert p₁ p₂ d name hre]
@@ -388,7 +409,7 @@ theorem redeclaration_inert_resolve (p₁ p₂ : Program) (d : Decl) (name : Str
 /-- Nor the evaluated call, Mandates included. -/
 theorem redeclaration_inert_invoke (p₁ p₂ : Program) (d : Decl) (name : String)
     (mode : Mode) (env : Env) (r : Ranking Conv) (args : List CallArg) (explicit : List Ty)
-    (hre : ∃ e ∈ p₁.overloadSet name, corresponds e d = true) :
+    (hre : ∃ e ∈ p₁.overloadSet name, sameEntity e d = true) :
     invoke mode env r ((p₁ ++ d :: p₂).overloadSet name) args explicit =
       invoke mode env r ((p₁ ++ p₂).overloadSet name) args explicit := by
   rw [redeclaration_inert p₁ p₂ d name hre]
