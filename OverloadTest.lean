@@ -10,5 +10,6 @@ import OverloadTest.Ordering
 import OverloadTest.Lookup
 import OverloadTest.Scope
 import OverloadTest.Names
+import OverloadTest.Adl
 import OverloadTest.Typeclass
 import OverloadTest.Emit
