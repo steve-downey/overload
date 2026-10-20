@@ -7,6 +7,7 @@ import Overload.Sfinae
 import Overload.Dispatch
 import Overload.Units
 import Overload.Access
+import Overload.Scope
 
 /-!
 # The C++ emitter
@@ -269,11 +270,20 @@ def evaluatedCall (callee : String) (explicit : List Ty) (as : List CallArg) : S
     if a.lvalue then s!"a{i}" else s!"static_cast<{ty a.ty}&&>(a{i})"
   s!"void evaluated({String.intercalate ", " ps}) \{ {name}({String.intercalate ", " es}); }\n"
 
+/-- The index of a declaration's entity among the callee's entities
+declared so far, and the entities after it: a redeclaration shares its
+entity's index, and gets the same return type, as C++ requires. -/
+private def entityIndex (ents : List Decl) (d : Decl) : Nat × List Decl :=
+  match ents.findIdx? (corresponds · d) with
+  | some k => (k, ents)
+  | none => (ents.length, ents ++ [d])
+
 /-- The declarations of a program, as C++; functions named `callee` get
-the return type `ret k` for the `k`th candidate. -/
+the return type `ret k` for the `k`th entity of that name, which is its
+index in the overload set. -/
 def program (p : Program) (callee : String) (ret : Nat → Head → String) : String := Id.run do
   let mut out := ""
-  let mut k := 0
+  let mut ents : List Decl := []
   let mut instances : List (String × Nat) := []
   for d in p do
     match d with
@@ -284,8 +294,9 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String) : St
     | .classTemplate n h => out := out ++ s!"{head h}\nstruct {n} \{};\n"
     | .function n ps =>
       if n = callee then
+        let (k, ents') := entityIndex ents d
+        ents := ents'
         out := out ++ s!"{ret k []} {n}({params ps});\n"
-        k := k + 1
       else
         out := out ++ s!"void {n}({params ps});\n"
     | .functionTemplate ft =>
@@ -293,8 +304,9 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String) : St
         | some c => s!"\n    requires {constraint c}"
         | none => ""
       if ft.name = callee then
+        let (k, ents') := entityIndex ents d
+        ents := ents'
         out := out ++ s!"{head ft.head}{req}\n{declarator ft (ret k ft.head) (params ft.params ft.defaultArgs)}{body ft (ret k ft.head)}\n"
-        k := k + 1
       else
         out := out ++ s!"{head ft.head}{req}\n{declarator ft "void" (params ft.params ft.defaultArgs)}{body ft "void"}\n"
     | .lookup c =>
@@ -448,6 +460,16 @@ def nonTemplatePreferred : Case :=
     program := [simpleTemplate [T], .function "f" [int]]
     query := .call "f" [{ ty := int }] (.selected 1)
     source := "computed by resolve" }
+
+/-- `void f(int); void f(int); void f(char);` and `f(1)`: the second
+declaration corresponds to the first and is the same function, so the
+call selects it and is not ambiguous. -/
+def redeclarationNotOverload : Case :=
+  { name := "basic_scope_scope_4_redeclaration"
+    cite := cite "basic.scope.scope#4"
+    program := redeclaredProgram
+    query := .call "f" [{ ty := int }] (.selected 0)
+    source := "computed by resolve over the overload set" }
 
 /-! ### [temp.deduct.general]/5, the first example
 
@@ -1148,7 +1170,7 @@ def publicBaseSelected : Case :=
 /-- Every case of the Standard side. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
-  , specialization, pointerMismatch, inconsistent, nonTemplatePreferred
+  , specialization, pointerMismatch, inconsistent, nonTemplatePreferred, redeclarationNotOverload
   , draftDeductGeneral5_both, draftDeductGeneral5_default, draftDeductGeneral5_undeduced
   , draftDeductGeneral5_explicit, draftDeductGeneral5_explicitBoth
   , draftDeductGeneral5_stepOrder, draftDeductGeneral8_immediate, stepOrderHazard
@@ -1196,7 +1218,7 @@ case is not a call case. -/
 def computedCallWith (envOf : EnvOf) (c : Case) : Option (Resolution Nat) :=
   match c.query with
   | .call callee as _ explicit =>
-    some ((c.program.call (envOf c.program c.atomics) (c.program.candidates callee) as explicit).map
+    some ((c.program.call (envOf c.program c.atomics) (c.program.overloadSet callee) as explicit).map
       (·.index))
   | _ => none
 

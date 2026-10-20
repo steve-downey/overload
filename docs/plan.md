@@ -400,11 +400,16 @@ Status, 15 October 2026:
   (`arity_order_matters`). A registry tested by completeness, as
   `Monoid` is, has the verdicts of a lookup under a third rule
   (`registry_verdicts`).
-- Phase 9 is planned, 20 October 2026, and not started. The plan, the
+- Phase 9 is open, planned 20 October 2026. The plan, the
   cross-reference against P1787R6 and the stages are
   [below](#phase-9-declarations-and-where-to-find-them). The in-scope
   paragraphs are in `Overload.Std.inScope`, so `citations.md` lists them
-  as uncovered until each stage lands.
+  as uncovered until each stage lands. Correspondence is done:
+  `Overload/Scope.lean` has `corresponds` and `Corresponds` with their
+  agreement, conflicts, and the overload set with one declaration per
+  entity. redeclaration-inert is a theorem (`redeclaration_inert`), and
+  the candidate list's ambiguity between a function and itself is a
+  finding against the model (`findings.md`).
 
 ## Target theorems
 
@@ -815,11 +820,11 @@ declaration, the program still a flat list, lookup a layer in front of
    this section, the decisions, `Overload.Std.inScope`. Done 20 October
    2026.
 2. [correspondence](#phase-9-declarations-and-where-to-find-them):
-   `Decl.corresponds` ([basic.scope.scope]/4, over `paramEquivalent`),
+   `corresponds` ([basic.scope.scope]/4, over `headsEquivalent`),
    `Program.conflicts` (/6), the overload set with one entry per entity
    ([basic.lookup.general]/1). Theorems redeclaration-inert and
-   `overload_set_distinct`. The spurious ambiguity is a finding against
-   the model.
+   `overloadSet_pairwise`. The spurious ambiguity is a finding against
+   the model. Done 20 October 2026.
 3. [scoped-lookup](#phase-9-declarations-and-where-to-find-them): the
    scope field; `precedes`, `singleSearch`, `unqualifiedSearch`,
    `unqualifiedLookup`, each as relation and function. Theorem
