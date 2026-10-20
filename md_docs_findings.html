@@ -113,13 +113,13 @@ $(document).ready(function(){initNavTree('md_docs_findings.html',''); initResiza
 <td class="markdownTableBodyNone">False statement   </td><td class="markdownTableBodyNone">A note, example or claimed property is refuted by the rules.   </td></tr>
 </table>
 <p>Ambiguity is not a conflict. The Standard makes it a defined outcome, and the model keeps it as a value. A disagreement between compilers is a separate matter, filed under test-oracle (decisions.md::test-oracle). The design note at the end draws one lesson from all four sections.</p>
-<h1><a class="anchor" id="autotoc_md38"></a>
+<h1><a class="anchor" id="autotoc_md40"></a>
 Against the Standard</h1>
 <ul>
 <li><b>Subsumption is not a partial ordering</b> (16 October 2026). False statement, in a note. [temp.constr.order]/2 says "The subsumption
   relation defines a partial ordering on constraints." It is reflexive and transitive, but <code>A ∧ B</code> and <code>B ∧ A</code> subsume each other and are different constraints, so it is a preorder (<code>Constraint.subsumes_not_antisymm</code>). It is a partial order on constraints taken up to mutual subsumption, which is presumably what is meant. Normative text is unaffected: every use of subsumption in ordering asks for one direction and not the other.</li>
 </ul>
-<h1><a class="anchor" id="autotoc_md39"></a>
+<h1><a class="anchor" id="autotoc_md41"></a>
 Compiler disagreements</h1>
 <p>The three from the probes are in <code><a class="el" href="probes_8md.html">probes.md</a></code>, with verdicts. Disagreements on emitted programs are listed in <code>differential/known-disagreements.txt</code> and described here as they arrive.</p>
 <ul>
@@ -130,7 +130,7 @@ Compiler disagreements</h1>
 <li><b>Neither compiler ignores a placeholder's type-constraint when comparing template parameters</b> (16 October 2026). <code>tie_break_placeholder_constraint.cpp</code> is the tie-break probe's variant C as the model spells it: two overloads differing in a defaulted constant template parameter declared <code>auto</code> in one and <code>shape auto</code> in the other, the second more constrained. [temp.over.link]/6 says equivalence of constant template parameters ignores type-constraints on placeholder types, so the parameters are equivalent, the gate of [temp.func.order]/8 is open, and the model selects the more constrained overload (<code>PartialOrdering.paramEquivalent</code>). GCC 13 and Clang 18 both report the call ambiguous. This is the plan's divergence 2 with a different Clang result from the one the plan recorded for its own, unrecovered, probe source (<code><a class="el" href="probes_8md.html">probes.md</a></code>); the by-value spelling here is the one Clang 18 accepts. Listed as known for both compilers; the verdict stands on the text. Update, 16 October 2026: Clang 19 to 24 select the more constrained overload, as the model does. GCC 13 to 15 still report ambiguity, and so does Clang 17, so the known entries remain for GCC and for Clang 17 and 18.</li>
 <li><b>An ambiguous instance is a deduction failure on both compilers</b> (16 October 2026). <code>op_object_ambiguous_hard.cpp</code> is the operation object of beman.transpose at a type two instances match, with neither more specialized, beside a worse fallback template. [temp.spec.partial.match]/1 makes the ambiguous use ill-formed. The matching is how the specialization is instantiated, and [temp.deduct.general]/8 puts instantiations outside the immediate context, so the model makes the call ill-formed. GCC 13 to 15 and Clang 17 to 24 select the fallback. The result depends on how the lookup is spelled. A hand-written variant that looks up through a class template's static member is a hard error on GCC and soft on Clang. Through a variable template whose initializer names that static member, it is hard on GCC and on Clang 18, and soft on Clang 23. For the library this means that two unordered instances do not make a call ill-formed in practice. The type is silently treated as having no instance, and another overload, if there is one, is chosen. That is the silent choice coherence rules out for lookup itself. Listed in <code>differential/known-disagreements.txt</code> for both compilers; the verdict stands on the text. Update, 17 October 2026: the by-value route behaves the same way. <code>by_value_ambiguous_hard.cpp</code> defaults the policy type to <code>std::remove_cvref_t&lt;decltype(functor&lt;...&gt;)&gt;</code> at an ambiguous type, and GCC 13 to 16 and Clang 17 to 24 all select the fallback. So does <code>routes_type_ambiguous_hard.cpp</code>, where the ambiguous lookup is the canonical overload's default, reached through a call meant for the plan's type route. Under the text that call is ill-formed; on every compiler it selects the type route.</li>
 </ul>
-<h1><a class="anchor" id="autotoc_md40"></a>
+<h1><a class="anchor" id="autotoc_md42"></a>
 About the model</h1>
 <ul>
 <li><b>Deduction is most general only without nested references</b> (17 October 2026). On the first-order fragment deduction is matching, and it finds the least bindings that solve <code>P = A</code> (<code>deduceTy_most_general</code>). A reference inside <code>P</code> breaks this: <code>T&amp;</code> against <code>int&amp;</code> deduces <code>T</code> as <code>int</code>, but <code>T</code> as <code>int&amp;</code> solves it too, by reference collapsing (<code>OverloadTest/Deduction.lean</code>). Deduction's answer is the one the form <code>T&amp;</code> of [temp.deduct.type]/8 gives. It is not the only solution. A call strips the top-level reference before deducing, so only references nested inside a parameter type fall outside.</li>
@@ -141,7 +141,7 @@ About the model</h1>
 <li><b>The draft's step-order example reproduces, and shows why the order matters</b> (16 October 2026). In the second example of [temp.deduct.general]/5, <code>f(zz, 42)</code> fails deduction for #1 because <code>C&lt;int&gt;</code> is not satisfied. <code>OverloadTest/Steps.lean</code> checks that the same call with the constraint removed is a hard error: the conversion of <code>zz</code> to <code>void*</code> would then be checked, and it instantiates <code>Z&lt;void&gt;</code> through the conversion function template's default argument. The constraint check, sentence 6, runs before the conversion check, sentence 8, and that order is what keeps the example well-formed; <code>constraint_soft_shields_function_type</code> is the general statement.</li>
 <li><b>The draft's first matching example reproduces</b> (16 October 2026). The five uses in the first example of [temp.spec.partial.match]/2, including a constant template parameter and the ambiguity between #3 and #5, come out as the draft says (<code>OverloadTest/Lookup.lean</code>).</li>
 </ul>
-<h1><a class="anchor" id="autotoc_md41"></a>
+<h1><a class="anchor" id="autotoc_md43"></a>
 About the plan</h1>
 <ul>
 <li><b>A protected base does not hide the implementation</b> (17 October 2026). <code>derive_functor&lt;Impl&gt;</code> inherits <code>Impl</code> protected, which reads as keeping <code>Impl</code> out of view. Overload resolution does not see access: implicit conversion sequences ignore it ([over.best.ics.general]/2), and deduction from a derived class goes through the protected base. A function that names <code>Impl</code>, or a class template <code>Impl</code> comes from, is selected for an instance type built on it, and the call is ill-formed at the conversion ([conv.ptr]/3, [dcl.init.ref]/4). It is not merely not viable, so no other overload is tried (<code>protected_base_selected_ill_formed</code>, <code>protected_base_deduced_ill_formed</code>, <code>access_protected_base_*.cpp</code>). Every compiler agrees. Within a requires-expression the same access failure is part of substitution, so a constraint that tests such a call is simply false.</li>
@@ -162,7 +162,7 @@ About the plan</h1>
 <li><b>Attributes on constructors</b> (15 October 2026). Lean 4 does not allow an attribute in a constructor's declaration (<code>Attributes cannot be added to constructors</code>), so the plan's sketch <code>| @[std rule "..."] ok : ...</code> is not available. A citation on a constructor is written as an <code>attribute</code> command directly after the inductive, <code>attribute [std rule "..."] Subst.ok</code>, and the lint checks the same thing. The spelling on definitions and theorems is as sketched.</li>
 <li><b>Probe reconstruction</b> (15 October 2026). The probe sources had to be reconstructed; step-order B and tie-break C did not reproduce at first, and tie-break C still does not. Details in <code><a class="el" href="probes_8md.html">probes.md</a></code>.</li>
 </ul>
-<h1><a class="anchor" id="autotoc_md42"></a>
+<h1><a class="anchor" id="autotoc_md44"></a>
 About the library</h1>
 <ul>
 <li><p class="startli"><b>Applicative's interface is the instance</b> (17 October 2026). In beman.transpose the call a user writes is a member call on the instance of record: <code>const auto &amp;app = applicative&lt;std::optional&lt;int&gt;&gt;; app.invoke(f, x, y, z)</code> (<code>examples/transpose/apply_example.cpp</code>). The operation object <code>invoke_fn</code> is a secondary interface over it, with one <code>operator()</code> constrained on <code>TC.invoke(...)</code>. Functor's <code>fmap_fn</code> is the same secondary layer, and <code><a class="el" href="encoding_8hpp.html">encoding.hpp</a></code> reduces to it. The theorems still apply:</p><ul>
@@ -198,7 +198,7 @@ About the library</h1>
 <p class="startli">Reported as steve-downey/typeclass#17 (callable copies), #18 (<code>void</code> results), #19 (the accumulating <code>bind</code>) and #20 (<code>lifted_monoid</code> and <code>kleisli_monoid</code>).</p>
 </li>
 </ul>
-<h1><a class="anchor" id="autotoc_md43"></a>
+<h1><a class="anchor" id="autotoc_md45"></a>
 Design note</h1>
 <ul>
 <li><p class="startli"><b>A variable cannot be overloaded</b> (17 October 2026). The typeclass design in beman.transpose puts a variable at each point where C++ would otherwise build an overload set, and most of its good behaviour follows from that.</p><ul>

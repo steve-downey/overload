@@ -101,7 +101,7 @@ $(document).ready(function(){initNavTree('md_docs_obligations.html',''); initRes
 <div class="contents">
 <div class="textblock"><p>This is the obligations table that <a href="plan.md#proof-obligations">the plan</a> calls for, as harvested so far. Each row is a hypothesis that a proved theorem needs and the language does not guarantee. The plan's table holds the predictions. This one says what the model found, and where the prediction failed. The classes are the plan's: by construction, compiler-checked, library-checkable, undiagnosable.</p>
 <p>Every row of the plan's table has its theorem or its counterexample.</p>
-<h1><a class="anchor" id="autotoc_md84"></a>
+<h1><a class="anchor" id="autotoc_md86"></a>
 Two layers, three overload sets</h1>
 <p>A typeclass in beman.transpose has two layers, and the rows below say which one they are about.</p>
 <ul>
@@ -114,7 +114,7 @@ Two layers, three overload sets</h1>
 <li>The call <code>fmap(f, x)</code>. Name lookup finds the variable <code>fmap</code>, so the candidates are that object's one <code>operator()</code>, and nothing else: a variable cannot be overloaded, and argument-dependent lookup adds no candidates when ordinary lookup finds an object. The model resolves this call, with the operation object as its only function template (<code>fmapObject</code>). If a typeclass author made <code>fmap</code> a function template or an overload set instead, users and argument-dependent lookup could add overloads, and the rows marked for a design with overloads apply.</li>
 <li>A pinned call, <code>tc.fmap(f, v)</code>, on an instance object the caller names in place of the lookup. It is a member call too, and never goes through an operation object.</li>
 </ul>
-<h1><a class="anchor" id="autotoc_md85"></a>
+<h1><a class="anchor" id="autotoc_md87"></a>
 Harvested</h1>
 <table class="markdownTable">
 <tr class="markdownTableHead">
@@ -160,7 +160,7 @@ Harvested</h1>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone">Accurate algorithm constraints: an algorithm offered for others to constrain on states as its constraint the member calls its body makes, with each guard before the call it protects.   </td><td class="markdownTableBodyNone">Algorithm author   </td><td class="markdownTableBodyNone">soft failure through the algorithm: with that constraint it answers as its members do, call by call in the order written (<code>algorithm_transfer</code>), and it is accurate when they are (<code>algorithm_accurate</code>); a guard written after the call it protects protects nothing (<code>call_order_matters</code>)   </td><td class="markdownTableBodyNone">Convention. Met by the library's <code>traverse</code> and <code>transpose</code> objects on every probe, and by the folds, whose test for a registered <code>Monoid</code> is written before the call that names one. An algorithm that nobody checks owes nothing: a weaker constraint is a hard error at its call, never a program that compiles and should not.   </td><td class="markdownTableBodyNone">Not predicted. The accurate-members row, owed one layer up.   </td></tr>
 </table>
-<h1><a class="anchor" id="autotoc_md86"></a>
+<h1><a class="anchor" id="autotoc_md88"></a>
 Beyond the model</h1>
 <p>The algorithm probes (<a href="probes.md#algorithm-probes">probes</a>) found three more obligations on an algorithm handed an instance. No theorem needs them, because the model has one instance per key and no copies or state. They are weighed in <a href="plan.md#algorithm-author-obligations">the plan</a>.</p>
 <table class="markdownTable">
