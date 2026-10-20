@@ -456,6 +456,15 @@ honest reading of "no diagnostic required".
   the same uses (`registry_verdicts`), under the third rule where the
   test's answer changes, and none for one unit
   (`registry_verdicts_single`).
+- The one-definition rule's verdict at a lookup, `odrMismatch`: two
+  units that instantiate `tc<a>` and select different partial
+  specializations define one definable item differently
+  ([basic.def.odr]/16, `Units.odrVerdicts`). It never comes first: a
+  program with one already has a verdict of [temp.point]/7 or
+  [temp.spec.partial.general]/1, since one of the two selections differs
+  from the whole program's (`odr_verdict_implies_verdict`,
+  `odr_mismatch_example`). This is the rule behind the encoding's
+  `operation_object_not_separated`.
 
 ### DependentCandidate
 
@@ -521,7 +530,13 @@ parameter lists and return types. `Corresponds` is the relation,
 `corresponds_iff` the agreement. `potentiallyConflict` and
 `Program.conflicts` are /6: corresponding declarations of different kinds
 of entity under one name, such as an object and a function both named
-`fmap`, make the program ill-formed (`scopesWellFormed_iff`).
+`fmap`, make the program ill-formed (`scopesWellFormed_iff`). Two
+declarations declare the same entity when they correspond, inhabit the
+same scope, both have external linkage and declare the same kind of
+entity (`sameEntity`, [basic.link]/8 and /11); every name of the
+fragment has external linkage (`Decl.linkage`, /3 to /5), so the lookup
+variable template and the operation object are one entity in every
+unit.
 
 `entities` keeps one declaration per entity, the first, since a later
 corresponding declaration is a redeclaration ([basic.lookup.general]/1),

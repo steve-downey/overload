@@ -44,7 +44,9 @@ open PartialOrdering
 abbrev Units := List Program
 
 /-- The instances of `tc` that a list of declarations makes reachable,
-each partial specialization once. -/
+each partial specialization once: when the primary template's name is
+used, the reachable partial specializations are considered. -/
+@[std rule "temp.spec.partial.general#7"]
 def reachable (p : Program) (tc : String) : List (Head × Ty) := (p.instancesOf tc).eraseDups
 
 /-- The partial specializations of `tc` that the whole program declares. -/
@@ -77,12 +79,18 @@ inductive IllFormedNdr where
   in its associated namespaces in every unit, not only those of its
   definition and instantiation contexts (`Overload/DependentCandidate.lean`). -/
   | dependentCandidate (unit pos : Nat) (callee : String) (args : List CallArg)
+  /-- A variable template specialization instantiated in two units that
+  define it differently: its initializer selects different partial
+  specializations in the two, so the definitions of one definable item
+  do not agree. -/
+  | odrMismatch (unit other : Nat) (tc : String) (arg : Ty)
   deriving Repr, DecidableEq
 
 attribute [std rule "temp.point#7"] IllFormedNdr.laterInUnit
 attribute [std rule "temp.spec.partial.general#1.sentence-3"] IllFormedNdr.notReachable
 attribute [std rule "temp.constr.atomic#3.sentence-5"] IllFormedNdr.satisfactionChanged
 attribute [std rule "temp.dep.candidate#1"] IllFormedNdr.dependentCandidate
+attribute [std rule "basic.def.odr#16"] IllFormedNdr.odrMismatch
 
 /-- The verdict at one use, the `pos`th declaration of unit `u`. -/
 def useVerdict (us : Units) (u pos : Nat) (p : Program) (tc : String) (a : Ty) : Option IllFormedNdr :=
@@ -259,6 +267,7 @@ argument. -/
 def IllFormedNdr.site : IllFormedNdr → Nat × Nat × String × Ty
   | .laterInUnit u pos tc a | .notReachable u pos tc a | .satisfactionChanged u pos tc a => (u, pos, tc, a)
   | .dependentCandidate u pos callee args => (u, pos, callee, Ty.args (args.map (·.ty)))
+  | .odrMismatch u v tc a => (u, v, tc, a)
 
 /-- The rule a verdict at a registry's use falls under. Where the test's
 answer itself changes, from incomplete to complete, the use is one
@@ -316,5 +325,113 @@ theorem registry_late_verdict :
     Units.verdicts [registryLate] = [.laterInUnit 0 0 "Registry" (.named "std::string")] := by
   decide
 
+/-! ## One definable item, two definitions
+
+A variable template specialization `tc<a>` is a definable item, defined
+in every unit that instantiates it. Its definitions must agree, names
+denoting the same entity after lookup, which for the specialization
+means the same partial specialization selected ([basic.def.odr]/16). Two
+units whose lookups select differently define it differently. That
+verdict never comes first: one of the two selections differs from what
+the whole program would select, which is already the verdict of
+[temp.point]/7 or [temp.spec.partial.general]/1 at that unit's use
+(`odr_verdict_implies_verdict`). The encoding's
+`operation_object_not_separated` is this situation for the operation
+object (`Overload/Typeclass/Units.lean`). -/
+
+/-- The variable template specializations a unit instantiates. -/
+def Program.usesOf (p : Program) : List (String × Ty) :=
+  p.filterMap fun
+    | .use tc a => some (tc, a)
+    | _ => none
+
+/-- The verdicts of [basic.def.odr]/16 at the lookups: two units that both
+instantiate `tc<a>` and select different partial specializations. -/
+@[std rule "basic.def.odr#16"]
+def Units.odrVerdicts (us : Units) : List IllFormedNdr :=
+  us.zipIdx.flatMap fun (p, u) =>
+    us.zipIdx.flatMap fun (q, v) =>
+      if u < v then
+        (p.usesOf.filter (q.usesOf.contains ·)).filterMap fun (tc, a) =>
+          if selection (reachable p tc) tc a != selection (reachable q tc) tc a then
+            some (.odrMismatch u v tc a)
+          else none
+      else []
+
+theorem usesOf_mem (p : Program) (tc : String) (a : Ty) (h : (tc, a) ∈ p.usesOf) :
+    ∃ pos : Nat, p[pos]? = some (Decl.use tc a) := by
+  simp only [Program.usesOf, List.mem_filterMap] at h
+  obtain ⟨d, hd, hval⟩ := h
+  cases d <;> simp only [Option.some.injEq, Prod.mk.injEq, reduceCtorEq] at hval
+  obtain ⟨rfl, rfl⟩ := hval
+  exact List.mem_iff_getElem?.1 hd
+
+/-- A use whose unit selects differently from the whole program gets a
+verdict of phase 8 at that use. -/
+theorem use_verdict_of_ne (us : Units) (u pos : Nat) (p : Program) (tc : String) (a : Ty)
+    (hp : us[u]? = some p) (hpos : p[pos]? = some (.use tc a))
+    (hne : selection (reachable p tc) tc a ≠ selection (us.instancesOf tc) tc a) :
+    ∃ w ∈ us.verdicts, w.site = (u, pos, tc, a) := by
+  have hv : ∃ w, useVerdict us u pos p tc a = some w ∧ w.site = (u, pos, tc, a) := by
+    unfold useVerdict
+    by_cases h1 : selection (reachable (p.take pos) tc) tc a = selection (reachable p tc) tc a
+    · rw [h1]
+      have h2 : (selection (reachable p tc) tc a != selection (us.instancesOf tc) tc a) = true := by
+        simpa [bne_iff_ne] using hne
+      simp only [bne_self_eq_false, Bool.false_eq_true, ↓reduceIte, h2]
+      exact ⟨_, rfl, rfl⟩
+    · have h2 : (selection (reachable (p.take pos) tc) tc a != selection (reachable p tc) tc a) = true := by
+        simpa [bne_iff_ne] using h1
+      simp only [h2, ↓reduceIte]
+      exact ⟨_, rfl, rfl⟩
+  obtain ⟨w, hw, hsite⟩ := hv
+  refine ⟨w, ?_, hsite⟩
+  simp only [Units.verdicts, List.mem_flatMap, List.mem_filterMap]
+  refine ⟨(p, u), List.mem_zipIdx_iff_getElem?.2 hp, (.use tc a, pos),
+    List.mem_zipIdx_iff_getElem?.2 hpos, ?_⟩
+  simpa using hw
+
+/-- The verdict of [basic.def.odr]/16 never comes first: a program with
+one has a verdict of phase 8 already. -/
+theorem odr_verdict_implies_verdict (us : Units) (h : us.odrVerdicts ≠ []) : us.verdicts ≠ [] := by
+  obtain ⟨w, hw⟩ := List.exists_mem_of_ne_nil _ h
+  simp only [Units.odrVerdicts, List.mem_flatMap] at hw
+  obtain ⟨⟨p, u⟩, hp, ⟨q, v⟩, hq, hw⟩ := hw
+  split at hw
+  · simp only [List.mem_filterMap, List.mem_filter] at hw
+    obtain ⟨⟨tc, a⟩, ⟨hpu, hqu⟩, hsel⟩ := hw
+    split at hsel
+    · next hne =>
+      rw [bne_iff_ne] at hne
+      have hp' : us[u]? = some p := by simpa using List.mem_zipIdx_iff_getElem?.1 hp
+      have hq' : us[v]? = some q := by simpa using List.mem_zipIdx_iff_getElem?.1 hq
+      obtain ⟨pos, hpos⟩ := usesOf_mem p tc a hpu
+      obtain ⟨posq, hposq⟩ := usesOf_mem q tc a (by simpa using hqu)
+      by_cases hall : selection (reachable p tc) tc a = selection (us.instancesOf tc) tc a
+      · have hne' : selection (reachable q tc) tc a ≠ selection (us.instancesOf tc) tc a := by
+          rw [← hall]; exact fun e => hne e.symm
+        obtain ⟨w', hw', _⟩ := use_verdict_of_ne us v posq q tc a hq' hposq hne'
+        exact List.ne_nil_of_mem hw'
+      · obtain ⟨w', hw', _⟩ := use_verdict_of_ne us u pos p tc a hp' hpos hall
+        exact List.ne_nil_of_mem hw'
+    · cases hsel
+  · simp at hw
+
+/-- A unit that declares an instance for `box<int>` alone, and uses the
+lookup there. -/
+def unitWithExactInstance : Program :=
+  [ .classTemplate "box" [{ kind := .type }], .lookup "trait"
+  , .instance "trait" [] (box int), .use "trait" (box int) ]
+
+/-- Two units whose lookups at `box<int>` select different partial
+specializations define `trait<box<int>>` differently; and the program
+already has a verdict of phase 8, at the use of the unit that cannot
+reach the more specialized instance the whole program would select. -/
+theorem odr_mismatch_example :
+    Units.odrVerdicts [unitWithInstance, unitWithExactInstance] =
+        [.odrMismatch 0 1 "trait" (box int)] ∧
+      Units.verdicts [unitWithInstance, unitWithExactInstance] =
+        [.notReachable 0 3 "trait" (box int)] := by
+  refine ⟨by decide, by decide⟩
 
 end Overload
