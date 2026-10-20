@@ -84,62 +84,65 @@ var NAVTREE =
         [ "Units", "md_docs_guide.html#autotoc_md70", null ],
         [ "Access", "md_docs_guide.html#autotoc_md71", null ],
         [ "Conjunction", "md_docs_guide.html#autotoc_md72", null ],
-        [ "Emit", "md_docs_guide.html#autotoc_md73", null ]
+        [ "Scope", "md_docs_guide.html#autotoc_md73", null ],
+        [ "Names", "md_docs_guide.html#autotoc_md74", null ],
+        [ "Adl", "md_docs_guide.html#autotoc_md75", null ],
+        [ "Emit", "md_docs_guide.html#autotoc_md76", null ]
       ] ],
-      [ "What the Standard side established", "md_docs_guide.html#autotoc_md74", null ],
-      [ "The typeclass side, module by module", "md_docs_guide.html#autotoc_md75", [
-        [ "Encoding", "md_docs_guide.html#autotoc_md76", null ],
-        [ "Routes", "md_docs_guide.html#autotoc_md77", null ],
-        [ "Inheritance", "md_docs_guide.html#autotoc_md78", null ],
-        [ "Units", "md_docs_guide.html#autotoc_md79", null ],
-        [ "Members", "md_docs_guide.html#autotoc_md80", null ],
-        [ "Emit", "md_docs_guide.html#autotoc_md81", null ]
+      [ "What the Standard side established", "md_docs_guide.html#autotoc_md77", null ],
+      [ "The typeclass side, module by module", "md_docs_guide.html#autotoc_md78", [
+        [ "Encoding", "md_docs_guide.html#autotoc_md79", null ],
+        [ "Routes", "md_docs_guide.html#autotoc_md80", null ],
+        [ "Inheritance", "md_docs_guide.html#autotoc_md81", null ],
+        [ "Units", "md_docs_guide.html#autotoc_md82", null ],
+        [ "Members", "md_docs_guide.html#autotoc_md83", null ],
+        [ "Emit", "md_docs_guide.html#autotoc_md84", null ]
       ] ],
-      [ "From theorems to obligations", "md_docs_guide.html#autotoc_md82", null ],
-      [ "What carries beyond typeclasses", "md_docs_guide.html#autotoc_md83", null ],
-      [ "Running things", "md_docs_guide.html#autotoc_md84", null ]
+      [ "From theorems to obligations", "md_docs_guide.html#autotoc_md85", null ],
+      [ "What carries beyond typeclasses", "md_docs_guide.html#autotoc_md86", null ],
+      [ "Running things", "md_docs_guide.html#autotoc_md87", null ]
     ] ],
     [ "Obligations", "md_docs_obligations.html", [
-      [ "Two layers, three overload sets", "md_docs_obligations.html#autotoc_md86", null ],
-      [ "Harvested", "md_docs_obligations.html#autotoc_md87", null ],
-      [ "Beyond the model", "md_docs_obligations.html#autotoc_md88", null ]
+      [ "Two layers, three overload sets", "md_docs_obligations.html#autotoc_md89", null ],
+      [ "Harvested", "md_docs_obligations.html#autotoc_md90", null ],
+      [ "Beyond the model", "md_docs_obligations.html#autotoc_md91", null ]
     ] ],
     [ "Modelling C++ overload resolution in Lean: plan", "md_docs_plan.html", [
-      [ "Purpose", "md_docs_plan.html#autotoc_md90", null ],
-      [ "Scope", "md_docs_plan.html#autotoc_md91", null ],
-      [ "Modelling approach", "md_docs_plan.html#autotoc_md92", null ],
-      [ "Traceability to the Standard", "md_docs_plan.html#autotoc_md93", null ],
-      [ "Phases", "md_docs_plan.html#autotoc_md94", null ],
-      [ "Target theorems", "md_docs_plan.html#autotoc_md95", null ],
-      [ "Separability suspects", "md_docs_plan.html#autotoc_md96", null ],
-      [ "Instance inheritance", "md_docs_plan.html#autotoc_md97", null ],
-      [ "Proof obligations", "md_docs_plan.html#autotoc_md98", null ],
-      [ "Algorithm-author obligations", "md_docs_plan.html#autotoc_md99", [
-        [ "algorithm-constraint-accuracy", "md_docs_plan.html#autotoc_md100", null ],
-        [ "callable-copying", "md_docs_plan.html#autotoc_md101", null ],
-        [ "result-context-formable", "md_docs_plan.html#autotoc_md102", null ],
-        [ "instance-coherence", "md_docs_plan.html#autotoc_md103", null ],
-        [ "capability-tests", "md_docs_plan.html#autotoc_md104", null ],
-        [ "typeclass-refinement", "md_docs_plan.html#autotoc_md105", null ],
-        [ "instance-state", "md_docs_plan.html#autotoc_md106", null ],
-        [ "instance-exact-type", "md_docs_plan.html#autotoc_md107", null ],
-        [ "Work", "md_docs_plan.html#autotoc_md108", null ]
+      [ "Purpose", "md_docs_plan.html#autotoc_md93", null ],
+      [ "Scope", "md_docs_plan.html#autotoc_md94", null ],
+      [ "Modelling approach", "md_docs_plan.html#autotoc_md95", null ],
+      [ "Traceability to the Standard", "md_docs_plan.html#autotoc_md96", null ],
+      [ "Phases", "md_docs_plan.html#autotoc_md97", null ],
+      [ "Target theorems", "md_docs_plan.html#autotoc_md98", null ],
+      [ "Separability suspects", "md_docs_plan.html#autotoc_md99", null ],
+      [ "Instance inheritance", "md_docs_plan.html#autotoc_md100", null ],
+      [ "Proof obligations", "md_docs_plan.html#autotoc_md101", null ],
+      [ "Algorithm-author obligations", "md_docs_plan.html#autotoc_md102", [
+        [ "algorithm-constraint-accuracy", "md_docs_plan.html#autotoc_md103", null ],
+        [ "callable-copying", "md_docs_plan.html#autotoc_md104", null ],
+        [ "result-context-formable", "md_docs_plan.html#autotoc_md105", null ],
+        [ "instance-coherence", "md_docs_plan.html#autotoc_md106", null ],
+        [ "capability-tests", "md_docs_plan.html#autotoc_md107", null ],
+        [ "typeclass-refinement", "md_docs_plan.html#autotoc_md108", null ],
+        [ "instance-state", "md_docs_plan.html#autotoc_md109", null ],
+        [ "instance-exact-type", "md_docs_plan.html#autotoc_md110", null ],
+        [ "Work", "md_docs_plan.html#autotoc_md111", null ]
       ] ],
-      [ "Phase 9: declarations and where to find them", "md_docs_plan.html#autotoc_md109", [
-        [ "What P1787R6 did to the sections the model cites", "md_docs_plan.html#autotoc_md110", null ],
-        [ "The rules to transcribe, as they stand in N5054", "md_docs_plan.html#autotoc_md111", null ],
-        [ "Stages", "md_docs_plan.html#autotoc_md112", null ]
+      [ "Phase 9: declarations and where to find them", "md_docs_plan.html#autotoc_md112", [
+        [ "What P1787R6 did to the sections the model cites", "md_docs_plan.html#autotoc_md113", null ],
+        [ "The rules to transcribe, as they stand in N5054", "md_docs_plan.html#autotoc_md114", null ],
+        [ "Stages", "md_docs_plan.html#autotoc_md115", null ]
       ] ],
-      [ "Draft citations and prior art", "md_docs_plan.html#autotoc_md113", null ],
-      [ "First steps", "md_docs_plan.html#autotoc_md114", null ]
+      [ "Draft citations and prior art", "md_docs_plan.html#autotoc_md116", null ],
+      [ "First steps", "md_docs_plan.html#autotoc_md117", null ]
     ] ],
     [ "Probes", "md_docs_probes.html", [
-      [ "Step-order probe", "md_docs_probes.html#autotoc_md116", null ],
-      [ "Tie-break probe", "md_docs_probes.html#autotoc_md117", null ],
-      [ "Constant-argument conversion probe", "md_docs_probes.html#autotoc_md118", null ],
-      [ "Who is right, 15 October 2026", "md_docs_probes.html#autotoc_md119", null ],
-      [ "Library probes", "md_docs_probes.html#autotoc_md120", null ],
-      [ "Algorithm probes", "md_docs_probes.html#autotoc_md121", null ]
+      [ "Step-order probe", "md_docs_probes.html#autotoc_md119", null ],
+      [ "Tie-break probe", "md_docs_probes.html#autotoc_md120", null ],
+      [ "Constant-argument conversion probe", "md_docs_probes.html#autotoc_md121", null ],
+      [ "Who is right, 15 October 2026", "md_docs_probes.html#autotoc_md122", null ],
+      [ "Library probes", "md_docs_probes.html#autotoc_md123", null ],
+      [ "Algorithm probes", "md_docs_probes.html#autotoc_md124", null ]
     ] ],
     [ "Namespaces", "namespaces.html", [
       [ "Namespace List", "namespaces.html", "namespaces_dup" ],
