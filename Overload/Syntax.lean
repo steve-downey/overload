@@ -300,4 +300,11 @@ argument-identity suspect of the plan, stated once. -/
 theorem Val.equivalent_iff (v w : Val) : Val.Equivalent v w ↔ v = w :=
   ⟨Val.Equivalent.eq, fun h => h ▸ Val.Equivalent.refl v⟩
 
+/-- An argument of a call: its type, and whether it is an lvalue, which is
+what a forwarding reference looks at ([temp.deduct.call]/3). -/
+structure CallArg where
+  ty : Ty
+  lvalue : Bool := false
+  deriving Repr, DecidableEq, Inhabited
+
 end Overload

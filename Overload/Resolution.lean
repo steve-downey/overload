@@ -262,6 +262,7 @@ theorem generate_go_suppressed (env : Env) (args : List CallArg) (explicit : Lis
     | use c t => exact ⟨cs, by simp [generate.go, hcs], hall⟩
     | object n => exact ⟨cs, by simp [generate.go, hcs], hall⟩
     | concept n b => exact ⟨cs, by simp [generate.go, hcs], hall⟩
+    | dependentCall callee args sc => exact ⟨cs, by simp [generate.go, hcs], hall⟩
 
 /-- With a perfect non-template match, the P3606 mode never deduces a
 template: the candidates are the non-template functions and generation

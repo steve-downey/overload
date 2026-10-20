@@ -350,13 +350,6 @@ theorem deduceTy_extends (p : Ty) : ∀ (a : Ty) (σ σ' : Bindings),
 
 /-! ## Deduction from a function call -/
 
-/-- An argument of a call: its type, and whether it is an lvalue, which is
-what a forwarding reference looks at. -/
-structure CallArg where
-  ty : Ty
-  lvalue : Bool := false
-  deriving Repr, DecidableEq, Inhabited
-
 /-- Is `P` a forwarding reference: an rvalue reference to a cv-unqualified
 template parameter? -/
 @[std rule "temp.deduct.call#3.sentence-3"]

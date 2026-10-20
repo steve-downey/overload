@@ -63,7 +63,7 @@ def Decl.name? : Decl → Option String
   | .lookup n | .lookupHard n => some n
   | .object n _ _ => some n
   | .concept n _ => some n
-  | .instance .. | .use .. => none
+  | .instance .. | .use .. | .dependentCall .. => none
 
 /-- The kind of entity a declaration declares, if it declares one. -/
 def Decl.kind? : Decl → Option EntityKind
@@ -74,14 +74,15 @@ def Decl.kind? : Decl → Option EntityKind
   | .lookup _ | .lookupHard _ => some .variableTemplate
   | .object .. => some .variable
   | .concept .. => some .concept
-  | .instance .. | .use .. => none
+  | .instance .. | .use .. | .dependentCall .. => none
 
 /-- The scope a declaration inhabits, its target scope in the fragment
 ([basic.scope.scope]/2). A partial specialization, a use, a variable
 template and a concept are at global scope until lookup needs them
 elsewhere. -/
 def Decl.scope : Decl → Scope
-  | .class _ _ _ s | .classTemplate _ _ s | .function _ _ s | .object _ _ s => s
+  | .class _ _ _ s | .classTemplate _ _ s | .function _ _ s | .object _ _ s
+  | .dependentCall _ _ s => s
   | .functionTemplate ft => ft.scope
   | _ => []
 

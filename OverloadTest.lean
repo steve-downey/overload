@@ -12,5 +12,6 @@ import OverloadTest.Scope
 import OverloadTest.Names
 import OverloadTest.Adl
 import OverloadTest.Members
+import OverloadTest.DependentCandidate
 import OverloadTest.Typeclass
 import OverloadTest.Emit

@@ -27,6 +27,7 @@ import Overload.Scope
 import Overload.Names
 import Overload.Adl
 import Overload.Members
+import Overload.DependentCandidate
 import Overload.Emit
 import Overload.Typeclass
 import Overload.Lint
@@ -194,6 +195,10 @@ is the map.
 #audit Overload.registry_verdicts
 #audit Overload.registry_verdicts_single
 #audit Overload.registry_late_verdict
+#audit Overload.dependentVerdicts_single
+#audit Overload.object_design_no_adl_verdict
+#audit Overload.late_adl_overload_verdict
+#audit Overload.temp_res_general_1_example
 
 /-! ## The typeclass encoding -/
 

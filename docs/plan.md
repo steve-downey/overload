@@ -428,7 +428,15 @@ Status, 15 October 2026:
   discharged (`call_stability_object`), and member-hiding is a theorem
   with the audit's hidden constrained member reproduced
   (`derived_member_hides_base`, `unconstrained_member_hides_constrained`).
-  Nine more emitted cases agree with GCC and Clang.
+  Nine more emitted cases agree with GCC and Clang. The dependent-call
+  verdict is done: `Overload/DependentCandidate.lean` has the dependent
+  call with its two contexts and the verdict of [temp.dep.candidate]/1
+  beside phase 8's three. One unit has none
+  (`dependentVerdicts_single`), the object design cannot get it
+  (`object_design_no_adl_verdict`), the free-function design does
+  (`late_adl_overload_verdict`), and the [temp.res.general]/1 example
+  is a theorem and an emitted case. Three two-phase cases agree with
+  GCC and Clang.
 
 ## Target theorems
 
@@ -874,7 +882,11 @@ declaration, the program still a flat list, lookup a layer in front of
    the unit's end as the instantiation context; the verdict of
    [temp.dep.candidate]/1 beside the three of phase 8. Theorems
    `late_adl_overload_verdict` and `object_design_no_adl_verdict`; the
-   [temp.res.general]/1 example as a test.
+   [temp.res.general]/1 example, `f(t)` at `E` finding the later `f(E)`
+   through the instantiation context, as a theorem and an emitted case.
+   The example's non-dependent `f(1)` converts `int` to `char`, which
+   the model's ranking lacks, so it is not emitted. Done 20 October
+   2026.
 7. [entity-identity](#phase-9-declarations-and-where-to-find-them):
    `linkage` and `sameEntity` across units ([basic.link]/8); theorem
    `lookup_variable_one_entity`, and a verdict constructor for

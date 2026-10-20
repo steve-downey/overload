@@ -108,6 +108,11 @@ inductive Decl where
   /-- `template <class T> concept name = body;`, for the emitted C++; the
   model sees the concept only as an atomic constraint by name. -/
   | concept (name : String) (body : String)
+  /-- A dependent call `callee(args)` written in a template defined at
+  this position, instantiated with these argument types: its name is
+  looked up in the definition context here and in the instantiation
+  context at the unit's end ([temp.dep.general]/2). -/
+  | dependentCall (callee : String) (args : List CallArg) (scope : Scope := [])
   deriving Repr, DecidableEq, Inhabited
 
 /-- A program: declarations in order. -/

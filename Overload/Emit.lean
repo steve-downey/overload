@@ -11,6 +11,7 @@ import Overload.Scope
 import Overload.Names
 import Overload.Adl
 import Overload.Members
+import Overload.DependentCandidate
 
 /-!
 # The C++ emitter
@@ -73,6 +74,11 @@ inductive Query where
   found. -/
   | memberCall (cls callee : String) (args : List CallArg) (expected : Resolution Nat)
       (explicit : List Ty := [])
+  /-- Resolve the dependent call declared at position `pos` of the
+  program, instantiated with the arguments it carries; `expected` names
+  the candidate by its index among the declarations its two contexts
+  find. -/
+  | dependentCall (pos : Nat) (expected : Resolution Nat)
   deriving Repr, Inhabited
 
 /-- The fixture every emitted unit declares: `deduced<...>` and
@@ -122,6 +128,8 @@ def Case.wellFormed (c : Case) : Bool :=
   | .lookup .. => true
   | .memberCall _ _ _ (.illFormed _) _ => false
   | .memberCall .. => true
+  | .dependentCall _ (.illFormed _) => false
+  | .dependentCall .. => true
 
 /-! ## The environment a program defines -/
 
@@ -368,6 +376,8 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
       text := s!"static_assert(sizeof({c}<{ty t}>) > 0);\n"
     | .object n cls _ =>
       text := s!"inline constexpr {cls} {n}\{};\n"
+    | .dependentCall callee _ _ =>
+      text := s!"template <class... A>\nauto dependent_{i}(A&&... a) -> decltype({callee}(static_cast<A&&>(a)...));\n"
     out := out ++ inScope d.scope text
   return out
 
@@ -383,6 +393,13 @@ def foundEntities (p : Program) : Query → List Decl
   | .memberCall cls callee _ _ _ =>
     match p.memberSearch p.length cls callee with
     | .selected ms => entities ms
+    | _ => []
+  | .dependentCall pos _ =>
+    match p[pos]? with
+    | some (.dependentCall callee args s) =>
+      match p.dependentCandidates pos s callee args with
+      | .selected fs => fs
+      | _ => []
     | _ => []
   | _ => []
 
@@ -449,6 +466,7 @@ def qualifyDecl (q : List (String × String)) : Decl → Decl
                                 mandate := ft.mandate.map (qualifyConstraint q) }
   | .instance c h pat => .instance c (h.map (qualifyParam q)) (qualifyTy q pat)
   | .use c t => .use c (qualifyTy q t)
+  | .dependentCall callee as s => .dependentCall callee (as.map fun a => { a with ty := qualifyTy q a.ty }) s
   | d => d
 
 /-- Qualify the types of a case, program and query alike. -/
@@ -466,7 +484,8 @@ def qualifyCase (c : Case) : Case :=
       | .lookup tc a expected => .lookup tc (qualifyTy q a) expected
       | .memberCall cls callee as expected explicit =>
         .memberCall (((q.lookup cls).getD "") ++ cls) callee (as.map arg) expected
-          (explicit.map (qualifyTy q)) }
+          (explicit.map (qualifyTy q))
+      | .dependentCall pos expected => .dependentCall pos expected }
 
 /-- The whole translation unit for a case. The lookup that numbers the
 candidates runs on the case as stated; the rendering uses qualified
@@ -526,6 +545,21 @@ def render (c₀ : Case) : String := Id.run do
     | .illFormed r =>
       out := out ++ s!"// the model expects a hard error: {r}\n"
       out := out ++ s!"using probe = decltype({callExpr member explicit as});\n"
+  | .dependentCall pos expected =>
+    let (callee, as) := match c.program[pos]? with
+      | some (.dependentCall callee as _) => (callee, as)
+      | _ => ("", [])
+    out := out ++ program c.program callee (fun k _ => s!"selected<{k}>")
+      (fun d => found.findIdx? (sameEntity · d)) ++ "\n"
+    let dep := s!"dependent_{pos}"
+    match expected with
+    | .selected k =>
+      out := out ++ s!"static_assert(std::is_same_v<decltype({callExpr dep [] as}), selected<{k}>>);\n"
+    | .noMatch | .ambiguous _ =>
+      out := out ++ notViable dep [] as
+    | .illFormed r =>
+      out := out ++ s!"// the model expects a hard error: {r}\n"
+      out := out ++ s!"using probe = decltype({callExpr dep [] as});\n"
   | .lookup tc a expected =>
     out := out ++ program c.program "" (fun _ _ => "void") (fun _ => none) ++ "\n"
     let value := s!"std::remove_cvref_t<decltype({tc}<{ty a}>)>"
@@ -814,6 +848,45 @@ def objectSuppressesAdl : Case :=
     program := objectProgram
     query := .call "fmap" [{ ty := xClass }] (.selected 0)
     source := "computed by resolve over the call operators" }
+
+/-! ### [temp.res.general]/1 and [basic.lookup.argdep]/4: dependent calls
+
+A dependent call's name is looked up where it appears in the template's
+definition, and argument-dependent lookup runs again from the
+instantiation context, the end of the unit: a function declared after the
+template is found through an argument's namespace, and never for a
+fundamental type. The emitted template takes its arguments by forwarding
+reference and names the call in a trailing return type, so the function
+selected is observable and a lookup failure is a substitution failure. -/
+
+/-- The example of [temp.res.general]/1, with `E` a class: `f(t)`
+instantiated at `E` finds `f(E)`, declared after the template. -/
+def dependentFindsLater : Case :=
+  { name := "temp_res_general_1_dependent_finds_later"
+    cite := cite "temp.res.general#1.sentence-2"
+    program := resGeneral1Program
+    query := .dependentCall 1 (.selected 1)
+    source := "computed by resolve over the dependent call's lookup" }
+
+/-- A function declared after the template, called with an `int`: not
+found at the definition, and no associated namespace to find it at the
+instantiation, so the call is ill-formed. -/
+def dependentBoundAtDefinition : Case :=
+  { name := "temp_res_general_1_bound_at_definition"
+    cite := cite "temp.res.general#1.sentence-1"
+    program := [ .dependentCall "f" [{ ty := int }], .function "f" [int] ]
+    query := .dependentCall 0 (.illFormed "no declaration of f is found")
+    source := "computed by the dependent call's lookup" }
+
+/-- `N::f(S)` declared after the template is found from the instantiation
+context through the argument's namespace. -/
+def dependentInstantiationContext : Case :=
+  { name := "basic_lookup_argdep_4_instantiation_context"
+    cite := cite "basic.lookup.argdep#4.sentence-3"
+    program := [ .class "S" [] [] N, .dependentCall "f" [{ ty := .named "S", lvalue := true }]
+               , .function "f" [.named "S"] N ]
+    query := .dependentCall 1 (.selected 0)
+    source := "computed by resolve over the dependent call's lookup" }
 
 /-! ### [temp.deduct.general]/5, the first example
 
@@ -1518,7 +1591,8 @@ def cases : List Case :=
   , innerHidesOuter, innerSelected, outerAtGlobal, parentFound, nearestEnclosing, nothingFound
   , argdepExample, freeFunctionAdmitsAdl, adlThroughBase, adlThroughTemplateArgument
   , noAdlForFundamental, derivedHidesBase, baseMemberFound, ambiguousBases, objectCall
-  , objectSuppressesAdl
+  , objectSuppressesAdl, dependentFindsLater, dependentBoundAtDefinition
+  , dependentInstantiationContext
   , draftDeductGeneral5_both, draftDeductGeneral5_default, draftDeductGeneral5_undeduced
   , draftDeductGeneral5_explicit, draftDeductGeneral5_explicitBoth
   , draftDeductGeneral5_stepOrder, draftDeductGeneral8_immediate, stepOrderHazard
@@ -1571,6 +1645,11 @@ def computedCallWith (envOf : EnvOf) (c : Case) : Option (Resolution Nat) :=
   | .memberCall cls callee as _ explicit =>
     some ((c.program.memberCallAt (envOf c.program c.atomics) c.program.length cls callee as
       explicit).map (·.index))
+  | .dependentCall pos _ =>
+    match c.program[pos]? with
+    | some (.dependentCall callee as s) =>
+      some ((c.program.dependentCallAt (envOf c.program c.atomics) pos s callee as).map (·.index))
+    | _ => none
   | _ => none
 
 /-- The Standard side's cases are computed in the program's own

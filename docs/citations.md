@@ -25,6 +25,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[basic.lookup.argdep]/4 sentence 1](https://eel.is/c++draft/basic.lookup.argdep#4.sentence-1) | rule | `Overload.Program.associatedNamespaces` | `Overload.Adl` |
 | [[basic.lookup.argdep]/4 sentence 2](https://eel.is/c++draft/basic.lookup.argdep#4.sentence-2) | rule | `Overload.Adl.found` | `Overload.Adl` |
 | [[basic.lookup.argdep]/4 sentence 2](https://eel.is/c++draft/basic.lookup.argdep#4.sentence-2) | rule | `Overload.Program.adl` | `Overload.Adl` |
+| [[basic.lookup.argdep]/4 sentence 3](https://eel.is/c++draft/basic.lookup.argdep#4.sentence-3) | rule | `Overload.Program.dependentLookup` | `Overload.DependentCandidate` |
 | [[basic.lookup.general]/1](https://eel.is/c++draft/basic.lookup.general#1) | rule | `Overload.lookupResult` | `Overload.Names` |
 | [[basic.lookup.general]/1 sentence 3](https://eel.is/c++draft/basic.lookup.general#1.sentence-3) | rule | `Overload.LookupResult.none` | `Overload.Names` |
 | [[basic.lookup.general]/1 sentence 4](https://eel.is/c++draft/basic.lookup.general#1.sentence-4) | rule | `Overload.LookupResult.overloadSet` | `Overload.Names` |
@@ -93,7 +94,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.Resolution.selected` | `Overload.Outcome` |
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.Resolves.best` | `Overload.Specs` |
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.bestViable` | `Overload.Resolution` |
-| [[over.match.call.general]/1](https://eel.is/c++draft/over.match.call.general#1) | rule | `Overload.Program.callCandidates` | `Overload.Members` |
+| [[over.match.call.general]/1](https://eel.is/c++draft/over.match.call.general#1) | rule | `Overload.Program.candidatesOf` | `Overload.Members` |
 | [[over.match.funcs.general]/8 sentence 1](https://eel.is/c++draft/over.match.funcs.general#8.sentence-1) | rule | `Overload.Resolves.generationSoft` | `Overload.Specs` |
 | [[over.match.funcs.general]/8 sentence 1](https://eel.is/c++draft/over.match.funcs.general#8.sentence-1) | rule | `Overload.generate` | `Overload.Resolution` |
 | [[over.match.general]/3 sentence 2](https://eel.is/c++draft/over.match.general#3.sentence-2) | rule | `Overload.BestViable.noViable` | `Overload.Specs` |
@@ -167,6 +168,8 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.deduct.type]/9 sentence 1](https://eel.is/c++draft/temp.deduct.type#9.sentence-1) | rule | `Overload.DeduceTy.cons` | `Overload.Deduction` |
 | [[temp.deduct.type]/9 sentence 1](https://eel.is/c++draft/temp.deduct.type#9.sentence-1) | rule | `Overload.DeduceTy.nil` | `Overload.Deduction` |
 | [[temp.deduct.type]/9 sentence 1](https://eel.is/c++draft/temp.deduct.type#9.sentence-1) | rule | `Overload.DeduceTy.spec` | `Overload.Deduction` |
+| [[temp.dep.candidate]/1](https://eel.is/c++draft/temp.dep.candidate#1) | rule | `Overload.IllFormedNdr.dependentCandidate` | `Overload.Units` |
+| [[temp.dep.candidate]/1](https://eel.is/c++draft/temp.dep.candidate#1) | rule | `Overload.dependentVerdict` | `Overload.DependentCandidate` |
 | [[temp.func.order]/2 sentence 4](https://eel.is/c++draft/temp.func.order#2.sentence-4) | rule | `Overload.PartialOrdering.moreSpecialized` | `Overload.Ordering` |
 | [[temp.func.order]/2 sentence 4](https://eel.is/c++draft/temp.func.order#2.sentence-4) | theorem | `Overload.PartialOrdering.moreSpecialized_trans` | `Overload.Transitivity` |
 | [[temp.func.order]/3 sentence 1](https://eel.is/c++draft/temp.func.order#3.sentence-1) | rule | `Overload.PartialOrdering.transform` | `Overload.Ordering` |
@@ -175,6 +178,9 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.func.order]/8](https://eel.is/c++draft/temp.func.order#8) | theorem | `Overload.PartialOrdering.tieBreak_needs_equal_heads` | `Overload.Ordering` |
 | [[temp.over.link]/6 sentence 2](https://eel.is/c++draft/temp.over.link#6.sentence-2) | rule | `Overload.PartialOrdering.paramEquivalent` | `Overload.Ordering` |
 | [[temp.point]/7](https://eel.is/c++draft/temp.point#7) | rule | `Overload.IllFormedNdr.laterInUnit` | `Overload.Units` |
+| [[temp.point]/7](https://eel.is/c++draft/temp.point#7) | rule | `Overload.Program.instantiationPoint` | `Overload.DependentCandidate` |
+| [[temp.res.general]/1](https://eel.is/c++draft/temp.res.general#1) | example | `Overload.temp_res_general_1_example` | `Overload.DependentCandidate` |
+| [[temp.res.general]/1 sentence 1](https://eel.is/c++draft/temp.res.general#1.sentence-1) | rule | `Overload.Program.dependentCandidates` | `Overload.DependentCandidate` |
 | [[temp.spec.partial.general]/1 sentence 3](https://eel.is/c++draft/temp.spec.partial.general#1.sentence-3) | rule | `Overload.IllFormedNdr.notReachable` | `Overload.Units` |
 | [[temp.spec.partial.match]/1](https://eel.is/c++draft/temp.spec.partial.match#1) | rule | `Overload.PartialOrdering.Selects.ambiguous` | `Overload.Ordering` |
 | [[temp.spec.partial.match]/1](https://eel.is/c++draft/temp.spec.partial.match#1) | rule | `Overload.PartialOrdering.Selects.mostSpecialized` | `Overload.Ordering` |
@@ -196,9 +202,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 - [[temp.arg.nontype]/1](https://eel.is/c++draft/temp.arg.nontype#1)
 - [[temp.arg.nontype]/3](https://eel.is/c++draft/temp.arg.nontype#3)
 - [[temp.dep.general]/2](https://eel.is/c++draft/temp.dep.general#2)
-- [[temp.res.general]/1](https://eel.is/c++draft/temp.res.general#1)
 - [[temp.point]/1](https://eel.is/c++draft/temp.point#1)
-- [[temp.dep.candidate]/1](https://eel.is/c++draft/temp.dep.candidate#1)
 - [[temp.spec.partial.general]/7](https://eel.is/c++draft/temp.spec.partial.general#7)
 - [[basic.def.odr]/16](https://eel.is/c++draft/basic.def.odr#16)
 

@@ -27,6 +27,8 @@ private def callsAgree (computedCall : Case → Option (Resolution Nat)) (cs : L
     | .call .., none => false
     | .memberCall _ _ _ expected _, some got => Resolution.agree expected got
     | .memberCall .., none => false
+    | .dependentCall _ expected, some got => Resolution.agree expected got
+    | .dependentCall .., none => false
     | _, _ => true
 
 /-- Every lookup case's stated expectation is what `select` computes. -/
