@@ -108,6 +108,7 @@ draft-pin</h1>
 <ul>
 <li>2026-10-13 — Decided on the final C++26 text.</li>
 <li>2026-10-15 — Pinned to <code>n5054</code>. Whether N5054 is byte-for-byte the C++26 DIS, or the first post-DIS working draft with editorial changes, is to be confirmed against the editors' report N5055; the drift check will show which cited paragraphs differ if the pin moves to the DIS tag.</li>
+<li>2026-10-20 — <code>make drift-check-current</code> against the draft's main at <code>47974a2</code>: one cited paragraph differs, [temp.spec.partial.general]/7, cited by <code>reachable</code>. The change is markup in the example's comment, "using-declaration" set as a grammar term; the sentence the model transcribes is unchanged. No citation moves.</li>
 </ul>
 <hr  />
 <h1><a class="anchor" id="autotoc_md8"></a>
@@ -144,6 +145,7 @@ lookup-scope</h1>
 <li>2026-10-13 — Decided: no. Whatever is found outside the model is not part of the model. A customization point object such as <code>fmap</code> that dispatches to an instance is in the model, as a fixed candidate set. A member such as a hypothetical <code>std::vector::fmap</code>, or a delegation to <code>ranges::transform</code>, is outside it and enters only as an opaque candidate.</li>
 <li>2026-10-15 — <code>Program.candidates</code> is the candidate set: the declarations with the callee's name, in order.</li>
 <li>2026-10-20 — Reversed, as above. <code>Program.candidates</code> stays as the input of every existing theorem; a redeclaration in it is today two candidates and a spurious ambiguity, which phase 9's first stage repairs. The syntax is scope-syntax.</li>
+<li>2026-10-20 — Landed through member lookup: <code>Overload/Scope.lean</code>, <code>Names.lean</code>, <code>Adl.lean</code>, <code>Members.lean</code>. A call from a point (<code>Program.callAt</code>) finds its candidates by unqualified lookup, argument-dependent lookup when it applies, and for an object the call operators of its class. The member call at the operation object's constraint stays the oracle of expression-depth, since a constraint's probe is an expression; <code>Program.memberCallAt</code> computes a member call on the fragment's members.</li>
 </ul>
 <hr  />
 <h1><a class="anchor" id="autotoc_md16"></a>
@@ -192,6 +194,8 @@ single-tu</h1>
   silent."</li>
 <li>2026-10-17 — <code>Program.declaredBeforeUse</code> is restated: no instance of a typeclass is declared at or after a use of its lookup. It no longer depends on the lookup being declared. For one unit it is what keeps every use free of a verdict (<code>verdicts_single</code>).</li>
 <li>2026-10-20 — Phase 9 adds a fourth verdict, for a dependent call whose definition and instantiation contexts miss a better-matching overload in an associated namespace ([temp.dep.candidate]/1), and a fifth for one entity with two definitions ([basic.def.odr]/16), which <code>operation_object_not_separated</code> reports in prose today. <code>reachable</code> is to cite [temp.spec.partial.general]/7, the sentence it transcribes.</li>
+<li>2026-10-20 — The fourth verdict is in (<code>IllFormedNdr.dependentCandidate</code>, <code>Units.dependentVerdicts</code>, <code>Units.allVerdicts</code>). The instantiation context of a dependent call is the end of its unit, as <code>laterInUnit</code> already takes it, and the units compared are the program's.</li>
+<li>2026-10-20 — The fifth verdict is in (<code>IllFormedNdr.odrMismatch</code>, <code>Units.odrVerdicts</code>), and <code>odr_verdict_implies_verdict</code> shows it is never the first: the verdicts of phase 8 already cover a lookup two units instantiate differently.</li>
 </ul>
 <hr  />
 <h1><a class="anchor" id="autotoc_md26"></a>
