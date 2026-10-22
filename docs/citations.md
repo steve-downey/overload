@@ -11,6 +11,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[basic.def.odr]/16](https://eel.is/c++draft/basic.def.odr#16) | rule | `Overload.IllFormedNdr.odrMismatch` | `Overload.Units` |
 | [[basic.def.odr]/16](https://eel.is/c++draft/basic.def.odr#16) | rule | `Overload.Units.odrVerdicts` | `Overload.Units` |
 | [[basic.fundamental]/1](https://eel.is/c++draft/basic.fundamental#1) | rule | `Overload.representable` | `Overload.Arguments` |
+| [[basic.fundamental]/4](https://eel.is/c++draft/basic.fundamental#4) | rule | `Overload.integerTypes` | `Overload.Arguments` |
 | [[basic.link]/4](https://eel.is/c++draft/basic.link#4) | rule | `Overload.Decl.linkage` | `Overload.Scope` |
 | [[basic.link]/8](https://eel.is/c++draft/basic.link#8) | rule | `Overload.sameEntity` | `Overload.Scope` |
 | [[basic.link]/11](https://eel.is/c++draft/basic.link#11) | rule | `Overload.sameKind` | `Overload.Scope` |
@@ -123,6 +124,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.arg.nontype]/3 sentence 1](https://eel.is/c++draft/temp.arg.nontype#3.sentence-1) | rule | `Overload.Program.subobject` | `Overload.Ranking` |
 | [[temp.arg.nontype]/4](https://eel.is/c++draft/temp.arg.nontype#4) | theorem | `Overload.tpo_value` | `Overload.Arguments` |
 | [[temp.arg.nontype]/5](https://eel.is/c++draft/temp.arg.nontype#5) | rule | `Overload.ConvertsTo.classSame` | `Overload.Arguments` |
+| [[temp.arg.nontype]/6](https://eel.is/c++draft/temp.arg.nontype#6) | rule | `Overload.convertArg` | `Overload.Arguments` |
 | [[temp.constr.atomic]/2 sentence 1](https://eel.is/c++draft/temp.constr.atomic#2.sentence-1) | rule | `Overload.Constraint.identical` | `Overload.Constraint` |
 | [[temp.constr.atomic]/3 sentence 1](https://eel.is/c++draft/temp.constr.atomic#3.sentence-1) | rule | `Overload.Constraint.satisfied` | `Overload.Constraint` |
 | [[temp.constr.atomic]/3 sentence 2](https://eel.is/c++draft/temp.constr.atomic#3.sentence-2) | rule | `Overload.Constraint.satisfied_atomic_soft` | `Overload.Constraint` |
@@ -229,9 +231,6 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 ## In scope, no counterpart yet
 
 - [[temp.point]/1](https://eel.is/c++draft/temp.point#1)
-- [[temp.arg.nontype]/6](https://eel.is/c++draft/temp.arg.nontype#6)
-- [[basic.fundamental]/2](https://eel.is/c++draft/basic.fundamental#2)
-- [[basic.fundamental]/4](https://eel.is/c++draft/basic.fundamental#4)
 
 ## Assumptions
 

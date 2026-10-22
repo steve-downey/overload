@@ -35,6 +35,11 @@ read against.
   "using-declaration" set as a grammar term; the sentence the model
   transcribes is unchanged. No citation moves.
 
+- 2026-10-21 — `make drift-check-current` on main at `47974a2`:
+  [basic.fundamental]/1 differs from the pin only by a note, "plain
+  `int`s are intended to have the natural width suggested by the
+  architecture", removed on main; the normative sentences `representable`
+  cites are unchanged. [temp.spec.partial.general]/7 as before.
 ---
 
 ## spec-style
@@ -630,6 +635,9 @@ finding, not a change to the table.
 **Log:**
 
 - 2026-10-21 — Decided.
+- 2026-10-21 — Landed: `Overload.integerTypes` carries this tag. The
+  emitted cases for `bool`, `unsigned` and `long` targets agree with GCC
+  and Clang.
 
 ---
 
@@ -655,3 +663,7 @@ parameters.
 **Log:**
 
 - 2026-10-21 — Decided.
+- 2026-10-21 — Landed: `Val.sourceType` and `literalType` in
+  `Overload/Arguments.lean`. `narrowing_constant` is the reason the
+  typing is not missed: for a constant, the source type decides nothing
+  the value does not (`findings.md`).

@@ -453,11 +453,25 @@ Status, 15 October 2026:
   and Clang 24; `make drift-check-current` reports one cited paragraph
   that differs on the draft's main, an editorial change
   (`decisions.md#draft-pin`).
-- Phase 10 is open, 21 October 2026. Planned the same day. The plan,
-  the cross-reference against N5054 and the stages are
-  [below](#phase-10-template-arguments-and-their-conversion). The
-  in-scope paragraphs are in `Overload.Std.inScope`, so `citations.md`
-  lists them as uncovered until each stage lands.
+- Phase 10 is closed, 21 October 2026, on its exit criterion: every
+  explicit and default constant argument is converted by a cited rule
+  (`convertArg`, in `Overload/Arguments.lean`, wired into the explicit
+  and defaults steps), the example of [temp.deduct.general]/12 is a
+  theorem (`temp_deduct_general_12_example`) and two emitted cases, and
+  leak 4 of instance inheritance is a theorem (`slicing_identifies`,
+  `value_route_slices`), closed by the library's reference parameters
+  (`reference_keeps_identity`, `pin_keeps_identity`). Planned the same
+  day; the plan, the cross-reference against N5054 and the stages are
+  [below](#phase-10-template-arguments-and-their-conversion).
+  narrowing-is-representability is `narrowing_constant`,
+  conversion-shields-call is `conversion_soft_shields_call`. Nine
+  emitted cases agree with Clang 24; the two with a derived value for a
+  base-typed class parameter are rejected by GCC under the rule before
+  P2308R1, the probe's finding reproduced (`findings.md`). One
+  consequence beyond the plan: the library's derivation bases keep a
+  protected base, so their instance types are not structural and the
+  value route cannot take them at all (`value_route_needs_structural`).
+  [temp.point]/1 is the one in-scope paragraph without a counterpart.
 
 ## Target theorems
 
@@ -510,7 +524,7 @@ separability theorem.
 | step-order | Default template arguments are substituted first. Constraints are checked next, then convertibility of non-dependent parameters, then the function type is substituted ([temp.deduct.general]/5). Instantiations triggered by substitution are outside the immediate context ([temp.deduct.general]/8). | A lookup in a defaulted constant parameter runs for every candidate deduction reaches, including ones that would lose. A requires-clause on the same template cannot guard it. If the lookup fails hard, the call is ill-formed. |
 | argument-identity | Two values are template-argument-equivalent only if they have the same type. Class values compare by direct subobjects ([temp.type]/2). | Instance identity is type plus structure. A base sliced from a derived instance names a different specialization from the derived instance. |
 | tie-break-reach | Constraints are compared only when the template parameter lists and function parameter lists have equal length, corresponding template parameters are equivalent, and function parameter types match ([temp.func.order]/8). Equivalence of constant parameters ignores type-constraints on placeholder types ([temp.over.link]/6). | A bound written as a type-constraint on an `auto` constant parameter keeps the tie-break. An extra defaulted parameter on one overload, or constant parameters of different concrete instance types, switches it off and leaves the pair ambiguous. |
-| argument-conversion | Conversions of template arguments decide viability and are never ranked. The draft's own example is ambiguous between `template<int>` and `template<signed char>` ([temp.deduct.general]/12). | A second, unranked conversion relation for the literal-argument route. Whether a derived instance converts to a base-typed constant parameter is unchecked. |
+| argument-conversion | Conversions of template arguments decide viability and are never ranked. The draft's own example is ambiguous between `template<int>` and `template<signed char>` ([temp.deduct.general]/12). | A second, unranked conversion relation for the literal-argument route. Whether a derived instance converts to a base-typed constant parameter is unchecked. Phase 10: it converts, by slicing, and the two name one specialization (`slicing_identifies`); the relation is `ConvertsTo`. |
 | rank-precedence | Derived-to-base has Conversion rank ([over.best.ics.general]/7). Conversion comparison comes before template specialization and constraints ([over.match.best.general]/2). | The by-value route is the only one where ranking is live. It is an exact match unless instance types are related by inheritance or conversion. |
 
 The step-order suspect has support in the draft itself. An example in
@@ -563,7 +577,10 @@ leaks are known:
 4. **Constant-parameter conversion.** Whether a derived instance is accepted
    for a base-typed constant template parameter is unchecked, and is a
    candidate for compiler disagreement. Settled 15 October 2026: accepted
-   and sliced under C++26 (`probes.md`), so the leak is live.
+   and sliced under C++26 (`probes.md`), so the leak is live. A theorem
+   since 21 October 2026 (`slicing_identifies`), with the reference
+   parameters the library uses as what closes it
+   (`reference_keeps_identity`).
 
 Two theorems settle it. Inheritance erasure is the positive result: inside
 the exact-type fragment, inheritance is only an implementation convenience.

@@ -26,8 +26,9 @@ every citation against the pinned draft (N5054, tag `n5054`).
 
 ## Status
 
-Phases 0 to 9 are closed; see the status note under *Phases* in
-`docs/plan.md`, and the phase 9 section there for name lookup. Three probes, run before any Lean existed, are in
+Phases 0 to 10 are closed; see the status note under *Phases* in
+`docs/plan.md`, the phase 9 section there for name lookup and the phase
+10 section for template-argument conversion. Three probes, run before any Lean existed, are in
 `probes/` with their results and verdicts in
 [`docs/probes.md`](docs/probes.md). Decisions, open and settled, are in
 [`docs/decisions.md`](docs/decisions.md). Findings about the Standard, the
@@ -37,9 +38,9 @@ compilers or the plan are in [`docs/findings.md`](docs/findings.md).
 
 ```txt
 Overload/            the Standard side: Std (citation attribute), Syntax,
-                     Outcome, Deduction, Constraint, Steps, Ordering, Lookup,
-                     Resolution, Ranking, Units, Scope, Names, Adl, Members,
-                     DependentCandidate, ..., Emit (C++ emitter), Lint
+                     Outcome, Deduction, Constraint, Arguments, Steps, Identity,
+                     Ordering, Lookup, Resolution, Ranking, Units, Scope, Names,
+                     Adl, Members, DependentCandidate, ..., Emit (C++ emitter), Lint
 Overload/Typeclass/  the typeclass encoding, defined on top of the Standard
                      side; nothing above imports it (`#check_layering`)
 Overload.lean        imports everything and runs the lints and audits
