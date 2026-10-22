@@ -66,6 +66,13 @@ private def lookupsAgree (cs : List Case) : Bool :=
 #guard ((render stepOrderHazard).splitOn "using probe = decltype(f(").length == 2
 #guard (render stepOrderHazard).startsWith "// expect: ill-formed\n"
 #guard ((render stepOrderSoft).splitOn "requires (!std::is_same_v").length == 2
+-- Converted constant arguments: the call with its explicit argument, the cast to the
+-- parameter's type in the expectation, and the sliced class value.
+#guard ((render draftDeductGeneral12_narrowing).splitOn "f<1000>(std::declval<int>())").length == 2
+#guard ((render intToLong).splitOn "value_of<static_cast<long>(1)>").length == 2
+#guard ((render derivedToBaseValue).splitOn "f<D{B{}}>()").length == 2
+#guard ((render derivedToBaseValue).splitOn "value_of<B{}>").length == 2
+#guard ((render derivedToBaseValue).splitOn "template <B T0>").length == 2
 -- The encoding's cases carry their prelude: an instance has the operation,
 -- and the operation object's constraint is the concept the prelude declares.
 #guard ((render Typeclass.Emit.opObjectSelects).splitOn "static void fmap(F&&, X&&)").length == 3

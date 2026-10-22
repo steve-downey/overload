@@ -138,6 +138,23 @@ and described here as they arrive.
   plan's type route. Under the text that call is ill-formed; on every
   compiler it selects the type route.
 
+- **GCC still rejects a derived value for a base-typed class constant
+  parameter** (21 October 2026). `derived_to_base_value.cpp` is
+  `struct B {}; struct D : B {}; template <B> void f(); f<D{}>()`, and
+  `routes_value_sliced.cpp` is the plan's value route with its instance
+  parameter typed as the pinned instance's class and a derived instance
+  supplied. [temp.arg.nontype]/3, as P2308R1 rewrote it in November
+  2023, introduces `constexpr T v = A;` for a class type `T`, so the
+  argument is sliced to its `B` subobject and the parameter's value is
+  `B{}` (`convertArg`, `slicing_identifies`). Clang 24 slices it and
+  agrees with the model on both cases. GCC 13 to 16 reject the argument
+  as a conversion not permitted in a converted constant expression,
+  which is the rule before P2308R1, the text of C++20 and C++23. This is
+  the constant-argument probe of `probes.md` reproduced from the model;
+  the verdict there stands. Listed in `differential/known-disagreements.txt`
+  for GCC. Every other conversion case, the draft's narrowing example
+  included, agrees on both compilers.
+
 ## About the model
 
 - **The hidden constrained member is a theorem** (20 October 2026). The

@@ -246,9 +246,15 @@ def deducedType (h : Head) : String :=
 
 /-- The expected `deduced<...>` for a set of bindings. -/
 def expectedDeduced (h : Head) (σ : Bindings) : String :=
-  let parts := h.zipIdx.map fun (_, i) =>
+  let parts := h.zipIdx.map fun (p, i) =>
     match σ.lookup i with
-    | some (.value v) => s!"value_of<{val v}>"
+    | some (.value v) =>
+      -- A converted integer value has the parameter's type, so the
+      -- expectation casts the literal to it.
+      match p.kind, v with
+      | .const (.named n), .int _ | .const (.named n), .bool _ =>
+        if isInteger n then s!"value_of<static_cast<{n}>({val v})>" else s!"value_of<{val v}>"
+      | _, _ => s!"value_of<{val v}>"
     | some (.ref t) => s!"ref_of<{ty t}>"
     | some t => ty t
     | none => "void"
@@ -1584,6 +1590,90 @@ def publicBaseSelected : Case :=
     query := .call "use" [{ ty := .named "map", lvalue := true }] (.selected 0)
     source := "computed by Program.call" }
 
+/-! ### The conversion of a constant template argument -/
+
+/-- `template <int> int f(int); template <signed char> int f(int);`, the
+example of [temp.deduct.general]/12. -/
+private def narrowingProgram : Program :=
+  [ .functionTemplate { name := "f", head := [{ kind := .const int }], params := [int] }
+  , .functionTemplate { name := "f", head := [{ kind := .const (.named "signed char") }], params := [int] } ]
+
+/-- `f<1000>(0)`: a `signed char` cannot represent 1000, so substitution
+fails for the second template and the first is selected. -/
+def draftDeductGeneral12_narrowing : Case :=
+  { name := "draft_temp_deduct_general_12_narrowing"
+    cite := cite "temp.deduct.general#12"
+    program := narrowingProgram
+    query := .call "f" [{ ty := int }] (.selected 0) (explicit := [.value (.int 1000)])
+    source := "computed by resolve" }
+
+/-- `f<1>(0)`: 1 is not narrowing, both are viable, and neither is more
+specialized: ambiguous. -/
+def draftDeductGeneral12_ambiguous : Case :=
+  { name := "draft_temp_deduct_general_12_ambiguous"
+    cite := cite "temp.deduct.general#12"
+    program := narrowingProgram
+    query := .call "f" [{ ty := int }] (.ambiguous [0, 1]) (explicit := [.value (.int 1)])
+    source := "computed by resolve" }
+
+/-- `template <t> void f();` -/
+private def constTemplate (t : Ty) : FunctionTemplate :=
+  { name := "f", head := [{ kind := .const t }], params := [] }
+
+/-- `template <bool> void f(); f<2>()`: the conversion of 2 to `bool`
+narrows. -/
+def boolNarrowing : Case :=
+  { name := "bool_narrowing"
+    cite := cite "dcl.init.list#7"
+    program := [.functionTemplate (constTemplate (.named "bool"))]
+    query := .deduction "f" [] none (explicit := [.value (.int 2)])
+    source := "computed by deduceTemplate" }
+
+/-- `f<1>()` on the same template: the parameter's value is `true`. -/
+def boolConverted : Case :=
+  { name := "bool_converted"
+    cite := cite "temp.arg.nontype#2.sentence-2"
+    program := [.functionTemplate (constTemplate (.named "bool"))]
+    query := .deduction "f" [] (some [(0, .value (.bool true))]) (explicit := [.value (.int 1)])
+    source := "computed by deduceTemplate" }
+
+/-- `template <unsigned> void f(); f<-1>()`: narrowing. -/
+def unsignedNarrowing : Case :=
+  { name := "unsigned_narrowing"
+    cite := cite "dcl.init.list#7"
+    program := [.functionTemplate (constTemplate (.named "unsigned"))]
+    query := .deduction "f" [] none (explicit := [.value (.int (-1))])
+    source := "computed by deduceTemplate" }
+
+/-- `template <int> void f(); f<true>()`: an integral promotion, the value
+1. -/
+def boolPromoted : Case :=
+  { name := "bool_promoted"
+    cite := cite "expr.const.const#8"
+    program := [.functionTemplate (constTemplate int)]
+    query := .deduction "f" [] (some [(0, .value (.int 1))]) (explicit := [.value (.bool true)])
+    source := "computed by deduceTemplate" }
+
+/-- `template <long> void f(); f<1>()`: an integral conversion that does
+not narrow, the value 1 of type `long`. -/
+def intToLong : Case :=
+  { name := "int_to_long"
+    cite := cite "expr.const.const#8"
+    program := [.functionTemplate (constTemplate (.named "long"))]
+    query := .deduction "f" [] (some [(0, .value (.int 1))]) (explicit := [.value (.int 1)])
+    source := "computed by deduceTemplate" }
+
+/-- `struct B {}; struct D : B {}; template <B> void f(); f<D{}>()`: the
+temporary `constexpr B v = D{};` slices the argument to its `B`
+subobject, and the parameter's value is `B{}`. -/
+def derivedToBaseValue : Case :=
+  { name := "derived_to_base_value"
+    cite := cite "temp.arg.nontype#3.sentence-1"
+    program := [.class "B", .class "D" [.named "B"], .functionTemplate (constTemplate (.named "B"))]
+    query := .deduction "f" [] (some [(0, .value (.obj' "B" []))])
+      (explicit := [.value (.obj' "D" [.obj' "B" []])])
+    source := "computed by deduceTemplate" }
+
 /-- Every case of the Standard side. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -1606,7 +1696,9 @@ def cases : List Case :=
   , sfinaeEnableIfNotViable, sfinaeRequiresShields, sfinaeEnableIfUnshielded
   , dispatchExclusionOne, dispatchTagsOne, dispatchIfConstexprOne, dispatchExclusionNone
   , dispatchTagsNone, dispatchIfConstexprNone, dispatchExclusionHard, dispatchTagsHard
-  , dispatchIfConstexprHard, protectedBaseSelected, protectedBaseDeduced, publicBaseSelected ]
+  , dispatchIfConstexprHard, protectedBaseSelected, protectedBaseDeduced, publicBaseSelected
+  , draftDeductGeneral12_narrowing, draftDeductGeneral12_ambiguous, boolNarrowing, boolConverted
+  , unsignedNarrowing, boolPromoted, intToLong, derivedToBaseValue ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=

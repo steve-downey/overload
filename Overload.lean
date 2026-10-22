@@ -9,6 +9,7 @@ import Overload.Constraint
 import Overload.Program
 import Overload.Arguments
 import Overload.Steps
+import Overload.Identity
 import Overload.Ordering
 import Overload.Transitivity
 import Overload.Specs
@@ -79,6 +80,8 @@ is the map.
 #audit Overload.explicitStep_converted
 #audit Overload.convertArg_erase
 #audit Overload.temp_deduct_general_12_example
+#audit Overload.slicing_identifies
+#audit Overload.reference_keeps_identity
 
 -- Constraints and subsumption.
 #audit Overload.Constraint.subsumes_iff
@@ -255,3 +258,8 @@ is the map.
 #audit Overload.Typeclass.opClass_candidates
 #audit Overload.Typeclass.call_stability_object
 #audit Overload.Typeclass.unconstrained_member_hides_constrained
+
+-- The encoding's constant parameters: leak 4 as a theorem, and what closes it.
+#audit Overload.Typeclass.value_route_slices
+#audit Overload.Typeclass.pin_keeps_identity
+#audit Overload.Typeclass.value_route_needs_structural
