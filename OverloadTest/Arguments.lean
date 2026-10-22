@@ -115,3 +115,29 @@ private def int : Ty := .named "int"
 #guard convertArg sub [] (.const (.lref (.const (.named "B")))) (.value bVal) matches .soft _
 -- Through the program's environment.
 #guard convertArg (Env.ofProgram hier).subobject [] (.const (.named "B")) (.value dVal) == .ok (.value bVal)
+
+-- Structural types: every base public and structural.
+private def structuralProgram : Program :=
+  [ .class "impl", .class "derive_functor" [] [.named "impl"], .class "ok" [.named "impl"] ]
+#guard structuralProgram.structural int
+#guard structuralProgram.structural (.named "impl")
+#guard structuralProgram.structural (.named "ok")
+#guard !structuralProgram.structural (.named "derive_functor")
+#guard !structuralProgram.structural (.named "undeclared")
+#guard structuralProgram.structural (.lref (.const (.named "derive_functor")))
+#guard structuralProgram.placeholderArgumentsPermitted [{ kind := .const (.named "auto") }]
+  [.value (.obj' "ok" [.obj' "impl" []])]
+#guard !structuralProgram.placeholderArgumentsPermitted [{ kind := .const (.named "auto") }]
+  [.value (.obj' "derive_functor" [.obj' "impl" []])]
+-- Not a placeholder: the declared type's own permission is the declaration's business.
+#guard structuralProgram.placeholderArgumentsPermitted [{ kind := .const (.named "derive_functor") }]
+  [.value (.obj' "derive_functor" [.obj' "impl" []])]
+
+-- Identity through the converted values: the derived value and the base's are one
+-- specialization under a base-typed parameter; two objects never are under a reference.
+#guard explicitStep (Env.ofProgram hier) [{ kind := .const (.named "B") }] [.value dVal] ==
+  explicitStep (Env.ofProgram hier) [{ kind := .const (.named "B") }] [.value bVal]
+#guard explicitStep (Env.ofProgram hier) [{ kind := .const (.named "B") }] [.value eVal] ==
+  explicitStep (Env.ofProgram hier) [{ kind := .const (.named "B") }] [.value bVal]
+#guard explicitStep (Env.ofProgram hier) [{ kind := .const (.lref (.const (.named "B"))) }] [.ref (.named "d")] !=
+  explicitStep (Env.ofProgram hier) [{ kind := .const (.lref (.const (.named "B"))) }] [.ref (.named "b")]

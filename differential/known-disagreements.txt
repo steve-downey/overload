@@ -124,3 +124,20 @@ routes_type_ambiguous_hard.cpp clang++-21
 routes_type_ambiguous_hard.cpp clang++-22
 routes_type_ambiguous_hard.cpp clang++-23
 routes_type_ambiguous_hard.cpp clang++-24
+#
+# A derived class value for a base-typed class constant template
+# parameter: [temp.arg.nontype]/3 as rewritten by P2308R1 introduces
+# `constexpr T v = A;`, which slices the value to its base subobject. GCC
+# applies the rule before P2308R1 and rejects the argument as a conversion
+# not permitted in a converted constant expression; Clang slices it
+# (docs/findings.md, docs/probes.md).
+derived_to_base_value.cpp g++
+derived_to_base_value.cpp g++-13
+derived_to_base_value.cpp g++-14
+derived_to_base_value.cpp g++-15
+derived_to_base_value.cpp g++-16
+routes_value_sliced.cpp g++
+routes_value_sliced.cpp g++-13
+routes_value_sliced.cpp g++-14
+routes_value_sliced.cpp g++-15
+routes_value_sliced.cpp g++-16

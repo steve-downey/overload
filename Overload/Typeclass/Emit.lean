@@ -5,6 +5,7 @@ import Overload.Typeclass.Inheritance
 import Overload.Typeclass.Units
 import Overload.Typeclass.Members
 import Overload.Typeclass.Lookup
+import Overload.Typeclass.Arguments
 
 /-!
 # The emitted cases of the encoding
@@ -369,6 +370,26 @@ def routesArgument : Case :=
     source := "computed by resolve"
     prelude := prelude }
 
+/-- The value route with its instance parameter typed as the pinned
+instance's class, and a derived instance value supplied: the argument is
+sliced to its base subobject, the route is viable, and the
+specialization is the one the base's own value names
+(`value_route_slices`). GCC applies the rule before P2308R1 and rejects
+the argument (`probes.md`). -/
+private def routesSlicedProgram : Program :=
+  [ .class "Fn", .classTemplate "box" [typeParam], .class "derived_instance" [.named "pinned_instance"]
+  , .lookup "functor", .instance "functor" [typeParam] (.spec' "box" [T])
+  , .functionTemplate opObject, .functionTemplate (valueRouteAt "pinned_instance") ]
+
+def routesValueSliced : Case :=
+  { name := "routes_value_sliced"
+    cite := cite "temp.arg.nontype#3.sentence-1"
+    program := routesSlicedProgram
+    query := .call "fmap" [fn, { ty := int }] (.selected 1)
+      (explicit := [.value (.obj' "derived_instance" [.obj' "pinned_instance" []])])
+    source := "computed by resolve"
+    prelude := prelude }
+
 /-- The value route at a type whose canonical lookup is ambiguous: the
 canonical overload fails at the explicit argument, before its default is
 substituted, so the call is well-formed. -/
@@ -514,7 +535,7 @@ def cases : List Case :=
   , opClassSelects, opClassSuppressesAdl, opFreeAdmitsAdl, hiddenConstrainedMember
   , pinCanonical, pinMissingViable, pinExplicit, pinExplicitAmbiguous, byValueCanonical
   , byValueMissingSoft, byValueExplicit, byValueExplicitAmbiguous, byValueAmbiguousHard
-  , routesCanonical, routesValue, routesType, routesArgument, routesValueAmbiguous
+  , routesCanonical, routesValue, routesType, routesArgument, routesValueSliced, routesValueAmbiguous
   , routesArgumentAmbiguous, routesTypeAmbiguousHard, routesArgumentDefaultAmbiguous
   , rankLeakExact, rankLeakDerived, erasureInherited, erasureComposed, deduceFromDerived
   , deduceFromTwoBases, leakDerivedInherited, leakDerivedComposed ]

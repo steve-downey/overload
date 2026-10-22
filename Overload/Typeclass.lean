@@ -6,6 +6,7 @@ import Overload.Typeclass.Inheritance
 import Overload.Typeclass.Units
 import Overload.Typeclass.Members
 import Overload.Typeclass.Lookup
+import Overload.Typeclass.Arguments
 import Overload.Typeclass.Emit
 
 /-!

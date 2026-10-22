@@ -263,6 +263,7 @@ def inScope : List (String × Nat) :=
   , ("temp.arg.nontype", 2), ("temp.arg.nontype", 4), ("temp.arg.nontype", 5)
   , ("temp.arg.nontype", 6)
   , ("temp.arg.general", 1), ("temp.names", 13), ("temp.type", 1), ("temp.param", 11)
+  , ("temp.param", 12)
   , ("expr.const.const", 8), ("dcl.init.list", 7), ("lex.icon", 3)
   , ("basic.fundamental", 1), ("basic.fundamental", 2), ("basic.fundamental", 4) ]
 
