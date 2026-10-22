@@ -42,8 +42,8 @@ and described here as they arrive.
   sentences 2 and 3, expects the program to be ill-formed, and so does
   Clang 18. GCC 13 compiles both, which is the P3606 behaviour recorded in
   `probes.md` (divergence 1). Listed in `differential/known-disagreements.txt`
-  for GCC; the model gains a switch for the P3606 rule once its wording
-  settles (decisions.md#p3606-mode).
+  for GCC; the model carries the P3606 rule as a switch beside the text,
+  and keeps both while the proposal is open (decisions.md#p3606-mode).
 
 - **Clang 18 checks non-dependent conversions before constraints** (16
   October 2026). `draft_temp_deduct_general_5_step_order.cpp` is the
