@@ -187,10 +187,10 @@ The four kinds of finding about the Standard are tabulated in
 
 ## Phases
 
-Ten phases, each closed by a theorem or a passing test set. The typeclass
-results first become reachable at phase 4, before any of call-site overload
-resolution exists. Phase 9 was added on 20 October 2026, after the others
-closed.
+Eleven phases, each closed by a theorem or a passing test set. The
+typeclass results first become reachable at phase 4, before any of
+call-site overload resolution exists. Phase 9 was added on 20 October
+2026, after the others closed, and phase 10 on 21 October 2026.
 
 | Phase | Builds | Exit criterion | Needs |
 |---|---|---|---|
@@ -204,6 +204,7 @@ closed.
 | 7 Differential testing | The C++ emitter and compiler runs. Starts in phase 1 and grows with each phase. | Every in-scope draft example and every counterexample agrees on GCC and Clang, or the disagreement is filed per test-oracle. | 0 |
 | 8 Translation units | Points of instantiation, visibility, and the fourth substitution outcome. See single-tu. | Each obligation in the undiagnosable class is tied to a specific rule. | 6 |
 | 9 Declarations and lookup | Scopes, correspondence, unqualified and argument-dependent lookup, member lookup, the dependent-call verdict, entity identity across units, as P1787R6 rewrote them. See [below](#phase-9-declarations-and-where-to-find-them). | The candidate set of a call is computed, not given; every lookup claim the obligations rest on is a cited theorem. Settles lookup-scope and scope-syntax. | 5, 8 |
+| 10 Template arguments | The conversion of a constant template argument to its parameter's type: converted constant expressions and narrowing, class values sliced to a base, placeholders, and the identity of specializations through the converted values. See [below](#phase-10-template-arguments-and-their-conversion). | Every explicit and default constant argument is converted by a cited rule, the example of [temp.deduct.general]/12 reproduces, and leak 4 of instance inheritance is a theorem. Settles integer-widths and value-typing. | 2, 6 |
 
 Phase 6 can begin as soon as phase 4 closes. Phase 5 is on the critical
 path only for the function-call surface and the by-value explicit-instance
@@ -452,10 +453,15 @@ Status, 15 October 2026:
   and Clang 24; `make drift-check-current` reports one cited paragraph
   that differs on the draft's main, an editorial change
   (`decisions.md#draft-pin`).
+- Phase 10 is open, 21 October 2026. Planned the same day. The plan,
+  the cross-reference against N5054 and the stages are
+  [below](#phase-10-template-arguments-and-their-conversion). The
+  in-scope paragraphs are in `Overload.Std.inScope`, so `citations.md`
+  lists them as uncovered until each stage lands.
 
 ## Target theorems
 
-Seventeen theorems carry the results. A theorem that fails is recorded with
+Twenty-six theorems carry the results. A theorem that fails is recorded with
 its counterexample and is a finding, not a setback.
 
 | Theorem | Statement | Phase |
@@ -483,6 +489,10 @@ its counterexample and is a finding, not a setback.
 | member-hiding | A derived class's declaration of a name hides every base declaration of it, regardless of signature or constraint. Reproduces the library's hidden constrained member (`findings.md`). Added 20 October 2026. | 9 |
 | dependent-call-verdict | A dependent call whose definition and instantiation contexts miss a better-matching external-linkage overload in an associated namespace is ill-formed, no diagnostic required; the verdict cannot arise when the callee is bound to an object. Added 20 October 2026. | 9 |
 | entity-identity | The lookup variable's declarations across units declare one entity, by correspondence and linkage. Added 20 October 2026. | 9 |
+| narrowing-is-representability | For a constant source, an integral conversion narrows exactly when the value is not representable in the target. Added 21 October 2026. | 10 |
+| conversion-shields-call | A conversion failure of an explicit or default template argument is soft and precedes every later step's hard error. Added 21 October 2026. | 10 |
+| slicing-identifies | For a base-typed class value parameter, a derived value and the base's own value determine the same specialization. Added 21 October 2026. | 10 |
+| reference-keeps-identity | For a reference parameter, the parameter denotes the argument's object, so a derived instance is never identified with its base. Added 21 October 2026. | 10 |
 
 Stability is the theorem that says open polymorphism has no surprises. Its
 hypotheses are expected to include soft failure of a missing instance and
@@ -925,6 +935,126 @@ the position among the declarations lookup found, with
 `callAt_eq_call_global` keeping every existing case's numbers; the P3606
 perfect match ranges over the found list, which for an object call is
 its non-template call operators.
+
+## Phase 10: template arguments and their conversion
+
+Planned 21 October 2026. A constant template argument in the model is a
+structural value, `Ty.value`, and the only check an explicit argument
+gets is `kindMatches`: a value for a constant parameter, a type for a
+type parameter, with the parameter's declared type ignored. A default
+argument is formed and bound as it is. The declared types are formed by
+`parameterListStep` and discarded. So `template <signed char> f`
+accepts `f<1000>`, a `template <bool>` accepts `f<2>`, and a base-typed
+class parameter accepts a derived value unchanged, which makes
+`X<derived>` and `X<base>` different specializations where the Standard
+says they are the same. The draft's own example,
+[temp.deduct.general]/12, is the first of these, and `citations.md`
+listed it and [temp.arg.nontype]/1 and /3 as in scope with no
+counterpart.
+
+The conversion is what [temp.arg.nontype] specifies after P2308R1,
+*Template parameter initialization* (adopted November 2023, draft commit
+`97ca5cf3`): for a non-class type the argument is a converted constant
+expression of that type, which admits integral promotions and
+non-narrowing integral conversions ([expr.const.const]/8,
+[dcl.init.list]/7); for a class type a temporary `constexpr T v = A;` is
+introduced and the parameter's value is `v`'s, so a derived value is
+sliced ([temp.arg.nontype]/3 to /5). That rule is behind the
+constant-argument probe of `probes.md`, where Clang accepts and slices
+and GCC applies the pre-P2308 text, and behind leak 4 of
+`decisions.md#instance-inheritance`. Phase 10 makes both theorems with
+cited rules, and gives the argument-conversion suspect above its
+"second, unranked conversion relation".
+
+### The rules to transcribe, as they stand in N5054
+
+Paragraph numbers counted from `\pnum`, as `make drift-check` does, and
+checked against the eel.is anchors for [temp.arg.nontype]: /1 the
+invented declaration, /2 the converted constant expression, /3 the
+temporary, /4 the class type, /5 the value of P, /6 pointers and
+references, /7 and /8 examples. [temp.arg.nontype] is unchanged since
+P2308R1 apart from the title and cross-reference edits.
+
+| Rule | N5054 text (abbreviated) | Model counterpart |
+|---|---|---|
+| [temp.arg.general]/1 | The type and form of each template-argument shall match the type and form of the parameter. | `kindMatches`, cited. |
+| [temp.names]/13 bullets 3, 4 | A template-id is valid only if each argument matches its parameter and substitution of each argument into the following parameters succeeds. | `explicitStep`: the declared type of parameter `i` is substituted with the earlier explicit arguments before the conversion. |
+| [temp.deduct.general]/2 sentence 1 | If the template-id is not valid, type deduction fails. | A conversion failure is a soft outcome of `explicitStep`. |
+| [temp.arg.nontype]/1 | `T x = E;` shall satisfy the constraints of a constexpr definition; if T has a placeholder the parameter's type is deduced from it; a deduced type not permitted for a constant parameter is ill-formed. | Placeholder: the parameter's type is the argument's own, no conversion. The permitted-type check is [temp.param]/12 on the deduced type, at the program level. |
+| [temp.arg.nontype]/2 | If T is not a class type, A shall be a converted constant expression of type T; the value of P is A as converted. | `convertedConstant`. |
+| [temp.arg.nontype]/3 | Otherwise `constexpr T v = A;` is introduced. | The class cases of `convertArg`: `v` is A when A's class is T, the T base subobject of A (`Program.subobject`) when A's class derives from T, a failure otherwise. |
+| [temp.arg.nontype]/4 | For a class type T, a template parameter object exists, template-argument-equivalent to v; ill-formed if the initialization is ill-formed, not constant, or not equivalent. | The fragment's values are constant and `Val.Equivalent` is equality (`Val.equivalent_iff`), so the object's value is `v`: a theorem, not a rule. |
+| [temp.arg.nontype]/5 | Otherwise the value of P is that of v. | The binding recorded for the parameter is the converted value. |
+| [temp.arg.nontype]/6 | A reference or pointer parameter shall not refer to a temporary. | A `.value` for a reference parameter is a failure; a `.ref` binds. |
+| [expr.const.const]/8 | A converted constant expression: implicitly converted, constant, with only the listed conversions, among them integral promotions and integral conversions other than narrowing, and direct reference binding. | `convertedConstant` admits exactly promotion and non-narrowing integral conversion on the fragment's values; a `.ref` binds directly. |
+| [dcl.init.list]/7 bullet 4 | Narrowing: from an integer type to an integer type that cannot represent all the values of the original type, except where the source is a constant expression whose value after integral promotions will fit into the target type. | `Narrowing` and `narrowing`, with `narrowing_iff`; `narrowing_constant`: for a constant source, narrowing is exactly the value not being representable. |
+| [lex.icon]/3 | The type of an integer literal is the first of int, long int, long long int in which its value can be represented. | `Val.sourceType`. |
+| [basic.fundamental]/1, /2, /4 | The signed and unsigned integer types and their ranges; widths are implementation-defined. | `integerTypes`, LP64 (`decisions.md#integer-widths`). |
+| [temp.param]/11, /12 | A constant template parameter's type is structural, or contains a placeholder; structural: scalar, lvalue reference, or a literal class whose bases and members are all public and structural. | `Ty.hasPlaceholder` (/11); `Program.structural` (/12), a program-level check on the type a placeholder deduces, outside deduction. |
+| [temp.type]/1 bullet 3 | Two template-ids are the same if the parameter values determined by their constant arguments are template-argument-equivalent. | `sameSpecialization`: identity through the converted values. Leak 4 as a theorem. |
+| [temp.type]/2, reference bullet | Reference values are equivalent if they refer to the same object. | Already `Val.Equivalent` and `Ty.ref`; `reference_keeps_identity`. |
+| [temp.deduct.general]/12 | `f<1000>(0)` OK; `f<1>(0)` ambiguous, not narrowing. | `@[std example]` theorem and emitted case. |
+
+Out of the fragment, recorded in `decisions.md#value-typing`:
+floating-point values, pointers and pointers to members, arrays,
+enumerations, unions, closure types, user-defined conversions and
+converting constructors (the fragment has no expressions),
+braced-init-lists, `decltype(auto)` parameters, and the typing of
+deduced values ([temp.deduct.type]/20 requires the type of a deduced
+`i` to equal the parameter's type in the specialization; the model's
+values carry no type, so deduced values pass through unconverted).
+
+### Design
+
+The conversion runs in the two steps where template arguments enter the
+bindings, so that `deduceTemplate`'s chain and every theorem about it
+are unchanged apart from one new `env` argument: `explicitStep env head
+explicit` converts each explicit argument against the parameter's
+declared type substituted with the earlier explicit bindings
+([temp.names]/13 bullets 3 and 4), and `defaultsStep` converts the
+formed default (a default template argument is an initializer-clause
+for the same invented declaration, [temp.arg.nontype]/1). A failed
+conversion is soft, like a wrong kind today. `convertArg` is total and
+never hard; its cases, in order, are the constructors of `ConvertsTo`:
+a type for a type parameter; a placeholder anywhere in the declared
+type, identity; a dependent declared type, identity until
+`parameterListStep` forms it; an integer type, `convertedConstant`; a
+class value of the parameter's class, identity; a class value of a
+derived class, the base subobject through `Env.subobject`; an lvalue
+reference and a `.ref`, identity. `Env` gains that one oracle,
+`subobject`, computed by `Program.subobject` with the fuel pattern of
+`derives`, so erasure's induction carries over. Structural types stay
+out of the deduction path: an `Env.structural` oracle would need a
+second congruence hypothesis, and erasing a protected base turns a
+non-structural class structural, so `inheritance_erasure` could not
+discharge it. `Program.structural` is a program-level predicate.
+
+### Stages
+
+1. [record-phase-ten](#record-phase-ten), docs only: this section, the
+   status, the decision entries, `Overload.Std.inScope`.
+2. [integer-arguments](#integer-arguments): `Overload/Arguments.lean`
+   with the integer types and their ranges, the literal's type,
+   `Ty.hasPlaceholder`, narrowing as relation and function with
+   `narrowing_iff` and `narrowing_constant`, and `convertedConstant`.
+3. [class-arguments](#class-arguments): `Program.subobject`,
+   `Env.subobject`, the full `convertArg` with `ConvertsTo`,
+   `convertArg_iff`, `convertArg_not_hard`, the simp lemmas and
+   `convertArg_congr`, `tpo_value`; the derived-to-base probe as a
+   guard.
+4. [deduction-conversion](#deduction-conversion): `explicitStep env` and
+   `defaultsStep` convert; `kindMatches` cited; the downstream proofs
+   re-established, with `explicitStep_congr`, `subobject_erase`,
+   `convertArg_erase` and the weakest new hypothesis on the congruence
+   lemmas; `temp_deduct_general_12_example`,
+   `conversion_soft_shields_call`, `explicitStep_types`.
+5. [argument-identity](#argument-identity): `sameSpecialization`,
+   `slicing_identifies`, `reference_keeps_identity`,
+   `Program.structural`; the typeclass side's restatement on
+   `valueRoute` and `pinTemplate`; the emitted cases, with the sliced
+   derived value a known disagreement for GCC.
+6. [argument-docs](#argument-docs): the guide, the obligations, the
+   findings, this status, `citations.md`, `make drift-check-current`.
 
 ## Draft citations and prior art
 

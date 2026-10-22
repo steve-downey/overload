@@ -207,6 +207,20 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 - [[temp.arg.nontype]/1](https://eel.is/c++draft/temp.arg.nontype#1)
 - [[temp.arg.nontype]/3](https://eel.is/c++draft/temp.arg.nontype#3)
 - [[temp.point]/1](https://eel.is/c++draft/temp.point#1)
+- [[temp.arg.nontype]/2](https://eel.is/c++draft/temp.arg.nontype#2)
+- [[temp.arg.nontype]/4](https://eel.is/c++draft/temp.arg.nontype#4)
+- [[temp.arg.nontype]/5](https://eel.is/c++draft/temp.arg.nontype#5)
+- [[temp.arg.nontype]/6](https://eel.is/c++draft/temp.arg.nontype#6)
+- [[temp.arg.general]/1](https://eel.is/c++draft/temp.arg.general#1)
+- [[temp.names]/13](https://eel.is/c++draft/temp.names#13)
+- [[temp.type]/1](https://eel.is/c++draft/temp.type#1)
+- [[temp.param]/11](https://eel.is/c++draft/temp.param#11)
+- [[expr.const.const]/8](https://eel.is/c++draft/expr.const.const#8)
+- [[dcl.init.list]/7](https://eel.is/c++draft/dcl.init.list#7)
+- [[lex.icon]/3](https://eel.is/c++draft/lex.icon#3)
+- [[basic.fundamental]/1](https://eel.is/c++draft/basic.fundamental#1)
+- [[basic.fundamental]/2](https://eel.is/c++draft/basic.fundamental#2)
+- [[basic.fundamental]/4](https://eel.is/c++draft/basic.fundamental#4)
 
 ## Assumptions
 

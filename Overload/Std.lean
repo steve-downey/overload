@@ -257,6 +257,13 @@ def inScope : List (String × Nat) :=
   , ("class.member.lookup", 6)
   , ("temp.dep.general", 2), ("temp.res.general", 1), ("temp.point", 1)
   , ("temp.dep.candidate", 1), ("temp.spec.partial.general", 7)
-  , ("basic.link", 8), ("basic.def.odr", 16) ]
+  , ("basic.link", 8), ("basic.def.odr", 16)
+  -- Phase 10, template arguments and their conversion (docs/plan.md, phase 10).
+  , ("temp.deduct.general", 2)
+  , ("temp.arg.nontype", 2), ("temp.arg.nontype", 4), ("temp.arg.nontype", 5)
+  , ("temp.arg.nontype", 6)
+  , ("temp.arg.general", 1), ("temp.names", 13), ("temp.type", 1), ("temp.param", 11)
+  , ("expr.const.const", 8), ("dcl.init.list", 7), ("lex.icon", 3)
+  , ("basic.fundamental", 1), ("basic.fundamental", 2), ("basic.fundamental", 4) ]
 
 end Overload.Std

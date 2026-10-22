@@ -120,6 +120,10 @@ proof needs to see inside a call that a constraint depends on.
   parameter type. `Env.ofProgram` derives one from a program's lookup
   declarations for the emitted cases; the draft's examples are reproduced
   with hand-written oracles in `OverloadTest/Steps.lean`.
+- 2026-10-21 — Phase 10 adds one oracle, `Env.subobject`: the base
+  subobject of a class value, for a derived value supplied to a
+  base-typed constant parameter. `Env.ofProgram` computes it from the
+  program's class declarations, as it computes `bases`.
 
 ---
 
@@ -283,6 +287,11 @@ operations from the Monad ones.
   `protected_base_deduced_ill_formed`). It is the exact-type obligation
   again, with the implementation's types among those a signature must not
   name.
+- 2026-10-21 — Phase 10 makes leak 4 a theorem: a derived value supplied
+  for a base-typed value parameter is sliced to the base subobject, and
+  the two name one specialization (`slicing_identifies`). A reference
+  parameter denotes the object, so the library's `const auto&` parameters
+  are what closes the leak (`reference_keeps_identity`).
 
 ---
 
@@ -546,6 +555,11 @@ repository's `include/beman/transpose/`):
   set, as eight emitted call cases (`routes_*`). Call cases gain explicit
   template arguments. Non-template functions in a call with explicit
   template arguments are out of the fragment; no case has one.
+- 2026-10-21 — Phase 10 gives the routes' constant parameters their
+  conversion: `valueRoute`'s `auto` takes the argument's own type, and a
+  derived instance value and the base's own are one specialization under
+  a base-typed parameter (`slicing_identifies`); `pinTemplate`'s
+  reference denotes the object (`reference_keeps_identity`).
 
 ---
 
@@ -594,3 +608,50 @@ will not say.
   the way: two declarations are one entity only when they also declare
   the same kind (`sameEntity`), or an object and a function of one name
   would merge instead of conflicting.
+
+---
+
+## integer-widths
+
+**Question:** What are the ranges of the fragment's integer types?
+**Status:** DECIDED 21 October 2026.
+**Decision:** LP64 with `char` signed: `bool` 0 to 1, `char` and `signed
+char` 8 bits, `short` 16, `int` 32, `long` and `long long` 64, and the
+unsigned types to match. `bool` is an integer type ([basic.fundamental]/11)
+with that range, so a conversion to it from a constant other than 0 or 1
+is narrowing, which is what GCC and Clang do.
+**Why:** The Standard fixes only minimum ranges and leaves the widths
+implementation-defined ([basic.fundamental]/4). The draft's own example
+assumes `signed char` cannot represent 1000, and the emitted cases are
+compiled on LP64 platforms. The table is `Overload.integerTypes`, tagged
+with this entry; a compiler that treats a `bool` target otherwise is a
+finding, not a change to the table.
+**Decided by:** the author, on the plan of 21 October 2026.
+**Log:**
+
+- 2026-10-21 — Decided.
+
+---
+
+## value-typing
+
+**Question:** Does a constant template argument value carry its type?
+**Status:** DECIDED 21 October 2026.
+**Decision:** No. `Val` stays an untyped tree. The source type of an
+explicit value is the literal's by [lex.icon]/3 for an integer, `bool`
+for a `bool`, and the class for a class value (`Val.sourceType`).
+Deduced values are not converted and not typed: [temp.deduct.type]/20,
+which requires the type of a deduced `i` to equal the parameter's type
+in the specialization it was deduced from, stays uncovered.
+**Why:** Typing `Val` would reach into every deduction proof for a rule
+the typeclass encoding never exercises: its constant parameters are
+references to the lookup variables and `auto`, and the explicit-instance
+routes pass class values. Out of the fragment for the same reason:
+floating-point values, pointers and pointers to members, arrays,
+enumerations, unions, closure types, user-defined conversions and
+converting constructors, braced-init-lists, `decltype(auto)`
+parameters.
+**Decided by:** the author, on the plan of 21 October 2026.
+**Log:**
+
+- 2026-10-21 — Decided.
