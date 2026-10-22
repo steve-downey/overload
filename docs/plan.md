@@ -461,7 +461,7 @@ Status, 15 October 2026:
 
 ## Target theorems
 
-Twenty-six theorems carry the results. A theorem that fails is recorded with
+Twenty-seven theorems carry the results. A theorem that fails is recorded with
 its counterexample and is a finding, not a setback.
 
 | Theorem | Statement | Phase |

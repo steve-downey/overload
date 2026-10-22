@@ -7,6 +7,7 @@ import Overload.Deduction
 import Overload.Generality
 import Overload.Constraint
 import Overload.Program
+import Overload.Arguments
 import Overload.Steps
 import Overload.Ordering
 import Overload.Transitivity
@@ -65,6 +66,11 @@ is the map.
 #audit Overload.constraint_soft_shields_function_type
 #audit Overload.deduceTemplate_hard_iff
 #audit Overload.deduceTemplate_congr
+
+-- Template arguments and their conversion.
+#audit Overload.narrowing_iff
+#audit Overload.narrowing_constant
+#audit Overload.convertedConstant_not_hard
 
 -- Constraints and subsumption.
 #audit Overload.Constraint.subsumes_iff
