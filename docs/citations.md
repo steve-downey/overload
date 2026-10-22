@@ -10,6 +10,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 |---|---|---|---|
 | [[basic.def.odr]/16](https://eel.is/c++draft/basic.def.odr#16) | rule | `Overload.IllFormedNdr.odrMismatch` | `Overload.Units` |
 | [[basic.def.odr]/16](https://eel.is/c++draft/basic.def.odr#16) | rule | `Overload.Units.odrVerdicts` | `Overload.Units` |
+| [[basic.fundamental]/1](https://eel.is/c++draft/basic.fundamental#1) | rule | `Overload.representable` | `Overload.Arguments` |
 | [[basic.link]/4](https://eel.is/c++draft/basic.link#4) | rule | `Overload.Decl.linkage` | `Overload.Scope` |
 | [[basic.link]/8](https://eel.is/c++draft/basic.link#8) | rule | `Overload.sameEntity` | `Overload.Scope` |
 | [[basic.link]/11](https://eel.is/c++draft/basic.link#11) | rule | `Overload.sameKind` | `Overload.Scope` |
@@ -69,10 +70,13 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[class.member.lookup]/6](https://eel.is/c++draft/class.member.lookup#6) | example | `Overload.ambiguous_bases_example` | `Overload.Members` |
 | [[class.member.lookup]/6](https://eel.is/c++draft/class.member.lookup#6) | rule | `Overload.Program.memberSearch` | `Overload.Members` |
 | [[conv.ptr]/3 sentence 2](https://eel.is/c++draft/conv.ptr#3.sentence-2) | rule | `Overload.Program.accessibleConversion` | `Overload.Access` |
+| [[dcl.init.list]/7](https://eel.is/c++draft/dcl.init.list#7) | rule | `Overload.Narrowing.integer` | `Overload.Arguments` |
 | [[dcl.init.ref]/4 sentence 2](https://eel.is/c++draft/dcl.init.ref#4.sentence-2) | rule | `Overload.Program.referenceCompatible` | `Overload.Ranking` |
 | [[dcl.init.ref]/4 sentence 3](https://eel.is/c++draft/dcl.init.ref#4.sentence-3) | rule | `Overload.Program.call` | `Overload.Access` |
 | [[dcl.ref]/1 sentence 3](https://eel.is/c++draft/dcl.ref#1.sentence-3) | rule | `Overload.formConst` | `Overload.Steps` |
 | [[dcl.ref]/5 sentence 1](https://eel.is/c++draft/dcl.ref#5.sentence-1) | rule | `Overload.formPtr` | `Overload.Steps` |
+| [[expr.const.const]/8](https://eel.is/c++draft/expr.const.const#8) | rule | `Overload.integralConversion` | `Overload.Arguments` |
+| [[lex.icon]/3 sentence 1](https://eel.is/c++draft/lex.icon#3.sentence-1) | rule | `Overload.literalType` | `Overload.Arguments` |
 | [[over.best.ics.general]/7](https://eel.is/c++draft/over.best.ics.general#7) | rule | `Overload.Program.baseConv` | `Overload.Ranking` |
 | [[over.call.func]/3 sentence 2](https://eel.is/c++draft/over.call.func#3.sentence-2) | rule | `Overload.Program.callAt` | `Overload.Members` |
 | [[over.call.object]/1 sentence 2](https://eel.is/c++draft/over.call.object#1.sentence-2) | rule | `Overload.Program.callOperators` | `Overload.Members` |
@@ -108,6 +112,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[over.match.viable]/4 sentence 1](https://eel.is/c++draft/over.match.viable#4.sentence-1) | rule | `Overload.conversions` | `Overload.Resolution` |
 | [[stmt.if]/2 sentence 2](https://eel.is/c++draft/stmt.if#2.sentence-2) | rule | `Overload.ifConstexpr` | `Overload.Dispatch` |
 | [[structure.specifications]/3](https://eel.is/c++draft/structure.specifications#3) | rule | `Overload.mandateCheck` | `Overload.Mandates` |
+| [[temp.arg.nontype]/2 sentence 2](https://eel.is/c++draft/temp.arg.nontype#2.sentence-2) | rule | `Overload.convertedConstant` | `Overload.Arguments` |
 | [[temp.constr.atomic]/2 sentence 1](https://eel.is/c++draft/temp.constr.atomic#2.sentence-1) | rule | `Overload.Constraint.identical` | `Overload.Constraint` |
 | [[temp.constr.atomic]/3 sentence 1](https://eel.is/c++draft/temp.constr.atomic#3.sentence-1) | rule | `Overload.Constraint.satisfied` | `Overload.Constraint` |
 | [[temp.constr.atomic]/3 sentence 2](https://eel.is/c++draft/temp.constr.atomic#3.sentence-2) | rule | `Overload.Constraint.satisfied_atomic_soft` | `Overload.Constraint` |
@@ -181,6 +186,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.func.order]/8](https://eel.is/c++draft/temp.func.order#8) | rule | `Overload.PartialOrdering.tieBreakApplies` | `Overload.Ordering` |
 | [[temp.func.order]/8](https://eel.is/c++draft/temp.func.order#8) | theorem | `Overload.PartialOrdering.tieBreak_needs_equal_heads` | `Overload.Ordering` |
 | [[temp.over.link]/6 sentence 2](https://eel.is/c++draft/temp.over.link#6.sentence-2) | rule | `Overload.PartialOrdering.paramEquivalent` | `Overload.Ordering` |
+| [[temp.param]/11](https://eel.is/c++draft/temp.param#11) | rule | `Overload.Ty.hasPlaceholder` | `Overload.Arguments` |
 | [[temp.point]/7](https://eel.is/c++draft/temp.point#7) | rule | `Overload.IllFormedNdr.laterInUnit` | `Overload.Units` |
 | [[temp.point]/7](https://eel.is/c++draft/temp.point#7) | rule | `Overload.Program.instantiationPoint` | `Overload.DependentCandidate` |
 | [[temp.res.general]/1](https://eel.is/c++draft/temp.res.general#1) | example | `Overload.temp_res_general_1_example` | `Overload.DependentCandidate` |
@@ -207,18 +213,12 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 - [[temp.arg.nontype]/1](https://eel.is/c++draft/temp.arg.nontype#1)
 - [[temp.arg.nontype]/3](https://eel.is/c++draft/temp.arg.nontype#3)
 - [[temp.point]/1](https://eel.is/c++draft/temp.point#1)
-- [[temp.arg.nontype]/2](https://eel.is/c++draft/temp.arg.nontype#2)
 - [[temp.arg.nontype]/4](https://eel.is/c++draft/temp.arg.nontype#4)
 - [[temp.arg.nontype]/5](https://eel.is/c++draft/temp.arg.nontype#5)
 - [[temp.arg.nontype]/6](https://eel.is/c++draft/temp.arg.nontype#6)
 - [[temp.arg.general]/1](https://eel.is/c++draft/temp.arg.general#1)
 - [[temp.names]/13](https://eel.is/c++draft/temp.names#13)
 - [[temp.type]/1](https://eel.is/c++draft/temp.type#1)
-- [[temp.param]/11](https://eel.is/c++draft/temp.param#11)
-- [[expr.const.const]/8](https://eel.is/c++draft/expr.const.const#8)
-- [[dcl.init.list]/7](https://eel.is/c++draft/dcl.init.list#7)
-- [[lex.icon]/3](https://eel.is/c++draft/lex.icon#3)
-- [[basic.fundamental]/1](https://eel.is/c++draft/basic.fundamental#1)
 - [[basic.fundamental]/2](https://eel.is/c++draft/basic.fundamental#2)
 - [[basic.fundamental]/4](https://eel.is/c++draft/basic.fundamental#4)
 
@@ -229,5 +229,6 @@ What the model needs and the Standard does not say, each linked to its decision-
 | Decision | Declaration |
 |---|---|
 | [expression-depth](decisions.md#expression-depth) | `Overload.Env` |
+| [integer-widths](decisions.md#integer-widths) | `Overload.integerTypes` |
 | [p3606-mode](decisions.md#p3606-mode) | `Overload.perfectParam` |
 | [single-tu](decisions.md#single-tu) | `Overload.SingleTranslationUnit` |
