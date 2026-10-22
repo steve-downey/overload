@@ -154,3 +154,39 @@ private def callX : List CallArg := [{ ty := .named "X" }, { ty := int }]
 #guard form plain (.lref (.rref int)) == .ok (.lref int)
 #guard form plain (.lookup "trait" T) == .ok (.lookup "trait" T)
 #guard form plain (.spec' "box" [.ptr (.lref int)]) == .soft "pointer to reference"
+
+/-! ### [temp.deduct.general]/12: the conversion of explicit arguments
+`template <int> int f(int); template <signed char> int f(int);` -/
+
+private def fInt : FunctionTemplate :=
+  { name := "f", head := [{ kind := .const int }], params := [int], ret := int }
+private def fSignedChar : FunctionTemplate :=
+  { name := "f", head := [{ kind := .const (.named "signed char") }], params := [int], ret := int }
+
+-- `f<1000>`: the first deduces, the second fails by narrowing, softly.
+#guard argsOf (deduceTemplate plain fInt [.value (.int 1000)] [{ ty := int }]) == some [(0, .value (.int 1000))]
+#guard match deduceTemplate plain fSignedChar [.value (.int 1000)] [{ ty := int }] with
+  | .soft _ => true | _ => false
+-- `f<1>`: both deduce.
+#guard argsOf (deduceTemplate plain fSignedChar [.value (.int 1)] [{ ty := int }]) == some [(0, .value (.int 1))]
+-- A default template argument converts too: `template <class T, long N = 0>` binds `0`,
+-- and `template <class T, bool B = 1>` binds `true`; `template <class T, signed char C = 1000>` fails.
+private def fDefaultLong : FunctionTemplate :=
+  { name := "f", head := [typeParam, { kind := .const (.named "long"), default := some (.value (.int 0)) }]
+    params := [T] }
+private def fDefaultBool : FunctionTemplate :=
+  { name := "f", head := [typeParam, { kind := .const (.named "bool"), default := some (.value (.int 1)) }]
+    params := [T] }
+private def fDefaultNarrow : FunctionTemplate :=
+  { name := "f", head := [typeParam, { kind := .const (.named "signed char"), default := some (.value (.int 1000)) }]
+    params := [T] }
+#guard argsOf (deduceTemplate plain fDefaultLong [] [{ ty := int }]) == some [(0, int), (1, .value (.int 0))]
+#guard argsOf (deduceTemplate plain fDefaultBool [] [{ ty := int }]) == some [(0, int), (1, .value (.bool true))]
+#guard match deduceTemplate plain fDefaultNarrow [] [{ ty := int }] with | .soft _ => true | _ => false
+-- The declared type may depend on an earlier parameter: `template <class T, T N>`.
+private def fDependent : FunctionTemplate :=
+  { name := "f", head := [typeParam, { kind := .const T }], params := [T] }
+#guard argsOf (deduceTemplate plain fDependent [.named "signed char", .value (.int 1000)] [{ ty := .named "signed char" }])
+  == none
+#guard argsOf (deduceTemplate plain fDependent [int, .value (.int 1000)] [{ ty := int }])
+  == some [(0, int), (1, .value (.int 1000))]

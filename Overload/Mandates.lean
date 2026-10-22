@@ -39,7 +39,7 @@ theorem deduceTemplate_mandate (env : Env) (ft : FunctionTemplate) (m : Option C
     deduceTemplate env { ft with mandate := m } explicit args =
       (deduceTemplate env ft explicit args).map (Specialization.withTemplate { ft with mandate := m }) := by
   unfold deduceTemplate
-  generalize explicitStep ft.head explicit >>= callStep env ft.params args >>= defaultsStep env ft.head
+  generalize explicitStep env ft.head explicit >>= callStep env ft.params args >>= defaultsStep env ft.head
     >>= parameterListStep env ft.head >>= constraintStep env ft.constraint
     >>= nonDependentStep env ft.params args = pre
   cases pre with
@@ -333,7 +333,7 @@ theorem deduceTemplate_template (env : Env) (ft : FunctionTemplate) (explicit : 
     (args : List CallArg) (sp : Specialization) (h : deduceTemplate env ft explicit args = .ok sp) :
     sp.template = ft := by
   unfold deduceTemplate at h
-  generalize explicitStep ft.head explicit >>= callStep env ft.params args >>= defaultsStep env ft.head
+  generalize explicitStep env ft.head explicit >>= callStep env ft.params args >>= defaultsStep env ft.head
     >>= parameterListStep env ft.head >>= constraintStep env ft.constraint
     >>= nonDependentStep env ft.params args = pre at h
   cases pre with
@@ -598,7 +598,7 @@ theorem deduceTemplate_promote (env : Env) (ft : FunctionTemplate) (m : Constrai
       (by rw [hft]) (by rw [hft]))
   unfold deduceTemplate
   rw [show (promote ft).head = ft.head by rw [hft], show (promote ft).params = ft.params by rw [hft]]
-  generalize explicitStep ft.head explicit >>= callStep env ft.params args >>= defaultsStep env ft.head
+  generalize explicitStep env ft.head explicit >>= callStep env ft.params args >>= defaultsStep env ft.head
     >>= parameterListStep env ft.head = pre
   cases pre with
   | soft _ => exact .inl rfl

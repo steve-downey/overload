@@ -130,6 +130,40 @@ theorem derivesWithin_erase (p : Program) (I : List String) :
     obtain ⟨hmI, hmc⟩ := base_untouched p I k d m hm hc
     rw [ih m b hmI hmc]
 
+private theorem filterMap_congr_mem {f g : α → Option β} :
+    ∀ (l : List α), (∀ x ∈ l, f x = g x) → l.filterMap f = l.filterMap g
+  | [], _ => rfl
+  | a :: l, h => by
+    simp only [List.filterMap_cons, h a List.mem_cons_self,
+      filterMap_congr_mem l (fun x hx => h x (List.mem_cons_of_mem _ hx))]
+
+/-- So is the base class subobject of a value of an untouched class. -/
+theorem subobjectWithin_erase (p : Program) (I : List String) :
+    ∀ (k : Nat) (b d : Ty) (v : Val), erased I d = false →
+      (∀ c ∈ I, p.derivesWithin k d (.named c) = false) →
+        (p.eraseBases I).subobjectWithin k b d v = p.subobjectWithin k b d v := by
+  intro k
+  induction k with
+  | zero => intros; rfl
+  | succ k ih =>
+    intro b d v hd hc
+    simp only [Program.subobjectWithin, directBases_erase p I d hd]
+    split
+    · rfl
+    · cases v with
+      | obj c subs =>
+        have : ((p.directBases d).zip ((Val.toList subs).getD [])).filterMap
+            (fun x => (p.eraseBases I).subobjectWithin k b x.1 x.2) =
+          ((p.directBases d).zip ((Val.toList subs).getD [])).filterMap
+            (fun x => p.subobjectWithin k b x.1 x.2) := by
+          apply filterMap_congr_mem
+          intro x hx
+          obtain ⟨m, w⟩ := x
+          obtain ⟨hmI, hmc⟩ := base_untouched p I k d m (List.of_mem_zip hx).1 hc
+          exact ih b m w hmI hmc
+        simp only [this]
+      | _ => rfl
+
 /-- So are its base classes. -/
 theorem allBasesWithin_erase (p : Program) (I : List String) :
     ∀ (k : Nat) (d : Ty), erased I d = false →
@@ -168,6 +202,22 @@ theorem allBases_erase (p : Program) (I : List String) (s : Ty)
   simp only [Program.allBases, eraseBases_length]
   exact allBasesWithin_erase p I p.length s h₁ h₂
 
+/-- The base class subobject of a value of an untouched class is unchanged
+by erasure. -/
+theorem subobject_erase (p : Program) (I : List String) (b : Ty) (d : String) (vs : Val)
+    (hs : p.touched I (.named d) = false) :
+    (p.eraseBases I).subobject b (.obj d vs) = p.subobject b (.obj d vs) := by
+  obtain ⟨h₁, h₂⟩ := untouched_parts hs
+  simp only [Program.subobject, eraseBases_length]
+  exact subobjectWithin_erase p I p.length b (.named d) (.obj d vs) h₁ h₂
+
+/-- So is the conversion of a template argument whose value, if it is a
+class value, is of an untouched class. -/
+theorem convertArg_erase (p : Program) (I : List String) (σ : Bindings) (k : ParamKind) (a : Ty)
+    (hs : ∀ d vs, a = .value (.obj d vs) → p.touched I (.named d) = false) :
+    convertArg (p.eraseBases I).subobject σ k a = convertArg p.subobject σ k a :=
+  convertArg_congr _ _ σ k a fun d vs ha c => subobject_erase p I (.named c) d vs (hs d vs ha)
+
 theorem allBases_spec (p : Program) (s : Ty) (h : s.isSpec = true) : p.allBases s = [] := by
   cases s <;> simp_all [Ty.isSpec, Program.allBases]
   all_goals (cases p.length <;> rfl)
@@ -186,18 +236,52 @@ theorem formAll_congr {env₁ env₂ : Env} (h : env₁.instantiate = env₂.ins
   | [] => rfl
   | t :: ts => by simp only [formAll, form_congr h ha t, formAll_congr h ha ts]
 
+/-- Two environments that convert every explicit argument alike give the
+same explicit step. -/
+theorem explicitStep_congr {env₁ env₂ : Env} (head : Head) (explicit : List Ty)
+    (hx : ∀ σ, ∀ p ∈ head, ∀ a ∈ explicit,
+      convertArg env₁.subobject σ p.kind a = convertArg env₂.subobject σ p.kind a) :
+    explicitStep env₁ head explicit = explicitStep env₂ head explicit := by
+  simp only [explicitStep]
+  suffices ∀ (as : List Ty), (∀ a ∈ as, ∀ σ, ∀ p ∈ head,
+      convertArg env₁.subobject σ p.kind a = convertArg env₂.subobject σ p.kind a) →
+      ∀ i σ, explicitStep.go env₁ head i as σ = explicitStep.go env₂ head i as σ from
+    this _ (fun a ha σ p hp => hx σ p hp a ha) _ _
+  intro as
+  induction as with
+  | nil => intros; rfl
+  | cons a as ih =>
+    intro h i σ
+    simp only [explicitStep.go]
+    cases hp : head[i]? with
+    | none => rfl
+    | some p =>
+      dsimp only
+      split
+      · rw [h a List.mem_cons_self σ p (List.mem_of_getElem? hp)]
+        cases convertArg env₂.subobject σ p.kind a with
+        | ok a' => exact ih (fun a' ha' => h a' (List.mem_cons_of_mem _ ha')) _ _
+        | soft _ => rfl
+        | hard _ => rfl
+      · rfl
+
 theorem defaultsStep_congr {env₁ env₂ : Env} (h : env₁.instantiate = env₂.instantiate)
-    (ha : env₁.atomic = env₂.atomic)
-    (head : Head) : defaultsStep env₁ head = defaultsStep env₂ head := by
+    (ha : env₁.atomic = env₂.atomic) (head : Head)
+    (hx : ∀ σ, ∀ p ∈ head, ∀ a, convertArg env₁.subobject σ p.kind a = convertArg env₂.subobject σ p.kind a) :
+    defaultsStep env₁ head = defaultsStep env₂ head := by
   funext σ
   simp only [defaultsStep]
-  suffices ∀ (ps : Head) i σ, defaultsStep.go env₁ i ps σ = defaultsStep.go env₂ i ps σ from this _ _ _
+  suffices ∀ (ps : Head), (∀ p ∈ ps, ∀ σ a,
+      convertArg env₁.subobject σ p.kind a = convertArg env₂.subobject σ p.kind a) →
+      ∀ i σ, defaultsStep.go env₁ i ps σ = defaultsStep.go env₂ i ps σ from
+    this _ (fun p hp σ a => hx σ p hp a) _ _
   intro ps
   induction ps with
-  | nil => intro i σ; rfl
+  | nil => intros; rfl
   | cons q ps ih =>
-    intro i σ
-    simp only [defaultsStep.go, form_congr h ha, ih]
+    intro hq i σ
+    have ih' := ih (fun p hp => hq p (List.mem_cons_of_mem _ hp))
+    simp only [defaultsStep.go, form_congr h ha, ih', hq q List.mem_cons_self]
 
 theorem nonDependentStep_congr {env₁ env₂ : Env} :
     ∀ (ps : List Ty) (args : List CallArg),
@@ -306,8 +390,10 @@ theorem deduceTemplate_congr {env₁ env₂ : Env} (hi : env₁.instantiate = en
         env₁.bases (adjustA (x.2.subst σ) x.1).stripConst =
           env₂.bases (adjustA (x.2.subst σ) x.1).stripConst)
     (hc : ∀ x ∈ args.zip ft.params, x.2.dependent = false →
-      env₁.convertible x.1 x.2 = env₂.convertible x.1 x.2) :
+      env₁.convertible x.1 x.2 = env₂.convertible x.1 x.2)
+    (hx : ∀ σ, ∀ q ∈ ft.head, ∀ a, convertArg env₁.subobject σ q.kind a = convertArg env₂.subobject σ q.kind a) :
     deduceTemplate env₁ ft explicit args = deduceTemplate env₂ ft explicit args := by
+  have hexp := explicitStep_congr ft.head explicit (fun σ q hq a _ => hx σ q hq a)
   have hcall := callStep_congr ft args hs hb
   have hp : parameterListStep env₁ ft.head = parameterListStep env₂ ft.head := by
     funext σ; simp only [parameterListStep, formAll_congr hi ha]
@@ -315,7 +401,8 @@ theorem deduceTemplate_congr {env₁ env₂ : Env} (hi : env₁.instantiate = en
     funext σ; simp only [constraintStep, ha]
   have hf : functionTypeStep env₁ ft = functionTypeStep env₂ ft := by
     funext σ; simp only [functionTypeStep, formAll_congr hi ha, form_congr hi ha]
-  simp only [deduceTemplate, hcall, defaultsStep_congr hi ha, hp, hk, nonDependentStep_congr _ _ hc, hf]
+  simp only [deduceTemplate, hexp, hcall, defaultsStep_congr hi ha ft.head hx, hp, hk,
+    nonDependentStep_congr _ _ hc, hf]
 
 /-! ## Erasure leaves lookup and constraints alone -/
 
@@ -675,7 +762,9 @@ theorem inheritance_erasure (mode : Mode) (p : Program) (I : List String)
     (hdeduce : ∀ ft, .functionTemplate ft ∈ decls → ∀ x ∈ args.zip ft.params,
       x.2.dependent = false → ExactPair p I x.1 x.2)
     (huse : ∀ cs, generate mode (Env.ofProgram p atomics extra) decls args explicit = .ok cs →
-      ∀ c ∈ cs, ∀ x ∈ args.zip c.params, ExactPair p I x.1 x.2) :
+      ∀ c ∈ cs, ∀ x ∈ args.zip c.params, ExactPair p I x.1 x.2)
+    (hconv : ∀ ft, .functionTemplate ft ∈ decls → ∀ σ, ∀ q ∈ ft.head, ∀ a,
+      convertArg (p.eraseBases I).subobject σ q.kind a = convertArg p.subobject σ q.kind a) :
     resolve mode (Env.ofProgram (p.eraseBases I) atomics extra) (p.eraseBases I).ranking decls args explicit =
       resolve mode (Env.ofProgram p atomics extra) p.ranking decls args explicit := by
   have hgen : generate mode (Env.ofProgram (p.eraseBases I) atomics extra) decls args explicit =
@@ -684,9 +773,11 @@ theorem inheritance_erasure (mode : Mode) (p : Program) (I : List String)
     refine generate_go_congr _ _ args explicit _ decls (fun ft hm => ?_) 0
     refine deduceTemplate_congr (instantiate_erase p I atomics extra) (atomic_erase p I atomics extra) ft
       explicit args (fun c hc => ?_) (fun σ x hx hd hsp => ?_) (fun x hx hd => ?_)
+      (fun σ q hq a => ?_)
     · simp only [Env.ofProgram, allBases_spec _ c hc]
     · simp only [Env.ofProgram, allBases_erase p I _ (hderived ft hm σ x hx hd hsp)]
     · simp only [Env.ofProgram, ics_erase p I x.1 x.2 (hdeduce ft hm x hx hd)]
+    · simp only [Env.ofProgram]; exact hconv ft hm σ q hq a
   unfold resolve
   rw [hgen]
   cases hg : generate mode (Env.ofProgram p atomics extra) decls args explicit with
