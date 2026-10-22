@@ -71,6 +71,9 @@ is the map.
 #audit Overload.narrowing_iff
 #audit Overload.narrowing_constant
 #audit Overload.convertedConstant_not_hard
+#audit Overload.convertArg_iff
+#audit Overload.convertArg_not_hard
+#audit Overload.tpo_value
 
 -- Constraints and subsumption.
 #audit Overload.Constraint.subsumes_iff

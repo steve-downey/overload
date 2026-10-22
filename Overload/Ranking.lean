@@ -67,6 +67,34 @@ def allBasesWithin (p : Program) : Nat → Ty → List Ty
 /-- The base classes of a class, direct and indirect. -/
 def allBases (p : Program) (d : Ty) : List Ty := p.allBasesWithin p.length d
 
+/-- `subobjectWithin p fuel b d v`: the base class subobject of type `b`
+of the value `v`, whose declared class is `d`, within `fuel` steps of
+direct derivation. A class value lists its direct base subobjects
+first, in the order the class declares its bases, so the `k`th direct
+base's subobject is the `k`th entry, and the search passes the declared
+base along rather than reading a class name off the subobject. The
+result is the one such subobject; two, as with two `b` subobjects along
+different paths, or none, is `none`. -/
+def subobjectWithin (p : Program) : Nat → Ty → Ty → Val → Option Val
+  | 0, _, _, _ => none
+  | fuel + 1, b, d, v =>
+    if d == b then some v
+    else
+      match v with
+      | .obj _ subs =>
+        match ((p.directBases d).zip ((Val.toList subs).getD [])).filterMap
+            (fun (m, w) => p.subobjectWithin fuel b m w) with
+        | [w] => some w
+        | _ => none
+      | _ => none
+
+/-- The base class subobject of type `b` of a class value: what
+`constexpr T v = A;` copies when `A`'s class derives from `T`. -/
+@[std rule "temp.arg.nontype#3.sentence-1"]
+def subobject (p : Program) (b : Ty) : Val → Option Val
+  | .obj d subs => p.subobjectWithin p.length b (.named d) (.obj d subs)
+  | _ => none
+
 /-- `cv1 T1` is reference-compatible with `cv2 T2` when a pointer to
 `cv2 T2` converts to a pointer to `cv1 T1`: `T2` is `T1` or derived from
 it, and `cv1` is at least `cv2`. -/

@@ -54,6 +54,10 @@ structure Env where
   /-- The base classes of a class type, direct and indirect, for deduction
   from a derived class. -/
   bases : Bases := noBases
+  /-- The base class subobject of a class value, for a derived value
+  supplied to a base-typed constant template parameter
+  ([temp.arg.nontype]/3). -/
+  subobject : Ty → Val → Option Val := fun _ _ => none
 
 /-- What deduction produces: the template's arguments and its substituted
 function type. -/
