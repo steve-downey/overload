@@ -1,7 +1,7 @@
 ---
 title: "What a Typeclass Owes: Obligations of a Library Typeclass Encoding, from a Formal Model of Overload Resolution"
 document: DXXXXR0
-date: 2026-10-17
+date: 2026-10-22
 audience: LEWG, EWG
 author:
   - name: Steve Downey
@@ -35,12 +35,14 @@ construction, what it leaves as an obligation on the typeclass author, the
 instance author, the user and the author of an algorithm written against a
 typeclass, and which of those obligations no compiler can check.
 
-The model is written in Lean 4. It transcribes template argument
-deduction, substitution failure, constraints and subsumption, Mandates,
-partial ordering, partial specialization matching and overload resolution,
-each rule cited by stable name and paragraph against the working draft
-[@N5054]. Its predictions were checked against GCC 13 to 16 and Clang 17 to 24
-on 91 generated programs.
+The model is written in Lean 4. It transcribes name lookup in namespace
+and class scopes, argument-dependent lookup, template argument
+conversion, template argument deduction, substitution failure,
+constraints and subsumption, Mandates, partial ordering, partial
+specialization matching and overload resolution, each rule cited by
+stable name and paragraph against the working draft [@N5054]. Its
+predictions were checked against GCC 13 to 16 and Clang 17 to 24 on 125
+generated programs.
 
 The short form of the result is that the design is sound because it puts
 a variable everywhere C++ would otherwise build an overload set, and its
@@ -162,8 +164,13 @@ build an overload set, and most of its good behaviour follows.
 **The operation object.** `fmap` is a variable. Name lookup for
 `fmap(f, x)` finds one entity, so the call has one candidate, the
 object's call operator. Argument-dependent lookup does not run when
-ordinary lookup finds an object, and nobody can add an overload that
-competes with it.
+ordinary lookup finds an object ([basic.lookup.argdep]/1), and the
+candidates of a call on an object are its class's call operators and
+nothing else ([over.call.object]/1), so nobody can add an overload that
+competes with it. The model proves this from the lookup rules, and
+proves the contrast: written as a function template, `fmap` admits a
+user's `fmap` declared beside the user's class, found through the
+argument's namespace, and the user's wins.
 
 **The instance.** `functor<T>` is a variable template. Choosing an
 instance is partial specialization matching, not overload resolution, so
@@ -193,16 +200,20 @@ viable through it, or is ill-formed by ambiguity.
 `TC.fmap(...)` is member lookup in one class, which nothing at namespace
 scope can join. Argument-dependent lookup applies only to an unqualified
 name ([basic.lookup.argdep]/1), and member lookup stops at the first class
-whose scope declares the name ([class.member.lookup]/3). The instance's
+whose scope declares the name ([class.member.lookup]/3), whatever the
+signatures and constraints of what the bases declare. The instance's
 using-declaration of its implementation's `invoke` therefore hides the
-derivation base's, and the call has one template. The model does not
-resolve this call. It takes the member's answer as given and proves that
-the operation object passes it on unchanged: viable where the member call
-is valid, not viable where it is invalid, and ill-formed where checking it
-is a hard error. The operation object can add no accuracy the member
-lacks. That is the one place where the design relies on its authors more
-than on its shape, and the first obligation below on the typeclass author
-is what makes it hold.
+derivation base's, and the call has one template. The model proves the
+hiding, and it is a two-edged rule: the same lookup hides
+`derive_functor`'s constrained `fmap` behind an unconstrained one that
+an instance re-exposes. The member call at the operation object's
+constraint the model takes as given, and proves that the object passes
+it on unchanged: viable where the member call is valid, not viable where
+it is invalid, and ill-formed where checking it is a hard error. The
+operation object can add no accuracy the member lacks. That is the one
+place where the design relies on its authors more than on its shape, and
+the first obligation below on the typeclass author is what makes it
+hold.
 
 Every hazard the model found is a place where an overload set comes back.
 
@@ -241,7 +252,10 @@ construction, compiler-checked, library-checkable, or undiagnosable.
   And an operation an instance refuses has to be refused as a
   constraint. The accumulating Applicative for `std::expected` refuses
   `bind` with a `static_assert` in a deduced body, so asking whether that
-  object is a Monad is a hard error. *Not by construction.*
+  object is a Monad is a hard error. beman.transpose has since
+  constrained each of these members, and at its current head every
+  probe but one answers as required; the one left is a Kleisli
+  composition whose constraint ends `|| true`. *Not by construction.*
 - **Instances of std types live with the typeclass.** An instance must be
   visible wherever its lookup is used on its type. For a library type the
   type's own header is enough, since every use has to include it. For a
@@ -253,7 +267,12 @@ construction, compiler-checked, library-checkable, or undiagnosable.
   and not others, ill-formed with no diagnostic required. GCC diagnoses
   the late case. Clang keeps the first answer, and the instance stays
   invisible after its header is included. This is Haskell's orphan rule
-  with a well-formedness consequence. *Undiagnosable.*
+  with a well-formedness consequence. beman.transpose's answer is to
+  declare the instance for a standard type with the type, in a header
+  that stands in for the standard one as `tuple_size` comes with
+  `<array>`, and to make including that header the program's
+  obligation; its umbrella header includes them all. The hazard is
+  documented rather than designed away. *Undiagnosable.*
 - **The primary is soft.** The lookup's primary must be a value such as
   `std::false_type`, not a `static_assert`. A default template argument is
   substituted before constraints are checked, so a requires-clause on the
@@ -268,16 +287,18 @@ construction, compiler-checked, library-checkable, or undiagnosable.
   instance. *By construction.*
 - **No other candidate reaches the lookup.** Stability at the call surface
   needs the call's other candidates not to look the instance up. An
-  operation object with one call operator meets this by construction,
-  since a variable cannot be overloaded. One with several, as
-  beman.transpose's `fold_map` and `combine_all` have, meets it when they
-  differ by arity and each puts the lookup default after a parameter a
-  shorter call cannot deduce: that overload fails before it reaches the
-  lookup. With the default first, it reaches the lookup in a call meant for
-  another overload, and an ambiguous lookup makes that call ill-formed. If
-  a named operation were a function template or an overload set, anyone
-  could add an overload, and each added overload would have to stay away
-  from the lookup.
+  operation object with one call operator meets this by theorem: lookup
+  binds the name to the object, argument-dependent lookup does not apply,
+  and the class's call operators are the whole candidate set. One with
+  several, as beman.transpose's `fold_map` and `combine_all` have, meets
+  it when they differ by arity and each puts the lookup default after a
+  parameter a shorter call cannot deduce: that overload fails before it
+  reaches the lookup. With the default first, it reaches the lookup in a
+  call meant for another overload, and an ambiguous lookup makes that
+  call ill-formed. If a named operation were a function template or an
+  overload set, anyone could add an overload, and each added overload
+  would have to stay away from the lookup and be visible to every
+  dependent call that could find it; see [Across translation units].
 - **Refinement is visible.** Write a refinement between conditions as
   constraints, so subsumption can see it. An `enable_if` encoding of the
   same condition has the same viable set, and loses every ordering a
@@ -291,13 +312,14 @@ construction, compiler-checked, library-checkable, or undiagnosable.
   check it; see [Implementations].
 - **Expose the accurate member.** A using-declaration of an
   implementation's member hides the derivation base's member of that
-  name. That is right when the implementation's member is the accurate
-  one, as for every Applicative `invoke` in beman.transpose, and wrong
-  when it is not: the optional and vector Functor implementations' `fmap`
-  is unconstrained, and re-exposing it hides `derive_functor`'s
-  constrained `fmap`. A call with a function that cannot take the element
-  is then a hard error, through the member call and through the operation
-  object. *Convention.*
+  name, by rule and whatever the two members' constraints
+  ([class.member.lookup]/3). That is right when the implementation's
+  member is the accurate one, as for every Applicative `invoke` in
+  beman.transpose, and wrong when it is not: the optional and vector
+  Functor implementations' `fmap` is unconstrained, and re-exposing it
+  hides `derive_functor`'s constrained `fmap`. A call with a function
+  that cannot take the element is then a hard error, through the member
+  call and through the operation object. *Convention.*
 - **Visibility.** Every instance must be declared before any use of its
   lookup, the same in every translation unit. *Undiagnosable*; see
   [Across translation units].
@@ -357,9 +379,10 @@ mistake does, and what closing it would forbid.
   instance from its type assumes the instance has no state. All of
   beman.transpose's typeclass objects are empty, but a caller's may
   carry an allocator, a scheduler or a log. `lifted_monoid` and
-  `kleisli_monoid` construct their own, and a stateful object passed by
-  type is never consulted. Hold the object, which costs nothing for an
-  empty one, or require `std::is_empty_v`. *Library-checkable.*
+  `kleisli_monoid` constructed their own, and a stateful object passed
+  by type was never consulted; they now hold the object. Hold the
+  object, which costs nothing for an empty one, or require
+  `std::is_empty_v`. *Library-checkable.*
 - **Pass `std::ref` for identity.** An instance may run a copy of a
   callable, so an algorithm that needs the caller's own object, to count
   or accumulate in it, passes a reference wrapper, as for the Standard's
@@ -377,8 +400,8 @@ instance types by composition changes no call that uses every affected
 class at its exact type and never deduces through it as a base. The model
 proves this for its fragment. Outside that discipline there are five
 hazards. The first, second and fifth are confirmed on every compiler
-tested; the third is a theorem about identity; the fourth follows C++26 and
-is where Clang and GCC currently differ.
+tested; the third and fourth are theorems about identity, and the fourth
+follows C++26, where Clang and GCC currently differ.
 
 **Ranking beats refinement.** A derived-to-base conversion has Conversion
 rank, and conversions are compared before the preference for
@@ -417,9 +440,18 @@ A Monad instance silently matches a Functor-shaped signature.
 Functor and lookup gives another, and they are different template
 arguments.
 
-**Constant-parameter slicing.** A derived instance passed as a constant
-template argument for a base-typed parameter is sliced and identified with
-the base value.
+**Constant-parameter slicing.** A constant template argument is
+converted to its parameter's type, and for a class type that conversion
+is the initialization of a temporary of the type ([temp.arg.nontype]/3).
+A derived instance passed for a base-typed parameter is therefore sliced
+to its base subobject, and the derived value and the base's own value
+name one specialization ([temp.type]/1). A reference parameter denotes
+the object instead, so two objects are always two specializations;
+beman.transpose's `const auto &TC` is one, and it keeps a derived
+instance apart from its base. The library's instance types could not
+take the by-value form in any case. A constant template parameter of
+class type must be structural, with every base public ([temp.param]/12),
+and a derivation base keeps the implementation as a protected base.
 
 **A protected base does not hide the implementation.** `derive_functor<Impl>`
 inherits `Impl` protected, which reads as keeping it out of view. Implicit
@@ -467,6 +499,20 @@ stability at the call surface says a call sees what precedes it: an
 instance declared after the call cannot move it, and can only make the
 program ill-formed with no diagnostic required.
 
+A free-function design has two more verdicts, and the object design has
+neither. A dependent call `fmap(f, t)` in a template is looked up where
+the template is defined and again, by argument-dependent lookup, at the
+specialization's point of instantiation. A better overload in an
+associated namespace that only another unit declares makes the program
+ill-formed, no diagnostic required ([temp.dep.candidate]/1). Within one
+unit, the specialization has a point of instantiation after each
+declaration that refers to it and another at the end of the unit, and an
+overload declared between them gives the call two meanings, which is
+ill-formed by the rule that makes a late instance so ([temp.point]/1,
+/7). GCC and Clang fix the meaning at the first point. When ordinary
+lookup binds the name to an object, argument-dependent lookup never
+runs, so no unit and no point can add a candidate.
+
 The important result is about identity. One might expect a function whose
 behaviour depends on an instance to be safe across units whenever the
 instance is one of its template arguments, since units that select
@@ -474,13 +520,16 @@ different instances would then have different specializations. The
 operation object does take the instance as a template argument, but as a
 reference to the lookup variable, `const auto &TC = functor<...>`. A
 reference argument is the entity it designates, and `functor<box<int>>`
-is one entity in every unit, whatever its initializer selects. Two units
-that select different instances therefore deduce *one* specialization,
-and the program gives one function two meanings, ill-formed with no
-diagnostic required by [basic.def.odr]/16. Pinning names the instance
-object and does separate the units. The by-value policy names the
-instance's type and separates them only when instances have distinct
-types.
+is one entity in every unit, whatever its initializer selects: its
+declarations correspond, inhabit one scope and have external linkage
+([basic.link]/8). Two units that select different instances therefore
+deduce *one* specialization, and the program gives one function two
+meanings, ill-formed with no diagnostic required by [basic.def.odr]/16.
+That verdict never comes first: one of the two selections differs from
+the whole program's, so a verdict at the lookup is already there.
+Pinning names the instance object and does separate the units. The
+by-value policy names the instance's type and separates them only when
+instances have distinct types.
 
 Being a variable is what makes the operation object immune to
 overloading, and what exposes it to the one-definition rule. Visibility
@@ -582,8 +631,9 @@ conditions cannot fail that way.
 - **A derived value for a base-typed constant parameter.** Under
   [temp.arg.nontype] as rewritten by P2308R1 [@P2308R1], a derived class value is
   accepted for a constant template parameter of base class type, sliced,
-  and identified with the equal base value. Clang does this. GCC 13 rejects
-  it as not a converted constant expression, the rule before P2308R1.
+  and identified with the equal base value. Clang 17 to 24 do this. GCC
+  13 to 16 reject it as not a converted constant expression, the rule
+  before P2308R1.
 
 # Limits of the model
 
@@ -603,12 +653,20 @@ A registry that tests for an instance by completeness, as
 beman.transpose's `Monoid` does, is a third encoding. The model covers
 only its verdicts: they are a lookup's, at the same uses, under a third
 rule where the test's answer changes, a satisfaction result that differs
-at two points ([temp.constr.atomic]/3). The member overload set of an
-instance is not resolved: the model has no class member lookup, no
-using-declarations and no explicit object parameters. It takes the member
-call's answer as a parameter, and proves only what the operation object
-and an algorithm over the instance make of it. Which members are accurate comes from compiling against
-beman.transpose, not from the model. The model has one instance per
+at two points ([temp.constr.atomic]/3). Name lookup covers namespace
+and class scopes, without using-directives, using-declarations, blocks
+or modules, and a class is named by its name alone. Member lookup
+follows [class.member.lookup] over the fragment's members, with no
+explicit object parameters. The member call at an operation object's
+constraint is still an oracle: the model takes its answer as a
+parameter, and proves only what the operation object and an algorithm
+over the instance make of it. Which members are accurate comes from
+compiling against beman.transpose, not from the model. Template
+arguments are converted for integer and class values, and the draft's
+own example of a narrowing argument is a theorem; floating-point,
+pointer and enumeration values, user-defined conversions and braced
+lists are outside, and a deduced value is not converted, so
+[temp.deduct.type]/20 is outside the fragment. The model has one instance per
 key, and no copies or object state, so the obligations on an algorithm
 to use the instance and the object it was given, and to pass a reference
 for identity, rest on probes alone. Function parameter packs are
@@ -620,7 +678,7 @@ that keys the lookup, and the pack does not enter the lookup.
 The model and the generated tests are in the overload repository. The
 Lean sources are under `Overload/`, built with Lean 4.35 and Batteries,
 and every result named here is audited to depend on no unproven axiom.
-`make differential` emits the 91 C++ programs and compiles each with the
+`make differential` emits the 125 C++ programs and compiles each with the
 listed compilers; `differential/known-disagreements.txt` lists each case
 and compiler where an implementation departs from the text.
 
@@ -636,7 +694,18 @@ main results, by file:
 - `Overload/Access.lean`: `protected_base_selected_ill_formed`,
   `protected_base_deduced_ill_formed`.
 - `Overload/Units.lean`: `verdicts_single`, `late_insertion_verdict`,
-  `registry_verdicts`.
+  `registry_verdicts`, `odr_verdict_implies_verdict`.
+- `Overload/Scope.lean`: `corresponds_iff`, `redeclaration_inert`, and
+  `sameEntity` with the linkage condition of [basic.link]/8.
+- `Overload/Names.lean`, `Overload/Adl.lean`, `Overload/Members.lean`:
+  `inner_hides_outer`, `object_suppresses_adl`,
+  `free_function_admits_adl`, `derived_member_hides_base`.
+- `Overload/DependentCandidate.lean`: `late_adl_overload_verdict`,
+  `object_design_no_adl_verdict`, `later_function_verdict`,
+  `object_design_one_meaning`.
+- `Overload/Arguments.lean` and `Overload/Identity.lean`:
+  `convertArg_iff`, `narrowing_constant`, `slicing_identifies`,
+  `reference_keeps_identity`.
 - `Overload/Mandates.lean`: `mandate_inertness`, `constraint_promotion`,
   `promotion_reorders`.
 - `Overload/Sfinae.lean`: `sfinae_requires`, `sfinae_loses_subsumption`,
@@ -656,6 +725,10 @@ main results, by file:
 - `Overload/Typeclass/Members.lean`: `fmapObject_member`,
   `call_stability_arity`, `arity_order_matters`, `algorithm_transfer`,
   `algorithm_accurate`, `call_order_matters`.
+- `Overload/Typeclass/Lookup.lean`: `object_design_candidates`,
+  `call_stability_object`, `unconstrained_member_hides_constrained`.
+- `Overload/Typeclass/Arguments.lean`: `value_route_slices`,
+  `pin_keeps_identity`, `value_route_needs_structural`.
 
 The probes of beman.transpose's own typeclasses, one translation unit
 per call, are in `probes/library/`, with their results at the commit
