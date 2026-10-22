@@ -157,6 +157,17 @@ and described here as they arrive.
 
 ## About the model
 
+- **Narrowing of a constant is representability** (21 October 2026).
+  [dcl.init.list]/7 makes an integral conversion narrowing when the
+  target type cannot represent every value of the source type, except
+  for a constant whose value fits. For a constant source the first half
+  adds nothing: a constant's value lies in its own type's range, so when
+  the target covers the source the value fits, and narrowing is exactly
+  the value not being representable in the target
+  (`narrowing_constant`). This is why the model's values need no type of
+  their own (`decisions.md#value-typing`): for a constant, the source
+  type decides nothing the value does not.
+
 - **The hidden constrained member is a theorem** (20 October 2026). The
   audit found the library's Functor implementations hiding
   `derive_functor`'s constrained `fmap` behind an unconstrained one of
@@ -685,6 +696,18 @@ and described here as they arrive.
   Reported as steve-downey/typeclass#17 (callable copies), #18 (`void`
   results), #19 (the accumulating `bind`) and #20 (`lifted_monoid` and
   `kleisli_monoid`).
+
+- **The value route is closed to the library's instance types** (21
+  October 2026). `derive_functor<Impl>` keeps `Impl` as a protected
+  base, so neither it nor an instance type derived from it is a
+  structural type ([temp.param]/12), and a class value of such a type is
+  not permitted for a placeholder constant parameter
+  ([temp.arg.nontype]/1; `value_route_needs_structural`). The plan's
+  value route cannot take the library's instances by value, whatever its
+  identity properties. With its parameter typed at a base it would slice
+  a derived instance to the base (`value_route_slices`), which is leak 4
+  as a theorem; the reference parameters the library uses keep the
+  object's identity (`pin_keeps_identity`).
 
 ## Design note
 

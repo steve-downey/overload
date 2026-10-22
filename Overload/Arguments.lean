@@ -32,7 +32,7 @@ namespace Overload
 greatest value each represents. The widths are the `integer-widths`
 decision: LP64, `char` signed, and `bool` an integer type with range 0
 to 1. -/
-@[assumed "integer-widths"]
+@[assumed "integer-widths", std rule "basic.fundamental#4"]
 def integerTypes : List (String × Int × Int) :=
   [ ("bool", 0, 1)
   , ("char", -128, 127), ("signed char", -128, 127), ("unsigned char", 0, 255)
@@ -289,7 +289,10 @@ def convertClass (sub : Ty → Val → Option Val) (c : String) : Val → Subst 
   | v => .soft s!"{repr v} is not a value of class type {c}"
 
 /-- The conversion, as a function. It never fails hard: every failure
-is a deduction failure (`convertArg_not_hard`). -/
+is a deduction failure (`convertArg_not_hard`). A value for a reference
+parameter would bind a temporary, which a constant template parameter of
+reference type shall not refer to. -/
+@[std rule "temp.arg.nontype#6"]
 def convertArg (sub : Ty → Val → Option Val) (σ : Bindings) : ParamKind → Ty → Subst Ty
   | .type, a => if a.isType then .ok a else .soft "a value for a type template parameter"
   | .const t, a =>

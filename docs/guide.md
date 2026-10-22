@@ -192,6 +192,32 @@ computes what a call finds from a program point and a scope.
 every partial specialization is declared before any use of its variable
 template. `Units` removes it.
 
+### Arguments
+
+`Overload/Arguments.lean`: the conversion of a constant template argument
+to its parameter's type ([temp.arg.nontype]). `integerTypes` is the
+fragment's integer types with their ranges under LP64
+(`decisions.md#integer-widths`), `representable` whether a type holds a
+value, `literalType` the type of an integer literal ([lex.icon]/3), and
+`Val.sourceType` the type a value's source expression has, since a value
+carries none (`decisions.md#value-typing`). `Narrowing` and `narrowing`
+are [dcl.init.list]/7 as relation and function (`narrowing_iff`), and
+`narrowing_constant` says that for a constant source the two halves of
+the rule collapse: narrowing is exactly the value not being representable
+in the target. `convertedConstant` is the converted constant expression
+of [temp.arg.nontype]/2 on the fragment's values, admitting promotion and
+non-narrowing integral conversion ([expr.const.const]/8). `ConvertsTo`
+and `convertArg` (`convertArg_iff`) convert an argument against a
+parameter of either kind: a type; a placeholder, which takes the argument
+as its own type; a dependent declared type, formed later; an integer
+type; a class type, whose value is the argument's or the base subobject
+of a derived value, through the environment's `subobject` oracle; an
+lvalue reference, which binds an object and refuses a temporary
+([temp.arg.nontype]/6). The conversion never fails hard
+(`convertArg_not_hard`), and two oracles that agree on the value give one
+conversion (`convertArg_congr`). `tpo_value` is [temp.arg.nontype]/4 on
+a fragment where equivalence is equality.
+
 ### Steps
 
 `Overload/Steps.lean` is [temp.deduct.general]/5 as seven functions
@@ -202,7 +228,16 @@ parameters, the function type. `form` is [temp.deduct.general]/8: forming
 a type in the immediate context, where an invalid type is a soft failure
 and instantiating a variable template specialization asks the environment
 and may fail hard. `deduceTemplate` is the whole of deduction for a
-function template.
+function template. The explicit step converts each argument against its
+parameter's declared type, substituted with the preceding explicit
+arguments ([temp.names]/13), and the defaults step converts a constant
+parameter's default; a conversion that fails is soft and is the outcome
+(`conversion_soft_shields_call`, `explicitStep_not_hard`), and two
+arguments with one converted value give one bindings list
+(`explicitStep_converted`). `Env` carries one oracle for it,
+`subobject`, the base class subobject of a class value, which
+`Env.ofProgram` computes from the program's classes
+(`Program.subobject`, in `Ranking`).
 
 The theorems say what the order buys.
 
@@ -223,6 +258,24 @@ The theorems say what the order buys.
 The module ends with lemmas about the steps on the shapes a call presents
 (`Ty.formed`, `forwarded`, what an `ok` step says about its bindings),
 which both sides use.
+
+### Identity
+
+`Overload/Identity.lean`: what names a specialization.
+`sameSpecialization` is [temp.type]/1 through the explicit step: two
+argument lists name one specialization when the parameter values they
+determine are the same. `slicing_identifies`: under a base-typed class
+value parameter a derived value and the base's own value are one
+specialization, since the derived value is sliced to its base subobject.
+`reference_keeps_identity`: under a reference parameter two objects
+never are, since the parameter denotes the object ([temp.type]/2).
+`Program.structural` is [temp.param]/12, and
+`placeholderArgumentsPermitted` the check of [temp.arg.nontype]/1 that a
+class value a placeholder parameter takes has a structural type, at the
+program level, where the class declarations are. The draft's narrowing
+example, [temp.deduct.general]/12, is `temp_deduct_general_12_example`
+in `Access`, at the level of a call: `f<1000>` selects the `int`
+template and `f<1>` is ambiguous.
 
 ### Ordering
 
@@ -743,12 +796,23 @@ reaches. In detail:
   ([temp.dep.candidate]/1), and a lookup two units instantiate
   differently ([basic.def.odr]/16), which never comes first
   (`odr_verdict_implies_verdict`).
-- **Four in-scope paragraphs have no counterpart yet**:
-  [temp.deduct.general]/12 and [temp.arg.nontype]/1 and /3, the conversion
-  of template arguments, and [temp.point]/1, the point of instantiation
-  after the declaration that refers to a specialization, which the
-  fragment reads through the end of the unit that [temp.point]/7 adds.
-  The index in [citations.md](citations.md) keeps the list current.
+- **Template arguments are converted, and the converted values name the
+  specialization.** An explicit or default constant argument is converted
+  to its parameter's type by the rules of [temp.arg.nontype], given as
+  relation and function (`convertArg_iff`), and the conversion never
+  fails hard: a failed one is a deduction failure before any later step
+  (`conversion_soft_shields_call`). For a constant, narrowing is
+  representability (`narrowing_constant`). The draft's own example,
+  `f<1000>` against `template <signed char>`, is a theorem
+  (`temp_deduct_general_12_example`) and an emitted case. A derived class
+  value under a base-typed parameter is sliced and identified with the
+  base's value (`slicing_identifies`); a reference parameter keeps the
+  object's identity (`reference_keeps_identity`).
+- **One in-scope paragraph has no counterpart yet**: [temp.point]/1, the
+  point of instantiation after the declaration that refers to a
+  specialization, which the fragment reads through the end of the unit
+  that [temp.point]/7 adds. The index in [citations.md](citations.md)
+  keeps the list current.
 - **Where the compilers disagree with the text**, the model is the
   tiebreaker and the disagreements are recorded, never settled by
   majority: the P3606 shortcut in two different widths (GCC and Clang 21
@@ -817,6 +881,23 @@ instance enters the specialization by its type. `valueRoute`, `typeRoute`
 and `argumentRoute` are the plan's alternative design, as overloads beside
 the canonical object, so the emitted cases can show where they separate
 and where the type route is exposed to an ambiguous canonical lookup.
+
+### Arguments
+
+`Overload/Typeclass/Arguments.lean`: leak 4 of instance inheritance as a
+theorem, and what closes it. `valueRouteAt b` is the value route with
+its instance parameter typed as the instance class `b`;
+`value_route_slices` says a derived instance value and the base's own
+deduce the same specialization there, so an algorithm pinned to the
+derived instance runs the base's. `pin_keeps_identity` says pinning two
+objects is two specializations, since the reference parameter denotes
+the object; it is the explicit-step half of `superclass_identity`. The
+library's parameters are references, which is what closes the leak.
+`value_route_needs_structural`: a derivation base keeps the
+implementation as a protected base, so neither it nor an instance type
+derived from it is structural, and neither can be a template argument
+for a placeholder parameter at all. The value route is closed to the
+library's instance types either way.
 
 ### Inheritance
 
