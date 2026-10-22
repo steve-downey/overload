@@ -184,6 +184,21 @@ answer.
 
 Reported upstream as steve-downey/typeclass#6, #7, #10 to #14.
 
+Rerun at beman.transpose `5d248b9`, GCC 16 and Clang 23, on 22 October
+2026, after the fixes for #10 to #14 and #17 to #20 and the header moves
+of #28 and #29. Every row of the table above answers soft, as required,
+except `kleisli<optional>(not_callable, not_callable)` and its member
+call, which still answer valid: the constraint still ends `|| true`. The
+optional and vector Functor instances, the `std::array` Applicative
+instance and the optional Monad's `bind` are constrained on the
+callable, and Foldable's and Monad's derived members on the caller's.
+The placement rows are unchanged. The library decided that an instance
+for a standard type is declared with the type, in `array.hpp`,
+`expected.hpp`, `sequence.hpp` and `simd.hpp` standing in for the
+standard headers, and that including the right one is the program's
+obligation; the umbrella header `beman/transpose.hpp`, now one level up,
+includes them all. `late_array.cpp` answers as before.
+
 ## Algorithm probes
 
 These ask what an algorithm written against a typeclass can rely on when it
@@ -267,3 +282,21 @@ required, after PRs #9, #15 and #16. Every other library probe answers as
 recorded at `30a707d`.
 
 Reported upstream as steve-downey/typeclass#17 to #20.
+
+Rerun at beman.transpose `5d248b9`, GCC 16 and Clang 23, on 22 October
+2026. `zip_list`'s and the sender's `invoke` now say in their constraints
+that the callable is copied: a move-only lvalue is soft for both, where
+it was a hard error and a false valid, and the sender's non-`const` call
+operator stays soft. `invoke` and `map` with a `void` result are soft on
+every context, where naming `std::optional<void>` was a hard error.
+`monad_object` of the accumulating object is soft: its `bind` is a
+deleted function. The `int&&` rows for `fmap` and `any_of` are soft,
+since the constraints ask for the callable on an lvalue element. Of the
+88 member and callable pairs, 85 are valid and three are refused, and
+the refusals are the three copies. `lifted_monoid` and `kleisli_monoid`
+hold the typeclass object, so a stateful one is consulted: `state.cpp`
+now passes it in, and its one call is logged. The coherence rows and
+`callable_state.cpp` are unchanged. `zip_list`'s `invoke` still runs a
+copy of a stateful lvalue callable, as its constraint now says, and a
+slip to the operation object under the accumulating object still drops
+evidence.

@@ -10,7 +10,7 @@
 // up the canonical instance, or through bind, holds only the first, and
 // compiles without complaint.
 
-#include <beman/transpose/transpose.hpp>
+#include <beman/transpose.hpp>
 
 #include <cstdio>
 #include <expected>

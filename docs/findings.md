@@ -531,6 +531,25 @@ and described here as they arrive.
 
 ## About the library
 
+- **The library's members, re-audited** (22 October 2026). The probes
+  of 18 October were rerun at beman.transpose `5d248b9`, after the
+  fixes for steve-downey/typeclass#10 to #14 and #17 to #20. Every
+  member probe answers as required except `kleisli`'s, whose constraint
+  still ends `|| true`: the Functor, `std::array` Applicative and
+  optional Monad members are constrained on the callable, the derived
+  members of Foldable and Monad on the caller's, `invoke` and `map`
+  refuse a `void` result, the accumulating object's `bind` is a deleted
+  function, and `zip_list`'s and the sender's `invoke` say in their
+  constraints that they copy the callable. `lifted_monoid` and
+  `kleisli_monoid` hold the typeclass object, so a stateful one is
+  consulted. The accurate-members row of [obligations](obligations.md)
+  is met at that commit, and the instance-state row with it. Placement
+  is unchanged by decision: an instance for a standard type is declared
+  with the type, in a header standing in for the standard one, and
+  including it is the program's obligation. The umbrella header moved
+  up a level, to `beman/transpose.hpp`, and the probes include it
+  there. The tables are in [probes](probes.md#library-probes).
+
 - **Applicative's interface is the instance** (17 October 2026). In
   beman.transpose the call a user writes is a member call on the instance
   of record: `const auto &app = applicative<std::optional<int>>;

@@ -5,11 +5,11 @@
 // assumes the instance carries no state. The first table asks which of the
 // library's own instance objects that assumption would admit: empty, and
 // default-initializable. The last lines pass a stateful applicative object
-// to lifted_monoid, which makes its own, and to traverse, which takes the
+// to lifted_monoid, which holds it, and to traverse, which takes the
 // object passed.
 
+#include <beman/transpose.hpp>
 #include <beman/transpose/induced_monoid.hpp>
-#include <beman/transpose/transpose.hpp>
 
 #include <array>
 #include <concepts>
@@ -76,9 +76,9 @@ int main() {
 
     std::vector<const char *> log;
     const logging_app mine{&log};
-    bt::lifted_monoid<logging_app, opt, bt::sum_monoid<int>> lifted;
+    bt::lifted_monoid<logging_app, opt, bt::sum_monoid<int>> lifted{
+        bt::sum_monoid<int>{}, mine};
     auto sum = lifted.combine(opt{1}, opt{2});
     std::printf("  lifted_monoid<logging_app>: sum=%d, calls logged=%zu\n",
                 sum.value_or(-1), log.size());
-    (void)mine;
 }
