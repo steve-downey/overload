@@ -391,10 +391,18 @@ draft commit recorded once for the whole development.
 **Question:** Does the model transcribe the C++26 text, under which
 deduction runs for every template candidate, or the P3606 rule, under which
 a perfect non-template match suppresses it?
-**Status:** OPEN.
-**Default:** The text, with the P3606 rule as a flag on the resolution
-relation so both can be stated and compared. The two differ exactly on the
-step-order hazard, and GCC implements P3606 today.
+**Status:** DECIDED 21 October 2026, as to the model. The question of
+what the Standard will say stays open at WG21.
+**Decision:** Both. The model keeps the P3606 rule as the `.p3606` mode of
+`Overload.Mode` beside the text's `.text`, which stays the default, and
+the theorems that say where the two differ stay. Neither mode is
+removed while the proposal's wording is unsettled.
+**Why:** The question is open in the committee, not here, and the two
+readings are interesting exactly where they differ: the step-order
+hazard, the [temp.constr.atomic]/3 example, and the two widths of the
+shortcut that GCC and Clang ship. A model that carried one reading would
+lose the comparison that made those findings.
+**Decided by:** the author.
 **Log:**
 
 - 2026-10-13 — Opened.
@@ -425,6 +433,10 @@ step-order hazard, and GCC implements P3606 today.
   of `.p3606` ranges over the declarations lookup found, which for a call
   of an object are its non-template call operators. That is the reading
   of "candidate" the proposal uses; nothing in the mode changes.
+- 2026-10-21 — Decided by the author: the switch stays, with both modes,
+  because the proposal is still open and the difference is what is
+  interesting. Which mode the Standard ends up with is logged here when
+  P3606 or its successor is adopted or rejected.
 
 ---
 
