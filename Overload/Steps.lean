@@ -2,6 +2,7 @@
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 import Overload.Deduction
 import Overload.Program
+import Overload.Arguments
 
 /-!
 # The step order of [temp.deduct.general]/5
@@ -141,17 +142,22 @@ def formAll (env : Env) : List Ty → Subst (List Ty)
 
 /-! ## The steps -/
 
-/-- Does a template argument have the kind its parameter declares? -/
+/-- Does a template argument have the kind its parameter declares: the
+type and form of a template argument shall match those of its
+parameter. -/
+@[std rule "temp.arg.general#1.sentence-1"]
 def kindMatches : ParamKind → Ty → Bool
   | .type, a => a.isType
   | .const _, a => !a.isType
 
 /-- Explicitly specified template arguments are substituted for the
 corresponding template parameters. A template-id that is not valid, with
-more arguments than parameters or an argument of the wrong kind, is a
-deduction failure. -/
+more arguments than parameters, an argument of the wrong kind, or an
+argument that does not convert to its parameter's type, is a deduction
+failure. The parameter's declared type is substituted with the
+preceding explicit arguments before the conversion ([temp.names]/13). -/
 @[std rule "temp.deduct.general#2.sentence-2"]
-def explicitStep (head : Head) (explicit : List Ty) : Subst Bindings :=
+def explicitStep (env : Env) (head : Head) (explicit : List Ty) : Subst Bindings :=
   go 0 explicit []
 where
   go : Nat → List Ty → Bindings → Subst Bindings
@@ -159,9 +165,15 @@ where
     | i, a :: as, σ =>
       match head[i]? with
       | some p =>
-        if kindMatches p.kind a then go (i + 1) as ((i, a) :: σ)
+        if kindMatches p.kind a then
+          match convertArg env.subobject σ p.kind a with
+          | .ok a' => go (i + 1) as ((i, a') :: σ)
+          | .soft r => .soft r
+          | .hard r => .hard r
         else .soft s!"explicit template argument {i} has the wrong kind"
       | none => .soft "more explicit template arguments than template parameters"
+
+attribute [std rule "temp.names#13"] explicitStep.go
 
 /-- The substituted and adjusted function type is used for deduction from
 the arguments of the call. -/
@@ -177,7 +189,10 @@ default argument, substituted with the arguments determined for the
 preceding parameters; a parameter with no default is a deduction failure.
 An invalid substitution is a deduction failure, and the instantiation of
 a separately instantiated construct in the default is outside the
-immediate context. -/
+immediate context. A constant parameter's default is a template
+argument for it, and converts to the parameter's type as an explicit
+one does ([temp.arg.nontype]/1); a type parameter's default is a type.
+-/
 @[std rule "temp.deduct.general#5.sentence-2"]
 def defaultsStep (env : Env) (head : Head) (σ : Bindings) : Subst Bindings :=
   go 0 head σ
@@ -191,6 +206,9 @@ where
         match p.default with
         | some d => do
           let a ← form env (d.subst σ)
+          let a ← match p.kind with
+            | .type => pure a
+            | .const _ => convertArg env.subobject σ p.kind a
           go (i + 1) ps ((i, a) :: σ)
         | none => .soft s!"template parameter {i} is neither deduced nor explicitly specified"
 
@@ -243,7 +261,7 @@ template arguments and the arguments of a call: the steps of
 [temp.deduct.general]/2 and /5 in the paragraph's order. -/
 def deduceTemplate (env : Env) (ft : FunctionTemplate) (explicit : List Ty) (args : List CallArg) :
     Subst Specialization :=
-  explicitStep ft.head explicit
+  explicitStep env ft.head explicit
     >>= callStep env ft.params args
     >>= defaultsStep env ft.head
     >>= parameterListStep env ft.head
@@ -258,7 +276,7 @@ outcome of deduction: nothing that follows, constraints, convertibility or
 the function type, is reached. -/
 theorem defaults_hard_absorbing (env : Env) (ft : FunctionTemplate) (explicit : List Ty)
     (args : List CallArg) (σ : Bindings) (r : Reason)
-    (hc : (explicitStep ft.head explicit >>= callStep env ft.params args) = .ok σ)
+    (hc : (explicitStep env ft.head explicit >>= callStep env ft.params args) = .ok σ)
     (hd : defaultsStep env ft.head σ = .hard r) :
     deduceTemplate env ft explicit args = .hard r := by
   unfold deduceTemplate
@@ -270,7 +288,7 @@ constraints are checked after the defaults are substituted, so the
 outcome is the same hard error whatever the constraint is. -/
 theorem constraint_cannot_guard_default (env : Env) (ft : FunctionTemplate) (explicit : List Ty)
     (args : List CallArg) (σ : Bindings) (r : Reason) (c : Option Constraint)
-    (hc : (explicitStep ft.head explicit >>= callStep env ft.params args) = .ok σ)
+    (hc : (explicitStep env ft.head explicit >>= callStep env ft.params args) = .ok σ)
     (hd : defaultsStep env ft.head σ = .hard r) :
     deduceTemplate env { ft with constraint := c } explicit args = .hard r :=
   defaults_hard_absorbing env { ft with constraint := c } explicit args σ r hc hd
@@ -280,7 +298,7 @@ being substituted: the step order is what makes the draft's own example
 well-formed, since the return type would fail hard. -/
 theorem constraint_soft_shields_function_type (env : Env) (ft : FunctionTemplate)
     (explicit : List Ty) (args : List CallArg) (σ : Bindings) (r : Reason)
-    (hc : (explicitStep ft.head explicit >>= callStep env ft.params args >>= defaultsStep env ft.head
+    (hc : (explicitStep env ft.head explicit >>= callStep env ft.params args >>= defaultsStep env ft.head
       >>= parameterListStep env ft.head) = .ok σ)
     (hk : constraintStep env ft.constraint σ = .soft r) :
     deduceTemplate env ft explicit args = .soft r := by
@@ -295,13 +313,13 @@ fragment, so the first disjunct is there for the statement's shape. -/
 theorem deduceTemplate_hard_iff (env : Env) (ft : FunctionTemplate) (explicit : List Ty)
     (args : List CallArg) (r : Reason) :
     deduceTemplate env ft explicit args = .hard r ↔
-      (explicitStep ft.head explicit >>= callStep env ft.params args) = .hard r ∨
-      ∃ σ, (explicitStep ft.head explicit >>= callStep env ft.params args) = .ok σ ∧
+      (explicitStep env ft.head explicit >>= callStep env ft.params args) = .hard r ∨
+      ∃ σ, (explicitStep env ft.head explicit >>= callStep env ft.params args) = .ok σ ∧
         (defaultsStep env ft.head σ >>= parameterListStep env ft.head
           >>= constraintStep env ft.constraint >>= nonDependentStep env ft.params args
           >>= functionTypeStep env ft) = .hard r := by
   unfold deduceTemplate
-  generalize explicitStep ft.head explicit >>= callStep env ft.params args = s
+  generalize explicitStep env ft.head explicit >>= callStep env ft.params args = s
   cases s with
   | ok σ => simp
   | soft _ => simp
@@ -406,6 +424,55 @@ theorem deduceTemplate_too_many (env : Env) (ft : FunctionTemplate) (args : List
   simp only [deduceTemplate, explicitStep, explicitStep.go, Subst.bind_eq, Subst.bind_ok, callStep]
   rw [deduceCall_too_many _ _ _ _ (by simpa using h)]
   rfl
+
+/-- No explicit arguments: no bindings. -/
+@[simp]
+theorem explicitStep_nil (env : Env) (head : Head) : explicitStep env head [] = .ok [] := rfl
+
+/-- Substituting explicit arguments never fails outside the immediate
+context: an invalid template-id is a deduction failure, and so is a
+conversion that fails. -/
+theorem explicitStep_not_hard (env : Env) (head : Head) (explicit : List Ty) (r : Reason) :
+    explicitStep env head explicit ≠ .hard r := by
+  simp only [explicitStep]
+  suffices ∀ (as : List Ty) i σ, explicitStep.go env head i as σ ≠ .hard r from this _ _ _
+  intro as
+  induction as with
+  | nil => intro i σ; simp [explicitStep.go]
+  | cons a as ih =>
+    intro i σ
+    simp only [explicitStep.go]
+    cases head[i]? with
+    | none => simp
+    | some p =>
+      dsimp only
+      split
+      · cases hc : convertArg env.subobject σ p.kind a with
+        | ok a' => exact ih _ _
+        | soft _ => simp
+        | hard r' => exact absurd hc (convertArg_not_hard _ _ _ _ r')
+      · simp
+
+/-- A conversion failure of an explicit template argument is soft, and it
+is the outcome of deduction: it comes before deduction from the call,
+the defaults, the constraints and the function type, so no hard error
+of theirs is reached. -/
+theorem conversion_soft_shields_call (env : Env) (ft : FunctionTemplate) (explicit : List Ty)
+    (args : List CallArg) (r : Reason) (h : explicitStep env ft.head explicit = .soft r) :
+    deduceTemplate env ft explicit args = .soft r := by
+  unfold deduceTemplate
+  rw [h]
+  rfl
+
+/-- Two explicit arguments with one converted value, in the same place,
+give one bindings list: the specialization is named by the parameter
+values the arguments determine, not by the arguments. -/
+@[std theorem "temp.type#1"]
+theorem explicitStep_converted (env : Env) (p : TemplateParam) (ps : Head) (a b : Ty)
+    (rest : List Ty) (hk : kindMatches p.kind a = kindMatches p.kind b)
+    (hc : convertArg env.subobject [] p.kind a = convertArg env.subobject [] p.kind b) :
+    explicitStep env (p :: ps) (a :: rest) = explicitStep env (p :: ps) (b :: rest) := by
+  simp only [explicitStep, explicitStep.go, List.getElem?_cons_zero, hk, hc]
 
 /-- The template parameter list step keeps the bindings. -/
 theorem parameterListStep_ok (env : Env) (h : Head) (σ σ' : Bindings)

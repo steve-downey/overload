@@ -74,6 +74,11 @@ is the map.
 #audit Overload.convertArg_iff
 #audit Overload.convertArg_not_hard
 #audit Overload.tpo_value
+#audit Overload.explicitStep_not_hard
+#audit Overload.conversion_soft_shields_call
+#audit Overload.explicitStep_converted
+#audit Overload.convertArg_erase
+#audit Overload.temp_deduct_general_12_example
 
 -- Constraints and subsumption.
 #audit Overload.Constraint.subsumes_iff

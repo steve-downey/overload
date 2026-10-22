@@ -83,7 +83,7 @@ def subobjectWithin (p : Program) : Nat → Ty → Ty → Val → Option Val
       match v with
       | .obj _ subs =>
         match ((p.directBases d).zip ((Val.toList subs).getD [])).filterMap
-            (fun (m, w) => p.subobjectWithin fuel b m w) with
+            (fun x => p.subobjectWithin fuel b x.1 x.2) with
         | [w] => some w
         | _ => none
       | _ => none

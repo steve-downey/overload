@@ -83,7 +83,7 @@ def fmapObject (tc : String) : FunctionTemplate :=
 
 theorem fmapObject_call (env : Env) (tc : String) (f x : CallArg) (hf : f.ty.isType = true)
     (hx : x.ty.isType = true) :
-    (explicitStep (fmapObject tc).head [] >>= callStep env (fmapObject tc).params [f, x]) =
+    (explicitStep env (fmapObject tc).head [] >>= callStep env (fmapObject tc).params [f, x]) =
       .ok [(1, forwarded x), (0, forwarded f)] := by
   have h0 : Ty.collapse (.rref (.param 0)) = .rref (.param 0) := rfl
   have h1 : Ty.collapse (.rref (.param 1)) = .rref (.param 1) := rfl

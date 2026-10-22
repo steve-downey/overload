@@ -73,7 +73,7 @@ theorem pinned_deduce (env : Env) (tc name o : String) (c : Ty) (x : CallArg)
       .ok [(1, .ref (.named o)), (0, c)] := by
     simp only [callStep, pinTemplate, List.map, hsub, deduceCall, deduceParam, Ty.dependent, hcd]
     rfl
-  have hexp : explicitStep (pinTemplate tc name).head [c, .ref (.named o)] =
+  have hexp : explicitStep env (pinTemplate tc name).head [c, .ref (.named o)] =
       .ok [(1, .ref (.named o)), (0, c)] := by
     simp [explicitStep, explicitStep.go, pinTemplate, kindMatches, hc]
     rfl
@@ -154,7 +154,7 @@ theorem unpinned_deduce (p : Program) (tc name : String) (x : CallArg)
   have hcall := pin_call (encodingEnv p) tc name x hx (hc ▸ hk)
   rw [hc] at hcall
   simp only [deduceTemplate, Subst.bind_eq]
-  rw [show explicitStep (pinTemplate tc name).head [] = .ok [] from rfl, Subst.bind_ok, hcall,
+  rw [show explicitStep (encodingEnv p) (pinTemplate tc name).head [] = .ok [] from rfl, Subst.bind_ok, hcall,
     Subst.bind_ok, hdef, hinst]
   cases p.selectInstance tc c with
   | selected i => exact hft
@@ -182,7 +182,7 @@ def byValueObject (tc : String) : FunctionTemplate :=
 
 theorem byValue_call_omitted (env : Env) (tc : String) (f x : CallArg) (hf : f.ty.isType = true)
     (hx : x.ty.isType = true) :
-    (explicitStep (byValueObject tc).head [] >>= callStep env (byValueObject tc).params [f, x]) =
+    (explicitStep env (byValueObject tc).head [] >>= callStep env (byValueObject tc).params [f, x]) =
       .ok [(1, forwarded x), (0, forwarded f)] := by
   have h0 : Ty.collapse (.rref (.param 0)) = .rref (.param 0) := rfl
   have h1 : Ty.collapse (.rref (.param 1)) = .rref (.param 1) := rfl
@@ -328,7 +328,7 @@ theorem byValue_omitted_outcome (hf : f.ty.isType = true) (hx : x.ty.isType = tr
 
 theorem byValue_call_passed (env : Env) (hf : f.ty.isType = true) (hx : x.ty.isType = true) (pol : CallArg)
     (hk : pol.ty.stripConst.isType = true) :
-    (explicitStep (byValueObject tc).head [] >>= callStep env (byValueObject tc).params [f, x, pol]) =
+    (explicitStep env (byValueObject tc).head [] >>= callStep env (byValueObject tc).params [f, x, pol]) =
       .ok [(2, pol.ty.stripConst), (1, forwarded x), (0, forwarded f)] := by
   have h0 : Ty.collapse (.rref (.param 0)) = .rref (.param 0) := rfl
   have h1 : Ty.collapse (.rref (.param 1)) = .rref (.param 1) := rfl

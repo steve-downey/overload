@@ -94,7 +94,7 @@ theorem deduceTemplate_enableIf (env : Env) (ft : FunctionTemplate) (c : String)
   rw [show (enableIfForm ft c m).head = ft.head from rfl, show (enableIfForm ft c m).params = ft.params from rfl,
     show (requiresForm ft c m).head = ft.head from rfl, show (requiresForm ft c m).params = ft.params from rfl,
     show (requiresForm ft c m).constraint = some (.atomic c m) from rfl, hS]
-  generalize explicitStep ft.head explicit >>= callStep env ft.params args >>= defaultsStep env ft.head
+  generalize explicitStep env ft.head explicit >>= callStep env ft.params args >>= defaultsStep env ft.head
     >>= parameterListStep env ft.head = pre
   cases pre with
   | soft _ => exact .inl rfl

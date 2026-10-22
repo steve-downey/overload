@@ -124,4 +124,29 @@ theorem protected_base_deduced_ill_formed :
         [{ ty := .named "int_map", lvalue := true }] = .illFormed e :=
   ⟨rfl, ⟨_, rfl⟩⟩
 
+/-! ## The draft's narrowing example -/
+
+/-- `template <int> int f(int); template <signed char> int f(int);`, the
+example of [temp.deduct.general]/12. -/
+def deductGeneral12Program : Program :=
+  [ .functionTemplate { name := "f", head := [{ kind := .const (.named "int") }]
+                        params := [.named "int"], ret := .named "int" }
+  , .functionTemplate { name := "f", head := [{ kind := .const (.named "signed char") }]
+                        params := [.named "int"], ret := .named "int" } ]
+
+/-- `f<1000>(0)` is OK: a `signed char` cannot represent 1000, so the
+conversion of the template argument of type `int` would narrow,
+substitution fails for the second template, and the first is selected.
+`f<1>(0)` is ambiguous: 1 is not narrowing, both are viable, and with
+the same function parameter list neither is more specialized. -/
+@[std example "temp.deduct.general#12"]
+theorem temp_deduct_general_12_example :
+    (deductGeneral12Program.call (Env.ofProgram deductGeneral12Program)
+        (deductGeneral12Program.candidates "f") [{ ty := .named "int" }] [.value (.int 1000)]).map
+        (·.index) = .selected 0 ∧
+      (deductGeneral12Program.call (Env.ofProgram deductGeneral12Program)
+        (deductGeneral12Program.candidates "f") [{ ty := .named "int" }] [.value (.int 1)]).map
+        (·.index) = .ambiguous [0, 1] := by
+  refine ⟨by decide, by decide⟩
+
 end Overload
