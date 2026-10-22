@@ -111,11 +111,19 @@ inductive Decl where
   /-- A dependent call `callee(args)` written in a template defined at
   this position, instantiated with these argument types: its name is
   looked up in the definition context here and in the instantiation
-  context at the unit's end ([temp.dep.general]/2). -/
+  context, the point of instantiation of the specialization, which
+  follows each declaration that refers to it and is the unit's end as
+  well ([temp.dep.general]/2, [temp.point]/1, /7). -/
   | dependentCall (callee : String) (args : List CallArg) (scope : Scope := [])
+  /-- A namespace-scope declaration that refers to the specialization of
+  the template defined at `call`, a `dependentCall`, with the arguments
+  it carries: the point of instantiation of the specialization
+  immediately follows this declaration ([temp.point]/1). -/
+  | refersTo (call : Nat)
   deriving Repr, DecidableEq, Inhabited
 
 attribute [std rule "temp.dep.general#2"] Decl.dependentCall
+attribute [std rule "temp.point#1.sentence-2"] Decl.refersTo
 
 /-- A program: declarations in order. -/
 abbrev Program := List Decl

@@ -255,7 +255,7 @@ def inScope : List (String × Nat) :=
   , ("over.call.func", 3), ("over.call.object", 1)
   , ("class.member.lookup", 3), ("class.member.lookup", 4), ("class.member.lookup", 5)
   , ("class.member.lookup", 6)
-  , ("temp.dep.general", 2), ("temp.res.general", 1), ("temp.point", 1)
+  , ("temp.dep.general", 2), ("temp.res.general", 1), ("temp.point", 1), ("module.context", 5)
   , ("temp.dep.candidate", 1), ("temp.spec.partial.general", 7)
   , ("basic.link", 8), ("basic.def.odr", 16)
   -- Phase 10, template arguments and their conversion (docs/plan.md, phase 10).

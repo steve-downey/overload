@@ -361,6 +361,15 @@ It is written down as a tagged predicate so a later phase can remove it.
   `Units.odrVerdicts`), and `odr_verdict_implies_verdict` shows it is
   never the first: the verdicts of phase 8 already cover a lookup two
   units instantiate differently.
+- 2026-10-22 — A sixth verdict, for [temp.point]/1: a dependent call's
+  specialization has a point of instantiation after each namespace-scope
+  declaration that refers to it (`Decl.refersTo`) and one at the unit's
+  end (`Program.instantiationPoints`); its lookup runs from the first
+  point ([module.context]/5), and a call that resolves differently at
+  two of its points is `IllFormedNdr.laterCandidate` ([temp.point]/7).
+  A program with no referring declaration has the one point it always
+  had (`pointVerdict_unreferenced`). GCC and Clang fix the meaning at
+  the first point too, which is one of the readings the verdict allows.
 
 ---
 

@@ -523,17 +523,27 @@ honest reading of "no diagnostic required".
 
 `Overload/DependentCandidate.lean`: dependent calls and the fourth
 verdict. `Decl.dependentCall` is a call written in a template defined at
-its position and instantiated with the arguments it carries. Its name is
-looked up from where it appears, unqualified lookup and
-argument-dependent lookup, and argument-dependent lookup runs again from
-the instantiation context, the end of the unit ([temp.res.general]/1,
-[basic.lookup.argdep]/4, [temp.point]/7; `Program.dependentLookup`,
-`Program.dependentCandidates`, `Program.dependentCallAt`). The verdict
-of [temp.dep.candidate]/1, `IllFormedNdr.dependentCandidate`: the call
+its position and instantiated with the arguments it carries, and
+`Decl.refersTo` is a namespace-scope declaration that refers to that
+specialization. The specialization's points of instantiation are the
+point after each referring declaration and the unit's end, each once
+([temp.point]/1, /7; `Program.instantiationPoints`), and its point of
+instantiation is the first of them. The call's name is looked up from
+where it appears, unqualified lookup and argument-dependent lookup, and
+argument-dependent lookup runs again from the instantiation context,
+which holds that point ([temp.res.general]/1, [basic.lookup.argdep]/4,
+[module.context]/5; `Program.dependentLookupAt`,
+`Program.dependentLookup`, `Program.dependentCandidates`,
+`Program.dependentCallAt`). Two verdicts. The one of
+[temp.dep.candidate]/1, `IllFormedNdr.dependentCandidate`: the call
 resolves differently over what its two contexts find and over that with
 every other unit's associated-namespace functions as well
-(`dependentVerdict`, `Units.dependentVerdicts`, and `Units.allVerdicts`
-with phase 8's three).
+(`dependentVerdict`, `Units.dependentVerdicts`). The one of
+[temp.point]/7, `IllFormedNdr.laterCandidate`: the call resolves
+differently at two of its points of instantiation, which give the
+specialization different meanings (`pointVerdict`,
+`Units.pointVerdicts`). `Units.allVerdicts` lists both with phase 8's
+three.
 
 - `dependentVerdicts_single`: one unit, no verdict.
 - `object_design_no_adl_verdict`: a callee bound to anything but a
@@ -544,7 +554,17 @@ with phase 8's three).
   context sees, is the verdict.
 - `temp_res_general_1_example`: the draft's example, `f(t)` instantiated
   at a type declared after the template, finds the later `f(E)` through
-  the instantiation context and selects it.
+  the instantiation context and selects it. The referring declaration
+  `h` is the last, so the specialization has one point.
+- `later_function_verdict`: the same declarations with `h` before
+  `void f(E);`. The specialization has two points, after `h` and at the
+  unit's end; at the first only `f(char)` is found and the call is not
+  viable, at the end `f(E)` is selected, and the program has the verdict
+  of [temp.point]/7. `pointVerdict_unreferenced`: with no referring
+  declaration there is one point, the unit's end, so every program
+  without one reads as it did. `object_design_one_meaning`: a callee
+  bound to an object has one meaning at every point, since
+  argument-dependent lookup never applies to it.
 
 ### Access
 
@@ -808,11 +828,11 @@ reaches. In detail:
   value under a base-typed parameter is sliced and identified with the
   base's value (`slicing_identifies`); a reference parameter keeps the
   object's identity (`reference_keeps_identity`).
-- **One in-scope paragraph has no counterpart yet**: [temp.point]/1, the
-  point of instantiation after the declaration that refers to a
-  specialization, which the fragment reads through the end of the unit
-  that [temp.point]/7 adds. The index in [citations.md](citations.md)
-  keeps the list current.
+- **Every in-scope paragraph has a counterpart.** The last to get one
+  was [temp.point]/1, the point of instantiation after the declaration
+  that refers to a specialization (`Decl.refersTo`,
+  `Program.instantiationPoints`). The index in
+  [citations.md](citations.md) keeps the list current.
 - **Where the compilers disagree with the text**, the model is the
   tiebreaker and the disagreements are recorded, never settled by
   majority: the P3606 shortcut in two different widths (GCC and Clang 21
