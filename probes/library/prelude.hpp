@@ -13,7 +13,7 @@
 // with the single static_assert below when it is (valid), and fails any
 // other way when checking it is a hard error.
 
-#include <beman/transpose/transpose.hpp>
+#include <beman/transpose.hpp>
 
 #include <array>
 #include <expected>

@@ -6,7 +6,7 @@
 // saw. A member that copies the callable runs the copy, so the caller's
 // count stays behind and nothing reports it.
 
-#include <beman/transpose/transpose.hpp>
+#include <beman/transpose.hpp>
 
 #include <array>
 #include <cstdio>
