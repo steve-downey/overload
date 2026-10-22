@@ -213,4 +213,264 @@ theorem convertedConstant_not_hard (t : String) (v : Val) (r : Reason) :
     | soft r' => simp [Subst.map, h']
   | _ => simp [convertedConstant]
 
+/-! ## The conversion of an argument to its parameter -/
+
+/-- The declared type of a constant template parameter as it stands with
+the bindings so far, top-level cv-qualifiers ignored. -/
+@[std rule "temp.param#11"]
+def declaredType (σ : Bindings) (t : Ty) : Ty := (t.subst σ).stripConst
+
+/-- A template argument converts to the value its parameter takes. The
+kind must match; then for a constant parameter the declared type
+decides: a placeholder takes the argument's own type, a dependent type
+is formed later, an integer type takes a converted constant, a class
+type takes a value of that class or the base subobject of a value of a
+derived class, through the oracle `sub`, and a reference binds an
+object. -/
+@[specification]
+inductive ConvertsTo (sub : Ty → Val → Option Val) (σ : Bindings) :
+    ParamKind → Ty → Ty → Prop where
+  /-- A type for a type template parameter. -/
+  | type (a : Ty) (h : a.isType = true) : ConvertsTo sub σ .type a a
+  /-- The parameter's type contains a placeholder: it is deduced from
+  the argument, which converts to itself. -/
+  | placeholder (t a : Ty) (ha : a.isType = false)
+      (hp : (declaredType σ t).hasPlaceholder = true) : ConvertsTo sub σ (.const t) a a
+  /-- The parameter's type still depends on a template parameter: it is
+  formed when the parameter list is substituted, and the argument
+  stands. -/
+  | dependent (t a : Ty) (ha : a.isType = false)
+      (hp : (declaredType σ t).hasPlaceholder = false)
+      (hd : (declaredType σ t).dependent = true) : ConvertsTo sub σ (.const t) a a
+  /-- An integer type: the argument is a converted constant expression
+  of that type. -/
+  | integer (t : Ty) (n : String) (v w : Val)
+      (hp : (declaredType σ t).hasPlaceholder = false)
+      (hd : (declaredType σ t).dependent = false)
+      (ht : declaredType σ t = .named n) (hn : isInteger n = true)
+      (hc : convertedConstant n v = .ok w) : ConvertsTo sub σ (.const t) (.value v) (.value w)
+  /-- A class type and a value of that class: the temporary is the
+  value. -/
+  | classSame (t : Ty) (c : String) (vs : Val)
+      (hp : (declaredType σ t).hasPlaceholder = false)
+      (hd : (declaredType σ t).dependent = false)
+      (ht : declaredType σ t = .named c) (hn : isInteger c = false) :
+      ConvertsTo sub σ (.const t) (.value (.obj c vs)) (.value (.obj c vs))
+  /-- A class type and a value of a class derived from it: the temporary
+  is the base subobject. -/
+  | classBase (t : Ty) (c d : String) (vs w : Val)
+      (hp : (declaredType σ t).hasPlaceholder = false)
+      (hd : (declaredType σ t).dependent = false)
+      (ht : declaredType σ t = .named c) (hn : isInteger c = false) (hne : c ≠ d)
+      (hs : sub (.named c) (.obj d vs) = some w) :
+      ConvertsTo sub σ (.const t) (.value (.obj d vs)) (.value w)
+  /-- An lvalue reference and an object: the reference binds directly. -/
+  | reference (t r u : Ty)
+      (hp : (declaredType σ t).hasPlaceholder = false)
+      (hd : (declaredType σ t).dependent = false)
+      (ht : declaredType σ t = .lref u) : ConvertsTo sub σ (.const t) (.ref r) (.ref r)
+
+attribute [std rule "temp.arg.general#1.sentence-1"] ConvertsTo.type
+attribute [std rule "temp.arg.nontype#1.sentence-2"] ConvertsTo.placeholder
+attribute [std rule "temp.deduct.general#5.sentence-4"] ConvertsTo.dependent
+attribute [std rule "temp.arg.nontype#2.sentence-2"] ConvertsTo.integer
+attribute [std rule "temp.arg.nontype#5"] ConvertsTo.classSame
+attribute [std rule "temp.arg.nontype#3.sentence-1"] ConvertsTo.classBase
+attribute [std rule "expr.const.const#8"] ConvertsTo.reference
+
+/-- The class cases of the conversion: a value of the parameter's class,
+or the base subobject of a value of a derived class. -/
+def convertClass (sub : Ty → Val → Option Val) (c : String) : Val → Subst Ty
+  | .obj d vs =>
+    if c = d then .ok (.value (.obj d vs))
+    else match sub (.named c) (.obj d vs) with
+      | some w => .ok (.value w)
+      | none => .soft s!"{d} has no one base class subobject of type {c}"
+  | v => .soft s!"{repr v} is not a value of class type {c}"
+
+/-- The conversion, as a function. It never fails hard: every failure
+is a deduction failure (`convertArg_not_hard`). -/
+def convertArg (sub : Ty → Val → Option Val) (σ : Bindings) : ParamKind → Ty → Subst Ty
+  | .type, a => if a.isType then .ok a else .soft "a value for a type template parameter"
+  | .const t, a =>
+    if a.isType then .soft "a type for a constant template parameter"
+    else
+      let t' := declaredType σ t
+      if t'.hasPlaceholder then .ok a
+      else if t'.dependent then .ok a
+      else
+        match t', a with
+        | .named n, .value v =>
+          if isInteger n then (convertedConstant n v).map .value else convertClass sub n v
+        | .lref _, .ref r => .ok (.ref r)
+        | .lref _, _ => .soft "a reference parameter binds an object, not a temporary"
+        | _, _ => .soft "no conversion of the argument to the parameter's type"
+
+/-- Agreement of the relation and the function. -/
+theorem convertArg_iff (sub : Ty → Val → Option Val) (σ : Bindings) (k : ParamKind) (a a' : Ty) :
+    ConvertsTo sub σ k a a' ↔ convertArg sub σ k a = .ok a' := by
+  constructor
+  · intro h
+    cases h with
+    | type a h => simp [convertArg, h]
+    | placeholder t a ha hp => simp [convertArg, ha, hp]
+    | dependent t a ha hp hd => simp [convertArg, ha, hp, hd]
+    | integer t n v w hp hd ht hn hc =>
+      rw [ht] at hp hd
+      simp [convertArg, hp, hd, ht, hn, hc, Ty.isType, Subst.map]
+    | classSame t c vs hp hd ht hn =>
+      rw [ht] at hp hd
+      simp [convertArg, convertClass, hp, hd, ht, hn, Ty.isType]
+    | classBase t c d vs w hp hd ht hn hne hs =>
+      rw [ht] at hp hd
+      simp [convertArg, convertClass, hp, hd, ht, hn, hne, hs, Ty.isType]
+    | reference t r u hp hd ht =>
+      rw [ht] at hp hd
+      simp [convertArg, hp, hd, ht, Ty.isType]
+  · intro h
+    cases k with
+    | type =>
+      by_cases ha : a.isType = true
+      · simp [convertArg, ha] at h; subst h; exact .type a ha
+      · simp [convertArg, ha] at h
+    | const t =>
+      by_cases ha : a.isType = true
+      · simp [convertArg, ha] at h
+      · have ha' : a.isType = false := by simpa using ha
+        by_cases hp : (declaredType σ t).hasPlaceholder = true
+        · simp [convertArg, ha', hp] at h; subst h; exact .placeholder t a ha' hp
+        · have hp' : (declaredType σ t).hasPlaceholder = false := by simpa using hp
+          by_cases hd : (declaredType σ t).dependent = true
+          · simp [convertArg, ha', hp', hd] at h; subst h; exact .dependent t a ha' hp' hd
+          · have hd' : (declaredType σ t).dependent = false := by simpa using hd
+            simp only [convertArg, ha', hp', hd', Bool.false_eq_true, ↓reduceIte] at h
+            generalize ht : declaredType σ t = t' at h
+            cases t' <;> cases a <;> try simp at h
+            case named.value n v =>
+              by_cases hn : isInteger n = true
+              · simp only [hn, ↓reduceIte] at h
+                cases hc : convertedConstant n v <;> simp [hc, Subst.map] at h
+                subst h
+                exact .integer t n v _ hp' hd' ht hn hc
+              · have hn' : isInteger n = false := by simpa using hn
+                simp only [hn', Bool.false_eq_true, ↓reduceIte] at h
+                cases v with
+                | obj d vs =>
+                  by_cases hcd : n = d
+                  · simp [convertClass, hcd] at h
+                    subst h; subst hcd
+                    exact .classSame t n vs hp' hd' ht hn'
+                  · simp only [convertClass, hcd, ↓reduceIte] at h
+                    cases hs : sub (.named n) (.obj d vs) <;> simp [hs] at h
+                    subst h
+                    exact .classBase t n d vs _ hp' hd' ht hn' hcd hs
+                | _ => simp [convertClass] at h
+            case lref.ref u r =>
+              try simp at h
+              subst h
+              exact .reference t r u hp' hd' ht
+
+/-- The conversion never fails outside the immediate context. -/
+theorem convertArg_not_hard (sub : Ty → Val → Option Val) (σ : Bindings) (k : ParamKind) (a : Ty)
+    (r : Reason) : convertArg sub σ k a ≠ .hard r := by
+  cases k with
+  | type => by_cases ha : a.isType = true <;> simp [convertArg, ha]
+  | const t =>
+    by_cases ha : a.isType = true
+    · simp [convertArg, ha]
+    · have ha' : a.isType = false := by simpa using ha
+      by_cases hp : (declaredType σ t).hasPlaceholder = true
+      · simp [convertArg, ha', hp]
+      · have hp' : (declaredType σ t).hasPlaceholder = false := by simpa using hp
+        by_cases hd : (declaredType σ t).dependent = true
+        · simp [convertArg, ha', hp', hd]
+        · have hd' : (declaredType σ t).dependent = false := by simpa using hd
+          simp only [convertArg, ha', hp', hd', Bool.false_eq_true, ↓reduceIte]
+          generalize declaredType σ t = t'
+          cases t' <;> cases a
+          all_goals try (simp; done)
+          case named.value n v =>
+            by_cases hn : isInteger n = true
+            · simp only [hn, ↓reduceIte]
+              cases hc : convertedConstant n v with
+              | hard r' => exact absurd hc (convertedConstant_not_hard n v r')
+              | ok w => simp [Subst.map]
+              | soft r' => simp [Subst.map]
+            · have hn' : isInteger n = false := by simpa using hn
+              simp only [hn', Bool.false_eq_true, ↓reduceIte]
+              cases v with
+              | obj d vs =>
+                by_cases hcd : n = d
+                · simp [convertClass, hcd]
+                · simp only [convertClass, hcd, ↓reduceIte]
+                  cases sub (.named n) (.obj d vs) <;> simp
+              | _ => simp [convertClass]
+
+/-! ### The identities the typeclass side uses -/
+
+/-- A type argument converts to itself. -/
+@[simp]
+theorem convertArg_type (sub : Ty → Val → Option Val) (σ : Bindings) (a : Ty) (h : a.isType = true) :
+    convertArg sub σ .type a = .ok a := by
+  simp [convertArg, h]
+
+/-- A constant argument for a parameter whose type contains a placeholder
+converts to itself. -/
+@[simp]
+theorem convertArg_placeholder (sub : Ty → Val → Option Val) (σ : Bindings) (t a : Ty)
+    (ha : a.isType = false) (hp : (declaredType σ t).hasPlaceholder = true) :
+    convertArg sub σ (.const t) a = .ok a := by
+  simp [convertArg, ha, hp]
+
+/-- `auto`. -/
+@[simp]
+theorem convertArg_auto (sub : Ty → Val → Option Val) (σ : Bindings) (a : Ty)
+    (ha : a.isType = false) : convertArg sub σ (.const (.named "auto")) a = .ok a :=
+  convertArg_placeholder sub σ _ a ha rfl
+
+/-- `const auto&`. -/
+@[simp]
+theorem convertArg_auto_ref (sub : Ty → Val → Option Val) (σ : Bindings) (a : Ty)
+    (ha : a.isType = false) :
+    convertArg sub σ (.const (.lref (.const (.named "auto")))) a = .ok a :=
+  convertArg_placeholder sub σ _ a ha rfl
+
+/-- The oracle is consulted only for a class value of another class
+than the parameter's: two oracles that agree on the argument's value
+give one conversion. -/
+theorem convertArg_congr (sub₁ sub₂ : Ty → Val → Option Val) (σ : Bindings) (k : ParamKind) (a : Ty)
+    (h : ∀ d vs, a = .value (.obj d vs) → ∀ c, sub₁ (.named c) (.obj d vs) = sub₂ (.named c) (.obj d vs)) :
+    convertArg sub₁ σ k a = convertArg sub₂ σ k a := by
+  cases k with
+  | type => rfl
+  | const t =>
+    by_cases ha : a.isType = true
+    · simp [convertArg, ha]
+    · have ha' : a.isType = false := by simpa using ha
+      by_cases hp : (declaredType σ t).hasPlaceholder = true
+      · simp [convertArg, ha', hp]
+      · have hp' : (declaredType σ t).hasPlaceholder = false := by simpa using hp
+        by_cases hd : (declaredType σ t).dependent = true
+        · simp [convertArg, ha', hp', hd]
+        · have hd' : (declaredType σ t).dependent = false := by simpa using hd
+          simp only [convertArg, ha', hp', hd', Bool.false_eq_true, ↓reduceIte]
+          generalize declaredType σ t = t'
+          cases t' <;> cases a
+          all_goals try rfl
+          case named.value n v =>
+            by_cases hn : isInteger n = true
+            · simp [hn]
+            · have hn' : isInteger n = false := by simpa using hn
+              simp only [hn', Bool.false_eq_true, ↓reduceIte]
+              cases v with
+              | obj d vs => simp only [convertClass]; rw [h d vs rfl n]
+              | _ => rfl
+
+/-- The template parameter object is template-argument-equivalent to the
+temporary, and the fragment's equivalence is equality: its value is the
+temporary's, which is what the binding records. -/
+@[std theorem "temp.arg.nontype#4"]
+theorem tpo_value (v : Val) : ∀ P : Val, Val.Equivalent P v → P = v :=
+  fun _ h => h.eq
+
 end Overload

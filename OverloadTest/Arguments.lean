@@ -64,3 +64,54 @@ open Overload
 #guard convertedConstant "int" (.obj "X" .nil) matches .soft _
 #guard convertedConstant "X" (.int 1) matches .soft _
 #guard convertedConstant "long long" (.int (-9223372036854775808)) matches .soft _
+
+-- The base subobject of a class value. `struct B {}; struct D : B {}; struct E : D {};
+-- struct X : D, B {};` (two B subobjects, through D and directly).
+private def hier : Program :=
+  [ .class "B", .class "D" [.named "B"], .class "E" [.named "D"], .class "X" [.named "D", .named "B"] ]
+private def bVal : Val := .obj' "B" []
+private def dVal : Val := .obj' "D" [bVal]
+private def eVal : Val := .obj' "E" [dVal]
+private def xVal : Val := .obj' "X" [dVal, bVal]
+#guard hier.subobject (.named "B") dVal == some bVal
+#guard hier.subobject (.named "B") eVal == some bVal
+#guard hier.subobject (.named "D") eVal == some dVal
+#guard hier.subobject (.named "B") bVal == some bVal
+#guard hier.subobject (.named "B") xVal == none
+#guard hier.subobject (.named "D") xVal == some dVal
+#guard hier.subobject (.named "E") dVal == none
+-- A value that does not spell its base subobject has none to slice.
+#guard hier.subobject (.named "B") (.obj' "D" []) == none
+
+-- The conversion against a parameter of each kind.
+private def sub := hier.subobject
+private def int : Ty := .named "int"
+#guard convertArg sub [] .type int == .ok int
+#guard convertArg sub [] .type (.value (.int 1)) matches .soft _
+#guard convertArg sub [] (.const int) int matches .soft _
+#guard convertArg sub [] (.const int) (.value (.int 1)) == .ok (.value (.int 1))
+#guard convertArg sub [] (.const (.named "signed char")) (.value (.int 1000)) matches .soft _
+#guard convertArg sub [] (.const (.named "bool")) (.value (.int 1)) == .ok (.value (.bool true))
+-- Placeholders take the argument's own type.
+#guard convertArg sub [] (.const (.named "auto")) (.value (.int 1000)) == .ok (.value (.int 1000))
+#guard convertArg sub [] (.const (.lref (.const (.named "auto")))) (.ref (.named "o")) == .ok (.ref (.named "o"))
+#guard convertArg sub [] (.const (.lref (.const (.spec' "auto" [.named "C"])))) (.value dVal) == .ok (.value dVal)
+-- A dependent declared type waits; bound, it converts.
+#guard convertArg sub [] (.const (.param 0)) (.value (.int 1000)) == .ok (.value (.int 1000))
+#guard convertArg sub [(0, .named "signed char")] (.const (.param 0)) (.value (.int 1000)) matches .soft _
+#guard convertArg sub [(0, int)] (.const (.param 0)) (.value (.int 1000)) == .ok (.value (.int 1000))
+-- Top-level const is ignored.
+#guard convertArg sub [] (.const (.const int)) (.value (.int 1)) == .ok (.value (.int 1))
+-- Class values: the same class, a derived class sliced, an unrelated class, an ambiguous base.
+#guard convertArg sub [] (.const (.named "B")) (.value bVal) == .ok (.value bVal)
+#guard convertArg sub [] (.const (.named "B")) (.value dVal) == .ok (.value bVal)
+#guard convertArg sub [] (.const (.named "B")) (.value eVal) == .ok (.value bVal)
+#guard convertArg sub [] (.const (.named "D")) (.value bVal) matches .soft _
+#guard convertArg sub [] (.const (.named "B")) (.value xVal) matches .soft _
+#guard convertArg sub [] (.const (.named "B")) (.value (.int 1)) matches .soft _
+#guard convertArg sub [] (.const int) (.value bVal) matches .soft _
+-- References bind an object and refuse a temporary.
+#guard convertArg sub [] (.const (.lref (.const (.named "B")))) (.ref (.named "o")) == .ok (.ref (.named "o"))
+#guard convertArg sub [] (.const (.lref (.const (.named "B")))) (.value bVal) matches .soft _
+-- Through the program's environment.
+#guard convertArg (Env.ofProgram hier).subobject [] (.const (.named "B")) (.value dVal) == .ok (.value bVal)
