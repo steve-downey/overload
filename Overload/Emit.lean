@@ -129,7 +129,8 @@ def Case.wellFormed (c : Case) : Bool :=
   | .memberCall _ _ _ (.illFormed _) _ => false
   | .memberCall .. => true
   | .dependentCall _ (.illFormed _) => false
-  | .dependentCall .. => true
+  | .dependentCall _ (.selected _) => true
+  | .dependentCall pos _ => !c.program.contains (.refersTo pos)
 
 /-! ## The environment a program defines -/
 
@@ -384,6 +385,11 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
       text := s!"inline constexpr {cls} {n}\{};\n"
     | .dependentCall callee _ _ =>
       text := s!"template <class... A>\nauto dependent_{i}(A&&... a) -> decltype({callee}(static_cast<A&&>(a)...));\n"
+    | .refersTo call =>
+      match p[call]? with
+      | some (.dependentCall _ as _) =>
+        text := s!"using reference_{i} = decltype({callExpr s!"dependent_{call}" [] as});\n"
+      | _ => text := ""
     out := out ++ inScope d.scope text
   return out
 
@@ -561,6 +567,9 @@ def render (c₀ : Case) : String := Id.run do
     match expected with
     | .selected k =>
       out := out ++ s!"static_assert(std::is_same_v<decltype({callExpr dep [] as}), selected<{k}>>);\n"
+      for (d, i) in c.program.zipIdx do
+        if d == .refersTo pos then
+          out := out ++ s!"static_assert(std::is_same_v<reference_{i}, selected<{k}>>);\n"
     | .noMatch | .ambiguous _ =>
       out := out ++ notViable dep [] as
     | .illFormed r =>
@@ -892,6 +901,19 @@ def dependentInstantiationContext : Case :=
     program := [ .class "S" [] [] N, .dependentCall "f" [{ ty := .named "S", lvalue := true }]
                , .function "f" [.named "S"] N ]
     query := .dependentCall 1 (.selected 0)
+    source := "computed by resolve over the dependent call's lookup" }
+
+/-- `N::f(S)` declared before the template, `g<S>` referred to by a
+declaration, and `N::f(int)` declared after it: the specialization has a
+point of instantiation after the referring declaration and another at
+the unit's end, and the call selects `N::f(S)` at both. -/
+def dependentReferencePoint : Case :=
+  { name := "temp_point_1_reference_point"
+    cite := cite "temp.point#1.sentence-2"
+    program := [ .class "S" [] [] N, .function "f" [.named "S"] N
+               , .dependentCall "f" [{ ty := .named "S", lvalue := true }], .refersTo 2
+               , .function "f" [int] N ]
+    query := .dependentCall 2 (.selected 0)
     source := "computed by resolve over the dependent call's lookup" }
 
 /-! ### [temp.deduct.general]/5, the first example
@@ -1682,7 +1704,7 @@ def cases : List Case :=
   , argdepExample, freeFunctionAdmitsAdl, adlThroughBase, adlThroughTemplateArgument
   , noAdlForFundamental, derivedHidesBase, baseMemberFound, ambiguousBases, objectCall
   , objectSuppressesAdl, dependentFindsLater, dependentBoundAtDefinition
-  , dependentInstantiationContext
+  , dependentInstantiationContext, dependentReferencePoint
   , draftDeductGeneral5_both, draftDeductGeneral5_default, draftDeductGeneral5_undeduced
   , draftDeductGeneral5_explicit, draftDeductGeneral5_explicitBoth
   , draftDeductGeneral5_stepOrder, draftDeductGeneral8_immediate, stepOrderHazard

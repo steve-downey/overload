@@ -43,22 +43,39 @@ namespace Overload
 
 /-! ## The lookup of a dependent call -/
 
-/-- The instantiation context of a function template specialization in
-the fragment: the end of its unit, which is a point of instantiation
-for every such specialization. -/
-@[std rule "temp.point#7"]
-def Program.instantiationPoint (p : Program) : Nat := p.length
+/-- The points of instantiation of the specialization that the dependent
+call at `pos` is instantiated for: the point immediately following each
+namespace-scope declaration that refers to it, and the end of the unit,
+which is a point of instantiation for every such specialization as well.
+Each point once. -/
+@[std rule "temp.point#1.sentence-2", std rule "temp.point#7.sentence-1"]
+def Program.instantiationPoints (p : Program) (pos : Nat) : List Nat :=
+  ((p.zipIdx.filterMap fun (d, j) => if d = .refersTo pos then some (j + 1) else none)
+    ++ [p.length]).eraseDups
 
-/-- The lookup of a dependent call's name: the lookup from the definition
-context, which is unqualified lookup and argument-dependent lookup when
-it applies, and argument-dependent lookup from the instantiation context
-as well. -/
+/-- The point of instantiation of the specialization: the first of its
+points. With no declaration referring to it, the unit's end. -/
+def Program.instantiationPoint (p : Program) (pos : Nat) : Nat :=
+  (p.instantiationPoints pos).headD p.length
+
+/-- The lookup of a dependent call's name from its definition context and
+from a point of instantiation: unqualified lookup and argument-dependent
+lookup when it applies from where the call appears, and
+argument-dependent lookup from the point as well. -/
 @[std rule "basic.lookup.argdep#4.sentence-3"]
-def Program.dependentLookup (p : Program) (pos : Nat) (s : Scope) (callee : String)
+def Program.dependentLookupAt (p : Program) (pos point : Nat) (s : Scope) (callee : String)
     (args : List CallArg) : List Decl :=
   let u := unqualifiedLookup p pos s callee
   let d := p.callLookup pos s callee args
-  if adlApplies u then d ++ (p.adl p.instantiationPoint callee args).filter (!d.contains ·) else d
+  if adlApplies u then d ++ (p.adl point callee args).filter (!d.contains ·) else d
+
+/-- The lookup of a dependent call's name: during the instantiation of
+the specialization the instantiation context contains its point of
+instantiation. -/
+@[std rule "module.context#5"]
+def Program.dependentLookup (p : Program) (pos : Nat) (s : Scope) (callee : String)
+    (args : List CallArg) : List Decl :=
+  p.dependentLookupAt pos (p.instantiationPoint pos) s callee args
 
 /-- The candidates of a dependent call: what its lookup found, classified
 as a call's is. The name is looked up from where it appears in the
@@ -98,7 +115,7 @@ def Program.outcomeOver (p : Program) (env : Env) (pos : Nat) (found : List Decl
 /-- The function declarations of every other unit that argument-dependent
 lookup for the call would find there. -/
 def Units.othersAdl (us : Units) (u : Nat) (callee : String) (args : List CallArg) : List Decl :=
-  (us.zipIdx.filter fun (_, v) => v != u).flatMap fun (q, _) => q.adl q.instantiationPoint callee args
+  (us.zipIdx.filter fun (_, v) => v != u).flatMap fun (q, _) => q.adl q.length callee args
 
 /-- The verdict at a dependent call, the `pos`th declaration of unit `u`:
 the call resolves differently over the declarations its two contexts
@@ -129,9 +146,32 @@ def Units.dependentVerdicts (us : Units) : List IllFormedNdr :=
       | .dependentCall callee args s => dependentVerdict us u pos p s callee args
       | _ => none
 
-/-- Every verdict about the program: the three of phase 8 and this one. -/
+/-- The verdict of [temp.point]/7 at a dependent call, the `pos`th
+declaration of unit `u`: the call resolves differently at two of its
+points of instantiation, so two points give the specialization different
+meanings. -/
+@[std rule "temp.point#7.sentence-4"]
+def pointVerdict (u pos : Nat) (p : Program) (s : Scope) (callee : String)
+    (args : List CallArg) : Option IllFormedNdr :=
+  let env := Env.ofProgram p
+  let outcome (point : Nat) :=
+    p.outcomeOver env pos (p.dependentLookupAt pos point s callee args) callee args
+  let first := outcome (p.instantiationPoint pos)
+  if (p.instantiationPoints pos).all (fun point => outcome point == first) then none
+  else some (.laterCandidate u pos callee args)
+
+/-- Every verdict of [temp.point]/7 about the program's dependent calls. -/
+def Units.pointVerdicts (us : Units) : List IllFormedNdr :=
+  us.zipIdx.flatMap fun (p, u) =>
+    p.zipIdx.filterMap fun (d, pos) =>
+      match d with
+      | .dependentCall callee args s => pointVerdict u pos p s callee args
+      | _ => none
+
+/-- Every verdict about the program: the three of phase 8 and the two of
+the dependent calls. -/
 def Units.allVerdicts (us : Units) : List IllFormedNdr :=
-  us.verdicts ++ us.dependentVerdicts
+  us.verdicts ++ us.dependentVerdicts ++ us.pointVerdicts
 
 /-! ## When the verdict cannot arise -/
 
@@ -166,6 +206,44 @@ theorem object_design_no_adl_verdict (us : Units) (u pos : Nat) (p : Program) (s
     exact ⟨d, hd, by simp [hf]⟩
   simp [dependentVerdict, hno]
 
+/-! ## One meaning at every point -/
+
+/-- With no declaration referring to the call's specialization, its one
+point of instantiation is the unit's end, which is how every program
+without a referring declaration has been read. -/
+theorem instantiationPoints_unreferenced (p : Program) (pos : Nat)
+    (h : ∀ d ∈ p, d ≠ .refersTo pos) : p.instantiationPoints pos = [p.length] := by
+  have hnone : p.zipIdx.filterMap
+      (fun (x : Decl × Nat) => if x.1 = .refersTo pos then some (x.2 + 1) else none) = [] := by
+    rw [List.filterMap_eq_nil_iff]
+    intro x hx
+    obtain ⟨d, j⟩ := x
+    have hd : d ∈ p := List.mem_of_getElem? (List.mem_zipIdx_iff_getElem?.1 hx)
+    simp [h d hd]
+  simp only [Program.instantiationPoints, hnone, List.nil_append]
+  rfl
+
+/-- One point, one meaning: a call with no referring declaration gets no
+verdict of [temp.point]/7. -/
+theorem pointVerdict_unreferenced (u pos : Nat) (p : Program) (s : Scope) (callee : String)
+    (args : List CallArg) (h : ∀ d ∈ p, d ≠ .refersTo pos) :
+    pointVerdict u pos p s callee args = none := by
+  simp [pointVerdict, Program.instantiationPoint, instantiationPoints_unreferenced p pos h]
+
+/-- A callee that unqualified lookup binds to anything but a function has
+one meaning at every point of instantiation: argument-dependent lookup
+never applies to it, so no point adds a declaration. The operation
+object's case again. -/
+theorem object_design_one_meaning (u pos : Nat) (p : Program) (s : Scope) (callee : String)
+    (args : List CallArg)
+    (h : ∃ d ∈ unqualifiedLookup p pos s callee, d.declaresFunction = false) :
+    pointVerdict u pos p s callee args = none := by
+  have hno : adlApplies (unqualifiedLookup p pos s callee) = false := by
+    obtain ⟨d, hd, hf⟩ := h
+    simp only [adlApplies, List.all_eq_false]
+    exact ⟨d, hd, by simp [hf]⟩
+  simp [pointVerdict, Program.dependentLookupAt, hno]
+
 /-! ## On programs -/
 
 private def N : Scope := [.namespace "N"]
@@ -198,12 +276,20 @@ void f(E);`, the example of [temp.res.general]/1 with `E` a class rather
 than an enumeration: the dependent call `f(t)` instantiated at `E`. -/
 def resGeneral1Program : Program :=
   [ .function "f" [.named "char"], .dependentCall "f" [{ ty := .named "E" }]
-  , .class "E", .function "f" [.named "E"] ]
+  , .class "E", .function "f" [.named "E"], .refersTo 1 ]
+
+/-- The same declarations with `h`, which refers to `g<E>`, before
+`void f(E);`: `void f(char); template <class T> void g(T t) { f(t); }
+struct E {}; void h() { g(E{}); } void f(E);`. -/
+def referenceBeforeOverload : Program :=
+  [ .function "f" [.named "char"], .dependentCall "f" [{ ty := .named "E" }]
+  , .class "E", .refersTo 1, .function "f" [.named "E"] ]
 
 /-- Instantiated at `E`, the call finds `f(E)` through the instantiation
 context, though only `f(char)` was declared where the template is
 defined, and selects it; instantiated at `char` it selects `f(char)`.
-One unit, so no verdict. -/
+The referring declaration is the last, so the specialization has one
+point of instantiation, the unit's end. One unit, so no verdict. -/
 @[std example "temp.res.general#1"]
 theorem temp_res_general_1_example :
     resGeneral1Program.dependentCandidates 1 [] "f" [{ ty := .named "E" }] =
@@ -212,7 +298,23 @@ theorem temp_res_general_1_example :
           [{ ty := .named "E" }]).map (·.index) = .selected 1 ∧
       (resGeneral1Program.dependentCallAt (Env.ofProgram resGeneral1Program) 1 [] "f"
           [{ ty := .named "char" }]).map (·.index) = .selected 0 ∧
-      Units.dependentVerdicts [resGeneral1Program] = [] := by
-  refine ⟨by decide, by decide, by decide, dependentVerdicts_single _⟩
+      resGeneral1Program.instantiationPoints 1 = [5] ∧
+      Units.allVerdicts [resGeneral1Program] = [] := by
+  refine ⟨by decide, by decide, by decide, by decide, by decide⟩
+
+/-- Referenced before `f(E)` is declared, the specialization has two
+points of instantiation, after `h` and at the unit's end, and the call
+means different things at them: at the first only `f(char)` is found,
+which is not viable for an `E`, and at the end `f(E)` is selected. Two
+points with different meanings is the verdict of [temp.point]/7. -/
+theorem later_function_verdict :
+    referenceBeforeOverload.instantiationPoints 1 = [4, 5] ∧
+      (referenceBeforeOverload.dependentCallAt (Env.ofProgram referenceBeforeOverload) 1 [] "f"
+          [{ ty := .named "E" }]).map (·.index) = .noMatch ∧
+      referenceBeforeOverload.outcomeOver (Env.ofProgram referenceBeforeOverload) 1
+          (referenceBeforeOverload.dependentLookupAt 1 5 [] "f" [{ ty := .named "E" }]) "f"
+          [{ ty := .named "E" }] = .selected (.function "f" [.named "E"]) ∧
+      Units.allVerdicts [referenceBeforeOverload] = [.laterCandidate 0 1 "f" [{ ty := .named "E" }]] := by
+  refine ⟨by decide, by decide, by decide, by decide⟩
 
 end Overload

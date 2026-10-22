@@ -157,6 +157,25 @@ and described here as they arrive.
 
 ## About the model
 
+- **A dependent call's meaning is fixed at its first point of
+  instantiation** (22 October 2026). [temp.point]/1 puts the point of
+  instantiation of a function template specialization after the
+  namespace-scope declaration that refers to it, and /7 adds the end of
+  the unit; two points with different meanings are ill-formed, no
+  diagnostic required. Until now the model read every dependent call
+  through the end-of-unit point alone. With the referring declaration in
+  the program (`Decl.refersTo`) the draft's own [temp.res.general]/1
+  program, read with `h` before `void f(E);`, is the verdict: at the
+  point after `h` only `f(char)` is found and the call is not viable, at
+  the end `f(E)` is selected (`later_function_verdict`). The model
+  resolves the call from the first point, and so do GCC and Clang: the
+  emitted referring declaration is an alias of the call's type, which
+  the compilers substitute where it stands, so a later overload never
+  changes it and a call with no match there is a hard error, one of the
+  meanings the verdict allows. For a program with no referring
+  declaration the first point is the unit's end, so nothing emitted
+  before moves (`pointVerdict_unreferenced`).
+
 - **Narrowing of a constant is representability** (21 October 2026).
   [dcl.init.list]/7 makes an integral conversion narrowing when the
   target type cannot represent every value of the source type, except

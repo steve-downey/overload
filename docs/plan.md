@@ -445,12 +445,16 @@ Status, 15 October 2026:
   linkage condition of [basic.link]/8, and the one-definition rule's
   verdict at a lookup is `IllFormedNdr.odrMismatch`
   (`Units.odrVerdicts`), which `odr_verdict_implies_verdict` shows never
-  comes first. The one in-scope paragraph of the phase without a
-  counterpart is [temp.point]/1, the point of instantiation after the
-  declaration that refers to a specialization, which the fragment reads
-  through the end-of-unit point of /7 (`citations.md`). The emitted
-  cases of the phase number twenty-two and every one agrees with GCC 15
-  and Clang 24; `make drift-check-current` reports one cited paragraph
+  comes first. The one paragraph of the phase left without a
+  counterpart, [temp.point]/1, got one on 22 October 2026
+  ([instantiation-points](#phase-9-declarations-and-where-to-find-them)):
+  a declaration that refers to a specialization, `Decl.refersTo`, puts
+  a point of instantiation after itself, the unit's end is another, and
+  a call that means different things at two points is the sixth verdict
+  (`laterCandidate`, `later_function_verdict`); a callee bound to an
+  object has one meaning at every point (`object_design_one_meaning`).
+  The emitted cases of the phase number twenty-three and every one
+  agrees with GCC 15 and Clang 24; `make drift-check-current` reports one cited paragraph
   that differs on the draft's main, an editorial change
   (`decisions.md#draft-pin`).
 - Phase 10 is closed, 21 October 2026, on its exit criterion: every
@@ -471,11 +475,11 @@ Status, 15 October 2026:
   consequence beyond the plan: the library's derivation bases keep a
   protected base, so their instance types are not structural and the
   value route cannot take them at all (`value_route_needs_structural`).
-  [temp.point]/1 is the one in-scope paragraph without a counterpart.
+  Every in-scope paragraph has a counterpart, since 22 October 2026.
 
 ## Target theorems
 
-Twenty-seven theorems carry the results. A theorem that fails is recorded with
+Twenty-eight theorems carry the results. A theorem that fails is recorded with
 its counterexample and is a finding, not a setback.
 
 | Theorem | Statement | Phase |
@@ -507,6 +511,7 @@ its counterexample and is a finding, not a setback.
 | conversion-shields-call | A conversion failure of an explicit or default template argument is soft and precedes every later step's hard error. Added 21 October 2026. | 10 |
 | slicing-identifies | For a base-typed class value parameter, a derived value and the base's own value determine the same specialization. Added 21 October 2026. | 10 |
 | reference-keeps-identity | For a reference parameter, the parameter denotes the argument's object, so a derived instance is never identified with its base. Added 21 October 2026. | 10 |
+| instantiation-points | A dependent call referenced before a later overload of its name means different things at its two points of instantiation, which is ill-formed, no diagnostic required; a callee bound to an object has one meaning at every point. Added 22 October 2026. | 9 |
 
 Stability is the theorem that says open polymorphism has no surprises. Its
 hypotheses are expected to include soft failure of a missing instance and
@@ -863,8 +868,8 @@ the pin that changed the paragraph's substance.
 | [class.member.lookup]/3 to /6 | The declaration set of a name in a class is a single search in its scope; if non-empty, done; otherwise the lookup sets of the direct bases are merged, with the hiding and ambiguity rules; an invalid set is ill-formed. | CWG2582, CWG2642. | `lookupSet`, `memberSearch`. |
 | [temp.dep.general]/2 | A dependent call is an unqualified-id called with a type-dependent argument; its name is looked up at the point of instantiation in both the definition and the instantiation contexts. | None. | `Decl.dependentCall`. |
 | [temp.res.general]/1 | A name in a template is looked up from where it appears. | Editorial. | The definition context. |
-| [temp.point]/1, /7 | The point of instantiation of a function template specialization follows the namespace-scope declaration that refers to it; the end of the unit is another. | As above. | The instantiation context. |
-| [module.context]/5, /7 | During instantiation the instantiation context holds the point of instantiation; otherwise a point's context is itself. | None. | With the above. |
+| [temp.point]/1, /7 | The point of instantiation of a function template specialization follows the namespace-scope declaration that refers to it; the end of the unit is another; two points with different meanings are ill-formed, no diagnostic required. | As above. | `Decl.refersTo`, `Program.instantiationPoints`, and the verdict `laterCandidate` (`pointVerdict`). |
+| [module.context]/5, /7 | During instantiation the instantiation context holds the point of instantiation; otherwise a point's context is itself. | None. | `Program.dependentLookup`, the lookup from the first point. |
 | [temp.dep.candidate]/1 | A dependent call that would be ill-formed, or find a better match, had the lookup considered every external-linkage function declaration in the associated namespaces of every unit, is ill-formed, no diagnostic required. | None. | `IllFormedNdr.betterMatchElsewhere`. |
 | [temp.spec.partial.general]/7 | When the primary template name is used, any reachable partial specializations are also considered. | None. | Cite on `Units.reachable`. |
 | [basic.link]/3, /4, /8 | A non-template const variable has internal linkage unless inline; a variable, function or template at namespace scope otherwise has external linkage; two declarations declare the same entity if they correspond, have the same target scope, and both have external linkage. | P2788R0, CWG2872. | `linkage`, `sameEntity`. |
@@ -943,6 +948,23 @@ declaration, the program still a flat list, lookup a layer in front of
 9. [lookup-docs](#phase-9-declarations-and-where-to-find-them): the
    guide, the obligations table, findings, this status, the drift check
    against the draft's main. Done 20 October 2026.
+10. [instantiation-points](#phase-9-declarations-and-where-to-find-them):
+    [temp.point]/1, the paragraph stage 6 left to the end-of-unit point.
+    `Decl.refersTo` is a namespace-scope declaration that refers to a
+    dependent call's specialization; `Program.instantiationPoints` is
+    the point after each such declaration and the unit's end, each
+    once, and the call's lookup runs from the first ([module.context]/5).
+    A call that resolves differently at two of its points is the sixth
+    verdict, `IllFormedNdr.laterCandidate` ([temp.point]/7, sentence 4).
+    Theorems `later_function_verdict` (the draft's [temp.res.general]/1
+    program with `h` moved before `void f(E);`: not viable at the first
+    point, `f(E)` at the end), `pointVerdict_unreferenced` (no referring
+    declaration, one point, so every earlier program reads as before)
+    and `object_design_one_meaning`. The emitter renders a referring
+    declaration as an alias of the call's type, and asserts the same
+    selection at it and at the unit's end; GCC and Clang fix the meaning
+    at the first point, as the model does (`findings.md`). Done 22
+    October 2026.
 
 Known hazards for the implementation: an omitted trailing default field
 in a Lean pattern elaborates to the default value, not a wildcard, so

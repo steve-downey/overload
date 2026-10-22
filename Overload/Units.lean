@@ -79,6 +79,12 @@ inductive IllFormedNdr where
   in its associated namespaces in every unit, not only those of its
   definition and instantiation contexts (`Overload/DependentCandidate.lean`). -/
   | dependentCandidate (unit pos : Nat) (callee : String) (args : List CallArg)
+  /-- A dependent call resolves differently at two of its points of
+  instantiation, the point after a declaration that refers to the
+  specialization and a later one: a function declared between them would
+  be selected at the later point, which gives the specialization a
+  different meaning (`Overload/DependentCandidate.lean`). -/
+  | laterCandidate (unit pos : Nat) (callee : String) (args : List CallArg)
   /-- A variable template specialization instantiated in two units that
   define it differently: its initializer selects different partial
   specializations in the two, so the definitions of one definable item
@@ -90,6 +96,7 @@ attribute [std rule "temp.point#7"] IllFormedNdr.laterInUnit
 attribute [std rule "temp.spec.partial.general#1.sentence-3"] IllFormedNdr.notReachable
 attribute [std rule "temp.constr.atomic#3.sentence-5"] IllFormedNdr.satisfactionChanged
 attribute [std rule "temp.dep.candidate#1"] IllFormedNdr.dependentCandidate
+attribute [std rule "temp.point#7.sentence-4"] IllFormedNdr.laterCandidate
 attribute [std rule "basic.def.odr#16"] IllFormedNdr.odrMismatch
 
 /-- The verdict at one use, the `pos`th declaration of unit `u`. -/
@@ -266,7 +273,8 @@ def completeAt (insts : List (Head × Ty)) (registry : String) (a : Ty) : Bool :
 argument. -/
 def IllFormedNdr.site : IllFormedNdr → Nat × Nat × String × Ty
   | .laterInUnit u pos tc a | .notReachable u pos tc a | .satisfactionChanged u pos tc a => (u, pos, tc, a)
-  | .dependentCandidate u pos callee args => (u, pos, callee, Ty.args (args.map (·.ty)))
+  | .dependentCandidate u pos callee args | .laterCandidate u pos callee args =>
+    (u, pos, callee, Ty.args (args.map (·.ty)))
   | .odrMismatch u v tc a => (u, v, tc, a)
 
 /-- The rule a verdict at a registry's use falls under. Where the test's

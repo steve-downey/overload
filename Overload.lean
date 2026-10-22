@@ -216,6 +216,8 @@ is the map.
 #audit Overload.odr_mismatch_example
 #audit Overload.dependentVerdicts_single
 #audit Overload.object_design_no_adl_verdict
+#audit Overload.object_design_one_meaning
+#audit Overload.later_function_verdict
 #audit Overload.late_adl_overload_verdict
 #audit Overload.temp_res_general_1_example
 
