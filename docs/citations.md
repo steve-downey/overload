@@ -81,6 +81,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[dcl.init.general]/13](https://eel.is/c++draft/dcl.init.general#13) | rule | `Overload.Program.ranking` | `Overload.Ranking` |
 | [[dcl.init.general]/14](https://eel.is/c++draft/dcl.init.general#14) | rule | `Overload.Init.direct` | `Overload.Program` |
 | [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15) | rule | `Overload.IcsForms.userDefined` | `Overload.Ranking` |
+| [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15) | rule | `Overload.Program.candidateInitializer` | `Overload.Ranking` |
 | [[dcl.init.list]/7](https://eel.is/c++draft/dcl.init.list#7) | rule | `Overload.Narrowing.integer` | `Overload.Arguments` |
 | [[dcl.init.ref]/4 sentence 2](https://eel.is/c++draft/dcl.init.ref#4.sentence-2) | rule | `Overload.Program.referenceCompatible` | `Overload.Ranking` |
 | [[dcl.ref]/1 sentence 3](https://eel.is/c++draft/dcl.ref#1.sentence-3) | rule | `Overload.formConst` | `Overload.Steps` |
@@ -131,6 +132,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.bestViable` | `Overload.Resolution` |
 | [[over.match.call.general]/1](https://eel.is/c++draft/over.match.call.general#1) | rule | `Overload.Program.candidatesOf` | `Overload.Members` |
 | [[over.match.conv]/1](https://eel.is/c++draft/over.match.conv#1) | rule | `Overload.Program.userConversions` | `Overload.Ranking` |
+| [[over.match.copy]/1](https://eel.is/c++draft/over.match.copy#1) | theorem | `Overload.explicit_never_implicit` | `Overload.Ranking` |
 | [[over.match.funcs.general]/5](https://eel.is/c++draft/over.match.funcs.general#5) | rule | `Overload.Program.userSequence` | `Overload.Ranking` |
 | [[over.match.funcs.general]/8 sentence 1](https://eel.is/c++draft/over.match.funcs.general#8.sentence-1) | rule | `Overload.Resolves.generationSoft` | `Overload.Specs` |
 | [[over.match.funcs.general]/8 sentence 1](https://eel.is/c++draft/over.match.funcs.general#8.sentence-1) | rule | `Overload.generate` | `Overload.Resolution` |
@@ -170,6 +172,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.deduct.call]/3 sentence 1](https://eel.is/c++draft/temp.deduct.call#3.sentence-1) | rule | `Overload.adjustP` | `Overload.Deduction` |
 | [[temp.deduct.call]/3 sentence 3](https://eel.is/c++draft/temp.deduct.call#3.sentence-3) | rule | `Overload.isForwardingRef` | `Overload.Deduction` |
 | [[temp.deduct.call]/4](https://eel.is/c++draft/temp.deduct.call#4) | rule | `Overload.deduceFromBase` | `Overload.Deduction` |
+| [[temp.deduct.call]/4](https://eel.is/c++draft/temp.deduct.call#4) | theorem | `Overload.deduction_ignores_conversion` | `Overload.Steps` |
 | [[temp.deduct.call]/5 sentence 1](https://eel.is/c++draft/temp.deduct.call#5.sentence-1) | rule | `Overload.deduceParam` | `Overload.Deduction` |
 | [[temp.deduct.general]/2 sentence 2](https://eel.is/c++draft/temp.deduct.general#2.sentence-2) | rule | `Overload.explicitStep` | `Overload.Steps` |
 | [[temp.deduct.general]/5 sentence 1](https://eel.is/c++draft/temp.deduct.general#5.sentence-1) | rule | `Overload.callStep` | `Overload.Steps` |
@@ -249,6 +252,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.spec.partial.match]/2 sentence 1](https://eel.is/c++draft/temp.spec.partial.match#2.sentence-1) | rule | `Overload.PartialOrdering.patternMatches` | `Overload.Ordering` |
 | [[temp.spec.partial.order]/1 sentence 1](https://eel.is/c++draft/temp.spec.partial.order#1.sentence-1) | rule | `Overload.PartialOrdering.rewrite` | `Overload.Ordering` |
 | [[temp.type]/1](https://eel.is/c++draft/temp.type#1) | rule | `Overload.sameSpecialization` | `Overload.Identity` |
+| [[temp.type]/1](https://eel.is/c++draft/temp.type#1) | theorem | `Overload.conversion_identifies` | `Overload.Identity` |
 | [[temp.type]/1](https://eel.is/c++draft/temp.type#1) | theorem | `Overload.explicitStep_converted` | `Overload.Steps` |
 | [[temp.type]/1](https://eel.is/c++draft/temp.type#1) | theorem | `Overload.slicing_identifies` | `Overload.Identity` |
 | [[temp.type]/2](https://eel.is/c++draft/temp.type#2) | rule | `Overload.Val.Equivalent.bool` | `Overload.Syntax` |
@@ -266,7 +270,6 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 - [[over.best.ics.general]/6](https://eel.is/c++draft/over.best.ics.general#6)
 - [[over.best.ics.general]/9](https://eel.is/c++draft/over.best.ics.general#9)
 - [[over.ics.user]/1](https://eel.is/c++draft/over.ics.user#1)
-- [[over.match.copy]/1](https://eel.is/c++draft/over.match.copy#1)
 - [[over.match.ctor]/1](https://eel.is/c++draft/over.match.ctor#1)
 - [[dcl.init.ref]/5](https://eel.is/c++draft/dcl.init.ref#5)
 

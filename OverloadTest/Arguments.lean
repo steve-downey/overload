@@ -114,7 +114,7 @@ private def int : Ty := .named "int"
 #guard convertArg sub [] (.const (.lref (.const (.named "B")))) (.ref (.named "o")) == .ok (.ref (.named "o"))
 #guard convertArg sub [] (.const (.lref (.const (.named "B")))) (.value bVal) matches .soft _
 -- Through the program's environment.
-#guard convertArg (Env.ofProgram hier).subobject [] (.const (.named "B")) (.value dVal) == .ok (.value bVal)
+#guard convertArg (Env.ofProgram hier).initializer [] (.const (.named "B")) (.value dVal) == .ok (.value bVal)
 
 -- Structural types: every base public and structural.
 private def structuralProgram : Program :=
@@ -141,3 +141,26 @@ private def structuralProgram : Program :=
   explicitStep (Env.ofProgram hier) [{ kind := .const (.named "B") }] [.value bVal]
 #guard explicitStep (Env.ofProgram hier) [{ kind := .const (.lref (.const (.named "B"))) }] [.ref (.named "d")] !=
   explicitStep (Env.ofProgram hier) [{ kind := .const (.lref (.const (.named "B"))) }] [.ref (.named "b")]
+
+-- The candidate initializer: the value itself, the base subobject, the
+-- class's one value through a converting constructor, none through an
+-- explicit one or an ambiguous initialization.
+private def convProgram : Program :=
+  hier ++ [ .class "S", .class "T" [.named "B"]
+          , .converting (.named "T") (.constructor (.lref (.const (.named "S"))))
+          , .converting (.named "X") (.constructor (.lref (.const (.named "S"))) true)
+          , .converting (.named "E") (.constructor (.lref (.const (.named "S"))))
+          , .converting (.named "S") (.function (.named "E")) ]
+#guard convProgram.candidateInitializer (.named "B") dVal == some bVal
+#guard convProgram.candidateInitializer (.named "D") dVal == some dVal
+#guard convProgram.candidateInitializer (.named "B") xVal == none
+#guard convProgram.uniqueValue (.named "T") == .obj' "T" [bVal]
+#guard convProgram.candidateInitializer (.named "T") (.obj' "S" []) == some (.obj' "T" [bVal])
+#guard convProgram.candidateInitializer (.named "X") (.obj' "S" []) == none
+#guard convProgram.candidateInitializer (.named "E") (.obj' "S" []) == none
+#guard convProgram.candidateInitializer (.named "T") (.int 1) == none
+-- Through the program's environment, and the conversion of the argument.
+#guard (Env.ofProgram convProgram).initializer (.named "T") (.obj' "S" []) == some (.obj' "T" [bVal])
+#guard convertArg (Env.ofProgram convProgram).initializer [] (.const (.named "T")) (.value (.obj' "S" [])) ==
+  .ok (.value (.obj' "T" [bVal]))
+#guard convertArg (Env.ofProgram convProgram).initializer [] (.const (.named "X")) (.value (.obj' "S" [])) matches .soft _

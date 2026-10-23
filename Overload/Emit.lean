@@ -343,18 +343,32 @@ def functionText (d : Decl) (r : String) (cv : String := "") : String :=
     s!"{head ft.head}{req}\n{declarator ft r (params ft.params ft.defaultArgs) cv}{body ft r}\n"
   | _ => ""
 
+/-- Is the class a type names, if any, defined before position `i` of
+the program? A reference to it needs only a declaration, which every
+class has up front. -/
+def completeBefore (p : Program) (i : Nat) : Ty → Bool
+  | .named n => (p.take i).any fun | .class m .. => m == n | _ => false
+  | .const t => completeBefore p i t
+  | .lref _ | .rref _ | .ptr _ => true
+  | _ => true
+
 /-- The user-defined conversions of a class, as member declarations in its
-body, declared and not defined: the cases call in unevaluated contexts,
-and a declaration lets the parameter or target be a class defined later.
-A class with a converting constructor keeps a defaulted default
-constructor, so that an object of it can still be declared. -/
-def conversionsText (n : String) (convs : List UserConv) : String :=
+body. A converting constructor is defined, with an empty body, so that it
+serves a constant template argument; a conversion function is defined
+when its target is complete and declared otherwise, since the cases call
+in unevaluated contexts where a declaration serves. A class with a
+converting constructor keeps a defaulted default constructor, so that an
+object of it can still be declared. -/
+def conversionsText (p : Program) (i : Nat) (n : String) (convs : List UserConv) : String :=
   let keyword (e : Bool) := if e then "explicit " else ""
   let dflt := if convs.any (· matches .constructor ..) then s!"    constexpr {n}() = default;\n" else ""
   dflt ++ String.join (convs.map fun
-    | .constructor param e => s!"    {keyword e}constexpr {n}({ty param});\n"
+    | .constructor param e =>
+      if completeBefore p i param then s!"    {keyword e}constexpr {n}({ty param}) \{}\n"
+      else s!"    {keyword e}constexpr {n}({ty param});\n"
     | .function t e c =>
-      s!"    {keyword e}constexpr operator {ty t}(){if c then " const" else ""};\n")
+      let body := if completeBefore p i t then " { return {}; }" else ";"
+      s!"    {keyword e}constexpr operator {ty t}(){if c then " const" else ""}{body}\n")
 
 /-- The declarations of a program, as C++, each in its namespaces, with
 the members of a class in its body. -/
@@ -387,7 +401,7 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
       else
         let body := String.join (members.map fun (m, j) =>
           "    " ++ (functionText m (rs.getD j "void") " const").replace "\n    " "\n        ")
-        text := s!"struct {n}{inherit} \{\n{body}{conversionsText n convs}};\n"
+        text := s!"struct {n}{inherit} \{\n{body}{conversionsText p i n convs}};\n"
     | .classTemplate n h _ => text := s!"{head h}\nstruct {n} \{};\n"
     | .function .. | .functionTemplate _ => text := functionText d (rs.getD i "void")
     | .lookup c =>
@@ -1848,6 +1862,37 @@ def ambiguousSequenceSelected : Case :=
     query := .call "f" [{ ty := .named "B", lvalue := true }] (.illFormed "the conversion of an argument is ambiguous")
     source := "computed by Program.call" }
 
+/-- `struct S {}; struct T { constexpr T(const S&); }; template <T> void
+f(); f<S{}>()`: the candidate initializer `constexpr T v = S{};` goes
+through the converting constructor, and the parameter's value is the
+object it makes. -/
+def constructedValue : Case :=
+  { name := "constructed_value"
+    cite := cite "temp.arg.nontype#3"
+    program := ctorProgram ++ [.functionTemplate (constTemplate cT)]
+    query := .deduction "f" [] (some [(0, .value (.obj' "T" []))]) (explicit := [.value (.obj' "S" [])])
+    source := "computed by deduceTemplate" }
+
+/-- The same with the constructor explicit: the candidate initializer is
+a copy-initialization, so the constructor is no candidate and the
+template-id is invalid. -/
+def explicitConstructedValue : Case :=
+  { name := "explicit_constructed_value"
+    cite := cite "over.match.copy#1"
+    program := [ .class "S", .class "T", .converting cT (.constructor (.lref (.const cS)) true)
+               , .functionTemplate (constTemplate cT) ]
+    query := .deduction "f" [] none (explicit := [.value (.obj' "S" [])])
+    source := "computed by deduceTemplate" }
+
+/-- `struct T {}; struct S { constexpr operator T() const; }; template <T>
+void f(); f<S{}>()`: through a conversion function. -/
+def convertedValue : Case :=
+  { name := "converted_value"
+    cite := cite "temp.arg.nontype#3"
+    program := [.class "T", .class "S", .converting cS (.function cT), .functionTemplate (constTemplate cT)]
+    query := .deduction "f" [] (some [(0, .value (.obj' "T" []))]) (explicit := [.value (.obj' "S" [])])
+    source := "computed by deduceTemplate" }
+
 /-- Every case of the Standard side. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -1876,7 +1921,7 @@ def cases : List Case :=
   , userConversionSelected, userConversionLosesRank, conversionFunctionSelected
   , convertedTemporaryBinds, convertedTemporaryRefused, explicitConstructorNotCandidate
   , secondSequenceDecides, conversionChainStops, draftBestIcsAmbiguous, draftBestIcsResolved
-  , ambiguousSequenceSelected ]
+  , ambiguousSequenceSelected, constructedValue, explicitConstructedValue, convertedValue ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=

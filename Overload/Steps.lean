@@ -55,10 +55,13 @@ structure Env where
   /-- The base classes of a class type, direct and indirect, for deduction
   from a derived class. -/
   bases : Bases := noBases
-  /-- The base class subobject of a class value, for a derived value
-  supplied to a base-typed constant template parameter
-  ([temp.arg.nontype]/3). -/
-  subobject : Ty → Val → Option Val := fun _ _ => none
+  /-- The value of the candidate initializer `constexpr T v = A;` for a
+  class value `A` supplied to a constant template parameter of a class
+  type `T` other than `A`'s own: the `T` base subobject of a derived
+  value, or the object a converting constructor or conversion function
+  makes ([temp.arg.nontype]/3). `Env.ofProgram` computes it as
+  `Program.candidateInitializer`. -/
+  initializer : Ty → Val → Option Val := fun _ _ => none
 
 /-- What deduction produces: the template's arguments and its substituted
 function type. -/
@@ -166,7 +169,7 @@ where
       match head[i]? with
       | some p =>
         if kindMatches p.kind a then
-          match convertArg env.subobject σ p.kind a with
+          match convertArg env.initializer σ p.kind a with
           | .ok a' => go (i + 1) as ((i, a') :: σ)
           | .soft r => .soft r
           | .hard r => .hard r
@@ -183,6 +186,17 @@ def callStep (env : Env) (params : List Ty) (args : List CallArg) (σ : Bindings
   match deduceCall env.bases (params.map (Ty.subst σ)) args σ with
   | some σ' => .ok σ'
   | none => .soft "template argument deduction failed"
+
+/-- Deduction from the arguments of a call never consults an implicit
+conversion: the three differences it allows between the deduced and the
+actual argument type are cv-qualification under a reference, pointer
+conversions and a derived class, so changing which conversions exist,
+user-defined ones among them, changes no deduced binding. Conversions
+enter later, at the check of the non-dependent parameters. -/
+@[std theorem "temp.deduct.call#4"]
+theorem deduction_ignores_conversion (env : Env) (convertible : CallArg → Ty → Subst Bool)
+    (params : List Ty) (args : List CallArg) (σ : Bindings) :
+    callStep { env with convertible } params args σ = callStep env params args σ := rfl
 
 /-- A template argument neither deduced nor specified takes its parameter's
 default argument, substituted with the arguments determined for the
@@ -208,7 +222,7 @@ where
           let a ← form env (d.subst σ)
           let a ← match p.kind with
             | .type => pure a
-            | .const _ => convertArg env.subobject σ p.kind a
+            | .const _ => convertArg env.initializer σ p.kind a
           go (i + 1) ps ((i, a) :: σ)
         | none => .soft s!"template parameter {i} is neither deduced nor explicitly specified"
 
@@ -447,7 +461,7 @@ theorem explicitStep_not_hard (env : Env) (head : Head) (explicit : List Ty) (r 
     | some p =>
       dsimp only
       split
-      · cases hc : convertArg env.subobject σ p.kind a with
+      · cases hc : convertArg env.initializer σ p.kind a with
         | ok a' => exact ih _ _
         | soft _ => simp
         | hard r' => exact absurd hc (convertArg_not_hard _ _ _ _ r')
@@ -470,7 +484,7 @@ values the arguments determine, not by the arguments. -/
 @[std theorem "temp.type#1"]
 theorem explicitStep_converted (env : Env) (p : TemplateParam) (ps : Head) (a b : Ty)
     (rest : List Ty) (hk : kindMatches p.kind a = kindMatches p.kind b)
-    (hc : convertArg env.subobject [] p.kind a = convertArg env.subobject [] p.kind b) :
+    (hc : convertArg env.initializer [] p.kind a = convertArg env.initializer [] p.kind b) :
     explicitStep env (p :: ps) (a :: rest) = explicitStep env (p :: ps) (b :: rest) := by
   simp only [explicitStep, explicitStep.go, List.getElem?_cons_zero, hk, hc]
 

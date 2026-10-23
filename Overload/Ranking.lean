@@ -620,6 +620,104 @@ theorem ics_free (p : Program) (h : p.conversionFree = true) (init : Init) (a : 
       Program.bestSequence, Option.map_none]
     split <;> rfl
 
+/-- An explicit constructor or conversion function is no candidate for
+copy-initialization, so no implicit conversion sequence, which models
+the copy-initialization of a parameter from an argument, goes through
+one. -/
+@[std theorem "over.match.copy#1"]
+theorem explicit_never_implicit (p : Program) (a : CallArg) (t : Ty) (f s : StdConv)
+    (c : Ty) (conv : UserConv) (h : p.ics .copy a t = some (.userDefined f (c, conv) s)) :
+    conv.explicit = false := by
+  have h' := (ics_iff p .copy a t _).mp h
+  cases h' with
+  | userDefined _ _ hu _ =>
+    simp only [Program.userSequences, List.mem_filterMap] at hu
+    obtain ⟨⟨c', conv'⟩, hc, hs⟩ := hu
+    have hconv : conv' = conv := by
+      cases conv' with
+      | constructor param e =>
+        simp only [Program.userSequence] at hs
+        cases h₁ : p.standardIcs a param with
+        | none => simp [h₁] at hs
+        | some first =>
+          cases h₂ : p.standardIcs { ty := c' } t with
+          | none => simp [h₁, h₂] at hs
+          | some second =>
+            simp [h₁, h₂] at hs
+            exact hs.2.1.2
+      | function tgt e cst =>
+        simp only [Program.userSequence] at hs
+        cases h₁ : p.standardIcs { a with lvalue := true } (.lref (if cst then .const c' else c')) with
+        | none => simp [h₁] at hs
+        | some first =>
+          cases h₂ : p.standardIcs { ty := tgt } t with
+          | none => simp [h₁, h₂] at hs
+          | some second =>
+            simp [h₁, h₂] at hs
+            exact hs.2.1.2
+    have hcand : conv'.candidate .copy = true := by
+      simp only [Program.userConversions, List.mem_append, List.mem_filterMap] at hc
+      rcases hc with ⟨x, _, hx⟩ | ⟨x, _, hx⟩ <;> split at hx <;> simp at hx <;>
+        (obtain ⟨_, _, rfl⟩ := hx; simp_all)
+    rw [← hconv]
+    simpa [UserConv.candidate] using hcand
+
+/-! ## The candidate initializer of a class-typed constant parameter -/
+
+namespace Program
+
+/-- The one value of a class in the fragment, within `fuel` steps of
+derivation: a class value lists its base subobjects and nothing else,
+so every object of a class is template-argument-equivalent to this one,
+whichever constructor made it. -/
+def uniqueValueWithin (p : Program) : Nat → Ty → Val
+  | 0, .named n => .obj' n []
+  | fuel + 1, .named n => .obj' n ((p.directBases (.named n)).map (p.uniqueValueWithin fuel))
+  | _, _ => .obj' "" []
+
+/-- The one value of a class in the fragment. -/
+def uniqueValue (p : Program) (t : Ty) : Val := p.uniqueValueWithin p.length t
+
+/-- The value of the candidate initializer `v` of `constexpr T v = A;`
+for a class value `A`: the value itself for its own class and its `T`
+base subobject for a derived class, when the standard sequence forms;
+the object a converting constructor or conversion function makes when
+the copy-initialization goes through a user-defined conversion
+sequence, which in the fragment is the class's one value; and none when
+no sequence forms or the sequence is ambiguous, which makes the
+template-id invalid. -/
+@[std rule "temp.arg.nontype#3", std rule "dcl.init.general#15"]
+def candidateInitializer (p : Program) (t : Ty) : Val → Option Val
+  | .obj d subs =>
+    match p.ics .copy { ty := .named d } t with
+    | some (.standard _) => p.subobject t (.obj d subs)
+    | some (.userDefined ..) => some (p.uniqueValue t)
+    | _ => none
+  | _ => none
+
+end Program
+
+/-- Through a user-defined conversion sequence the candidate initializer
+is the class's one value, whatever the source. -/
+theorem candidateInitializer_user (p : Program) (t : Ty) (d : String) (subs : Val)
+    (f s : StdConv) (v : Ty × UserConv)
+    (h : p.ics .copy { ty := .named d } t = some (.userDefined f v s)) :
+    p.candidateInitializer t (.obj d subs) = some (p.uniqueValue t) := by
+  simp [Program.candidateInitializer, h]
+
+/-- In a program without user-defined conversions the candidate
+initializer is the base subobject, when the derived-to-base conversion
+exists. -/
+theorem candidateInitializer_free (p : Program) (h : p.conversionFree = true) (c d : String)
+    (subs : Val) :
+    p.candidateInitializer (.named c) (.obj d subs) =
+      match p.baseConv (.named d) (.named c) with
+      | some _ => p.subobject (.named c) (.obj d subs)
+      | none => none := by
+  simp only [Program.candidateInitializer, ics_free p h, Program.standardIcs, Ty.referred,
+    Ty.stripConst]
+  cases p.baseConv (.named d) (.named c) <;> rfl
+
 /-! ## Ranking implicit conversion sequences -/
 
 namespace Program
