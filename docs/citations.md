@@ -234,7 +234,28 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 
 ## In scope, no counterpart yet
 
-Every in-scope paragraph has a counterpart in the model.
+- [[over.best.ics.general]/1](https://eel.is/c++draft/over.best.ics.general#1)
+- [[over.best.ics.general]/3](https://eel.is/c++draft/over.best.ics.general#3)
+- [[over.best.ics.general]/4](https://eel.is/c++draft/over.best.ics.general#4)
+- [[over.best.ics.general]/6](https://eel.is/c++draft/over.best.ics.general#6)
+- [[over.best.ics.general]/9](https://eel.is/c++draft/over.best.ics.general#9)
+- [[over.best.ics.general]/12](https://eel.is/c++draft/over.best.ics.general#12)
+- [[over.ics.user]/1](https://eel.is/c++draft/over.ics.user#1)
+- [[over.ics.user]/2](https://eel.is/c++draft/over.ics.user#2)
+- [[over.ics.user]/4](https://eel.is/c++draft/over.ics.user#4)
+- [[over.ics.rank]/2](https://eel.is/c++draft/over.ics.rank#2)
+- [[over.ics.ref]/2](https://eel.is/c++draft/over.ics.ref#2)
+- [[over.match.copy]/1](https://eel.is/c++draft/over.match.copy#1)
+- [[over.match.ctor]/1](https://eel.is/c++draft/over.match.ctor#1)
+- [[over.match.conv]/1](https://eel.is/c++draft/over.match.conv#1)
+- [[class.conv.general]/4](https://eel.is/c++draft/class.conv.general#4)
+- [[class.conv.ctor]/1](https://eel.is/c++draft/class.conv.ctor#1)
+- [[class.conv.fct]/2](https://eel.is/c++draft/class.conv.fct#2)
+- [[class.conv.fct]/4](https://eel.is/c++draft/class.conv.fct#4)
+- [[dcl.init.general]/13](https://eel.is/c++draft/dcl.init.general#13)
+- [[dcl.init.general]/14](https://eel.is/c++draft/dcl.init.general#14)
+- [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15)
+- [[dcl.init.ref]/5](https://eel.is/c++draft/dcl.init.ref#5)
 
 ## Assumptions
 

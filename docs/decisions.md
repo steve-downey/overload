@@ -129,6 +129,12 @@ proof needs to see inside a call that a constraint depends on.
   subobject of a class value, for a derived value supplied to a
   base-typed constant parameter. `Env.ofProgram` computes it from the
   program's class declarations, as it computes `bases`.
+- 2026-10-23 — Phase 11 plans a second, `Env.userConvert`: the value a
+  non-explicit converting constructor gives a class-typed constant
+  parameter. A constructor body is an expression, so `Env.ofProgram`
+  leaves it `none` and the emitted cases supply it by hand. Conversion
+  functions and constructors are otherwise declarations by type
+  (`user-defined-conversions`), still no expressions.
 
 ---
 
@@ -297,6 +303,11 @@ operations from the Monad ones.
   the two name one specialization (`slicing_identifies`). A reference
   parameter denotes the object, so the library's `const auto&` parameters
   are what closes the leak (`reference_keeps_identity`).
+- 2026-10-23 — Leak 5, conversion between instance types, is planned as
+  phase 11 (`plan.md`). It is the leak the encoding avoids by design:
+  refinement is a concept on the shape and a retrieval function, never
+  a converting constructor, and the phase's theorems say what a
+  converting constructor would cost.
 
 ---
 
@@ -676,3 +687,42 @@ parameters.
   `Overload/Arguments.lean`. `narrowing_constant` is the reason the
   typing is not missed: for a constant, the source type decides nothing
   the value does not (`findings.md`).
+- 2026-10-23 — User-defined conversions and converting constructors
+  leave the out-of-fragment list: phase 11 models them as declarations
+  by type (`user-defined-conversions`), and the copy-initialization of
+  a class-typed constant parameter through one is a case of
+  `convertArg`.
+
+---
+
+## user-defined-conversions
+
+**Question:** How are converting constructors and conversion functions
+represented, when the fragment has no expressions?
+**Status:** DECIDED 23 October 2026.
+**Decision:** As declarations. `Decl.converting cls conv` declares for a
+ground class a single-argument constructor by its parameter type or a
+conversion function by its target type, each with its `explicit` flag
+([class.conv.ctor]/1, [class.conv.fct]/2, /4). The initialization
+context is a flag, `Init`, copy or direct: a call argument and a
+candidate initializer are copy-initialization ([dcl.init.general]/13),
+and direct-initialization exists only as the contrast that admits
+explicit candidates ([over.match.ctor]/1). The value a converting
+constructor gives a class-typed constant parameter is an oracle,
+`Env.userConvert`, since a constructor body is an expression.
+Out of the fragment: constructor templates and conversion function
+templates ([over.ics.user]/3), conversion functions returning a
+reference, list-initialization and aggregates, the ellipsis sequence,
+conversions to non-class types other than the identity, virtual
+conversion functions, and access to a conversion.
+**Why:** The questions the phase answers are about viability, rank,
+deduction and identity, and each is decided by the types and the
+`explicit` flag alone. A separate declaration keeps the flat program
+and every match on `Decl.class`. Casts are expressions and stay out
+with the rest of the expression language (`expression-depth`); what
+`explicit` does is a property of the initialization context, which the
+flag carries.
+**Decided by:** the author, on the plan of 23 October 2026.
+**Log:**
+
+- 2026-10-23 — Decided.

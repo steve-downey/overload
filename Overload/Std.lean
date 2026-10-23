@@ -265,6 +265,17 @@ def inScope : List (String × Nat) :=
   , ("temp.arg.general", 1), ("temp.names", 13), ("temp.type", 1), ("temp.param", 11)
   , ("temp.param", 12)
   , ("expr.const.const", 8), ("dcl.init.list", 7), ("lex.icon", 3)
-  , ("basic.fundamental", 1), ("basic.fundamental", 4) ]
+  , ("basic.fundamental", 1), ("basic.fundamental", 4)
+  -- Phase 11, user-defined conversions (docs/plan.md, phase 11).
+  , ("over.best.ics.general", 1), ("over.best.ics.general", 3), ("over.best.ics.general", 4)
+  , ("over.best.ics.general", 6), ("over.best.ics.general", 9), ("over.best.ics.general", 12)
+  , ("over.ics.user", 1), ("over.ics.user", 2), ("over.ics.user", 4)
+  , ("over.ics.rank", 2), ("over.ics.rank", 3), ("over.ics.rank", 4)
+  , ("over.ics.ref", 1), ("over.ics.ref", 2), ("over.ics.ref", 3)
+  , ("over.match.viable", 4)
+  , ("over.match.copy", 1), ("over.match.ctor", 1), ("over.match.conv", 1)
+  , ("class.conv.general", 4), ("class.conv.ctor", 1), ("class.conv.fct", 2), ("class.conv.fct", 4)
+  , ("dcl.init.general", 13), ("dcl.init.general", 14), ("dcl.init.general", 15)
+  , ("dcl.init.ref", 5) ]
 
 end Overload.Std
