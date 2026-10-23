@@ -73,7 +73,7 @@ argument whose conversion is ambiguous makes the call ill-formed; then
 the access check on its conversions, after ambiguity resolution, an
 inaccessible base making the call ill-formed; then the selected
 specialization's Mandates. -/
-@[std rule "dcl.init.ref#4.sentence-3", std rule "class.conv.general#2"]
+@[std rule "dcl.init.ref#4.sentence-3" "class.conv.general#2"]
 def call (p : Program) (env : Env) (decls : List Decl) (args : List CallArg)
     (explicit : List Ty := []) : Resolution Candidate :=
   match resolve .text env p.ranking decls args explicit with

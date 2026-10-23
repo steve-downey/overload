@@ -21,13 +21,18 @@ open Overload.Std
 open Lean Elab Command in
 run_cmd do
   let env ← getEnv
-  let some e := citationOf? env ``Overload.Subst.hard
+  let some #[e] := citationsOf? env ``Overload.Subst.hard
     | throwError "Subst.hard lost its citation"
   unless e.role == .rule && e.cite.stable == "temp.deduct.general" && e.cite.para == 8 do
     throwError "Subst.hard cites {e.cite}, expected [temp.deduct.general]/8"
+  -- Several citations in one attribute are all kept.
+  let some es := citationsOf? env ``Overload.Program.userSequence
+    | throwError "userSequence lost its citations"
+  unless es.size == 4 && es.any (·.cite.stable == "over.best.ics.general") do
+    throwError "userSequence should carry four citations"
   unless assumptionOf? env ``Overload.SingleTranslationUnit == some "single-tu" do
     throwError "SingleTranslationUnit lost its assumption tag"
-  unless (citationOf? env ``Overload.bindArg).isNone do
+  unless (citationsOf? env ``Overload.bindArg).isNone do
     throwError "bindArg is not cited and should not be"
   unless (Overload.Lint.missingCitations env).isEmpty do
     throwError "the lint reports missing citations"

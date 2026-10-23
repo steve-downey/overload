@@ -151,7 +151,10 @@ def declaredBeforeUse ...
 
 On a constructor the attribute is written as a command after the inductive,
 `attribute [std rule "..."] Subst.ok`, since Lean does not accept attributes
-in a constructor's declaration (`findings.md`).
+in a constructor's declaration (`findings.md`). A declaration that
+transcribes several sentences cites them in one attribute, `@[std rule
+"a" "b"]`: a parametric attribute keeps one parameter per declaration, so
+a second `std` attribute would replace the first (`findings.md`).
 
 Three checks follow from it:
 
@@ -478,12 +481,30 @@ Status, 15 October 2026:
   protected base, so their instance types are not structural and the
   value route cannot take them at all (`value_route_needs_structural`).
   Every in-scope paragraph has a counterpart, since 22 October 2026.
-- Phase 11 is planned, 23 October 2026: user-defined conversion
-  sequences on the Standard side, so that the lower model covers calls
-  wider than the encoding's, and the encoding's lack of converting
-  constructors between instance types is a set of theorems rather than
-  a preference. The plan, the cross-reference against N5054 and the
-  stages are [below](#phase-11-user-defined-conversions).
+- Phase 11 is closed, 23 October 2026, on its exit criterion: the
+  concrete ranking forms every sequence of [over.best.ics.general]/3 the
+  fragment can spell, standard, user-defined and ambiguous
+  (`Program.ics`, `ics_iff`, `betterIcs_iff`, `betterIcs_asymm`), and
+  the four conversion theorems about the encoding are proved, as six
+  (`Overload/Typeclass/Conversion.lean`). conversion-invisible-to-deduction
+  is `deduction_ignores_conversion` and `conversion_invisible_to_deduction`,
+  conversion-loses-rank is `standard_beats_user_defined`,
+  `conversion_loses_rank` and `converting_sites_ambiguous`,
+  converted-argument-temporary is `placeholder_reference_refuses_value`,
+  `converted_instance_temporary`, `conversion_identifies` and
+  `value_route_identifies_converted`, and explicit-never-implicit is
+  `explicit_never_implicit` and `explicit_conversion_dead`. Planned the
+  same day; the plan, the cross-reference against N5054 and the stages
+  are [below](#phase-11-user-defined-conversions), with two departures
+  recorded there. Nineteen emitted cases, the draft's examples of
+  [over.best.ics.general]/12 and [class.conv.general]/4 among them,
+  agree with GCC 15 and Clang 24, with no new disagreement: GCC accepts
+  a class-typed constant argument through a converting constructor
+  while still rejecting a sliced one (`findings.md`). One correction to
+  phase 10 on the way: a value for a placeholder reference parameter is
+  refused, as [temp.arg.nontype]/6 says. Settles user-defined-conversions.
+  Every in-scope paragraph has a counterpart, once the citation attribute
+  learnt to keep several citations on one declaration (`findings.md`).
 
 ## Target theorems
 
@@ -601,11 +622,15 @@ leaks are known:
 5. **Conversion between instance types.** A converting constructor or a
    conversion function from a Monad instance type to an Applicative
    instance type is the other way to write refinement in the type
-   system. Planned 23 October 2026 as phase 11: deduction never applies
-   it ([temp.deduct.call]/4), ranking puts it below every standard
-   sequence ([over.ics.rank]/2), and its result is a temporary. The
-   encoding avoids this leak by design rather than suffering it, and the
-   phase's theorems say what it would cost.
+   system. Theorems since 23 October 2026, phase 11: deduction never
+   applies it (`conversion_invisible_to_deduction`), ranking puts it
+   below every standard sequence (`conversion_loses_rank`,
+   `converting_sites_ambiguous`), and its result is a temporary, which
+   the pinning routes refuse and the value route identifies with every
+   other value that converts (`converted_instance_temporary`,
+   `value_route_identifies_converted`). The encoding avoids this leak
+   by design rather than suffering it: refinement by shape is the
+   obligation (`obligations.md`).
 
 Two theorems settle it. Inheritance erasure is the positive result: inside
 the exact-type fragment, inheritance is only an implementation convenience.
@@ -1192,7 +1217,7 @@ paragraph whose bullets are cited by their subject.
 | [over.match.viable]/4 | A viable function has an implicit conversion sequence for each argument. | `viable`, cited; it now sees user-defined sequences through the ranking. |
 | [temp.deduct.call]/4 | Three differences are allowed between the deduced A and A: cv-qualification under a reference, pointer conversions, a derived class. | `deduceParam`, unchanged, which is `deduction_ignores_conversion`. |
 | [temp.deduct.general]/5, convertibility | Non-dependent parameters are checked for convertibility. | `Env.convertible`, answered by the new `ics` in `Env.ofProgram`. |
-| [temp.arg.nontype]/3 | `constexpr T v = A;` is introduced. | `convertArg` gains the copy-initialization case for a class value of a class neither T nor derived from it, through `Env.userConvert`. |
+| [temp.arg.nontype]/3 | `constexpr T v = A;` is introduced. | `Program.candidateInitializer`, the environment's `initializer` oracle: the base subobject through the standard sequence, the class's one value through a user-defined one. |
 | [temp.arg.nontype]/6 | A reference parameter shall not refer to a temporary. | A `.value` for a reference parameter is a failure, cited; the converted result is a value. |
 
 Out of the fragment, recorded in `decisions.md#user-defined-conversions`:
@@ -1250,13 +1275,18 @@ constructor is a later stage if a question needs it).
   deduced on the program with its conversions removed:
   `deduction_ignores_conversion`, an erasure theorem in the style of
   `inheritance_erasure`, with `Program.eraseConversions`.
-- **Template arguments.** `Env` gains `userConvert : Ty → Val → Option
-  Val`, the value of `constexpr T v = A;` when the initialization goes
-  through a non-explicit converting constructor. `convertArg`'s class
-  case consults it after the identity and the subobject, under the
-  copy-initialization context. The fragment has no constructor bodies,
-  so `Env.ofProgram` leaves it `none` and the emitted cases supply the
-  body by hand, as raw cases do.
+- **Template arguments.** As planned, `Env` was to gain a second oracle
+  for the value of `constexpr T v = A;` through a converting
+  constructor, supplied by hand since the fragment has no constructor
+  bodies. As built, the one oracle, renamed `Env.initializer`, answers
+  the whole of [temp.arg.nontype]/3, and `Env.ofProgram` computes it as
+  `Program.candidateInitializer`: a class value in the fragment lists
+  its base subobjects and nothing else, so a class has one value
+  whichever constructor made it, and the user-defined case needs no
+  body (`findings.md`). The other departure: a value for a placeholder
+  reference parameter, which phase 10 accepted, is refused, since the
+  invented declaration would bind a temporary; `converted_instance_temporary`
+  rests on it.
 - **Explicit.** `explicit_never_implicit`: `Program.userConversions .copy`
   holds no explicit conversion, so no implicit conversion sequence and
   no candidate initializer goes through one. The `.direct` contrast is a
@@ -1301,9 +1331,9 @@ constructor is a later stage if a question needs it).
    [over.best.ics.general]/12.
 5. [conversion-deduction](#conversion-deduction): `Env.ofProgram`'s
    `convertible`, `Program.eraseConversions`,
-   `deduction_ignores_conversion`; `Env.userConvert` and the
-   copy-initialization case of `convertArg`, with `convertArg_iff` and
-   the congruence lemmas re-established; `explicit_never_implicit`.
+   `deduction_ignores_conversion`; `Program.candidateInitializer` as
+   the environment's `initializer`, with the erasure lemmas
+   re-established; `explicit_never_implicit`, `conversion_identifies`.
 6. [conversion-typeclass](#conversion-typeclass):
    `Overload/Typeclass/Conversion.lean` with the five theorems above,
    the emitted cases, the obligation row confirmed.

@@ -157,6 +157,50 @@ and described here as they arrive.
 
 ## About the model
 
+- **A second `std` attribute on a declaration replaced the first** (23
+  October 2026). The citation attribute is a Lean parametric attribute,
+  which holds one parameter per declaration, so `@[std rule "a", std rule
+  "b"]`, two attributes in one list, kept only `b`, with no error. Nine
+  declarations of phase 11 and one of phase 9 (`instantiationPoints`,
+  whose [temp.point]/1 citation `Decl.refersTo` also carries) had cited
+  that way, which is why the citation index listed [over.ics.user]/1,
+  [over.best.ics.general]/4 and /6 and [over.match.ctor]/1 as uncovered
+  while the code cited them. The parameter is now the list of
+  citations, written `@[std rule "a" "b"]`, the index flattens it, and
+  the lint counts citations and declarations separately. No citation
+  was wrong; some were unrecorded.
+- **A class in the fragment has one value, so a conversion identifies
+  totally** (23 October 2026). Phase 11 needed the value of the
+  candidate initializer `constexpr T v = A;` when the initialization
+  goes through a converting constructor or a conversion function, and
+  the fragment has no constructor bodies. It does not need them: a
+  class value in the model lists its base subobjects and nothing else,
+  so every object of a class is template-argument-equivalent to one
+  value, `Program.uniqueValue`, whichever constructor made it. That is
+  what `Program.candidateInitializer` answers through a user-defined
+  sequence, and `conversion_identifies` follows: two values of other
+  classes that convert to a class-typed parameter name one
+  specialization, whatever they were. Slicing identified a derived value
+  with its base; a conversion identifies everything that converts. The
+  compilers agree: `constructed_value.cpp` and `converted_value.cpp`
+  deduce the constructed object on GCC 15 and Clang 24 alike. GCC, which
+  still rejects the sliced derived value (`derived_to_base_value.cpp`),
+  accepts the constructed one: a converting constructor is a
+  user-defined conversion, which a converted constant expression admits
+  under the rule before P2308R1 as well.
+- **A value for a placeholder reference parameter was accepted** (23
+  October 2026). Phase 10's conversion of a template argument took a
+  placeholder's argument as it stood, so `template <const auto &X>` took
+  a class value, which in C++ is the invented declaration `const auto &x
+  = E;` binding a temporary, forbidden by [temp.arg.nontype]/6. The
+  rule was modelled for a declared reference type only. `bindsTemporary`
+  now refuses a value for any reference, placeholder or not
+  (`placeholder_reference_refuses_value`), and the guard that asserted
+  the old answer says the new one. Nothing on the typeclass side
+  changed: the pinning routes pass references, and the by-value route's
+  placeholder is not a reference. The correction is what makes
+  `converted_instance_temporary` true: a converted instance, a prvalue,
+  cannot be pinned.
 - **A dependent call's meaning is fixed at its first point of
   instantiation** (22 October 2026). [temp.point]/1 puts the point of
   instantiation of a function template specialization after the

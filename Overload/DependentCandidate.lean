@@ -48,7 +48,7 @@ call at `pos` is instantiated for: the point immediately following each
 namespace-scope declaration that refers to it, and the end of the unit,
 which is a point of instantiation for every such specialization as well.
 Each point once. -/
-@[std rule "temp.point#1.sentence-2", std rule "temp.point#7.sentence-1"]
+@[std rule "temp.point#1.sentence-2" "temp.point#7.sentence-1"]
 def Program.instantiationPoints (p : Program) (pos : Nat) : List Nat :=
   ((p.zipIdx.filterMap fun (d, j) => if d = .refersTo pos then some (j + 1) else none)
     ++ [p.length]).eraseDups

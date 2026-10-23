@@ -129,12 +129,15 @@ proof needs to see inside a call that a constraint depends on.
   subobject of a class value, for a derived value supplied to a
   base-typed constant parameter. `Env.ofProgram` computes it from the
   program's class declarations, as it computes `bases`.
-- 2026-10-23 — Phase 11 plans a second, `Env.userConvert`: the value a
-  non-explicit converting constructor gives a class-typed constant
-  parameter. A constructor body is an expression, so `Env.ofProgram`
-  leaves it `none` and the emitted cases supply it by hand. Conversion
-  functions and constructors are otherwise declarations by type
-  (`user-defined-conversions`), still no expressions.
+- 2026-10-23 — Phase 11 planned a second oracle for the value a
+  converting constructor gives a class-typed constant parameter, since a
+  constructor body is an expression. It turned out not to need one: the
+  oracle is `Env.initializer`, the former `subobject` renamed for what it
+  now answers, the candidate initializer of [temp.arg.nontype]/3, and
+  `Env.ofProgram` computes it as `Program.candidateInitializer`, whose
+  user-defined case is the class's one value in the fragment
+  (`findings.md`). Conversion functions and constructors are declarations
+  by type (`user-defined-conversions`), still no expressions.
 
 ---
 
@@ -308,6 +311,15 @@ operations from the Monad ones.
   refinement is a concept on the shape and a retrieval function, never
   a converting constructor, and the phase's theorems say what a
   converting constructor would cost.
+- 2026-10-23 — Leak 5 is theorems (`Overload/Typeclass/Conversion.lean`):
+  a conversion fires at no deduced parameter
+  (`conversion_invisible_to_deduction`), loses by rank where a signature
+  names an instance type (`conversion_loses_rank`), makes two such
+  signatures ambiguous (`converting_sites_ambiguous`), yields a
+  temporary the pinning routes refuse and the value route identifies
+  (`converted_instance_temporary`, `value_route_identifies_converted`),
+  and does nothing at all when explicit (`explicit_conversion_dead`).
+  The obligation is refinement by shape (`obligations.md`).
 
 ---
 
@@ -417,6 +429,10 @@ draft commit recorded once for the whole development.
   `stable.name#para.sentence-n`; a paragraph-level citation is for a rule
   that transcribes a list the paragraph holds as a whole, such as the
   bullets of [temp.type]/2.
+- 2026-10-23 — The attribute takes several citations in one role,
+  `@[std rule "a" "b"]`. A parametric attribute keeps one parameter per
+  declaration, and two `std` attributes in one list had kept only the
+  last (`findings.md`).
 
 ---
 
@@ -708,8 +724,11 @@ context is a flag, `Init`, copy or direct: a call argument and a
 candidate initializer are copy-initialization ([dcl.init.general]/13),
 and direct-initialization exists only as the contrast that admits
 explicit candidates ([over.match.ctor]/1). The value a converting
-constructor gives a class-typed constant parameter is an oracle,
-`Env.userConvert`, since a constructor body is an expression.
+constructor gives a class-typed constant parameter is the environment's
+candidate-initializer oracle, `Env.initializer`, which the program
+computes as the class's one value: a class value in the fragment lists
+its base subobjects and nothing else, so no constructor body is needed
+(`findings.md`).
 Out of the fragment: constructor templates and conversion function
 templates ([over.ics.user]/3), conversion functions returning a
 reference, list-initialization and aggregates, the ellipsis sequence,
@@ -726,3 +745,18 @@ flag carries.
 **Log:**
 
 - 2026-10-23 — Decided.
+- 2026-10-23 — Landed, in six stages merged the same day. `Decl.converting`,
+  `UserConv`, `Init` and `Program.userConversions` in stage 2; `Ics`,
+  `Program.ics`, `IcsForms`, `ics_iff`, `betterIcs`, `BetterIcs` and
+  `betterIcs_iff` in stage 3, with the ranking brought forward from
+  stage 4 because `Program.ranking` needs it; the ambiguous-sequence
+  check in `Program.call`, `standard_beats_user_defined` and eleven
+  emitted cases in stage 4; `Program.candidateInitializer`,
+  `deduction_ignores_conversion`, `explicit_never_implicit` and
+  `conversion_identifies` in stage 5; `Overload/Typeclass/Conversion.lean`
+  in stage 6. Two departures from the plan: no `Env.userConvert`, since
+  the candidate initializer is computable (above), and a correction to
+  phase 10, a value for a placeholder reference parameter now refused
+  (`findings.md`). `inheritance_erasure` gained the hypothesis that the
+  program declares no user-defined conversion, harvested as the
+  refinement-by-shape obligation.

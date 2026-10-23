@@ -137,9 +137,13 @@ def parseCitation (s : String) : Except String Citation := do
     | _ => throw s!"{form}; got {s.quote}"
   | _ => throw s!"{form}; got {s.quote}"
 
-/-- The attribute syntax: `@[std rule "temp.deduct.general#5.sentence-6"]`. -/
+/-- The attribute syntax: `@[std rule "temp.deduct.general#5.sentence-6"]`,
+or several citations in one role, `@[std rule "temp.point#1" "temp.point#7"]`.
+A parametric attribute holds one parameter per declaration, so two `std`
+attributes on one declaration would keep only the last; the parameter is
+the list. -/
 syntax (name := std)
-  "std " (&"rule" <|> "theorem" <|> &"note" <|> "example") str : attr
+  "std " (&"rule" <|> "theorem" <|> &"note" <|> "example") str+ : attr
 
 /-- The assumption tag: `@[assumed "single-tu"]`, naming the decision-log
 entry that records what the model needs and the Standard does not say. -/
@@ -158,6 +162,13 @@ private partial def firstStrLit : Syntax → Option String
     | none => args.findSome? firstStrLit
   | _ => none
 
+private partial def allStrLits : Syntax → Array String
+  | stx@(.node _ _ args) =>
+    match stx.isStrLit? with
+    | some s => #[s]
+    | none => args.flatMap allStrLits
+  | _ => #[]
+
 private def parseRole (s : String) : Except String Role :=
   match s with
   | "rule" => .ok .rule
@@ -166,23 +177,26 @@ private def parseRole (s : String) : Except String Role :=
   | "example" => .ok .example
   | _ => .error s!"unknown citation role {s.quote}; expected rule, theorem, note or example"
 
-/-- The `std` attribute. Its parameter survives into the `.olean`, which is
-what lets the citation index and the drift check read it back. -/
-initialize stdAttr : ParametricAttribute Entry ←
+/-- The `std` attribute. Its parameter, the declaration's citations,
+survives into the `.olean`, which is what lets the citation index and the
+drift check read it back. -/
+initialize stdAttr : ParametricAttribute (Array Entry) ←
   registerParametricAttribute {
     name := `std
-    descr := "cites the sentence of the C++ Standard that a definition transcribes " ++
+    descr := "cites the sentences of the C++ Standard that a definition transcribes " ++
       "(rule), restates (theorem), or tests (note, example)"
     getParam := fun _ stx => do
       let some roleText := firstAtom stx[1] | throwError "std: missing role"
-      let some text := firstStrLit stx[2] | throwError "std: missing citation string"
+      let texts := allStrLits stx[2]
+      if texts.isEmpty then throwError "std: missing citation string"
       let role ← match parseRole roleText with
         | .ok r => pure r
         | .error e => throwError e
-      let cite ← match parseCitation text with
-        | .ok c => pure c
-        | .error e => throwError e
-      return { role, cite }
+      texts.mapM fun text => do
+        let cite ← match parseCitation text with
+          | .ok c => pure c
+          | .error e => throwError e
+        return { role, cite : Entry }
   }
 
 /-- The `assumed` attribute. The string names an entry in `docs/decisions.md`. -/
@@ -203,8 +217,8 @@ initialize specAttr : TagAttribute ←
   registerTagAttribute `specification
     "specification relation: every constructor must carry a std citation"
 
-/-- The citation recorded for a declaration, if any. -/
-def citationOf? (env : Environment) (decl : Name) : Option Entry :=
+/-- The citations recorded for a declaration, if any. -/
+def citationsOf? (env : Environment) (decl : Name) : Option (Array Entry) :=
   stdAttr.getParam? env decl
 
 /-- The assumption recorded for a declaration, if any. -/

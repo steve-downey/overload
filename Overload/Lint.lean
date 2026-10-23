@@ -43,7 +43,7 @@ def missingCitations (env : Environment) : Array String := Id.run do
     match env.find? t with
     | some (.inductInfo info) =>
       for c in info.ctors do
-        if (Std.citationOf? env c).isNone then
+        if ((Std.citationsOf? env c).getD #[]).isEmpty then
           out := out.push s!"constructor {c} of the @[specification] relation {t} carries no std citation"
     | some _ => out := out.push s!"@[specification] {t} is not an inductive type"
     | none => out := out.push s!"@[specification] {t} is not in the environment"
@@ -65,8 +65,9 @@ elab "#check_citations" : command => do
   let env ← getEnv
   let problems := missingCitations env ++ untaggedAxioms env
   if problems.isEmpty then
-    let n := (Std.ParametricAttribute.allEntries Std.stdAttr env).size
-    logInfo m!"citations: {n} tagged declarations; every spec constructor is cited and every axiom is tagged"
+    let entries := Std.ParametricAttribute.allEntries Std.stdAttr env
+    let n := entries.foldl (fun acc (_, es) => acc + es.size) 0
+    logInfo m!"citations: {n} citations on {entries.size} declarations; every spec constructor is cited and every axiom is tagged"
   else
     throwError m!"citation lint failed:\n{String.intercalate "\n" problems.toList}"
 
