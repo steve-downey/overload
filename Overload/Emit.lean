@@ -344,10 +344,13 @@ def functionText (d : Decl) (r : String) (cv : String := "") : String :=
   | _ => ""
 
 /-- Is the class a type names, if any, defined before position `i` of
-the program? A reference to it needs only a declaration, which every
-class has up front. -/
+the program? A class the program does not declare comes from a prelude,
+complete from the start. A reference to a class needs only a
+declaration, which every class has up front. -/
 def completeBefore (p : Program) (i : Nat) : Ty → Bool
-  | .named n => (p.take i).any fun | .class m .. => m == n | _ => false
+  | .named n =>
+    let isClass : Decl → Bool := fun | .class m .. => m == n | _ => false
+    !p.any isClass || (p.take i).any isClass
   | .const t => completeBefore p i t
   | .lref _ | .rref _ | .ptr _ => true
   | _ => true

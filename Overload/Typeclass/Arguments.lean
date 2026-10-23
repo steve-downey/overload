@@ -54,7 +54,9 @@ theorem pin_keeps_identity (env : Env) (tc name o₁ o₂ : String) (c : Ty) (hc
   intro h
   unfold sameSpecialization at h
   have hr : ∀ t : Ty, (Ty.ref t).isType = false := fun _ => rfl
-  simp [explicitStep, explicitStep.go, pinTemplate, kindMatches, hc, hr] at h
+  have hcv : ∀ r : Ty, convertArg env.initializer [(0, c)] (.const (.lref (.const (.named "auto"))))
+      (.ref r) = .ok (.ref r) := fun r => convertArg_auto_ref _ _ _ rfl
+  simp [explicitStep, explicitStep.go, pinTemplate, kindMatches, hc, hr, hcv] at h
   exact hne h
 
 /-- The library's shape: a derivation base that keeps the implementation

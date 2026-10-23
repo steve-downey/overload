@@ -272,3 +272,12 @@ is the map.
 #audit Overload.Typeclass.value_route_slices
 #audit Overload.Typeclass.pin_keeps_identity
 #audit Overload.Typeclass.value_route_needs_structural
+
+-- A conversion between instance types.
+#audit Overload.placeholder_reference_refuses_value
+#audit Overload.Typeclass.conversion_invisible_to_deduction
+#audit Overload.Typeclass.conversion_loses_rank
+#audit Overload.Typeclass.converting_sites_ambiguous
+#audit Overload.Typeclass.converted_instance_temporary
+#audit Overload.Typeclass.value_route_identifies_converted
+#audit Overload.Typeclass.explicit_conversion_dead

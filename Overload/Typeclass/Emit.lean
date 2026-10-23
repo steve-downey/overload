@@ -5,6 +5,7 @@ import Overload.Typeclass.Inheritance
 import Overload.Typeclass.Units
 import Overload.Typeclass.Members
 import Overload.Typeclass.Lookup
+import Overload.Typeclass.Conversion
 import Overload.Typeclass.Arguments
 
 /-!
@@ -462,6 +463,64 @@ def rankLeakDerived : Case :=
     source := "computed by resolve"
     prelude := prelude }
 
+/-! ### A conversion between instance types -/
+
+/-- At the Monad instance type, which converts to the Applicative one,
+the generic template's identity beats the user-defined sequence. -/
+def conversionLeakGeneric : Case :=
+  { name := "conversion_leak_generic"
+    cite := cite "over.ics.rank#2"
+    program := conversionLeak
+    query := .call "use" [monadInstance] (.selected 0)
+    source := "computed by resolve"
+    prelude := prelude }
+
+/-- At the Applicative instance type the overload naming it wins the tie. -/
+def conversionLeakConcrete : Case :=
+  { name := "conversion_leak_concrete"
+    cite := cite "over.match.best.general#2"
+    program := conversionLeak
+    query := .call "use" [{ ty := .named "applicative_i", lvalue := true }] (.selected 1)
+    source := "computed by resolve"
+    prelude := prelude }
+
+/-- Two overloads reached by two different conversions are ambiguous. -/
+def conversionSitesAmbiguous : Case :=
+  { name := "conversion_sites_ambiguous"
+    cite := cite "over.ics.rank#3"
+    program := conversionSites
+    query := .call "use" [monadInstance] (.ambiguous [0, 1])
+    source := "computed by resolve"
+    prelude := prelude }
+
+/-- An explicit conversion is no candidate for argument passing. -/
+def conversionExplicitDead : Case :=
+  { name := "conversion_explicit_dead"
+    cite := cite "over.match.copy#1"
+    program := conversionExplicit
+    query := .call "use" [monadInstance] .noMatch
+    source := "computed by resolve"
+    prelude := prelude }
+
+/-- The typed value route with a Monad instance value that converts to
+the pinned instance's class: the candidate initializer goes through the
+conversion function, and the route is viable with the class's one
+value. -/
+private def routesConvertedProgram : Program :=
+  [ .class "Fn", .classTemplate "box" [typeParam], .class "monad_instance"
+  , .converting (.named "monad_instance") (.function (.named "pinned_instance"))
+  , .lookup "functor", .instance "functor" [typeParam] (.spec' "box" [T])
+  , .functionTemplate opObject, .functionTemplate (valueRouteAt "pinned_instance") ]
+
+def routesValueConverted : Case :=
+  { name := "routes_value_converted"
+    cite := cite "temp.arg.nontype#3"
+    program := routesConvertedProgram
+    query := .call "fmap" [fn, { ty := int }] (.selected 1)
+      (explicit := [.value (.obj' "monad_instance" [])])
+    source := "computed by resolve"
+    prelude := prelude }
+
 /-! ### Inheritance erasure -/
 
 /-- A function naming the Functor instance type accepts an Applicative
@@ -538,7 +597,9 @@ def cases : List Case :=
   , routesCanonical, routesValue, routesType, routesArgument, routesValueSliced, routesValueAmbiguous
   , routesArgumentAmbiguous, routesTypeAmbiguousHard, routesArgumentDefaultAmbiguous
   , rankLeakExact, rankLeakDerived, erasureInherited, erasureComposed, deduceFromDerived
-  , deduceFromTwoBases, leakDerivedInherited, leakDerivedComposed ]
+  , deduceFromTwoBases, leakDerivedInherited, leakDerivedComposed
+  , conversionLeakGeneric, conversionLeakConcrete, conversionSitesAmbiguous, conversionExplicitDead
+  , routesValueConverted ]
 
 /-- What the model computes for the encoding's cases, in the encoding's
 environment. -/
