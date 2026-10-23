@@ -54,6 +54,15 @@ theorem eraseBases_length (p : Program) (I : List String) :
     (p.eraseBases I).length = p.length := by
   simp [Program.eraseBases]
 
+/-- Erasure keeps every conversion declaration, so a program without
+user-defined conversions stays without them. -/
+theorem eraseBases_conversionFree (p : Program) (I : List String) :
+    (p.eraseBases I).conversionFree = p.conversionFree := by
+  simp only [Program.conversionFree, Program.eraseBases, List.all_map]
+  congr 1
+  funext d
+  cases d <;> rfl
+
 theorem directBases_erase (p : Program) (I : List String) (d : Ty)
     (hd : erased I d = false) :
     (p.eraseBases I).directBases d = p.directBases d := by
@@ -211,13 +220,6 @@ theorem subobject_erase (p : Program) (I : List String) (b : Ty) (d : String) (v
   simp only [Program.subobject, eraseBases_length]
   exact subobjectWithin_erase p I p.length b (.named d) (.obj d vs) h₁ h₂
 
-/-- So is the conversion of a template argument whose value, if it is a
-class value, is of an untouched class. -/
-theorem convertArg_erase (p : Program) (I : List String) (σ : Bindings) (k : ParamKind) (a : Ty)
-    (hs : ∀ d vs, a = .value (.obj d vs) → p.touched I (.named d) = false) :
-    convertArg (p.eraseBases I).subobject σ k a = convertArg p.subobject σ k a :=
-  convertArg_congr _ _ σ k a fun d vs ha c => subobject_erase p I (.named c) d vs (hs d vs ha)
-
 theorem allBases_spec (p : Program) (s : Ty) (h : s.isSpec = true) : p.allBases s = [] := by
   cases s <;> simp_all [Ty.isSpec, Program.allBases]
   all_goals (cases p.length <;> rfl)
@@ -240,11 +242,11 @@ theorem formAll_congr {env₁ env₂ : Env} (h : env₁.instantiate = env₂.ins
 same explicit step. -/
 theorem explicitStep_congr {env₁ env₂ : Env} (head : Head) (explicit : List Ty)
     (hx : ∀ σ, ∀ p ∈ head, ∀ a ∈ explicit,
-      convertArg env₁.subobject σ p.kind a = convertArg env₂.subobject σ p.kind a) :
+      convertArg env₁.initializer σ p.kind a = convertArg env₂.initializer σ p.kind a) :
     explicitStep env₁ head explicit = explicitStep env₂ head explicit := by
   simp only [explicitStep]
   suffices ∀ (as : List Ty), (∀ a ∈ as, ∀ σ, ∀ p ∈ head,
-      convertArg env₁.subobject σ p.kind a = convertArg env₂.subobject σ p.kind a) →
+      convertArg env₁.initializer σ p.kind a = convertArg env₂.initializer σ p.kind a) →
       ∀ i σ, explicitStep.go env₁ head i as σ = explicitStep.go env₂ head i as σ from
     this _ (fun a ha σ p hp => hx σ p hp a ha) _ _
   intro as
@@ -259,7 +261,7 @@ theorem explicitStep_congr {env₁ env₂ : Env} (head : Head) (explicit : List 
       dsimp only
       split
       · rw [h a List.mem_cons_self σ p (List.mem_of_getElem? hp)]
-        cases convertArg env₂.subobject σ p.kind a with
+        cases convertArg env₂.initializer σ p.kind a with
         | ok a' => exact ih (fun a' ha' => h a' (List.mem_cons_of_mem _ ha')) _ _
         | soft _ => rfl
         | hard _ => rfl
@@ -267,12 +269,12 @@ theorem explicitStep_congr {env₁ env₂ : Env} (head : Head) (explicit : List 
 
 theorem defaultsStep_congr {env₁ env₂ : Env} (h : env₁.instantiate = env₂.instantiate)
     (ha : env₁.atomic = env₂.atomic) (head : Head)
-    (hx : ∀ σ, ∀ p ∈ head, ∀ a, convertArg env₁.subobject σ p.kind a = convertArg env₂.subobject σ p.kind a) :
+    (hx : ∀ σ, ∀ p ∈ head, ∀ a, convertArg env₁.initializer σ p.kind a = convertArg env₂.initializer σ p.kind a) :
     defaultsStep env₁ head = defaultsStep env₂ head := by
   funext σ
   simp only [defaultsStep]
   suffices ∀ (ps : Head), (∀ p ∈ ps, ∀ σ a,
-      convertArg env₁.subobject σ p.kind a = convertArg env₂.subobject σ p.kind a) →
+      convertArg env₁.initializer σ p.kind a = convertArg env₂.initializer σ p.kind a) →
       ∀ i σ, defaultsStep.go env₁ i ps σ = defaultsStep.go env₂ i ps σ from
     this _ (fun p hp σ a => hx σ p hp a) _ _
   intro ps
@@ -391,7 +393,7 @@ theorem deduceTemplate_congr {env₁ env₂ : Env} (hi : env₁.instantiate = en
           env₂.bases (adjustA (x.2.subst σ) x.1).stripConst)
     (hc : ∀ x ∈ args.zip ft.params, x.2.dependent = false →
       env₁.convertible x.1 x.2 = env₂.convertible x.1 x.2)
-    (hx : ∀ σ, ∀ q ∈ ft.head, ∀ a, convertArg env₁.subobject σ q.kind a = convertArg env₂.subobject σ q.kind a) :
+    (hx : ∀ σ, ∀ q ∈ ft.head, ∀ a, convertArg env₁.initializer σ q.kind a = convertArg env₂.initializer σ q.kind a) :
     deduceTemplate env₁ ft explicit args = deduceTemplate env₂ ft explicit args := by
   have hexp := explicitStep_congr ft.head explicit (fun σ q hq a _ => hx σ q hq a)
   have hcall := callStep_congr ft args hs hb
@@ -467,6 +469,26 @@ theorem baseConv_erase (p : Program) (I : List String) (src tgt : Ty)
   rcases h with h | h
   · simp only [Program.baseConv, derives_erase p I src tgt h]
   · subst h; simp [Program.baseConv]
+
+/-- So is the candidate initializer of a value of an untouched class, in
+a program without user-defined conversions. -/
+theorem candidateInitializer_erase (p : Program) (I : List String) (hfree : p.conversionFree = true)
+    (c d : String) (vs : Val) (hs : p.touched I (.named d) = false) :
+    (p.eraseBases I).candidateInitializer (.named c) (.obj d vs) =
+      p.candidateInitializer (.named c) (.obj d vs) := by
+  have hfree' : (p.eraseBases I).conversionFree = true := by
+    rw [eraseBases_conversionFree]; exact hfree
+  rw [candidateInitializer_free _ hfree', candidateInitializer_free p hfree,
+    baseConv_erase p I (.named d) (.named c) (.inl hs), subobject_erase p I (.named c) d vs hs]
+
+/-- So is the conversion of a template argument whose value, if it is a
+class value, is of an untouched class. -/
+theorem convertArg_erase (p : Program) (I : List String) (hfree : p.conversionFree = true)
+    (σ : Bindings) (k : ParamKind) (a : Ty)
+    (hs : ∀ d vs, a = .value (.obj d vs) → p.touched I (.named d) = false) :
+    convertArg (p.eraseBases I).candidateInitializer σ k a = convertArg p.candidateInitializer σ k a :=
+  convertArg_congr _ _ σ k a fun d vs ha c =>
+    candidateInitializer_erase p I hfree c d vs (hs d vs ha)
 
 theorem referenceCompatible_erase (p : Program) (I : List String) (t₁ t₂ : Ty)
     (h : p.touched I t₂.stripConst = false ∨ t₂.stripConst = t₁.stripConst) :
@@ -600,15 +622,6 @@ inductive Aligned (R : α → β → Prop) : List α → List β → Prop where
   | nil : Aligned R [] []
   | cons {a : α} {b : β} {as : List α} {bs : List β} :
       R a b → Aligned R as bs → Aligned R (a :: as) (b :: bs)
-
-/-- Erasure keeps every conversion declaration, so a program without
-user-defined conversions stays without them. -/
-theorem eraseBases_conversionFree (p : Program) (I : List String) :
-    (p.eraseBases I).conversionFree = p.conversionFree := by
-  simp only [Program.conversionFree, Program.eraseBases, List.all_map]
-  congr 1
-  funext d
-  cases d <;> rfl
 
 /-- In a program without user-defined conversions, the ranking forms the
 standard sequence and nothing else. -/
@@ -792,7 +805,8 @@ theorem inheritance_erasure (mode : Mode) (p : Program) (I : List String)
     (huse : ∀ cs, generate mode (Env.ofProgram p atomics extra) decls args explicit = .ok cs →
       ∀ c ∈ cs, ∀ x ∈ args.zip c.params, ExactPair p I x.1 x.2)
     (hconv : ∀ ft, .functionTemplate ft ∈ decls → ∀ σ, ∀ q ∈ ft.head, ∀ a,
-      convertArg (p.eraseBases I).subobject σ q.kind a = convertArg p.subobject σ q.kind a) :
+      convertArg (p.eraseBases I).candidateInitializer σ q.kind a =
+        convertArg p.candidateInitializer σ q.kind a) :
     resolve mode (Env.ofProgram (p.eraseBases I) atomics extra) (p.eraseBases I).ranking decls args explicit =
       resolve mode (Env.ofProgram p atomics extra) p.ranking decls args explicit := by
   have hgen : generate mode (Env.ofProgram (p.eraseBases I) atomics extra) decls args explicit =

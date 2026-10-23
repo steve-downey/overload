@@ -133,6 +133,9 @@ is the map.
 #audit Overload.better_iff
 #audit Overload.better_asymm
 #audit Overload.ics_iff
+#audit Overload.explicit_never_implicit
+#audit Overload.deduction_ignores_conversion
+#audit Overload.conversion_identifies
 #audit Overload.ics_one_user_defined
 #audit Overload.betterIcs_iff
 #audit Overload.betterIcs_asymm

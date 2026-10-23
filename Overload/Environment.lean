@@ -65,7 +65,7 @@ def Env.ofProgram (p : Program) (atomics : List (String × List Ty × Bool) := [
         | none => extra e args
     convertible := fun a t => .ok (p.ics .copy a t).isSome
     bases := p.allBases
-    subobject := p.subobject }
+    initializer := p.candidateInitializer }
 
 /-- What instantiating a lookup gives in a program whose primary is the
 soft design: the selected specialization's value, the primary's, or a

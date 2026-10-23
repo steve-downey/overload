@@ -1,6 +1,7 @@
 -- Overload/Identity.lean                                             -*-lean-*-
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 import Overload.Steps
+import Overload.Ranking
 
 /-!
 # The identity of a specialization through its converted arguments
@@ -47,16 +48,45 @@ specialization. The derived value is sliced to the base's. -/
 @[std theorem "temp.type#1"]
 theorem slicing_identifies (env : Env) (b d : String) (vs ws : Val) (ps : Head) (rest : List Ty)
     (hp : (Ty.named b).hasPlaceholder = false) (hb : isInteger b = false) (hne : b ≠ d)
-    (hs : env.subobject (.named b) (.obj d vs) = some (.obj b ws)) :
+    (hs : env.initializer (.named b) (.obj d vs) = some (.obj b ws)) :
     sameSpecialization env ({ kind := .const (.named b) } :: ps)
       (.value (.obj d vs) :: rest) (.value (.obj b ws) :: rest) := by
-  have hd : convertArg env.subobject [] (.const (.named b)) (.value (.obj d vs)) =
+  have hd : convertArg env.initializer [] (.const (.named b)) (.value (.obj d vs)) =
       .ok (.value (.obj b ws)) :=
     (convertArg_iff _ _ _ _ _).mp (.classBase (.named b) b d vs (.obj b ws) hp rfl rfl hb hne hs)
-  have hb' : convertArg env.subobject [] (.const (.named b)) (.value (.obj b ws)) =
+  have hb' : convertArg env.initializer [] (.const (.named b)) (.value (.obj b ws)) =
       .ok (.value (.obj b ws)) :=
     (convertArg_iff _ _ _ _ _).mp (.classSame (.named b) b ws hp rfl rfl hb)
   exact explicitStep_converted env _ ps _ _ rest rfl (hd.trans hb'.symm)
+
+/-- A class-typed value parameter and two values of other classes that
+each copy-initialize it through a user-defined conversion sequence, a
+converting constructor or a conversion function: both name one
+specialization, since the candidate initializer is the class's one
+value either way. A conversion between instance types identifies the
+instances it converts, as slicing does. -/
+@[std theorem "temp.type#1"]
+theorem conversion_identifies (p : Program) (env : Env) (c d₁ d₂ : String) (vs₁ vs₂ : Val)
+    (ps : Head) (rest : List Ty) (he : env.initializer = p.candidateInitializer)
+    (hp : (Ty.named c).hasPlaceholder = false) (hc : isInteger c = false)
+    (hne₁ : c ≠ d₁) (hne₂ : c ≠ d₂)
+    (h₁ : ∃ f v s, p.ics .copy { ty := .named d₁ } (.named c) = some (.userDefined f v s))
+    (h₂ : ∃ f v s, p.ics .copy { ty := .named d₂ } (.named c) = some (.userDefined f v s)) :
+    sameSpecialization env ({ kind := .const (.named c) } :: ps)
+      (.value (.obj d₁ vs₁) :: rest) (.value (.obj d₂ vs₂) :: rest) := by
+  obtain ⟨f₁, v₁, s₁, h₁⟩ := h₁
+  obtain ⟨f₂, v₂, s₂, h₂⟩ := h₂
+  have hi₁ : env.initializer (.named c) (.obj d₁ vs₁) = some (p.uniqueValue (.named c)) := by
+    rw [he]; exact candidateInitializer_user p _ d₁ vs₁ f₁ s₁ v₁ h₁
+  have hi₂ : env.initializer (.named c) (.obj d₂ vs₂) = some (p.uniqueValue (.named c)) := by
+    rw [he]; exact candidateInitializer_user p _ d₂ vs₂ f₂ s₂ v₂ h₂
+  have hd₁ : convertArg env.initializer [] (.const (.named c)) (.value (.obj d₁ vs₁)) =
+      .ok (.value (p.uniqueValue (.named c))) :=
+    (convertArg_iff _ _ _ _ _).mp (.classBase (.named c) c d₁ vs₁ _ hp rfl rfl hc hne₁ hi₁)
+  have hd₂ : convertArg env.initializer [] (.const (.named c)) (.value (.obj d₂ vs₂)) =
+      .ok (.value (p.uniqueValue (.named c))) :=
+    (convertArg_iff _ _ _ _ _).mp (.classBase (.named c) c d₂ vs₂ _ hp rfl rfl hc hne₂ hi₂)
+  exact explicitStep_converted env _ ps _ _ rest rfl (hd₁.trans hd₂.symm)
 
 /-- A reference parameter: the parameter denotes the object the argument
 designates, so two different objects never name one specialization,
@@ -65,7 +95,7 @@ whatever their classes. -/
 theorem reference_keeps_identity (env : Env) (b : String) (r₁ r₂ : Ty) (ps : Head)
     (hp : (Ty.named b).hasPlaceholder = false) (hne : r₁ ≠ r₂) :
     ¬ sameSpecialization env ({ kind := .const (.lref (.const (.named b))) } :: ps) [.ref r₁] [.ref r₂] := by
-  have hc : ∀ r, convertArg env.subobject [] (.const (.lref (.const (.named b)))) (.ref r) = .ok (.ref r) :=
+  have hc : ∀ r, convertArg env.initializer [] (.const (.lref (.const (.named b)))) (.ref r) = .ok (.ref r) :=
     fun r => (convertArg_iff _ _ _ _ _).mp (.reference _ r (.const (.named b)) hp rfl rfl)
   intro h
   unfold sameSpecialization at h

@@ -37,7 +37,7 @@ own value deduce the same specialization, whatever the call's
 arguments: the derived instance is sliced. -/
 theorem value_route_slices (env : Env) (b d : String) (vs ws : Val) (args : List CallArg)
     (hp : (Ty.named b).hasPlaceholder = false) (hb : isInteger b = false) (hne : b ≠ d)
-    (hs : env.subobject (.named b) (.obj d vs) = some (.obj b ws)) :
+    (hs : env.initializer (.named b) (.obj d vs) = some (.obj b ws)) :
     deduceTemplate env (valueRouteAt b) [.value (.obj d vs)] args =
       deduceTemplate env (valueRouteAt b) [.value (.obj b ws)] args := by
   have h := slicing_identifies env b d vs ws valueRoute.head.tail [] hp hb hne hs
