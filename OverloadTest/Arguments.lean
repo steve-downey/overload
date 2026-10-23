@@ -95,7 +95,10 @@ private def int : Ty := .named "int"
 -- Placeholders take the argument's own type.
 #guard convertArg sub [] (.const (.named "auto")) (.value (.int 1000)) == .ok (.value (.int 1000))
 #guard convertArg sub [] (.const (.lref (.const (.named "auto")))) (.ref (.named "o")) == .ok (.ref (.named "o"))
-#guard convertArg sub [] (.const (.lref (.const (.spec' "auto" [.named "C"])))) (.value dVal) == .ok (.value dVal)
+-- A reference placeholder and a value: the reference would bind a temporary.
+#guard convertArg sub [] (.const (.lref (.const (.spec' "auto" [.named "C"])))) (.value dVal) matches .soft _
+#guard convertArg sub [] (.const (.lref (.const (.named "auto")))) (.value dVal) matches .soft _
+#guard convertArg sub [] (.const (.lref (.const (.spec' "auto" [.named "C"])))) (.ref (.named "d")) == .ok (.ref (.named "d"))
 -- A dependent declared type waits; bound, it converts.
 #guard convertArg sub [] (.const (.param 0)) (.value (.int 1000)) == .ok (.value (.int 1000))
 #guard convertArg sub [(0, .named "signed char")] (.const (.param 0)) (.value (.int 1000)) matches .soft _

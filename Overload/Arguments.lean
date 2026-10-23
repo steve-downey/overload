@@ -220,6 +220,19 @@ the bindings so far, top-level cv-qualifiers ignored. -/
 @[std rule "temp.param#11"]
 def declaredType (σ : Bindings) (t : Ty) : Ty := (t.subst σ).stripConst
 
+/-- Is the argument a value, a prvalue in the invented declaration? -/
+def Ty.isValue : Ty → Bool
+  | .value _ => true
+  | _ => false
+
+/-- Would the invented declaration `T x = E;` bind a reference to a
+temporary: `T` a reference type, placeholder or not, and `E` a value?
+A constant template parameter of reference type shall not refer to a
+temporary, so this is a failure however the reference's type is
+deduced. -/
+@[std rule "temp.arg.nontype#6"]
+def bindsTemporary (t a : Ty) : Bool := t.isRef && a.isValue
+
 /-- A template argument converts to the value its parameter takes. For a
 type parameter the argument is a type. For a constant parameter the
 declared type decides: a placeholder takes the argument's own type,
@@ -234,8 +247,10 @@ inductive ConvertsTo (sub : Ty → Val → Option Val) (σ : Bindings) :
   /-- A type for a type template parameter. -/
   | type (a : Ty) (h : a.isType = true) : ConvertsTo sub σ .type a a
   /-- The parameter's type contains a placeholder: it is deduced from
-  the argument, which converts to itself. -/
-  | placeholder (t a : Ty) (hp : (declaredType σ t).hasPlaceholder = true) :
+  the argument, which converts to itself, unless the type is a reference
+  and the argument a value, which would bind a temporary. -/
+  | placeholder (t a : Ty) (hp : (declaredType σ t).hasPlaceholder = true)
+      (hv : bindsTemporary (declaredType σ t) a = false) :
       ConvertsTo sub σ (.const t) a a
   /-- The parameter's type still depends on a template parameter: it is
   formed when the parameter list is substituted, and the argument
@@ -297,7 +312,9 @@ def convertArg (sub : Ty → Val → Option Val) (σ : Bindings) : ParamKind →
   | .type, a => if a.isType then .ok a else .soft "a value for a type template parameter"
   | .const t, a =>
     let t' := declaredType σ t
-    if t'.hasPlaceholder then .ok a
+    if t'.hasPlaceholder then
+      if bindsTemporary t' a then .soft "a reference parameter binds an object, not a temporary"
+      else .ok a
     else if a.isType then .soft "a type for a constant template parameter"
     else if t'.dependent then .ok a
     else
@@ -315,7 +332,7 @@ theorem convertArg_iff (sub : Ty → Val → Option Val) (σ : Bindings) (k : Pa
   · intro h
     cases h with
     | type a h => simp [convertArg, h]
-    | placeholder t a hp => simp [convertArg, hp]
+    | placeholder t a hp hv => simp [convertArg, hp, hv]
     | dependent t a hp ha hd => simp [convertArg, ha, hp, hd]
     | integer t n v w hp hd ht hn hc =>
       rw [ht] at hp hd
@@ -337,7 +354,10 @@ theorem convertArg_iff (sub : Ty → Val → Option Val) (σ : Bindings) (k : Pa
       · simp [convertArg, ha] at h
     | const t =>
       by_cases hp : (declaredType σ t).hasPlaceholder = true
-      · simp [convertArg, hp] at h; subst h; exact .placeholder t a hp
+      · by_cases hv : bindsTemporary (declaredType σ t) a = true
+        · simp [convertArg, hp, hv] at h
+        · have hv' : bindsTemporary (declaredType σ t) a = false := by simpa using hv
+          simp [convertArg, hp, hv'] at h; subst h; exact .placeholder t a hp hv'
       · have hp' : (declaredType σ t).hasPlaceholder = false := by simpa using hp
         by_cases ha : a.isType = true
         · simp [convertArg, hp', ha] at h
@@ -379,7 +399,7 @@ theorem convertArg_not_hard (sub : Ty → Val → Option Val) (σ : Bindings) (k
   | type => by_cases ha : a.isType = true <;> simp [convertArg, ha]
   | const t =>
     by_cases hp : (declaredType σ t).hasPlaceholder = true
-    · simp [convertArg, hp]
+    · by_cases hv : bindsTemporary (declaredType σ t) a = true <;> simp [convertArg, hp, hv]
     · have hp' : (declaredType σ t).hasPlaceholder = false := by simpa using hp
       by_cases ha : a.isType = true
       · simp [convertArg, hp', ha]
@@ -417,24 +437,37 @@ theorem convertArg_type (sub : Ty → Val → Option Val) (σ : Bindings) (a : T
   simp [convertArg, h]
 
 /-- An argument for a parameter whose type contains a placeholder
-converts to itself. -/
+converts to itself, unless a reference would bind a temporary. -/
 @[simp]
 theorem convertArg_placeholder (sub : Ty → Val → Option Val) (σ : Bindings) (t a : Ty)
-    (hp : (declaredType σ t).hasPlaceholder = true) :
+    (hp : (declaredType σ t).hasPlaceholder = true)
+    (hv : bindsTemporary (declaredType σ t) a = false) :
     convertArg sub σ (.const t) a = .ok a := by
-  simp [convertArg, hp]
+  simp [convertArg, hp, hv]
 
 /-- `auto`. -/
 @[simp]
 theorem convertArg_auto (sub : Ty → Val → Option Val) (σ : Bindings) (a : Ty) :
     convertArg sub σ (.const (.named "auto")) a = .ok a :=
-  convertArg_placeholder sub σ _ a rfl
+  convertArg_placeholder sub σ _ a rfl rfl
 
-/-- `const auto&`. -/
+/-- `const auto&`, for an argument that is not a value. -/
 @[simp]
-theorem convertArg_auto_ref (sub : Ty → Val → Option Val) (σ : Bindings) (a : Ty) :
+theorem convertArg_auto_ref (sub : Ty → Val → Option Val) (σ : Bindings) (a : Ty)
+    (hv : a.isValue = false) :
     convertArg sub σ (.const (.lref (.const (.named "auto")))) a = .ok a :=
-  convertArg_placeholder sub σ _ a rfl
+  convertArg_placeholder sub σ _ a rfl (by simp [bindsTemporary, declaredType, Ty.isRef, hv])
+
+/-- `const auto&` and a value: the reference would bind a temporary, and
+the conversion is a deduction failure. A prvalue, such as the result of
+a user-defined conversion, has no object for a reference parameter to
+denote. -/
+@[std theorem "temp.arg.nontype#6"]
+theorem placeholder_reference_refuses_value (sub : Ty → Val → Option Val) (σ : Bindings) (v : Val) :
+    ∃ r, convertArg sub σ (.const (.lref (.const (.named "auto")))) (.value v) = .soft r :=
+  have hd : declaredType σ (.lref (.const (.named "auto"))) = .lref (.const (.named "auto")) := rfl
+  ⟨"a reference parameter binds an object, not a temporary",
+    by simp [convertArg, hd, bindsTemporary, Ty.isRef, Ty.isValue, Ty.hasPlaceholder]⟩
 
 /-- The oracle is consulted only for a class value of another class
 than the parameter's: two oracles that agree on the argument's value

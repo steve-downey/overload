@@ -7,6 +7,7 @@ import Overload.Typeclass.Units
 import Overload.Typeclass.Members
 import Overload.Typeclass.Lookup
 import Overload.Typeclass.Arguments
+import Overload.Typeclass.Conversion
 import Overload.Typeclass.Emit
 
 /-!
@@ -35,6 +36,8 @@ the call through it.
   and why superclass coherence is a law and not an identity.
 * `Overload.Typeclass.Units`: divergence between translation units, and
   stability per unit.
+* `Overload.Typeclass.Conversion`: what a user-defined conversion between
+  instance types would cost, and why the encoding has none.
 * `Overload.Typeclass.Members`: the member call as a parameter, operation
   objects with several `operator()`s, and algorithms over an instance.
 * `Overload.Typeclass.Emit`: the emitted differential cases of the encoding.
