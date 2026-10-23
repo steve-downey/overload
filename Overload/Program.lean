@@ -75,6 +75,44 @@ structure FunctionTemplate where
   scope : Scope := []
   deriving Repr, DecidableEq, Inhabited
 
+/-- The context an initialization runs in: argument passing, a function
+return and the `=` form are copy-initialization; a parenthesized
+initializer, a cast and functional notation are direct-initialization.
+The fragment has only the first, so `direct` is the contrast that admits
+explicit candidates. -/
+inductive Init where
+  /-- Copy-initialization ([dcl.init.general]/13). -/
+  | copy
+  /-- Direct-initialization ([dcl.init.general]/14). -/
+  | direct
+  deriving Repr, DecidableEq, Inhabited
+
+attribute [std rule "dcl.init.general#13"] Init.copy
+attribute [std rule "dcl.init.general#14"] Init.direct
+
+/-- A user-defined conversion declared for a class: a converting
+constructor, by the type of its one parameter, or a conversion function,
+by the type it converts to. Either may be explicit, in which case it is
+a candidate only for direct-initialization. The fragment has no
+expressions, so a conversion is its declaration: what it converts from
+and to, and whether it is explicit
+(`decisions.md#user-defined-conversions`). -/
+inductive UserConv where
+  /-- A constructor `cls(param)`, which specifies a conversion from
+  `param` to `cls` when not explicit. -/
+  | constructor (param : Ty) (explicit : Bool := false)
+  /-- A conversion function `operator target()`, which specifies a
+  conversion from its class to `target`. -/
+  | function (target : Ty) (explicit : Bool := false)
+  deriving Repr, DecidableEq, Inhabited
+
+attribute [std rule "class.conv.ctor#1"] UserConv.constructor
+attribute [std rule "class.conv.fct#2"] UserConv.function
+
+/-- Is the conversion explicit? -/
+def UserConv.explicit : UserConv → Bool
+  | .constructor _ e | .function _ e => e
+
 /-- A declaration. Every namespace-scope declaration carries the scope it
 inhabits, defaulting to the global scope; a declaration whose scope ends
 in a class step is a member of that class. -/
@@ -120,10 +158,16 @@ inductive Decl where
   it carries: the point of instantiation of the specialization
   immediately follows this declaration ([temp.point]/1). -/
   | refersTo (call : Nat)
+  /-- A user-defined conversion of the class `cls`, a ground class type:
+  a converting constructor or a conversion function declared in its
+  definition. Its own declaration, after the class, so the program stays
+  a flat list ([class.conv.general]/1). -/
+  | converting (cls : Ty) (conv : UserConv)
   deriving Repr, DecidableEq, Inhabited
 
 attribute [std rule "temp.dep.general#2"] Decl.dependentCall
 attribute [std rule "temp.point#1.sentence-2"] Decl.refersTo
+attribute [std rule "class.conv.general#1"] Decl.converting
 
 /-- A program: declarations in order. -/
 abbrev Program := List Decl
