@@ -53,9 +53,11 @@ as access goes: no conversion, the identity, or a derived-to-base
 conversion to an accessible base. -/
 @[std rule "conv.ptr#3.sentence-2"]
 def accessibleConversion (p : Program) (a : CallArg) (t : Ty) : Bool :=
-  match p.ics a t with
-  | some s => s.rank == .exactMatch || p.accessibleBase s.source s.target
-  | none => true
+  let std (s : StdConv) := s.rank == .exactMatch || p.accessibleBase s.source s.target
+  match p.ics .copy a t with
+  | some (.standard s) => std s
+  | some (.userDefined f _ s) => std f && std s
+  | _ => true
 
 /-- A call, as a program evaluates it in an environment, normally the one
 the program defines (`Env.ofProgram`) or a layer above it: overload

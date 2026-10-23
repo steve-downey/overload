@@ -132,6 +132,10 @@ is the map.
 #audit Overload.resolve_congr
 #audit Overload.better_iff
 #audit Overload.better_asymm
+#audit Overload.ics_iff
+#audit Overload.ics_one_user_defined
+#audit Overload.betterIcs_iff
+#audit Overload.betterIcs_asymm
 #audit Overload.separability
 #audit Overload.separability_step_order
 #audit Overload.separability_argument_identity
@@ -143,7 +147,7 @@ is the map.
 -- Erasing derivation, Mandates, SFINAE, dispatch, access.
 #audit Overload.inheritance_erasure
 #audit Overload.derives_erase
-#audit Overload.ics_erase
+#audit Overload.standardIcs_erase
 #audit Overload.better_erase
 #audit Overload.allBases_erase
 #audit Overload.mandate_inertness

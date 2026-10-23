@@ -475,21 +475,21 @@ theorem referenceCompatible_erase (p : Program) (I : List String) (t₁ t₂ : T
   · simp only [Program.referenceCompatible, derives_erase p I _ _ h]
   · simp [Program.referenceCompatible, h]
 
-theorem ics_erase (p : Program) (I : List String) (a : CallArg) (t : Ty) (h : ExactPair p I a t) :
-    (p.eraseBases I).ics a t = p.ics a t := by
+theorem standardIcs_erase (p : Program) (I : List String) (a : CallArg) (t : Ty) (h : ExactPair p I a t) :
+    (p.eraseBases I).standardIcs a t = p.standardIcs a t := by
   have hs := h.source
   cases t with
   | lref u =>
     have hs' : _ ∨ a.ty.referred.stripConst = u.stripConst := hs
-    simp only [Program.ics, referenceCompatible_erase p I u a.ty.referred hs',
+    simp only [Program.standardIcs, referenceCompatible_erase p I u a.ty.referred hs',
       baseConv_erase p I _ _ hs']
   | rref u =>
     have hs' : _ ∨ a.ty.referred.stripConst = u.stripConst := hs
-    simp only [Program.ics, referenceCompatible_erase p I u a.ty.referred hs',
+    simp only [Program.standardIcs, referenceCompatible_erase p I u a.ty.referred hs',
       baseConv_erase p I _ _ hs']
   | _ => exact congrArg (Option.map _) (baseConv_erase p I _ _ hs)
 
-theorem ics_spec (p : Program) (a : CallArg) (t : Ty) (s : StdConv) (h : p.ics a t = some s) :
+theorem standardIcs_spec (p : Program) (a : CallArg) (t : Ty) (s : StdConv) (h : p.standardIcs a t = some s) :
     s.source = a.ty.referred.stripConst ∧ s.target = t.referred.stripConst ∧
       (s.rank = .conversion → s.source ≠ s.target) ∧
       (∀ b, s.binding = some b → b.referred.stripConst = s.target) := by
@@ -501,21 +501,21 @@ theorem ics_spec (p : Program) (a : CallArg) (t : Ty) (s : StdConv) (h : p.ics a
     cases hr
   cases t
   case lref u =>
-    simp only [Program.ics] at h
+    simp only [Program.standardIcs] at h
     split at h
     · simp only [Option.map_eq_some_iff] at h
       obtain ⟨r, hr, rfl⟩ := h
       exact ⟨rfl, rfl, hb _ _ r hr, by intro b hb'; cases hb'; rfl⟩
     · cases h
   case rref u =>
-    simp only [Program.ics] at h
+    simp only [Program.standardIcs] at h
     split at h
     · simp only [Option.map_eq_some_iff] at h
       obtain ⟨r, hr, rfl⟩ := h
       exact ⟨rfl, rfl, hb _ _ r hr, by intro b hb'; cases hb'; rfl⟩
     · cases h
   all_goals
-    simp only [Program.ics, Option.map_eq_some_iff] at h
+    simp only [Program.standardIcs, Option.map_eq_some_iff] at h
     obtain ⟨r, hr, rfl⟩ := h
     exact ⟨rfl, rfl, hb _ _ r hr, by intro b hb'; cases hb'⟩
 
@@ -546,10 +546,10 @@ private theorem byQualification_erase (p : Program) (I : List String) (s₁ s₂
 compare the same before and after erasure. -/
 theorem better_erase (p : Program) (I : List String) (a : CallArg) (t₁ t₂ : Ty)
     (s₁ s₂ : StdConv) (he₁ : ExactPair p I a t₁) (he₂ : ExactPair p I a t₂)
-    (h₁ : p.ics a t₁ = some s₁) (h₂ : p.ics a t₂ = some s₂) :
+    (h₁ : p.standardIcs a t₁ = some s₁) (h₂ : p.standardIcs a t₂ = some s₂) :
     (p.eraseBases I).better s₁ s₂ = p.better s₁ s₂ := by
-  obtain ⟨hs₁, ht₁, hc₁, hb₁⟩ := ics_spec p a t₁ s₁ h₁
-  obtain ⟨hs₂, ht₂, hc₂, hb₂⟩ := ics_spec p a t₂ s₂ h₂
+  obtain ⟨hs₁, ht₁, hc₁, hb₁⟩ := standardIcs_spec p a t₁ s₁ h₁
+  obtain ⟨hs₂, ht₂, hc₂, hb₂⟩ := standardIcs_spec p a t₂ s₂ h₂
   -- A Conversion has distinct classes, so neither is touched.
   have conv₁ : s₁.rank = .conversion →
       p.touched I s₁.source = false ∧ p.touched I s₁.target = false := by
@@ -601,13 +601,31 @@ inductive Aligned (R : α → β → Prop) : List α → List β → Prop where
   | cons {a : α} {b : β} {as : List α} {bs : List β} :
       R a b → Aligned R as bs → Aligned R (a :: as) (b :: bs)
 
-/-- A conversion sequence formed at exact type for an argument. -/
-private def FormedAt (p : Program) (I : List String) (a : CallArg) (s : StdConv) : Prop :=
-  ∃ t, ExactPair p I a t ∧ p.ics a t = some s
+/-- Erasure keeps every conversion declaration, so a program without
+user-defined conversions stays without them. -/
+theorem eraseBases_conversionFree (p : Program) (I : List String) :
+    (p.eraseBases I).conversionFree = p.conversionFree := by
+  simp only [Program.conversionFree, Program.eraseBases, List.all_map]
+  congr 1
+  funext d
+  cases d <;> rfl
 
-theorem conversions_erase (p : Program) (I : List String) :
+/-- In a program without user-defined conversions, the ranking forms the
+standard sequence and nothing else. -/
+theorem ranking_ics_free (p : Program) (h : p.conversionFree = true) (a : CallArg) (t : Ty) :
+    p.ranking.ics a t = .ok ((p.standardIcs a t).map .standard) := by
+  simp only [Program.ranking, ics_free p h]
+
+/-- A conversion sequence formed at exact type for an argument: a standard
+sequence, since the program has no user-defined conversions. -/
+private def FormedAt (p : Program) (I : List String) (a : CallArg) (u : Ics) : Prop :=
+  ∃ t s, ExactPair p I a t ∧ p.standardIcs a t = some s ∧ u = .standard s
+
+theorem conversions_erase (p : Program) (I : List String) (hfree : p.conversionFree = true) :
     ∀ (args : List CallArg) (ps : List Ty), (∀ x ∈ args.zip ps, ExactPair p I x.1 x.2) →
       conversions (p.eraseBases I).ranking args ps = conversions p.ranking args ps := by
+  have hfree' : (p.eraseBases I).conversionFree = true := by
+    rw [eraseBases_conversionFree]; exact hfree
   intro args
   induction args with
   | nil => intro ps _; rfl
@@ -619,10 +637,10 @@ theorem conversions_erase (p : Program) (I : List String) :
       have ha := h (a, t) List.mem_cons_self
       have ht := ih ts (fun x hx => h x (List.mem_cons_of_mem _ hx))
       simp only [conversions, ht]
-      simp only [Program.ranking, ics_erase p I a t ha]
+      simp only [ranking_ics_free _ hfree', ranking_ics_free _ hfree, standardIcs_erase p I a t ha]
 
-private theorem conversions_spec (p : Program) (I : List String) :
-    ∀ (args : List CallArg) (ps : List Ty) (convs : List StdConv),
+private theorem conversions_spec (p : Program) (I : List String) (hfree : p.conversionFree = true) :
+    ∀ (args : List CallArg) (ps : List Ty) (convs : List Ics),
       (∀ x ∈ args.zip ps, ExactPair p I x.1 x.2) →
       conversions p.ranking args ps = .ok (some convs) →
         Aligned (FormedAt p I) args convs := by
@@ -636,12 +654,13 @@ private theorem conversions_spec (p : Program) (I : List String) :
     | cons t ts =>
       have ha := hx (a, t) List.mem_cons_self
       simp only [conversions] at h
-      cases hi : p.ics a t with
+      cases hi : p.standardIcs a t with
       | none =>
-        rw [show p.ranking.ics a t = .ok none from by simp [Program.ranking, hi]] at h
+        rw [show p.ranking.ics a t = .ok none from by simp [ranking_ics_free p hfree, hi]] at h
         cases h
       | some c =>
-        rw [show p.ranking.ics a t = .ok (some c) from by simp [Program.ranking, hi]] at h
+        rw [show p.ranking.ics a t = .ok (some (.standard c)) from by
+          simp [ranking_ics_free p hfree, hi]] at h
         simp only [Subst.bind_eq, Subst.bind_ok] at h
         cases hr : conversions p.ranking as ts with
         | ok o =>
@@ -651,11 +670,13 @@ private theorem conversions_spec (p : Program) (I : List String) :
           | some cs =>
             simp only [Subst.bind_ok, Subst.pure_eq, Subst.ok.injEq, Option.some.injEq] at h
             subst h
-            exact .cons ⟨t, ha, hi⟩ (ih ts cs (fun x hx' => hx x (List.mem_cons_of_mem _ hx')) hr)
+            exact .cons ⟨t, c, ha, hi, rfl⟩
+              (ih ts cs (fun x hx' => hx x (List.mem_cons_of_mem _ hx')) hr)
         | soft _ => rw [hr] at h; cases h
         | hard _ => rw [hr] at h; cases h
 
-theorem viable_erase (p : Program) (I : List String) (args : List CallArg) :
+theorem viable_erase (p : Program) (I : List String) (hfree : p.conversionFree = true)
+    (args : List CallArg) :
     ∀ cs : List Candidate, (∀ c ∈ cs, ∀ x ∈ args.zip c.params, ExactPair p I x.1 x.2) →
       viable.go (p.eraseBases I).ranking args cs = viable.go p.ranking args cs := by
   intro cs
@@ -663,12 +684,13 @@ theorem viable_erase (p : Program) (I : List String) (args : List CallArg) :
   | nil => intro _; rfl
   | cons c cs ih =>
     intro h
-    have hc := conversions_erase p I args c.params (h c List.mem_cons_self)
+    have hc := conversions_erase p I hfree args c.params (h c List.mem_cons_self)
     have ht := ih (fun c' hc' => h c' (List.mem_cons_of_mem _ hc'))
     simp only [viable.go, hc, ht]
 
-private theorem viable_spec (p : Program) (I : List String) (args : List CallArg) :
-    ∀ (cs : List Candidate) (vs : List (Viable StdConv)),
+private theorem viable_spec (p : Program) (I : List String) (hfree : p.conversionFree = true)
+    (args : List CallArg) :
+    ∀ (cs : List Candidate) (vs : List (Viable Ics)),
       (∀ c ∈ cs, ∀ x ∈ args.zip c.params, ExactPair p I x.1 x.2) →
       viable.go p.ranking args cs = .ok vs → ∀ v ∈ vs, Aligned (FormedAt p I) args v.convs := by
   intro cs
@@ -690,7 +712,7 @@ private theorem viable_spec (p : Program) (I : List String) (args : List CallArg
             subst h
             intro v hv
             rcases List.mem_cons.mp hv with rfl | hv
-            · exact conversions_spec p I args c.params convs (hx c List.mem_cons_self) hc
+            · exact conversions_spec p I hfree args c.params convs (hx c List.mem_cons_self) hc
             · exact ih rest hx' hg v hv
           | soft _ => simp [hg] at h
           | hard _ => simp [hg] at h
@@ -721,20 +743,22 @@ private theorem all_congr_mem {l : List α} {f g : α → Bool} (h : ∀ x ∈ l
       ih (fun x hx => h x (List.mem_cons_of_mem _ hx))]
 
 theorem betterFunction_erase (p : Program) (I : List String) (args : List CallArg)
-    (ms : Specialization → Specialization → Bool) (f₁ f₂ : Viable StdConv)
+    (ms : Specialization → Specialization → Bool) (f₁ f₂ : Viable Ics)
     (h₁ : Aligned (FormedAt p I) args f₁.convs) (h₂ : Aligned (FormedAt p I) args f₂.convs) :
     betterFunction (p.eraseBases I).ranking ms f₁ f₂ = betterFunction p.ranking ms f₁ f₂ := by
   have hb : ∀ x ∈ f₁.convs.zip f₂.convs,
-      (p.eraseBases I).better x.1 x.2 = p.better x.1 x.2 ∧
-        (p.eraseBases I).better x.2 x.1 = p.better x.2 x.1 := by
+      (p.eraseBases I).betterIcs x.1 x.2 = p.betterIcs x.1 x.2 ∧
+        (p.eraseBases I).betterIcs x.2 x.1 = p.betterIcs x.2 x.1 := by
     intro x hx
-    obtain ⟨a, ⟨t₁, e₁, i₁⟩, ⟨t₂, e₂, i₂⟩⟩ := forall₂_zip h₁ h₂ x hx
+    obtain ⟨a, ⟨t₁, s₁, e₁, i₁, hu₁⟩, ⟨t₂, s₂, e₂, i₂, hu₂⟩⟩ := forall₂_zip h₁ h₂ x hx
+    rw [hu₁, hu₂]
+    simp only [Program.betterIcs]
     exact ⟨better_erase p I a t₁ t₂ _ _ e₁ e₂ i₁ i₂, better_erase p I a t₂ t₁ _ _ e₂ e₁ i₂ i₁⟩
   have hall := all_congr_mem (l := f₁.convs.zip f₂.convs)
-    (f := fun (c₁, c₂) => !(p.eraseBases I).better c₂ c₁) (g := fun (c₁, c₂) => !p.better c₂ c₁)
+    (f := fun (c₁, c₂) => !(p.eraseBases I).betterIcs c₂ c₁) (g := fun (c₁, c₂) => !p.betterIcs c₂ c₁)
     (fun x hx => by obtain ⟨c₁, c₂⟩ := x; simp only [(hb (c₁, c₂) hx).2])
   have hany := any_congr_mem (l := f₁.convs.zip f₂.convs)
-    (f := fun (c₁, c₂) => (p.eraseBases I).better c₁ c₂) (g := fun (c₁, c₂) => p.better c₁ c₂)
+    (f := fun (c₁, c₂) => (p.eraseBases I).betterIcs c₁ c₂) (g := fun (c₁, c₂) => p.betterIcs c₁ c₂)
     (fun x hx => by obtain ⟨c₁, c₂⟩ := x; simp only [(hb (c₁, c₂) hx).1])
   simp only [betterFunction, Program.ranking, hall, hany]
 
@@ -754,10 +778,14 @@ every class erasure touches at its exact type. The hypotheses ask it of
 each conversion the call can form, at the non-dependent parameters that
 deduction checks and at every parameter of every candidate, and of
 deduction: no argument of a touched class is deduced from as a derived
-class. -/
+class. The program declares no user-defined conversions: a conversion
+between two unrelated classes could reach a touched class through a
+constructor's parameter or a conversion function's target, so it is the
+exact-type obligation again, for conversion declarations
+(`obligations.md`). -/
 theorem inheritance_erasure (mode : Mode) (p : Program) (I : List String)
     (atomics : List (String × List Ty × Bool)) (extra : Constraint.Oracle) (decls : List Decl)
-    (args : List CallArg) (explicit : List Ty)
+    (args : List CallArg) (explicit : List Ty) (hfree : p.conversionFree = true)
     (hderived : ∀ ft, .functionTemplate ft ∈ decls → NoDerivedDeduction p I ft args)
     (hdeduce : ∀ ft, .functionTemplate ft ∈ decls → ∀ x ∈ args.zip ft.params,
       x.2.dependent = false → ExactPair p I x.1 x.2)
@@ -776,20 +804,23 @@ theorem inheritance_erasure (mode : Mode) (p : Program) (I : List String)
       (fun σ q hq a => ?_)
     · simp only [Env.ofProgram, allBases_spec _ c hc]
     · simp only [Env.ofProgram, allBases_erase p I _ (hderived ft hm σ x hx hd hsp)]
-    · simp only [Env.ofProgram, ics_erase p I x.1 x.2 (hdeduce ft hm x hx hd)]
+    · have hfree' : (p.eraseBases I).conversionFree = true := by
+        rw [eraseBases_conversionFree]; exact hfree
+      simp only [Env.ofProgram, ics_free (p.eraseBases I) hfree', ics_free p hfree,
+        standardIcs_erase p I x.1 x.2 (hdeduce ft hm x hx hd)]
     · simp only [Env.ofProgram]; exact hconv ft hm σ q hq a
   unfold resolve
   rw [hgen]
   cases hg : generate mode (Env.ofProgram p atomics extra) decls args explicit with
   | ok cs =>
     have hcs := huse cs hg
-    simp only [viable, viable_erase p I args cs hcs]
+    simp only [viable, viable_erase p I hfree args cs hcs]
     cases hv : viable.go p.ranking args cs with
     | ok vs =>
       apply bestViable_congr
       intro w hw f hf
-      exact betterFunction_erase p I args _ w f (viable_spec p I args cs vs hcs hv w hw)
-        (viable_spec p I args cs vs hcs hv f hf)
+      exact betterFunction_erase p I args _ w f (viable_spec p I hfree args cs vs hcs hv w hw)
+        (viable_spec p I hfree args cs vs hcs hv f hf)
     | soft _ => rfl
     | hard _ => rfl
   | soft _ => rfl

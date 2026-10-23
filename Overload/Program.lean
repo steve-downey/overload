@@ -102,8 +102,9 @@ inductive UserConv where
   `param` to `cls` when not explicit. -/
   | constructor (param : Ty) (explicit : Bool := false)
   /-- A conversion function `operator target()`, which specifies a
-  conversion from its class to `target`. -/
-  | function (target : Ty) (explicit : Bool := false)
+  conversion from its class to `target`; `const` when its implicit
+  object parameter is a reference to const. -/
+  | function (target : Ty) (explicit : Bool := false) (const : Bool := true)
   deriving Repr, DecidableEq, Inhabited
 
 attribute [std rule "class.conv.ctor#1"] UserConv.constructor
@@ -111,7 +112,7 @@ attribute [std rule "class.conv.fct#2"] UserConv.function
 
 /-- Is the conversion explicit? -/
 def UserConv.explicit : UserConv → Bool
-  | .constructor _ e | .function _ e => e
+  | .constructor _ e | .function _ e _ => e
 
 /-- A declaration. Every namespace-scope declaration carries the scope it
 inhabits, defaulting to the global scope; a declaration whose scope ends
