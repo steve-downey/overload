@@ -68,7 +68,8 @@ Out of scope at the start:
 - Name lookup and argument-dependent lookup. The candidate set is an input.
 - The general theory of implicit conversion sequences. One concrete ranking,
   for priority tags and reference binding, is supplied to assess
-  user-written dispatch.
+  user-written dispatch. Phase 11 brings the user-defined conversion
+  sequence in.
 - The expression language. Expression validity is an oracle.
 - Multiple translation units and points of instantiation.
 
@@ -205,6 +206,7 @@ call-site overload resolution exists. Phase 9 was added on 20 October
 | 8 Translation units | Points of instantiation, visibility, and the fourth substitution outcome. See single-tu. | Each obligation in the undiagnosable class is tied to a specific rule. | 6 |
 | 9 Declarations and lookup | Scopes, correspondence, unqualified and argument-dependent lookup, member lookup, the dependent-call verdict, entity identity across units, as P1787R6 rewrote them. See [below](#phase-9-declarations-and-where-to-find-them). | The candidate set of a call is computed, not given; every lookup claim the obligations rest on is a cited theorem. Settles lookup-scope and scope-syntax. | 5, 8 |
 | 10 Template arguments | The conversion of a constant template argument to its parameter's type: converted constant expressions and narrowing, class values sliced to a base, placeholders, and the identity of specializations through the converted values. See [below](#phase-10-template-arguments-and-their-conversion). | Every explicit and default constant argument is converted by a cited rule, the example of [temp.deduct.general]/12 reproduces, and leak 4 of instance inheritance is a theorem. Settles integer-widths and value-typing. | 2, 6 |
+| 11 User-defined conversions | Converting constructors and conversion functions, the user-defined conversion sequence and its rank, the ambiguous conversion sequence, reference binding to a converted temporary, `explicit` through the initialization context, and the conversion's effect on deduction and on constant template arguments. See [below](#phase-11-user-defined-conversions). | The concrete ranking forms every sequence of [over.best.ics.general]/3 the fragment can spell, with agreement and asymmetry; the four conversion theorems about the encoding are proved. Settles user-defined-conversions. | 5, 10 |
 
 Phase 6 can begin as soon as phase 4 closes. Phase 5 is on the critical
 path only for the function-call surface and the by-value explicit-instance
@@ -476,10 +478,16 @@ Status, 15 October 2026:
   protected base, so their instance types are not structural and the
   value route cannot take them at all (`value_route_needs_structural`).
   Every in-scope paragraph has a counterpart, since 22 October 2026.
+- Phase 11 is planned, 23 October 2026: user-defined conversion
+  sequences on the Standard side, so that the lower model covers calls
+  wider than the encoding's, and the encoding's lack of converting
+  constructors between instance types is a set of theorems rather than
+  a preference. The plan, the cross-reference against N5054 and the
+  stages are [below](#phase-11-user-defined-conversions).
 
 ## Target theorems
 
-Twenty-eight theorems carry the results. A theorem that fails is recorded with
+Thirty-two theorems carry the results. A theorem that fails is recorded with
 its counterexample and is a finding, not a setback.
 
 | Theorem | Statement | Phase |
@@ -511,6 +519,10 @@ its counterexample and is a finding, not a setback.
 | conversion-shields-call | A conversion failure of an explicit or default template argument is soft and precedes every later step's hard error. Added 21 October 2026. | 10 |
 | slicing-identifies | For a base-typed class value parameter, a derived value and the base's own value determine the same specialization. Added 21 October 2026. | 10 |
 | reference-keeps-identity | For a reference parameter, the parameter denotes the argument's object, so a derived instance is never identified with its base. Added 21 October 2026. | 10 |
+| conversion-invisible-to-deduction | A user-defined conversion between two class types changes no deduced binding: a parameter deduced from its argument is viable at the source type only as it would be without the conversion ([temp.deduct.call]/4). Added 23 October 2026. | 11 |
+| conversion-loses-rank | Where a user-defined conversion is the only route to an overload naming a concrete type, a template viable by the identity beats it ([over.ics.rank]/2), and two such overloads reachable by different conversions are indistinguishable. Added 23 October 2026. | 11 |
+| converted-argument-temporary | A user-defined conversion yields a prvalue: an lvalue reference parameter to non-const is not viable for it, a reference constant parameter refuses it, and a class-typed value parameter identifies every source that converts to one value. Added 23 October 2026. | 11 |
+| explicit-never-implicit | An explicit constructor or conversion function is no candidate for copy-initialization, so it forms no implicit conversion sequence at a call argument or a candidate initializer. Added 23 October 2026. | 11 |
 | instantiation-points | A dependent call referenced before a later overload of its name means different things at its two points of instantiation, which is ill-formed, no diagnostic required; a callee bound to an object has one meaning at every point. Added 22 October 2026. | 9 |
 
 Stability is the theorem that says open polymorphism has no surprises. Its
@@ -530,7 +542,7 @@ separability theorem.
 | argument-identity | Two values are template-argument-equivalent only if they have the same type. Class values compare by direct subobjects ([temp.type]/2). | Instance identity is type plus structure. A base sliced from a derived instance names a different specialization from the derived instance. |
 | tie-break-reach | Constraints are compared only when the template parameter lists and function parameter lists have equal length, corresponding template parameters are equivalent, and function parameter types match ([temp.func.order]/8). Equivalence of constant parameters ignores type-constraints on placeholder types ([temp.over.link]/6). | A bound written as a type-constraint on an `auto` constant parameter keeps the tie-break. An extra defaulted parameter on one overload, or constant parameters of different concrete instance types, switches it off and leaves the pair ambiguous. |
 | argument-conversion | Conversions of template arguments decide viability and are never ranked. The draft's own example is ambiguous between `template<int>` and `template<signed char>` ([temp.deduct.general]/12). | A second, unranked conversion relation for the literal-argument route. Whether a derived instance converts to a base-typed constant parameter is unchecked. Phase 10: it converts, by slicing, and the two name one specialization (`slicing_identifies`); the relation is `ConvertsTo`. |
-| rank-precedence | Derived-to-base has Conversion rank ([over.best.ics.general]/7). Conversion comparison comes before template specialization and constraints ([over.match.best.general]/2). | The by-value route is the only one where ranking is live. It is an exact match unless instance types are related by inheritance or conversion. |
+| rank-precedence | Derived-to-base has Conversion rank ([over.best.ics.general]/7). Conversion comparison comes before template specialization and constraints ([over.match.best.general]/2). | The by-value route is the only one where ranking is live. It is an exact match unless instance types are related by inheritance or conversion. Phase 11 puts the user-defined sequence below both ([over.ics.rank]/2). |
 
 The step-order suspect has support in the draft itself. An example in
 [temp.constr.atomic]/3 shows a call made ill-formed by a hard error in a
@@ -586,6 +598,14 @@ leaks are known:
    since 21 October 2026 (`slicing_identifies`), with the reference
    parameters the library uses as what closes it
    (`reference_keeps_identity`).
+5. **Conversion between instance types.** A converting constructor or a
+   conversion function from a Monad instance type to an Applicative
+   instance type is the other way to write refinement in the type
+   system. Planned 23 October 2026 as phase 11: deduction never applies
+   it ([temp.deduct.call]/4), ranking puts it below every standard
+   sequence ([over.ics.rank]/2), and its result is a temporary. The
+   encoding avoids this leak by design rather than suffering it, and the
+   phase's theorems say what it would cost.
 
 Two theorems settle it. Inheritance erasure is the positive result: inside
 the exact-type fragment, inheritance is only an implementation convenience.
@@ -638,6 +658,7 @@ the model found, is in [obligations.md](obligations.md).
 | Genuine instance: an object passed as an explicit instance is meant as one. Instances are constrained by shape, not by a nominal type, so an arbitrary object of the right shape is accepted. | User of explicit instances | coherence | Library-checkable for shape, convention for intent |
 | Normalized lookup key: const, volatile and reference qualifiers are stripped from a deduced type before instance lookup, so every spelling of a type reaches one instance. | Typeclass author | coherence | By construction if the dispatch normalizes |
 | Shapeless default: `std::false_type`, the default instance, satisfies no typeclass's shape concept. | Typeclass author | coherence, stability | Library-checkable, one `static_assert` per typeclass |
+| Refinement by shape: the superclass relation is a concept on the instance's shape and a retrieval function, never an implicit conversion between instance types. | Typeclass author | conversion-invisible-to-deduction, conversion-loses-rank | Library-checkable, a `static_assert` that no instance type converts to another |
 
 The undiagnosable rows are the residual trust base. They are what the
 single translation unit axiom hides, and they bear on the comparison with
@@ -1093,6 +1114,200 @@ discharge it. `Program.structural` is a program-level predicate.
    `valueRoute` and `pinTemplate`; the emitted cases, with the sliced
    derived value a known disagreement for GCC.
 6. [argument-docs](#argument-docs): the guide, the obligations, the
+   findings, this status, `citations.md`, `make drift-check-current`.
+
+## Phase 11: user-defined conversions
+
+Planned 23 October 2026. The lower model forms two implicit conversion
+sequences, the identity and derived-to-base, and binds a reference
+directly or not at all (`Overload/Ranking.lean`). That is what the
+typeclass encoding needs, and the general theory was put out of scope
+at the start. The question the model cannot answer as it stands is why
+the encoding has no converting constructors between instance types, and
+whether it should. A Monad instance that converts implicitly to an
+Applicative instance looks like a way to write refinement in the type
+system. The encoding writes refinement as a concept on the instance's
+shape and a retrieval function, `derive_functor<M>`, and takes instances
+at their deduced type. Phase 11 adds user-defined conversion sequences
+to the Standard side, so that the reasons are theorems and the lower
+model answers questions about calls wider than the encoding's.
+
+Four rules do the work. A user-defined conversion is not among the
+three differences deduction tolerates between the deduced and the actual
+argument type ([temp.deduct.call]/4), so a conversion between instance
+types fires at no deduced parameter, which is every generic algorithm.
+A user-defined conversion sequence is worse than every standard
+conversion sequence ([over.ics.rank]/2), so a generic template beats an
+overload naming the converted-to type, and two such overloads reachable
+by different conversions are indistinguishable ([over.ics.rank]/3, the
+user-defined bullet). The result of a conversion is a prvalue: a
+reference binds a temporary ([dcl.init.ref]/5), a reference constant
+parameter refuses it ([temp.arg.nontype]/6), and a class-typed value
+parameter copy-initializes from it ([temp.arg.nontype]/3), so every
+source that converts to one value names one specialization
+([temp.type]/1). An explicit constructor or conversion function is no
+candidate for copy-initialization ([over.match.copy]/1,
+[over.match.ctor]/1, [class.conv.fct]/4), and argument passing is
+copy-initialization ([dcl.init.general]/13), so an explicit conversion
+fires nowhere an instance is passed. This is the mirror of inheritance
+leak 2: derivation is visible to deduction and diverges from refinement
+one way, conversion is invisible to deduction and diverges the other.
+
+Casts stay out. An explicit conversion is an expression, and the
+fragment has none (`decisions.md#expression-depth`). What `explicit`
+does is modelled: the initialization context, copy or direct, is a flag
+on the initialization rather than a syntax.
+
+### The rules to transcribe, as they stand in N5054
+
+Paragraph numbers counted from `\pnum`, as `make drift-check` does.
+[over.best.ics.general] has thirteen paragraphs in N5054, with the
+ambiguous conversion sequence at /12; [over.ics.rank]/3 is one
+paragraph whose bullets are cited by their subject.
+
+| Rule | N5054 text (abbreviated) | Model counterpart |
+|---|---|---|
+| [over.best.ics.general]/1, /6 | An implicit conversion sequence converts an argument to the parameter's type; for a parameter that is not a reference it models copy-initialization of the parameter from the argument. | `Program.ics` forms the sequence in the copy-initialization context. |
+| [over.best.ics.general]/3 | A well-formed sequence is standard, user-defined, or ellipsis. | `Ics`: `.standard` or `.userDefined`; the ellipsis sequence is out of the fragment. |
+| [over.best.ics.general]/4 | When the target is the first parameter of a constructor or the object parameter of a conversion function that is a candidate by [over.match.copy] or [over.match.conv], user-defined conversion sequences are not considered. | The first standard conversion sequence of a user-defined sequence is formed by the standard cases of `Program.ics` alone; `ics_one_user_defined`. |
+| [over.best.ics.general]/7 | Identity for the same class, derived-to-base for a derived class, of Conversion rank. | `baseConv`, cited. [over.ics.user]/4 says the same from the other side: these are given Exact Match and Conversion rank although a constructor is called. |
+| [over.best.ics.general]/9 | Only standard conversion sequences convert to the implicit object parameter. | The member call in `Overload/Members.lean` converts the object by the identity; unchanged. |
+| [over.best.ics.general]/12 | More than one well-formed sequence is the ambiguous conversion sequence, ranked as a user-defined sequence indistinguishable from any other; a selected function that uses it makes the call ill-formed. | `Ics.ambiguous`; `Program.call` turns a selection whose parameter uses it into an ill-formed call, beside the access check. |
+| [over.ics.user]/1, /2 | A user-defined conversion sequence: a standard sequence to the constructor's first parameter or the conversion function's object parameter, the conversion, then a second standard sequence to the target, which includes any reference binding. | `Ics.userDefined first via second`. |
+| [over.ics.user]/3 | Through a conversion function template specialization, the second standard sequence has Exact Match rank. | Out of the fragment: no conversion function templates (`decisions.md#user-defined-conversions`). |
+| [over.ics.rank]/2 | A standard conversion sequence is better than a user-defined one. | The first tier of `better`, above the present rank comparison. |
+| [over.ics.rank]/3, user-defined bullet | U1 is better than U2 when they contain the same constructor or conversion function and U1's second standard sequence is better. | A tier on `.userDefined`; sequences through different conversions are indistinguishable. |
+| [over.ics.rank]/4 | Exact Match, Promotion, Conversion. | `ConvRank`, unchanged: Promotion needs arithmetic arguments. |
+| [over.ics.ref]/1 last sentence, /2 | A reference bound directly to the result of a conversion function is a user-defined sequence whose second sequence is the binding; a reference not bound directly converts the argument to the referenced type, conceptually copy-initializing a temporary. | `Program.ics` on a reference parameter: direct binding as today, else the sequence to the referenced type with the binding recorded as to a temporary. |
+| [over.ics.ref]/3 | No sequence binds an lvalue reference other than to const to an rvalue. | `canBind`, cited; the converted temporary now reaches it. |
+| [dcl.init.ref]/5 | A reference-compatible lvalue binds directly; for class types not reference-related, user-defined conversions by the rules for copy-initialization, then the temporary. | The reference cases of `Program.ics`; conversion functions returning references are out of the fragment. |
+| [dcl.init.general]/13, /14 | Argument passing is copy-initialization; a parenthesized initializer, a cast or functional notation is direct-initialization. | `Init`: `.copy` or `.direct`. A call's arguments and the candidate initializer are `.copy`; `.direct` appears only as the contrast in `explicit_never_implicit`. |
+| [dcl.init.general]/15, last copy-initialization bullet | The user-defined conversions from the source to the destination are enumerated by [over.match.copy] and the best is chosen by overload resolution; an ambiguous choice is ill-formed. | `Program.userConversions`, the candidates; `Program.ics` picks the best by `resolve` over the one argument, and more than one best is `.ambiguous`. |
+| [class.conv.general]/4 | At most one user-defined conversion is implicitly applied to a value. | `ics_one_user_defined`, from [over.best.ics.general]/4. |
+| [class.conv.ctor]/1 | A constructor that is not explicit specifies a conversion from its parameter types to its class. | `Decl.converting cls (.constructor param explicit)`: a single-argument converting constructor, declared for a ground class. |
+| [class.conv.fct]/2, /4 | A conversion function specifies a conversion from its class to the type named; an explicit one is considered only for direct-initialization. | `Decl.converting cls (.function target explicit)`. The note of /3, never invoked to the same class or a base, is the order of the cases of `Program.ics`. |
+| [over.match.copy]/1 | Copy-initialization of a class T: the non-explicit constructors of T, and for a class-typed initializer the non-explicit conversion functions to T or a class derived from T. | `Program.userConversions p .copy t src`. |
+| [over.match.ctor]/1 | Direct-initialization: all the constructors; otherwise the non-explicit ones. | `Program.userConversions p .direct t src` keeps the explicit constructors. |
+| [over.match.conv]/1 | Initialization of a non-class type from a class type: the non-explicit conversion functions whose type converts to T by a standard sequence; explicit ones for direct-initialization. | The non-class target cases of `Program.userConversions`; in the fragment the standard sequence is the identity. |
+| [over.match.viable]/4 | A viable function has an implicit conversion sequence for each argument. | `viable`, cited; it now sees user-defined sequences through the ranking. |
+| [temp.deduct.call]/4 | Three differences are allowed between the deduced A and A: cv-qualification under a reference, pointer conversions, a derived class. | `deduceParam`, unchanged, which is `deduction_ignores_conversion`. |
+| [temp.deduct.general]/5, convertibility | Non-dependent parameters are checked for convertibility. | `Env.convertible`, answered by the new `ics` in `Env.ofProgram`. |
+| [temp.arg.nontype]/3 | `constexpr T v = A;` is introduced. | `convertArg` gains the copy-initialization case for a class value of a class neither T nor derived from it, through `Env.userConvert`. |
+| [temp.arg.nontype]/6 | A reference parameter shall not refer to a temporary. | A `.value` for a reference parameter is a failure, cited; the converted result is a value. |
+
+Out of the fragment, recorded in `decisions.md#user-defined-conversions`:
+constructor templates and conversion function templates
+([over.ics.user]/3, and the dependent explicit-specifier of
+[over.match.funcs.general]/8), conversion functions returning a
+reference (the lvalue cases of [dcl.init.ref]/5), list-initialization
+and aggregates ([over.match.list], the list bullet of [over.ics.rank]/3),
+the ellipsis sequence, conversions to non-class types other than the
+identity (no arithmetic arguments), virtual conversion functions, and
+access to a conversion ([class.conv.general]/2 defers to [class.access];
+`Overload/Access.lean` checks bases only, and a private converting
+constructor is a later stage if a question needs it).
+
+### Design
+
+- **Declarations.** A conversion is its own declaration, `Decl.converting
+  (cls : Ty) (conv : UserConv)`, as an instance and an object are, so the
+  flat program and every match on `Decl.class` stand. `UserConv` is
+  `.constructor (param : Ty) (explicit : Bool)` or `.function (target :
+  Ty) (explicit : Bool)`. The class is ground: the encoding's instance
+  types are named classes in the model's programs, and a conversion on
+  every specialization of a class template would need a head the
+  fragment does not give class templates. `Program.userConversions init
+  tgt src` is the candidate list of [over.match.copy]/1,
+  [over.match.ctor]/1 and [over.match.conv]/1, filtered by `explicit`
+  against `init`.
+- **Sequences.** `Ics` replaces `StdConv` as the ranking's `Conv`:
+  `.standard s`, `.userDefined first via second`, `.ambiguous`.
+  `Program.ics init a t` tries the standard cases first, as today; for a
+  class target it then forms one user-defined sequence per candidate,
+  the first sequence by the standard cases only
+  ([over.best.ics.general]/4), picks the best candidate by `better` on
+  the first sequences ([dcl.init.general]/15), and reports `.ambiguous`
+  when more than one is best. A reference parameter not bound directly
+  converts to the referenced type and binds the temporary: a const
+  lvalue reference or an rvalue reference, never an lvalue reference to
+  non-const ([over.ics.ref]/2, /3). `IcsForms` is the relation,
+  `ics_iff` the agreement, `ics_one_user_defined` the depth bound.
+- **Ranking.** `better` gains a tier above the present chain: standard
+  beats user-defined and ambiguous ([over.ics.rank]/2); two user-defined
+  sequences compare only through the same `via` ([over.ics.rank]/3);
+  `.ambiguous` is indistinguishable from every user-defined sequence
+  ([over.best.ics.general]/12). `BetterConv` gains the constructors,
+  `better_iff` and `better_asymm` are re-established. `Ranking` stays a
+  parameter of the core, so `separability` and every phase 5 theorem are
+  untouched; only `Program.ranking` changes.
+- **The call.** `Program.call` adds one check beside access: a selected
+  function whose parameter uses the ambiguous sequence is an ill-formed
+  call ([over.best.ics.general]/12).
+- **Deduction.** `Env.ofProgram` answers `convertible` from the new `ics`,
+  so the convertibility step sees user-defined conversions as
+  [temp.deduct.general]/5 does. `deduceParam` and `callStep` do not
+  mention `convertible`, so the bindings deduced on a program are those
+  deduced on the program with its conversions removed:
+  `deduction_ignores_conversion`, an erasure theorem in the style of
+  `inheritance_erasure`, with `Program.eraseConversions`.
+- **Template arguments.** `Env` gains `userConvert : Ty → Val → Option
+  Val`, the value of `constexpr T v = A;` when the initialization goes
+  through a non-explicit converting constructor. `convertArg`'s class
+  case consults it after the identity and the subobject, under the
+  copy-initialization context. The fragment has no constructor bodies,
+  so `Env.ofProgram` leaves it `none` and the emitted cases supply the
+  body by hand, as raw cases do.
+- **Explicit.** `explicit_never_implicit`: `Program.userConversions .copy`
+  holds no explicit conversion, so no implicit conversion sequence and
+  no candidate initializer goes through one. The `.direct` contrast is a
+  guard, not a theorem, since direct-initialization is a syntax the
+  fragment has nowhere to put.
+- **The encoding.** `Overload/Typeclass/Conversion.lean`: an Applicative
+  instance type and a Monad instance type with a conversion from the
+  second to the first. `conversion_invisible_to_deduction`: a generic
+  algorithm `template <class A> f(const A&)` deduces the Monad instance
+  and selects as it would without the conversion. `conversion_loses_rank`:
+  beside an overload naming the Applicative instance type, the generic
+  template wins at the Monad instance, by [over.ics.rank]/2 before the
+  template preference of [over.match.best.general]/2 is reached.
+  `converting_sites_ambiguous`: two overloads naming two instance types
+  both reachable from a third by conversion are indistinguishable.
+  `converted_instance_temporary`: `pinTemplate`'s `const auto&` refuses
+  the converted value, and the value route identifies every source that
+  converts to one value (`value_route_identifies_converted`).
+  `explicit_conversion_dead`: with the conversion explicit, no call site
+  in the encoding forms it. Emitted cases in both emitters.
+
+### Stages
+
+1. [record-phase-eleven](#record-phase-eleven), docs only: this section,
+   the status, the theorem rows, leak 5, the obligation row, the decision
+   entries, `Overload.Std.inScope`.
+2. [conversion-declarations](#conversion-declarations): `UserConv`,
+   `Decl.converting`, `Init`, `Program.userConversions` with its
+   citations, the `Decl` matches in `Scope`, `Names`, `Resolution` and
+   `Emit` extended, the renderer for a converting constructor and a
+   conversion function.
+3. [conversion-sequences](#conversion-sequences): `Ics`, `Program.ics`
+   with the user-defined and ambiguous cases and the binding to a
+   temporary, `IcsForms`, `ics_iff`, `ics_one_user_defined`; the
+   existing standard cases proved unchanged (`ics_standard`), so every
+   present case keeps its numbers.
+4. [conversion-ranking](#conversion-ranking): `better` on `Ics`,
+   `BetterConv`, `better_iff`, `better_asymm`, `standard_beats_user_defined`,
+   `Program.ranking` on `Ics`, the ambiguous-sequence check in
+   `Program.call`; emitted cases for the rank, the ambiguity, the
+   reference to a temporary, and the draft's example of
+   [over.best.ics.general]/12.
+5. [conversion-deduction](#conversion-deduction): `Env.ofProgram`'s
+   `convertible`, `Program.eraseConversions`,
+   `deduction_ignores_conversion`; `Env.userConvert` and the
+   copy-initialization case of `convertArg`, with `convertArg_iff` and
+   the congruence lemmas re-established; `explicit_never_implicit`.
+6. [conversion-typeclass](#conversion-typeclass):
+   `Overload/Typeclass/Conversion.lean` with the five theorems above,
+   the emitted cases, the obligation row confirmed.
+7. [conversion-docs](#conversion-docs): the guide, the obligations, the
    findings, this status, `citations.md`, `make drift-check-current`.
 
 ## Draft citations and prior art
