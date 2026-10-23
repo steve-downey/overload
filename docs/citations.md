@@ -58,6 +58,10 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[basic.scope.scope]/6 sentence 1](https://eel.is/c++draft/basic.scope.scope#6.sentence-1) | rule | `Overload.potentiallyConflict` | `Overload.Scope` |
 | [[basic.scope.scope]/6 sentence 2](https://eel.is/c++draft/basic.scope.scope#6.sentence-2) | rule | `Overload.Program.conflicts` | `Overload.Scope` |
 | [[class.access.base]/4](https://eel.is/c++draft/class.access.base#4) | rule | `Overload.Program.accessibleBase` | `Overload.Access` |
+| [[class.conv.ctor]/1](https://eel.is/c++draft/class.conv.ctor#1) | rule | `Overload.UserConv.constructor` | `Overload.Program` |
+| [[class.conv.fct]/2](https://eel.is/c++draft/class.conv.fct#2) | rule | `Overload.UserConv.function` | `Overload.Program` |
+| [[class.conv.fct]/4](https://eel.is/c++draft/class.conv.fct#4) | rule | `Overload.UserConv.candidate` | `Overload.Ranking` |
+| [[class.conv.general]/1](https://eel.is/c++draft/class.conv.general#1) | rule | `Overload.Decl.converting` | `Overload.Program` |
 | [[class.derived.general]/2](https://eel.is/c++draft/class.derived.general#2) | rule | `Overload.Program.derives` | `Overload.Ranking` |
 | [[class.member.lookup]/3](https://eel.is/c++draft/class.member.lookup#3) | rule | `Overload.LookupSetRel.here` | `Overload.Members` |
 | [[class.member.lookup]/3 sentence 1](https://eel.is/c++draft/class.member.lookup#3.sentence-1) | rule | `Overload.Program.declarationSet` | `Overload.Members` |
@@ -71,6 +75,8 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[class.member.lookup]/6](https://eel.is/c++draft/class.member.lookup#6) | example | `Overload.ambiguous_bases_example` | `Overload.Members` |
 | [[class.member.lookup]/6](https://eel.is/c++draft/class.member.lookup#6) | rule | `Overload.Program.memberSearch` | `Overload.Members` |
 | [[conv.ptr]/3 sentence 2](https://eel.is/c++draft/conv.ptr#3.sentence-2) | rule | `Overload.Program.accessibleConversion` | `Overload.Access` |
+| [[dcl.init.general]/13](https://eel.is/c++draft/dcl.init.general#13) | rule | `Overload.Init.copy` | `Overload.Program` |
+| [[dcl.init.general]/14](https://eel.is/c++draft/dcl.init.general#14) | rule | `Overload.Init.direct` | `Overload.Program` |
 | [[dcl.init.list]/7](https://eel.is/c++draft/dcl.init.list#7) | rule | `Overload.Narrowing.integer` | `Overload.Arguments` |
 | [[dcl.init.ref]/4 sentence 2](https://eel.is/c++draft/dcl.init.ref#4.sentence-2) | rule | `Overload.Program.referenceCompatible` | `Overload.Ranking` |
 | [[dcl.init.ref]/4 sentence 3](https://eel.is/c++draft/dcl.init.ref#4.sentence-3) | rule | `Overload.Program.call` | `Overload.Access` |
@@ -105,6 +111,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.Resolves.best` | `Overload.Specs` |
 | [[over.match.best.general]/3 sentence 1](https://eel.is/c++draft/over.match.best.general#3.sentence-1) | rule | `Overload.bestViable` | `Overload.Resolution` |
 | [[over.match.call.general]/1](https://eel.is/c++draft/over.match.call.general#1) | rule | `Overload.Program.candidatesOf` | `Overload.Members` |
+| [[over.match.conv]/1](https://eel.is/c++draft/over.match.conv#1) | rule | `Overload.Program.userConversions` | `Overload.Ranking` |
 | [[over.match.funcs.general]/8 sentence 1](https://eel.is/c++draft/over.match.funcs.general#8.sentence-1) | rule | `Overload.Resolves.generationSoft` | `Overload.Specs` |
 | [[over.match.funcs.general]/8 sentence 1](https://eel.is/c++draft/over.match.funcs.general#8.sentence-1) | rule | `Overload.generate` | `Overload.Resolution` |
 | [[over.match.general]/3 sentence 2](https://eel.is/c++draft/over.match.general#3.sentence-2) | rule | `Overload.BestViable.noViable` | `Overload.Specs` |
@@ -247,13 +254,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 - [[over.ics.ref]/2](https://eel.is/c++draft/over.ics.ref#2)
 - [[over.match.copy]/1](https://eel.is/c++draft/over.match.copy#1)
 - [[over.match.ctor]/1](https://eel.is/c++draft/over.match.ctor#1)
-- [[over.match.conv]/1](https://eel.is/c++draft/over.match.conv#1)
 - [[class.conv.general]/4](https://eel.is/c++draft/class.conv.general#4)
-- [[class.conv.ctor]/1](https://eel.is/c++draft/class.conv.ctor#1)
-- [[class.conv.fct]/2](https://eel.is/c++draft/class.conv.fct#2)
-- [[class.conv.fct]/4](https://eel.is/c++draft/class.conv.fct#4)
-- [[dcl.init.general]/13](https://eel.is/c++draft/dcl.init.general#13)
-- [[dcl.init.general]/14](https://eel.is/c++draft/dcl.init.general#14)
 - [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15)
 - [[dcl.init.ref]/5](https://eel.is/c++draft/dcl.init.ref#5)
 

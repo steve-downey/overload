@@ -343,6 +343,16 @@ def functionText (d : Decl) (r : String) (cv : String := "") : String :=
     s!"{head ft.head}{req}\n{declarator ft r (params ft.params ft.defaultArgs) cv}{body ft r}\n"
   | _ => ""
 
+/-- The user-defined conversions of a class, as member declarations in its
+body. A class with a converting constructor keeps a defaulted default
+constructor, so that an object of it can still be declared. -/
+def conversionsText (n : String) (convs : List UserConv) : String :=
+  let keyword (e : Bool) := if e then "explicit " else ""
+  let dflt := if convs.any (· matches .constructor ..) then s!"    constexpr {n}() = default;\n" else ""
+  dflt ++ String.join (convs.map fun
+    | .constructor param e => s!"    {keyword e}constexpr {n}({ty param}) \{}\n"
+    | .function t e => s!"    {keyword e}constexpr operator {ty t}() const \{ return \{}; }\n")
+
 /-- The declarations of a program, as C++, each in its namespaces, with
 the members of a class in its body. -/
 def program (p : Program) (callee : String) (ret : Nat → Head → String)
@@ -358,12 +368,17 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
       let specs := bases.map (s!"public {ty ·}") ++ prot.map (s!"protected {ty ·}")
       let inherit := if specs.isEmpty then "" else s!" : {String.intercalate ", " specs}"
       let members := p.zipIdx.filter fun (m, _) => m.scope == sc ++ [.class n]
-      if members.isEmpty then
+      let convs := p.filterMap fun
+        | .converting c conv =>
+          let q := String.join (sc.filterMap fun | .namespace m => some s!"{m}::" | .class _ => none)
+          if c == .named n || c == .named (q ++ n) then some conv else none
+        | _ => none
+      if members.isEmpty && convs.isEmpty then
         text := s!"struct {n}{inherit} \{};\n"
       else
         let body := String.join (members.map fun (m, j) =>
           "    " ++ (functionText m (rs.getD j "void") " const").replace "\n    " "\n        ")
-        text := s!"struct {n}{inherit} \{\n{body}};\n"
+        text := s!"struct {n}{inherit} \{\n{body}{conversionsText n convs}};\n"
     | .classTemplate n h _ => text := s!"{head h}\nstruct {n} \{};\n"
     | .function .. | .functionTemplate _ => text := functionText d (rs.getD i "void")
     | .lookup c =>
@@ -390,6 +405,7 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
       | some (.dependentCall _ as _) =>
         text := s!"using reference_{i} = decltype({callExpr s!"dependent_{call}" [] as});\n"
       | _ => text := ""
+    | .converting .. => text := ""
     out := out ++ inScope d.scope text
   return out
 
@@ -479,6 +495,10 @@ def qualifyDecl (q : List (String × String)) : Decl → Decl
   | .instance c h pat => .instance c (h.map (qualifyParam q)) (qualifyTy q pat)
   | .use c t => .use c (qualifyTy q t)
   | .dependentCall callee as s => .dependentCall callee (as.map fun a => { a with ty := qualifyTy q a.ty }) s
+  | .converting c conv =>
+    .converting (qualifyTy q c) (match conv with
+      | .constructor param e => .constructor (qualifyTy q param) e
+      | .function t e => .function (qualifyTy q t) e)
   | d => d
 
 /-- Qualify the types of a case, program and query alike. -/

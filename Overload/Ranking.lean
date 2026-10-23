@@ -95,6 +95,44 @@ def subobject (p : Program) (b : Ty) : Val → Option Val
   | .obj d subs => p.subobjectWithin p.length b (.named d) (.obj d subs)
   | _ => none
 
+/-- The user-defined conversions declared for a class, in order. -/
+def conversionsOf (p : Program) (cls : Ty) : List UserConv :=
+  p.filterMap fun
+    | .converting c conv => if c == cls then some conv else none
+    | _ => none
+
+end Program
+
+/-- Is a conversion a candidate in an initialization context? An explicit
+constructor is a candidate only for direct-initialization, and so is an
+explicit conversion function. -/
+@[std rule "over.match.ctor#1", std rule "class.conv.fct#4"]
+def UserConv.candidate (init : Init) (c : UserConv) : Bool :=
+  !c.explicit || init == .direct
+
+namespace Program
+
+/-- The candidate user-defined conversions for initializing an object of
+type `tgt` from an expression of type `src`, both without top-level
+cv-qualifiers, in an initialization context: the constructors of a class
+`tgt`, all of them for direct-initialization and the non-explicit ones
+otherwise ([over.match.ctor]/1, [over.match.copy]/1); and, when `src` is
+a class, its conversion functions to `tgt` or to a class derived from a
+class `tgt` ([over.match.copy]/1), or to a non-class `tgt` itself, the
+fragment's only standard conversion to one ([over.match.conv]/1).
+Each is paired with the class that declares it, which is what tells two
+conversions apart when sequences are ranked. -/
+@[std rule "over.match.copy#1", std rule "over.match.conv#1"]
+def userConversions (p : Program) (init : Init) (tgt src : Ty) : List (Ty × UserConv) :=
+  let ctors := (p.conversionsOf tgt).filterMap fun
+    | c@(.constructor ..) => if c.candidate init then some (tgt, c) else none
+    | _ => none
+  let fns := (p.conversionsOf src).filterMap fun
+    | c@(.function t _) =>
+      if c.candidate init && (t == tgt || p.derives t tgt) then some (src, c) else none
+    | _ => none
+  ctors ++ fns
+
 /-- `cv1 T1` is reference-compatible with `cv2 T2` when a pointer to
 `cv2 T2` converts to a pointer to `cv1 T1`: `T2` is `T1` or derived from
 it, and `cv1` is at least `cv2`. -/

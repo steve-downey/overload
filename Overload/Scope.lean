@@ -63,7 +63,7 @@ def Decl.name? : Decl → Option String
   | .lookup n | .lookupHard n => some n
   | .object n _ _ => some n
   | .concept n _ => some n
-  | .instance .. | .use .. | .dependentCall .. | .refersTo _ => none
+  | .instance .. | .use .. | .dependentCall .. | .refersTo _ | .converting .. => none
 
 /-- The kind of entity a declaration declares, if it declares one. -/
 def Decl.kind? : Decl → Option EntityKind
@@ -74,7 +74,7 @@ def Decl.kind? : Decl → Option EntityKind
   | .lookup _ | .lookupHard _ => some .variableTemplate
   | .object .. => some .variable
   | .concept .. => some .concept
-  | .instance .. | .use .. | .dependentCall .. | .refersTo _ => none
+  | .instance .. | .use .. | .dependentCall .. | .refersTo _ | .converting .. => none
 
 /-- The scope a declaration inhabits, its target scope in the fragment
 ([basic.scope.scope]/2). A partial specialization, a use, a variable
@@ -223,13 +223,13 @@ inductive Linkage where
 `static`, no unnamed namespace, no module and no non-inline `const`
 variable, so every name that belongs to a namespace scope has external
 linkage, and a member has its class's ([basic.link]/3 to /5). A partial
-specialization, a use, a dependent call and a referring declaration
-introduce no name. -/
+specialization, a use, a dependent call, a referring declaration and a
+conversion introduce no name. -/
 @[std rule "basic.link#4"]
 def Decl.linkage : Decl → Linkage
   | .class .. | .classTemplate .. | .function .. | .functionTemplate _ | .object .. | .lookup _
   | .lookupHard _ | .concept .. => .external
-  | .instance .. | .use .. | .dependentCall .. | .refersTo _ => .none
+  | .instance .. | .use .. | .dependentCall .. | .refersTo _ | .converting .. => .none
 
 /-- Two declarations of one entity declare the same kind of entity: a
 variable with a variable, a function with a function, a class template

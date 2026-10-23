@@ -58,3 +58,26 @@ private def cyclic : Program := [.class "P" [.named "Q"], .class "Q" [.named "P"
 #guard match cyclic.ics { ty := .named "P" } (.named "Q"), cyclic.ics { ty := .named "P" } (.named "P") with
   | some s₁, some s₂ => !cyclic.better s₁ s₁ && (cyclic.better s₂ s₁ && !cyclic.better s₁ s₂)
   | _, _ => false
+
+-- The candidate user-defined conversions, by initialization context:
+-- `S` converts to `D` by a conversion function and to `B` by an explicit
+-- one; `B` has a converting constructor from `S` and `A` an explicit one.
+private def S : Ty := .named "S"
+private def D : Ty := .named "D"
+private def q : Program :=
+  p ++ [ .class "S", .class "D" [B]
+       , .converting B (.constructor (.lref (.const S)))
+       , .converting A (.constructor S true)
+       , .converting S (.function D), .converting S (.function B true) ]
+#guard q.userConversions .copy B S == [(B, .constructor (.lref (.const S))), (S, .function D)]
+#guard q.userConversions .direct B S ==
+  [(B, .constructor (.lref (.const S))), (S, .function D), (S, .function B true)]
+#guard q.userConversions .copy A S == [(S, .function D)]
+#guard q.userConversions .direct A S ==
+  [(A, .constructor S true), (S, .function D), (S, .function B true)]
+#guard q.userConversions .copy D S == [(S, .function D)]
+#guard q.userConversions .copy C S == []
+#guard q.userConversions .copy (.named "int") S == []
+#guard q.userConversions .copy B A == [(B, .constructor (.lref (.const S)))]
+#guard (Decl.converting B (.function D)).name? == none
+#guard (Decl.converting B (.function D)).linkage == .none
