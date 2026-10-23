@@ -62,6 +62,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[class.conv.fct]/2](https://eel.is/c++draft/class.conv.fct#2) | rule | `Overload.UserConv.function` | `Overload.Program` |
 | [[class.conv.fct]/4](https://eel.is/c++draft/class.conv.fct#4) | rule | `Overload.UserConv.candidate` | `Overload.Ranking` |
 | [[class.conv.general]/1](https://eel.is/c++draft/class.conv.general#1) | rule | `Overload.Decl.converting` | `Overload.Program` |
+| [[class.conv.general]/2](https://eel.is/c++draft/class.conv.general#2) | rule | `Overload.Program.call` | `Overload.Access` |
 | [[class.conv.general]/4](https://eel.is/c++draft/class.conv.general#4) | theorem | `Overload.ics_one_user_defined` | `Overload.Ranking` |
 | [[class.derived.general]/2](https://eel.is/c++draft/class.derived.general#2) | rule | `Overload.Program.derives` | `Overload.Ranking` |
 | [[class.member.lookup]/3](https://eel.is/c++draft/class.member.lookup#3) | rule | `Overload.LookupSetRel.here` | `Overload.Members` |
@@ -82,7 +83,6 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15) | rule | `Overload.IcsForms.userDefined` | `Overload.Ranking` |
 | [[dcl.init.list]/7](https://eel.is/c++draft/dcl.init.list#7) | rule | `Overload.Narrowing.integer` | `Overload.Arguments` |
 | [[dcl.init.ref]/4 sentence 2](https://eel.is/c++draft/dcl.init.ref#4.sentence-2) | rule | `Overload.Program.referenceCompatible` | `Overload.Ranking` |
-| [[dcl.init.ref]/4 sentence 3](https://eel.is/c++draft/dcl.init.ref#4.sentence-3) | rule | `Overload.Program.call` | `Overload.Access` |
 | [[dcl.ref]/1 sentence 3](https://eel.is/c++draft/dcl.ref#1.sentence-3) | rule | `Overload.formConst` | `Overload.Steps` |
 | [[dcl.ref]/5 sentence 1](https://eel.is/c++draft/dcl.ref#5.sentence-1) | rule | `Overload.formPtr` | `Overload.Steps` |
 | [[expr.const.const]/8](https://eel.is/c++draft/expr.const.const#8) | rule | `Overload.ConvertsTo.reference` | `Overload.Arguments` |
@@ -94,12 +94,14 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[over.best.ics.general]/7](https://eel.is/c++draft/over.best.ics.general#7) | rule | `Overload.Program.baseConv` | `Overload.Ranking` |
 | [[over.best.ics.general]/12](https://eel.is/c++draft/over.best.ics.general#12) | rule | `Overload.Ics.ambiguous` | `Overload.Ranking` |
 | [[over.best.ics.general]/12](https://eel.is/c++draft/over.best.ics.general#12) | rule | `Overload.IcsForms.ambiguous` | `Overload.Ranking` |
+| [[over.best.ics.general]/12](https://eel.is/c++draft/over.best.ics.general#12) | rule | `Overload.Program.ambiguousConversion` | `Overload.Access` |
 | [[over.best.ics.general]/12](https://eel.is/c++draft/over.best.ics.general#12) | rule | `Overload.Program.bestSequence` | `Overload.Ranking` |
 | [[over.call.func]/3 sentence 2](https://eel.is/c++draft/over.call.func#3.sentence-2) | rule | `Overload.Program.callAt` | `Overload.Members` |
 | [[over.call.object]/1 sentence 2](https://eel.is/c++draft/over.call.object#1.sentence-2) | rule | `Overload.Program.callOperators` | `Overload.Members` |
 | [[over.ics.rank]/1 sentence 1](https://eel.is/c++draft/over.ics.rank#1.sentence-1) | theorem | `Overload.betterIcs_asymm` | `Overload.Ranking` |
 | [[over.ics.rank]/1 sentence 1](https://eel.is/c++draft/over.ics.rank#1.sentence-1) | theorem | `Overload.better_asymm` | `Overload.Ranking` |
 | [[over.ics.rank]/2](https://eel.is/c++draft/over.ics.rank#2) | rule | `Overload.BetterIcs.form` | `Overload.Ranking` |
+| [[over.ics.rank]/2](https://eel.is/c++draft/over.ics.rank#2) | theorem | `Overload.standard_beats_user_defined` | `Overload.Ranking` |
 | [[over.ics.rank]/3](https://eel.is/c++draft/over.ics.rank#3) | rule | `Overload.BetterConv.qualification` | `Overload.Ranking` |
 | [[over.ics.rank]/3](https://eel.is/c++draft/over.ics.rank#3) | rule | `Overload.BetterConv.rvalueBinding` | `Overload.Ranking` |
 | [[over.ics.rank]/3](https://eel.is/c++draft/over.ics.rank#3) | rule | `Overload.BetterIcs.standard` | `Overload.Ranking` |

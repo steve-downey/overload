@@ -59,34 +59,49 @@ def accessibleConversion (p : Program) (a : CallArg) (t : Ty) : Bool :=
   | some (.userDefined f _ s) => std f && std s
   | _ => true
 
+/-- Does the argument's conversion to the parameter use the ambiguous
+conversion sequence? A function selected with one is ill-formed. -/
+@[std rule "over.best.ics.general#12"]
+def ambiguousConversion (p : Program) (a : CallArg) (t : Ty) : Bool :=
+  p.ics .copy a t == some .ambiguous
+
 /-- A call, as a program evaluates it in an environment, normally the one
 the program defines (`Env.ofProgram`) or a layer above it: overload
-resolution, which ignores access; then the access check on the selected
-function's conversions, an inaccessible base making the call ill-formed;
-then the selected specialization's Mandates. -/
-@[std rule "dcl.init.ref#4.sentence-3"]
+resolution, which ignores access and ranks an ambiguous conversion
+sequence as a user-defined one; then, on the selected function, an
+argument whose conversion is ambiguous makes the call ill-formed; then
+the access check on its conversions, after ambiguity resolution, an
+inaccessible base making the call ill-formed; then the selected
+specialization's Mandates. -/
+@[std rule "dcl.init.ref#4.sentence-3", std rule "class.conv.general#2"]
 def call (p : Program) (env : Env) (decls : List Decl) (args : List CallArg)
     (explicit : List Ty := []) : Resolution Candidate :=
   match resolve .text env p.ranking decls args explicit with
   | .selected c =>
-    if (args.zip c.params).all fun (a, t) => p.accessibleConversion a t then
+    if (args.zip c.params).any fun (a, t) => p.ambiguousConversion a t then
+      .illFormed "the conversion of an argument is ambiguous"
+    else if (args.zip c.params).all fun (a, t) => p.accessibleConversion a t then
       invoke .text env p.ranking decls args explicit
     else .illFormed "conversion to an inaccessible base class"
   | _ => invoke .text env p.ranking decls args explicit
 
 end Program
 
-/-- When the selected function's conversions are accessible, the call is
-the evaluated call of `invoke`; access changes nothing else. -/
+/-- When the selected function's conversions are unambiguous and
+accessible, the call is the evaluated call of `invoke`; the two checks
+change nothing else. -/
 theorem call_eq_invoke (p : Program) (env : Env) (decls : List Decl) (args : List CallArg)
     (explicit : List Ty)
+    (hamb : ∀ c, resolve .text env p.ranking decls args explicit = .selected c →
+      ∀ x ∈ args.zip c.params, p.ambiguousConversion x.1 x.2 = false)
     (h : ∀ c, resolve .text env p.ranking decls args explicit = .selected c →
       ∀ x ∈ args.zip c.params, p.accessibleConversion x.1 x.2 = true) :
     p.call env decls args explicit = invoke .text env p.ranking decls args explicit := by
   unfold Program.call
   split
   · rename_i c hc
-    simp only [List.all_eq_true.mpr fun x hx => h c hc x hx, ↓reduceIte]
+    simp only [List.any_eq_false.mpr fun x hx => by simpa using hamb c hc x hx,
+      List.all_eq_true.mpr fun x hx => h c hc x hx, Bool.false_eq_true, ↓reduceIte]
   · rfl
 
 /-! ## A protected base -/
