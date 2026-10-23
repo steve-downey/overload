@@ -692,6 +692,14 @@ theorem betterIcs_asymm (p : Program) (u₁ u₂ : Ics) :
   | .userDefined .., .standard _ | .userDefined .., .ambiguous | .ambiguous, _ =>
     simp [Program.betterIcs] at h
 
+/-- A standard conversion sequence is a better conversion sequence than
+any user-defined one, and than the ambiguous sequence, whatever the
+sequences convert. -/
+@[std theorem "over.ics.rank#2"]
+theorem standard_beats_user_defined (p : Program) (s : StdConv) (u : Ics)
+    (h : u.userConversions = 1) : p.betterIcs (.standard s) u = true :=
+  (betterIcs_iff p _ _).mpr (.form h)
+
 theorem betterIcs_irrefl (p : Program) (u : Ics) : p.betterIcs u u = false := by
   cases h : p.betterIcs u u with
   | false => rfl

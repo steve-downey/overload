@@ -344,15 +344,17 @@ def functionText (d : Decl) (r : String) (cv : String := "") : String :=
   | _ => ""
 
 /-- The user-defined conversions of a class, as member declarations in its
-body. A class with a converting constructor keeps a defaulted default
+body, declared and not defined: the cases call in unevaluated contexts,
+and a declaration lets the parameter or target be a class defined later.
+A class with a converting constructor keeps a defaulted default
 constructor, so that an object of it can still be declared. -/
 def conversionsText (n : String) (convs : List UserConv) : String :=
   let keyword (e : Bool) := if e then "explicit " else ""
   let dflt := if convs.any (· matches .constructor ..) then s!"    constexpr {n}() = default;\n" else ""
   dflt ++ String.join (convs.map fun
-    | .constructor param e => s!"    {keyword e}constexpr {n}({ty param}) \{}\n"
+    | .constructor param e => s!"    {keyword e}constexpr {n}({ty param});\n"
     | .function t e c =>
-      s!"    {keyword e}constexpr operator {ty t}(){if c then " const" else ""} \{ return \{}; }\n")
+      s!"    {keyword e}constexpr operator {ty t}(){if c then " const" else ""};\n")
 
 /-- The declarations of a program, as C++, each in its namespaces, with
 the members of a class in its body. -/
@@ -361,6 +363,12 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
   let rs := returnTypes p callee ret index
   let mut out := ""
   let mut instances : List (String × Nat) := []
+  -- Every class is declared first, so a conversion or a parameter can
+  -- name a class defined later, as the draft's examples do.
+  for d in p do
+    match d with
+    | .class n _ _ sc => if !d.isMember then out := out ++ inScope sc s!"struct {n};\n"
+    | _ => pure ()
   for (d, i) in p.zipIdx do
     if d.isMember then continue
     let mut text := ""
@@ -1717,6 +1725,129 @@ def derivedToBaseValue : Case :=
       (explicit := [.value (.obj' "D" [.obj' "B" []])])
     source := "computed by deduceTemplate" }
 
+/-! ### Phase 11: user-defined conversions -/
+
+private def cS : Ty := .named "S"
+private def cT : Ty := .named "T"
+/-- `struct S {}; struct T { T(const S&); };`. -/
+private def ctorProgram : Program :=
+  [.class "S", .class "T", .converting cT (.constructor (.lref (.const cS)))]
+
+/-- `void f(T); f(S{})`: the converting constructor forms a user-defined
+conversion sequence, and the call selects `f`. -/
+def userConversionSelected : Case :=
+  { name := "user_conversion_selected"
+    cite := cite "over.ics.user#1"
+    program := ctorProgram ++ [.function "f" [cT]]
+    query := .call "f" [{ ty := cS }] (.selected 0)
+    source := "computed by Program.call" }
+
+/-- `void f(T); template <class U> void f(const U&); f(S{})`: the template's
+identity conversion beats the user-defined sequence, so the template wins
+before the non-template preference is reached. -/
+def userConversionLosesRank : Case :=
+  { name := "user_conversion_loses_rank"
+    cite := cite "over.ics.rank#2"
+    program := ctorProgram ++
+      [ .function "f" [cT]
+      , .functionTemplate { name := "f", head := [{ kind := .type }], params := [.lref (.const (.param 0))] } ]
+    query := .call "f" [{ ty := cS }] (.selected 1)
+    source := "computed by Program.call" }
+
+/-- `struct T {}; struct S { operator T() const; }; void f(T); f(S{})`: a
+conversion function forms the sequence. -/
+def conversionFunctionSelected : Case :=
+  { name := "conversion_function_selected"
+    cite := cite "class.conv.fct#2"
+    program := [.class "T", .class "S", .converting cS (.function cT), .function "f" [cT]]
+    query := .call "f" [{ ty := cS }] (.selected 0)
+    source := "computed by Program.call" }
+
+/-- `void f(const T&); f(S{})`: the converted temporary binds a reference to
+const. -/
+def convertedTemporaryBinds : Case :=
+  { name := "converted_temporary_binds_const_ref"
+    cite := cite "over.ics.ref#2"
+    program := ctorProgram ++ [.function "f" [.lref (.const cT)]]
+    query := .call "f" [{ ty := cS }] (.selected 0)
+    source := "computed by Program.call" }
+
+/-- `void f(T&); f(S{})`: an lvalue reference to non-const binds no
+temporary, so no sequence forms. -/
+def convertedTemporaryRefused : Case :=
+  { name := "converted_temporary_refused_by_ref"
+    cite := cite "over.ics.ref#3.sentence-1"
+    program := ctorProgram ++ [.function "f" [.lref cT]]
+    query := .call "f" [{ ty := cS }] .noMatch
+    source := "computed by Program.call" }
+
+/-- `struct T { explicit T(const S&); }; void f(T); f(S{})`: an explicit
+constructor is no candidate for the copy-initialization of an argument. -/
+def explicitConstructorNotCandidate : Case :=
+  { name := "explicit_constructor_not_candidate"
+    cite := cite "over.match.copy#1"
+    program := [.class "S", .class "T", .converting cT (.constructor (.lref (.const cS)) true), .function "f" [cT]]
+    query := .call "f" [{ ty := cS }] .noMatch
+    source := "computed by Program.call" }
+
+/-- `struct B {}; struct D : B {}; struct S { operator D() const; }; void
+f(B); void f(D); f(S{})`: both go through the one conversion function, and
+the second standard sequence decides, identity over derived-to-base. -/
+def secondSequenceDecides : Case :=
+  { name := "second_sequence_decides"
+    cite := cite "over.ics.rank#3"
+    program := [ .class "B", .class "D" [.named "B"], .class "S", .converting cS (.function (.named "D"))
+               , .function "f" [.named "B"], .function "f" [.named "D"] ]
+    query := .call "f" [{ ty := cS }] (.selected 1)
+    source := "computed by Program.call" }
+
+/-- The draft's example of [class.conv.general]/4: `struct X { operator
+int(); }; struct Y { operator X(); }; void f(int); f(Y{})`: at most one
+user-defined conversion applies, so `Y` to `X` to `int` is no sequence. -/
+def conversionChainStops : Case :=
+  { name := "class_conv_general_4_chain_stops"
+    cite := cite "class.conv.general#4"
+    program := [ .class "X", .class "Y", .converting (.named "X") (.function (.named "int"))
+               , .converting (.named "Y") (.function (.named "X")), .function "f" [.named "int"] ]
+    query := .call "f" [{ ty := .named "Y" }] .noMatch
+    source := "computed by Program.call" }
+
+/-- The draft's example of [over.best.ics.general]/12: `class A { A(B&); };
+class B { operator A(); }; class C { C(B&); }; void f(A); void f(C); B b;
+f(b)` is ambiguous, since `b` to `A` is the ambiguous conversion sequence,
+indistinguishable from `b` to `C`. -/
+def draftBestIcsAmbiguous : Case :=
+  { name := "over_best_ics_general_12_ambiguous"
+    cite := cite "over.best.ics.general#12"
+    program := [ .class "B", .class "A", .class "C"
+               , .converting (.named "A") (.constructor (.lref (.named "B")))
+               , .converting (.named "B") (.function (.named "A") false false)
+               , .converting (.named "C") (.constructor (.lref (.named "B")))
+               , .function "f" [.named "A"], .function "f" [.named "C"] ]
+    query := .call "f" [{ ty := .named "B", lvalue := true }] (.ambiguous [0, 1])
+    source := "computed by Program.call" }
+
+/-- The same with `void f(B)` added: the identity is a standard sequence
+and beats both, so the call is unambiguous. -/
+def draftBestIcsResolved : Case :=
+  { name := "over_best_ics_general_12_resolved"
+    cite := cite "over.best.ics.general#12"
+    program := draftBestIcsAmbiguous.program ++ [.function "f" [.named "B"]]
+    query := .call "f" [{ ty := .named "B", lvalue := true }] (.selected 2)
+    source := "computed by Program.call" }
+
+/-- `void f(A)` alone: the ambiguous conversion sequence keeps `f` viable,
+and selecting it makes the call ill-formed. -/
+def ambiguousSequenceSelected : Case :=
+  { name := "ambiguous_sequence_selected"
+    cite := cite "over.best.ics.general#12"
+    program := [ .class "B", .class "A"
+               , .converting (.named "A") (.constructor (.lref (.named "B")))
+               , .converting (.named "B") (.function (.named "A") false false)
+               , .function "f" [.named "A"] ]
+    query := .call "f" [{ ty := .named "B", lvalue := true }] (.illFormed "the conversion of an argument is ambiguous")
+    source := "computed by Program.call" }
+
 /-- Every case of the Standard side. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -1741,7 +1872,11 @@ def cases : List Case :=
   , dispatchTagsNone, dispatchIfConstexprNone, dispatchExclusionHard, dispatchTagsHard
   , dispatchIfConstexprHard, protectedBaseSelected, protectedBaseDeduced, publicBaseSelected
   , draftDeductGeneral12_narrowing, draftDeductGeneral12_ambiguous, boolNarrowing, boolConverted
-  , unsignedNarrowing, boolPromoted, intToLong, derivedToBaseValue ]
+  , unsignedNarrowing, boolPromoted, intToLong, derivedToBaseValue
+  , userConversionSelected, userConversionLosesRank, conversionFunctionSelected
+  , convertedTemporaryBinds, convertedTemporaryRefused, explicitConstructorNotCandidate
+  , secondSequenceDecides, conversionChainStops, draftBestIcsAmbiguous, draftBestIcsResolved
+  , ambiguousSequenceSelected ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=
