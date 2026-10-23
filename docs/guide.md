@@ -76,7 +76,8 @@ A few conventions carry the whole development.
   `protected_base_selected_ill_formed`, `arity_order_matters`) are stated
   as equalities on a concrete program and proved by running the model.
   They are theorems in Lean's sense and tests in the engineer's sense.
-- **Citations are attributes.** `@[std rule "temp.deduct.general#5.sentence-6"]`
+- **Citations are attributes.** `@[std rule "temp.deduct.general#5.sentence-6"]`,
+  or several in one role, `@[std rule "a" "b"]`;
   on a definition says what sentence it transcribes. `@[std theorem ...]`
   says the sentence is proved from the others. `@[std note ...]` and
   `@[std example ...]` are non-normative text used as proof targets.
@@ -182,7 +183,15 @@ functions, function templates (`FunctionTemplate`: head, parameter types,
 default arguments, return type, associated constraint, Mandates), a
 variable template as `lookup` or `lookupHard` (a primary with a value, or
 one whose instantiation fails), its partial specializations as `instance`,
-a use of it, an object, a concept. Each namespace-scope declaration
+a use of it, an object, a concept, and a user-defined conversion of a
+class, `converting`: a converting constructor by its parameter type or
+a conversion function by its target, each with its explicit flag and a
+conversion function with the constness of its object parameter
+(`UserConv`), declared after its class so the program stays a flat
+list (`decisions.md#user-defined-conversions`). `Init` is the
+initialization context, copy or direct: argument passing is copy, and
+direct exists as the contrast that admits explicit candidates. Each
+namespace-scope declaration
 carries the scope it inhabits, a path of namespace and class steps from
 the global scope inward, `[]` by default (`decisions.md#scope-syntax`).
 `Program.candidates` is every declaration with a name, in order; `Scope`
@@ -210,10 +219,12 @@ non-narrowing integral conversion ([expr.const.const]/8). `ConvertsTo`
 and `convertArg` (`convertArg_iff`) convert an argument against a
 parameter of either kind: a type; a placeholder, which takes the argument
 as its own type; a dependent declared type, formed later; an integer
-type; a class type, whose value is the argument's or the base subobject
-of a derived value, through the environment's `subobject` oracle; an
-lvalue reference, which binds an object and refuses a temporary
-([temp.arg.nontype]/6). The conversion never fails hard
+type; a class type, whose value is the argument's or, through the
+environment's `initializer` oracle, the base subobject of a derived
+value or the object a converting constructor makes; an lvalue
+reference, which binds an object and refuses a temporary
+([temp.arg.nontype]/6), as does a reference placeholder given a value
+(`bindsTemporary`, `placeholder_reference_refuses_value`). The conversion never fails hard
 (`convertArg_not_hard`), and two oracles that agree on the value give one
 conversion (`convertArg_congr`). `tpo_value` is [temp.arg.nontype]/4 on
 a fragment where equivalence is equality.
@@ -235,9 +246,13 @@ parameter's default; a conversion that fails is soft and is the outcome
 (`conversion_soft_shields_call`, `explicitStep_not_hard`), and two
 arguments with one converted value give one bindings list
 (`explicitStep_converted`). `Env` carries one oracle for it,
-`subobject`, the base class subobject of a class value, which
-`Env.ofProgram` computes from the program's classes
-(`Program.subobject`, in `Ranking`).
+`initializer`, the value of the candidate initializer `constexpr T v =
+A;` for a class value supplied to a class-typed parameter, which
+`Env.ofProgram` computes from the program's classes and conversions
+(`Program.candidateInitializer`, in `Ranking`).
+`deduction_ignores_conversion`: the call step never consults
+convertibility, so which conversions exist, user-defined ones among
+them, changes no deduced binding ([temp.deduct.call]/4).
 
 The theorems say what the order buys.
 
@@ -269,6 +284,10 @@ value parameter a derived value and the base's own value are one
 specialization, since the derived value is sliced to its base subobject.
 `reference_keeps_identity`: under a reference parameter two objects
 never are, since the parameter denotes the object ([temp.type]/2).
+`conversion_identifies`: two values of other classes that each
+copy-initialize a class-typed parameter through a user-defined
+conversion sequence are one specialization, since the candidate
+initializer is the class's one value either way.
 `Program.structural` is [temp.param]/12, and
 `placeholderArgumentsPermitted` the check of [temp.arg.nontype]/1 that a
 class value a placeholder parameter takes has a structural type, at the
@@ -360,15 +379,54 @@ candidate is the call's outcome.
 
 ### Ranking
 
-`Overload/Ranking.lean`: the one concrete ranking, `Program.ranking`,
-over class hierarchies: the identity conversion, derived-to-base
-([over.best.ics.general]/7, Conversion rank), direct reference binding
-([over.ics.ref]), and the tiers of [over.ics.rank]/3 as a lexicographic
-chain. `better_iff` is the agreement with the relation `BetterConv`;
-`better_asymm`, tagged as a theorem of [over.ics.rank]/1, says the
-ordering is asymmetric for any class hierarchy. `Program.ics` is the
-convertibility the environment uses for non-dependent parameters, so
-deduction and ranking agree on what converts.
+`Overload/Ranking.lean`: the one concrete ranking, `Program.ranking`.
+`Program.standardIcs` forms the standard conversion sequence over class
+hierarchies: the identity conversion, derived-to-base
+([over.best.ics.general]/7, Conversion rank) and direct reference
+binding ([over.ics.ref]/1); `better` compares two by the tiers of
+[over.ics.rank]/3 as a lexicographic chain, `better_iff` is the
+agreement with `BetterConv`, and `better_asymm`, a theorem of
+[over.ics.rank]/1, says the ordering is asymmetric for any class
+hierarchy.
+
+On top of that, the user-defined conversion sequences of phase 11.
+`Program.userConversions` lists the candidates of an initialization,
+the constructors of the target and the conversion functions of the
+source, an explicit one only for direct-initialization
+([over.match.copy]/1, [over.match.ctor]/1, [over.match.conv]/1).
+`Ics` is an implicit conversion sequence: standard, user-defined, with
+the two standard sequences around the conversion and the class that
+declares it ([over.ics.user]/1), or the ambiguous conversion sequence
+([over.best.ics.general]/12). `Program.ics` forms it in an
+initialization context: the standard sequence when one forms, which it
+does for the argument's own class and its bases, else the best
+user-defined sequence among the candidates, chosen by overload
+resolution over the one argument with the second sequence as the
+tie-break ([dcl.init.general]/15), a reference parameter binding the
+converted temporary ([over.ics.ref]/2, /3); `IcsForms` and `ics_iff`
+are relation and agreement, `ics_standard` says a standard sequence is
+always the sequence, and `ics_one_user_defined` that one value goes
+through one conversion ([class.conv.general]/4), which the type of
+`Ics` makes so. `explicit_never_implicit`: no sequence in the copy
+context goes through an explicit conversion. `betterIcs` ranks the
+sequences, a standard one above every user-defined one
+([over.ics.rank]/2, `standard_beats_user_defined`), two user-defined
+ones through the same conversion by their second sequences, and the
+ambiguous one indistinguishable from any; `BetterIcs`, `betterIcs_iff`
+and `betterIcs_asymm` as before. `Program.ranking` is this, in the
+copy-initialization context of argument passing, and the environment's
+convertibility is the same `ics`, so deduction and ranking agree on
+what converts. `Program.conversionFree` and `ics_free` say a program
+without conversions forms only standard sequences.
+
+`Program.candidateInitializer` is the oracle the environment carries for
+a class value supplied to a class-typed constant parameter
+([temp.arg.nontype]/3): the base subobject when the standard sequence
+forms, the class's one value, `Program.uniqueValue`, when the
+copy-initialization goes through a user-defined sequence, and none
+when no sequence forms or the sequence is ambiguous. A class value in
+the fragment lists its base subobjects and nothing else, so a class has
+one value whichever constructor made it (`candidateInitializer_user`).
 
 ### Lookup
 
@@ -429,9 +487,13 @@ of a set of classes (`Program.eraseBases`) changes no call in which every
 conversion the call can form has the same class on both sides whenever
 either side is a class the erasure touches (`ExactPair`), and no argument
 of a touched class is deduced from as a derived class
-(`NoDerivedDeduction`). The hypothesis is about conversions rather than
-signatures because a template parameter deduced from one argument can
-meet another argument of a derived type. `deduceTemplate_congr`, on the
+(`NoDerivedDeduction`), and the program declares no user-defined
+conversion (`Program.conversionFree`): one between unrelated classes
+could reach a touched class through a constructor's parameter or a
+conversion function's target. The hypothesis is about conversions
+rather than signatures because a template parameter deduced from one
+argument can meet another argument of a derived type.
+`deduceTemplate_congr`, on the
 way, says deduction depends on the environment only through
 instantiation, atomic answers, bases and convertibility.
 
@@ -570,10 +632,13 @@ three.
 
 `Overload/Access.lean`: `Program.call`, a call as a program evaluates it
 in an environment: overload resolution, which ignores access
-([over.best.ics.general]/2), then the access check on the selected
-function's conversions ([conv.ptr]/3, [dcl.init.ref]/4), then the
-Mandates. `call_eq_invoke`: when the conversions are accessible, access
-changes nothing. `protected_base_selected_ill_formed` and
+([over.best.ics.general]/2) and ranks an ambiguous conversion sequence
+as a user-defined one; then, on the selected function, an argument whose
+conversion is ambiguous makes the call ill-formed
+([over.best.ics.general]/12); then the access check on its conversions
+([conv.ptr]/3, [dcl.init.ref]/4), after ambiguity resolution
+([class.conv.general]/2); then the Mandates. `call_eq_invoke`: when the
+conversions are unambiguous and accessible, the checks change nothing. `protected_base_selected_ill_formed` and
 `protected_base_deduced_ill_formed`: a function that names a protected
 base, or a template that deduces through one, is selected and the call is
 ill-formed. A protected base is not a way to hide an overload.
@@ -740,7 +805,11 @@ member call `obj.f(args)`.
 
 `Overload/Emit.lean`: the C++ emitter. Each declaration is rendered in
 its namespaces, the members of a class in its body as const member
-functions, a class or class template declared in a namespace is named by
+functions, every class declared up front so a conversion or a parameter
+can name a class defined later, a class's user-defined conversions in
+its body, a constructor defined with an empty body and a conversion
+function defined when its target is complete, a class or class template
+declared in a namespace is named by
 its qualified name wherever a type mentions it, a call case carries the
 scope it is written in, and the functions the call resolves over are
 numbered by entity in the lookup's order; a declaration of the callee's
@@ -918,6 +987,26 @@ implementation as a protected base, so neither it nor an instance type
 derived from it is structural, and neither can be a template argument
 for a placeholder parameter at all. The value route is closed to the
 library's instance types either way.
+
+### Conversion
+
+`Overload/Typeclass/Conversion.lean`: leak 5 of instance inheritance,
+the one the encoding avoids by design. A Monad instance type with a
+conversion function to an Applicative instance type, unrelated by
+derivation. `conversion_invisible_to_deduction`: a generic algorithm
+deduces the Monad instance type and resolves as it would without the
+conversion, since deduction never applies one. `conversion_loses_rank`:
+beside an overload naming the Applicative instance type the generic
+template wins at the Monad instance type, by rank, before the
+non-template preference. `converting_sites_ambiguous`: two overloads
+reached by two conversions are ambiguous. `converted_instance_temporary`:
+pinning a converted instance, a prvalue, is a deduction failure of the
+pinning template, whose reference parameter would bind a temporary; and
+`value_route_identifies_converted`: under the typed value route every
+instance value that converts to the parameter's class names one
+specialization. `explicit_conversion_dead`: an explicit conversion is
+formed by no call. Refinement by a concept on the shape and a retrieval
+function has none of these costs (`obligations.md`).
 
 ### Inheritance
 

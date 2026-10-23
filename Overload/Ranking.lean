@@ -106,7 +106,7 @@ end Program
 /-- Is a conversion a candidate in an initialization context? An explicit
 constructor is a candidate only for direct-initialization, and so is an
 explicit conversion function. -/
-@[std rule "over.match.ctor#1", std rule "class.conv.fct#4"]
+@[std rule "over.match.ctor#1" "class.conv.fct#4"]
 def UserConv.candidate (init : Init) (c : UserConv) : Bool :=
   !c.explicit || init == .direct
 
@@ -122,7 +122,7 @@ class `tgt` ([over.match.copy]/1), or to a non-class `tgt` itself, the
 fragment's only standard conversion to one ([over.match.conv]/1).
 Each is paired with the class that declares it, which is what tells two
 conversions apart when sequences are ranked. -/
-@[std rule "over.match.copy#1", std rule "over.match.conv#1"]
+@[std rule "over.match.copy#1" "over.match.conv#1"]
 def userConversions (p : Program) (init : Init) (tgt src : Ty) : List (Ty × UserConv) :=
   let ctors := (p.conversionsOf tgt).filterMap fun
     | c@(.constructor ..) => if c.candidate init then some (tgt, c) else none
@@ -349,7 +349,11 @@ theorem better_irrefl (p : Program) (s : StdConv) : p.better s s = false := by
 /-- An implicit conversion sequence: a standard conversion sequence, a
 user-defined conversion sequence, or the ambiguous conversion sequence,
 which stands for several well-formed sequences to one parameter. The
-ellipsis conversion sequence is out of the fragment. -/
+ellipsis conversion sequence is out of the fragment. An implicit
+conversion sequence converts an argument in a function call to the type
+of the corresponding parameter, as an initialization of an object or
+reference by a single expression ([over.best.ics.general]/1). -/
+@[std rule "over.best.ics.general#1"]
 inductive Ics where
   /-- A standard conversion sequence. -/
   | standard (s : StdConv)
@@ -365,7 +369,7 @@ inductive Ics where
   deriving Repr, DecidableEq, Inhabited
 
 attribute [std rule "over.best.ics.general#3"] Ics.standard
-attribute [std rule "over.ics.user#1", std rule "over.ics.user#2"] Ics.userDefined
+attribute [std rule "over.ics.user#1" "over.ics.user#2"] Ics.userDefined
 attribute [std rule "over.best.ics.general#12"] Ics.ambiguous
 
 /-- How many user-defined conversions a sequence applies: one for a
@@ -389,8 +393,8 @@ parameter of a candidate constructor or the object parameter of a
 candidate conversion function. A reference target binds the prvalue as
 a temporary, so an lvalue reference to non-const forms no sequence
 ([over.ics.ref]/3). -/
-@[std rule "over.ics.user#1", std rule "over.best.ics.general#4",
-  std rule "over.match.funcs.general#5"]
+@[std rule "over.ics.user#1" "over.best.ics.general#4" "over.best.ics.general#9"
+  "over.match.funcs.general#5"]
 def userSequence (p : Program) (a : CallArg) (t : Ty) (cls : Ty) (conv : UserConv) : Option Ics :=
   match conv with
   | .constructor param _ => do
@@ -421,7 +425,7 @@ conversion, chosen by overload resolution over the one argument, `u` is
 the better candidate than `v`: its conversion of the argument, the first
 sequence, is not worse and is better, or, if not that, its second
 standard sequence to the destination is better. -/
-@[std rule "dcl.init.general#15", std rule "over.match.best.general#2"]
+@[std rule "dcl.init.general#15" "over.match.best.general#2"]
 def betterCandidate (p : Program) : Ics → Ics → Bool
   | .userDefined f₁ _ s₁, .userDefined f₂ _ s₂ => !p.better f₂ f₁ && (p.better f₁ f₂ || p.better s₁ s₂)
   | _, _ => false
@@ -449,7 +453,7 @@ the best user-defined sequence among the candidates, a reference
 parameter binding the converted temporary ([over.ics.ref]/2). A
 parameter that is not a reference models copy-initialization of the
 parameter from the argument ([over.best.ics.general]/6). -/
-@[std rule "over.best.ics.general#6", std rule "over.ics.ref#2"]
+@[std rule "over.best.ics.general#6" "over.ics.ref#2" "dcl.init.ref#5"]
 def ics (p : Program) (init : Init) (a : CallArg) (t : Ty) : Option Ics :=
   match p.standardIcs a t with
   | some s => some (.standard s)
@@ -686,7 +690,7 @@ the copy-initialization goes through a user-defined conversion
 sequence, which in the fragment is the class's one value; and none when
 no sequence forms or the sequence is ambiguous, which makes the
 template-id invalid. -/
-@[std rule "temp.arg.nontype#3", std rule "dcl.init.general#15"]
+@[std rule "temp.arg.nontype#3" "dcl.init.general#15"]
 def candidateInitializer (p : Program) (t : Ty) : Val → Option Val
   | .obj d subs =>
     match p.ics .copy { ty := .named d } t with
@@ -729,7 +733,7 @@ ranks as one ([over.ics.rank]/2). Two standard sequences compare by
 same conversion, by their second standard sequences ([over.ics.rank]/3),
 and the ambiguous sequence is indistinguishable from every user-defined
 one ([over.best.ics.general]/12). -/
-@[std rule "over.ics.rank#2", std rule "over.ics.rank#3"]
+@[std rule "over.ics.rank#2" "over.ics.rank#3"]
 def betterIcs (p : Program) : Ics → Ics → Bool
   | .standard s₁, .standard s₂ => p.better s₁ s₂
   | .standard _, _ => true

@@ -31,8 +31,8 @@ private def moduleOf (env : Environment) (decl : Name) : String :=
 
 /-- Every tagged declaration, in citation order. -/
 def rows (env : Environment) : Array Row :=
-  let rs := (ParametricAttribute.allEntries stdAttr env).map fun (n, e) =>
-    { decl := n, module := moduleOf env n, entry := e : Row }
+  let rs := (ParametricAttribute.allEntries stdAttr env).flatMap fun (n, es) =>
+    es.map fun e => { decl := n, module := moduleOf env n, entry := e : Row }
   rs.qsort fun a b =>
     let ca := a.entry.cite
     let cb := b.entry.cite

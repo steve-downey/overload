@@ -44,7 +44,10 @@ check to keep in sync.
 
 Every rule cites the Standard, as an attribute, by stable name and
 paragraph and where possible sentence: `@[std rule "temp.deduct.type#8.sentence-1"]`.
-On a constructor the attribute goes on an `attribute [std rule "..."] Ctor`
+Several sentences in one role are one attribute with several strings,
+`@[std rule "a" "b"]`; a second `std` attribute on the same declaration
+would replace the first. On a constructor the attribute goes on an
+`attribute [std rule "..."] Ctor`
 command right after the inductive, because Lean rejects attributes in
 constructor declarations. A `@[specification]` inductive is a specification
 relation or outcome type; every one of its constructors must be cited or the
