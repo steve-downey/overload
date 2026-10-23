@@ -63,7 +63,7 @@ def Env.ofProgram (p : Program) (atomics : List (String × List Ty × Bool) := [
         match atomics.find? fun (e', args', _) => e' == e && args' == args with
         | some (_, _, b) => .ok b
         | none => extra e args
-    convertible := fun a t => .ok (p.ics a t).isSome
+    convertible := fun a t => .ok (p.ics .copy a t).isSome
     bases := p.allBases
     subobject := p.subobject }
 

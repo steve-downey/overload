@@ -128,7 +128,7 @@ def userConversions (p : Program) (init : Init) (tgt src : Ty) : List (Ty × Use
     | c@(.constructor ..) => if c.candidate init then some (tgt, c) else none
     | _ => none
   let fns := (p.conversionsOf src).filterMap fun
-    | c@(.function t _) =>
+    | c@(.function t _ _) =>
       if c.candidate init && (t == tgt || p.derives t tgt) then some (src, c) else none
     | _ => none
   ctors ++ fns
@@ -197,14 +197,16 @@ def canBind (a : CallArg) : Ty → Bool
   | .rref _ => !a.lvalue
   | _ => true
 
-/-- The implicit conversion sequence from an argument to a parameter. A
-reference binds directly when the referenced type is reference-compatible
-with the argument's, and the sequence is then the identity or a
-derived-to-base conversion ([over.ics.ref]/1). A parameter that is not a
-reference is copy-initialized, and top-level cv-qualifiers are ignored
-([over.best.ics.general]/7). -/
+/-- The standard conversion sequence from an argument to a parameter, with
+the reference binding it includes. A reference binds directly when the
+referenced type is reference-compatible with the argument's, and the
+sequence is then the identity or a derived-to-base conversion
+([over.ics.ref]/1). A parameter that is not a reference is
+copy-initialized, and top-level cv-qualifiers are ignored
+([over.best.ics.general]/7). The user-defined sequences are formed on
+top of this by `ics`. -/
 @[std rule "over.ics.ref#1"]
-def ics (p : Program) (a : CallArg) (t : Ty) : Option StdConv :=
+def standardIcs (p : Program) (a : CallArg) (t : Ty) : Option StdConv :=
   let src := a.ty.referred.stripConst
   match t with
   | .lref u | .rref u =>
@@ -342,10 +344,365 @@ theorem better_irrefl (p : Program) (s : StdConv) : p.better s s = false := by
   | false => rfl
   | true => have := better_asymm p s s h; rw [h] at this; cases this
 
-/-- The ranking a program defines: conversion sequences by `Program.ics`,
-compared by `Program.better`. -/
-def Program.ranking (p : Program) : Ranking StdConv :=
-  { ics := fun a t => .ok (p.ics a t)
-    better := p.better }
+/-! ## User-defined conversion sequences -/
+
+/-- An implicit conversion sequence: a standard conversion sequence, a
+user-defined conversion sequence, or the ambiguous conversion sequence,
+which stands for several well-formed sequences to one parameter. The
+ellipsis conversion sequence is out of the fragment. -/
+inductive Ics where
+  /-- A standard conversion sequence. -/
+  | standard (s : StdConv)
+  /-- A user-defined conversion sequence: the standard sequence to the
+  constructor's parameter or to the conversion function's object
+  parameter, the conversion itself paired with the class declaring it,
+  and the second standard sequence to the parameter, which includes any
+  reference binding. Both parts are standard sequences, so one value
+  goes through one user-defined conversion. -/
+  | userDefined (first : StdConv) (via : Ty × UserConv) (second : StdConv)
+  /-- The ambiguous conversion sequence. -/
+  | ambiguous
+  deriving Repr, DecidableEq, Inhabited
+
+attribute [std rule "over.best.ics.general#3"] Ics.standard
+attribute [std rule "over.ics.user#1", std rule "over.ics.user#2"] Ics.userDefined
+attribute [std rule "over.best.ics.general#12"] Ics.ambiguous
+
+/-- How many user-defined conversions a sequence applies: one for a
+user-defined sequence and for the ambiguous sequence, which ranks as
+one. -/
+def Ics.userConversions : Ics → Nat
+  | .standard _ => 0
+  | .userDefined .. | .ambiguous => 1
+
+namespace Program
+
+/-- The user-defined conversion sequence through one candidate, when its
+two standard sequences form. For a constructor the first converts the
+argument to the parameter and the second converts the constructed
+prvalue to the target; for a conversion function the first binds the
+implicit object parameter, a reference to the class, to which an rvalue
+binds as an lvalue would ([over.match.funcs.general]/5), and the second
+converts the prvalue result to the target. The first is formed by the
+standard cases alone: no user-defined sequence is considered for the
+parameter of a candidate constructor or the object parameter of a
+candidate conversion function. A reference target binds the prvalue as
+a temporary, so an lvalue reference to non-const forms no sequence
+([over.ics.ref]/3). -/
+@[std rule "over.ics.user#1", std rule "over.best.ics.general#4",
+  std rule "over.match.funcs.general#5"]
+def userSequence (p : Program) (a : CallArg) (t : Ty) (cls : Ty) (conv : UserConv) : Option Ics :=
+  match conv with
+  | .constructor param _ => do
+    let first ← p.standardIcs a param
+    let second ← p.standardIcs { ty := cls } t
+    some (.userDefined first (cls, conv) second)
+  | .function target _ const => do
+    let first ← p.standardIcs { a with lvalue := true } (.lref (if const then .const cls else cls))
+    let second ← p.standardIcs { ty := target } t
+    some (.userDefined first (cls, conv) second)
+
+/-- The user-defined sequences the candidates of an initialization form. -/
+def userSequences (p : Program) (init : Init) (a : CallArg) (t : Ty) : List Ics :=
+  (p.userConversions init t.referred.stripConst a.ty.referred.stripConst).filterMap fun (c, conv) =>
+    p.userSequence a t c conv
+
+/-- Is the parameter's class the argument's own, or a base of it? Such a
+conversion is the identity or derived-to-base, of standard rank, and is
+never user-defined, whether or not it binds. -/
+@[std rule "over.ics.user#4"]
+def related (p : Program) (a : CallArg) (t : Ty) : Bool :=
+  let src := a.ty.referred.stripConst
+  let tgt := t.referred.stripConst
+  src == tgt || p.derives src tgt
+
+/-- Among the candidates of one initialization by user-defined
+conversion, chosen by overload resolution over the one argument, `u` is
+the better candidate than `v`: its conversion of the argument, the first
+sequence, is not worse and is better, or, if not that, its second
+standard sequence to the destination is better. -/
+@[std rule "dcl.init.general#15", std rule "over.match.best.general#2"]
+def betterCandidate (p : Program) : Ics → Ics → Bool
+  | .userDefined f₁ _ s₁, .userDefined f₂ _ s₂ => !p.better f₂ f₁ && (p.better f₁ f₂ || p.better s₁ s₂)
+  | _, _ => false
+
+/-- Is `u` the best of the sequences: better than every other? -/
+def isBest (p : Program) (us : List Ics) (u : Ics) : Bool :=
+  us.all fun v => v == u || p.betterCandidate u v
+
+/-- The best of the formed sequences: the one better than every other,
+or the ambiguous conversion sequence when there are sequences and none
+is best. -/
+@[std rule "over.best.ics.general#12"]
+def bestSequence (p : Program) (us : List Ics) : Option Ics :=
+  match us with
+  | [] => none
+  | _ => match us.find? (p.isBest us) with
+    | some u => some u
+    | none => some .ambiguous
+
+/-- The implicit conversion sequence from an argument to a parameter type
+in an initialization context: the standard sequence when one forms,
+which it does for the argument's own class and its bases whenever the
+binding allows ([over.best.ics.general]/7, [over.ics.ref]/1); otherwise
+the best user-defined sequence among the candidates, a reference
+parameter binding the converted temporary ([over.ics.ref]/2). A
+parameter that is not a reference models copy-initialization of the
+parameter from the argument ([over.best.ics.general]/6). -/
+@[std rule "over.best.ics.general#6", std rule "over.ics.ref#2"]
+def ics (p : Program) (init : Init) (a : CallArg) (t : Ty) : Option Ics :=
+  match p.standardIcs a t with
+  | some s => some (.standard s)
+  | none => if p.related a t then none else p.bestSequence (p.userSequences init a t)
+
+end Program
+
+/-- The specification form of `Program.ics`: the standard sequence when
+one forms; otherwise, for an unrelated class, the user-defined sequence
+better than every other candidate's, or the ambiguous sequence when
+there are candidates and none is best. -/
+@[specification]
+inductive IcsForms (p : Program) (init : Init) (a : CallArg) (t : Ty) : Ics → Prop where
+  | standard {s : StdConv} : p.standardIcs a t = some s → IcsForms p init a t (.standard s)
+  | userDefined {u : Ics} : p.standardIcs a t = none → p.related a t = false →
+      u ∈ p.userSequences init a t →
+      (∀ v ∈ p.userSequences init a t, v ≠ u → p.betterCandidate u v = true) →
+      IcsForms p init a t u
+  | ambiguous : p.standardIcs a t = none → p.related a t = false →
+      p.userSequences init a t ≠ [] →
+      (∀ u ∈ p.userSequences init a t, ∃ v ∈ p.userSequences init a t,
+        v ≠ u ∧ p.betterCandidate u v = false) →
+      IcsForms p init a t .ambiguous
+
+attribute [std rule "over.best.ics.general#7"] IcsForms.standard
+attribute [std rule "dcl.init.general#15"] IcsForms.userDefined
+attribute [std rule "over.best.ics.general#12"] IcsForms.ambiguous
+
+/-- The better candidate is asymmetric: the first sequences cannot each be
+not worse and one better, so both seconds would be better. -/
+theorem betterCandidate_asymm (p : Program) (u v : Ics) :
+    p.betterCandidate u v = true → p.betterCandidate v u = false := by
+  intro h
+  cases u <;> cases v <;> simp only [Program.betterCandidate] at h ⊢
+  rename_i f₁ _ s₁ f₂ _ s₂
+  simp only [Bool.and_eq_true, Bool.not_eq_eq_eq_not, Bool.not_true, Bool.or_eq_true] at h
+  obtain ⟨h₁, h₂⟩ := h
+  rcases h₂ with h₂ | h₂
+  · simp [h₂]
+  · cases hf : p.better f₂ f₁ with
+    | true => rw [hf] at h₁; cases h₁
+    | false =>
+      cases hf' : p.better f₁ f₂ with
+      | true => simp
+      | false => simp [better_asymm p s₁ s₂ h₂]
+
+theorem isBest_iff (p : Program) (us : List Ics) (u : Ics) :
+    p.isBest us u = true ↔ ∀ v ∈ us, v ≠ u → p.betterCandidate u v = true := by
+  simp only [Program.isBest, List.all_eq_true, Bool.or_eq_true, beq_iff_eq]
+  constructor
+  · intro h v hv hne
+    rcases h v hv with h | h
+    · exact absurd h hne
+    · exact h
+  · intro h v hv
+    by_cases hvu : v = u
+    · exact .inl hvu
+    · exact .inr (h v hv hvu)
+
+/-- The best sequence of a non-empty list is the first best one, or the
+ambiguous sequence. -/
+theorem bestSequence_eq (p : Program) (us : List Ics) (hne : us ≠ []) :
+    p.bestSequence us = match us.find? (p.isBest us) with
+      | some u => some u
+      | none => some .ambiguous := by
+  cases us with
+  | nil => exact absurd rfl hne
+  | cons x xs => rfl
+
+/-- The function and the specification agree. -/
+theorem ics_iff (p : Program) (init : Init) (a : CallArg) (t : Ty) (u : Ics) :
+    p.ics init a t = some u ↔ IcsForms p init a t u := by
+  constructor
+  · intro h
+    simp only [Program.ics] at h
+    cases hs : p.standardIcs a t with
+    | some s => rw [hs] at h; cases h; exact .standard hs
+    | none =>
+      rw [hs] at h
+      cases hr : p.related a t with
+      | true => rw [hr] at h; cases h
+      | false =>
+        rw [hr] at h
+        simp only [Bool.false_eq_true, ↓reduceIte] at h
+        have hne : p.userSequences init a t ≠ [] := by
+          intro h0; rw [h0] at h; simp [Program.bestSequence] at h
+        rw [bestSequence_eq p _ hne] at h
+        cases hf : (p.userSequences init a t).find? (p.isBest (p.userSequences init a t)) with
+        | some w =>
+          rw [hf] at h; cases h
+          exact .userDefined hs hr (List.mem_of_find?_eq_some hf)
+            ((isBest_iff p _ _).mp (List.find?_some hf))
+        | none =>
+          rw [hf] at h; cases h
+          refine .ambiguous hs hr hne fun w hw => ?_
+          have hnb : p.isBest (p.userSequences init a t) w = false := by
+            simpa using List.find?_eq_none.mp hf w hw
+          simp only [Program.isBest, List.all_eq_false, Bool.or_eq_true, beq_iff_eq, not_or,
+            Bool.not_eq_true] at hnb
+          obtain ⟨v, hv, hvw, hb⟩ := hnb
+          exact ⟨v, hv, hvw, hb⟩
+  · intro h
+    cases h with
+    | standard hs => simp [Program.ics, hs]
+    | userDefined hs hr hu hb =>
+      simp only [Program.ics, hs, hr, Bool.false_eq_true, ↓reduceIte]
+      have hne : p.userSequences init a t ≠ [] := fun h => by rw [h] at hu; cases hu
+      rw [bestSequence_eq p _ hne]
+      cases hf : (p.userSequences init a t).find? (p.isBest (p.userSequences init a t)) with
+      | some w =>
+        have hw := List.mem_of_find?_eq_some hf
+        have hbw := (isBest_iff p _ w).mp (List.find?_some hf)
+        by_cases hwu : w = u
+        · rw [hwu]
+        · have h₁ := hb w hw hwu
+          have h₂ := hbw u hu (Ne.symm hwu)
+          have := betterCandidate_asymm p u w h₁
+          rw [h₂] at this; cases this
+      | none => exact absurd ((isBest_iff p _ u).mpr hb) (List.find?_eq_none.mp hf u hu)
+    | ambiguous hs hr hne hb =>
+      simp only [Program.ics, hs, hr, Bool.false_eq_true, ↓reduceIte]
+      rw [bestSequence_eq p _ hne]
+      cases hf : (p.userSequences init a t).find? (p.isBest (p.userSequences init a t)) with
+      | some w =>
+        obtain ⟨v, hv, hvw, hbv⟩ := hb w (List.mem_of_find?_eq_some hf)
+        have := (isBest_iff p _ w).mp (List.find?_some hf) v hv hvw
+        rw [hbv] at this; cases this
+      | none => rfl
+
+/-- A standard sequence that forms is the sequence: the user-defined
+cases are reached only when none does, so every call the standard
+sequences decide keeps its outcome. -/
+@[simp]
+theorem ics_standard (p : Program) (init : Init) (a : CallArg) (t : Ty) (s : StdConv)
+    (h : p.standardIcs a t = some s) : p.ics init a t = some (.standard s) := by
+  simp [Program.ics, h]
+
+/-- At most one user-defined conversion is applied to one value: a
+sequence's parts are standard sequences, so it applies one or none. -/
+@[std theorem "class.conv.general#4"]
+theorem ics_one_user_defined (p : Program) (init : Init) (a : CallArg) (t : Ty) (u : Ics)
+    (_ : p.ics init a t = some u) : u.userConversions ≤ 1 := by
+  cases u <;> simp [Ics.userConversions]
+
+/-- A program without user-defined conversions forms only standard
+sequences. -/
+def Program.conversionFree (p : Program) : Bool :=
+  p.all fun | .converting .. => false | _ => true
+
+theorem userConversions_free (p : Program) (h : p.conversionFree = true) (init : Init) (tgt src : Ty) :
+    p.userConversions init tgt src = [] := by
+  have hc : ∀ c, p.conversionsOf c = [] := by
+    intro c
+    simp only [Program.conversionsOf, List.filterMap_eq_nil_iff]
+    intro d hd
+    simp only [Program.conversionFree, List.all_eq_true] at h
+    have := h d hd
+    cases d <;> simp_all
+  simp [Program.userConversions, hc]
+
+theorem ics_free (p : Program) (h : p.conversionFree = true) (init : Init) (a : CallArg) (t : Ty) :
+    p.ics init a t = (p.standardIcs a t).map .standard := by
+  simp only [Program.ics]
+  cases p.standardIcs a t with
+  | some s => rfl
+  | none =>
+    simp only [Program.userSequences, userConversions_free p h, List.filterMap_nil,
+      Program.bestSequence, Option.map_none]
+    split <;> rfl
+
+/-! ## Ranking implicit conversion sequences -/
+
+namespace Program
+
+/-- `u₁` is a better conversion sequence than `u₂`. A standard sequence is
+better than a user-defined one and than the ambiguous sequence, which
+ranks as one ([over.ics.rank]/2). Two standard sequences compare by
+`better`. Two user-defined sequences compare only when they contain the
+same conversion, by their second standard sequences ([over.ics.rank]/3),
+and the ambiguous sequence is indistinguishable from every user-defined
+one ([over.best.ics.general]/12). -/
+@[std rule "over.ics.rank#2", std rule "over.ics.rank#3"]
+def betterIcs (p : Program) : Ics → Ics → Bool
+  | .standard s₁, .standard s₂ => p.better s₁ s₂
+  | .standard _, _ => true
+  | .userDefined _ v₁ s₁, .userDefined _ v₂ s₂ => v₁ == v₂ && p.better s₁ s₂
+  | _, _ => false
+
+end Program
+
+/-- The specification form of `Program.betterIcs`, one constructor per
+rule. -/
+@[specification]
+inductive BetterIcs (p : Program) : Ics → Ics → Prop where
+  /-- Two standard sequences compare as standard sequences. -/
+  | standard {s₁ s₂ : StdConv} : BetterConv p s₁ s₂ → BetterIcs p (.standard s₁) (.standard s₂)
+  /-- A standard sequence is better than a user-defined sequence. -/
+  | form {s : StdConv} {u : Ics} : u.userConversions = 1 → BetterIcs p (.standard s) u
+  /-- Through the same conversion, the better second standard sequence. -/
+  | userDefined {f₁ f₂ s₁ s₂ : StdConv} {v : Ty × UserConv} :
+      BetterConv p s₁ s₂ → BetterIcs p (.userDefined f₁ v s₁) (.userDefined f₂ v s₂)
+
+attribute [std rule "over.ics.rank#3"] BetterIcs.standard
+attribute [std rule "over.ics.rank#2"] BetterIcs.form
+attribute [std rule "over.ics.rank#3"] BetterIcs.userDefined
+
+/-- The function and the specification agree. -/
+theorem betterIcs_iff (p : Program) (u₁ u₂ : Ics) :
+    p.betterIcs u₁ u₂ = true ↔ BetterIcs p u₁ u₂ := by
+  constructor
+  · intro h
+    match u₁, u₂ with
+    | .standard s₁, .standard s₂ => exact .standard ((better_iff p _ _).mp h)
+    | .standard _, .userDefined .. => exact .form rfl
+    | .standard _, .ambiguous => exact .form rfl
+    | .userDefined _ v₁ s₁, .userDefined _ v₂ s₂ =>
+      simp only [Program.betterIcs, Bool.and_eq_true, beq_iff_eq] at h
+      obtain ⟨rfl, h⟩ := h
+      exact .userDefined ((better_iff p _ _).mp h)
+    | .userDefined .., .standard _ | .userDefined .., .ambiguous | .ambiguous, _ =>
+      simp [Program.betterIcs] at h
+  · intro h
+    cases h with
+    | standard h => exact (better_iff p _ _).mpr h
+    | form h => cases ‹Ics› <;> simp_all [Ics.userConversions, Program.betterIcs]
+    | userDefined h => simp [Program.betterIcs, (better_iff p _ _).mpr h]
+
+/-- Better implicit conversion sequence is asymmetric ([over.ics.rank]/1). -/
+@[std theorem "over.ics.rank#1.sentence-1"]
+theorem betterIcs_asymm (p : Program) (u₁ u₂ : Ics) :
+    p.betterIcs u₁ u₂ = true → p.betterIcs u₂ u₁ = false := by
+  intro h
+  match u₁, u₂ with
+  | .standard s₁, .standard s₂ => exact better_asymm p _ _ h
+  | .standard _, .userDefined .. | .standard _, .ambiguous => simp [Program.betterIcs]
+  | .userDefined _ v₁ s₁, .userDefined _ v₂ s₂ =>
+    simp only [Program.betterIcs, Bool.and_eq_true, beq_iff_eq] at h
+    obtain ⟨rfl, h⟩ := h
+    simp [Program.betterIcs, better_asymm p _ _ h]
+  | .userDefined .., .standard _ | .userDefined .., .ambiguous | .ambiguous, _ =>
+    simp [Program.betterIcs] at h
+
+theorem betterIcs_irrefl (p : Program) (u : Ics) : p.betterIcs u u = false := by
+  cases h : p.betterIcs u u with
+  | false => rfl
+  | true => have := betterIcs_asymm p u u h; rw [h] at this; cases this
+
+/-- The ranking a program defines: implicit conversion sequences by
+`Program.ics`, in the copy-initialization context of argument passing,
+compared by `Program.betterIcs`. -/
+@[std rule "dcl.init.general#13"]
+def Program.ranking (p : Program) : Ranking Ics :=
+  { ics := fun a t => .ok (p.ics .copy a t)
+    better := p.betterIcs }
 
 end Overload

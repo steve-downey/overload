@@ -351,7 +351,8 @@ def conversionsText (n : String) (convs : List UserConv) : String :=
   let dflt := if convs.any (· matches .constructor ..) then s!"    constexpr {n}() = default;\n" else ""
   dflt ++ String.join (convs.map fun
     | .constructor param e => s!"    {keyword e}constexpr {n}({ty param}) \{}\n"
-    | .function t e => s!"    {keyword e}constexpr operator {ty t}() const \{ return \{}; }\n")
+    | .function t e c =>
+      s!"    {keyword e}constexpr operator {ty t}(){if c then " const" else ""} \{ return \{}; }\n")
 
 /-- The declarations of a program, as C++, each in its namespaces, with
 the members of a class in its body. -/
@@ -498,7 +499,7 @@ def qualifyDecl (q : List (String × String)) : Decl → Decl
   | .converting c conv =>
     .converting (qualifyTy q c) (match conv with
       | .constructor param e => .constructor (qualifyTy q param) e
-      | .function t e => .function (qualifyTy q t) e)
+      | .function t e c => .function (qualifyTy q t) e c)
   | d => d
 
 /-- Qualify the types of a case, program and query alike. -/
