@@ -77,8 +77,10 @@ A few conventions carry the whole development.
   as equalities on a concrete program and proved by running the model.
   They are theorems in Lean's sense and tests in the engineer's sense.
 - **Citations are attributes.** `@[std rule "temp.deduct.general#5.sentence-6"]`,
-  or several in one role, `@[std rule "a" "b"]`;
-  on a definition says what sentence it transcribes. `@[std theorem ...]`
+  or several in one role, `@[std rule "a" "b"]`,
+  on a definition says what sentence it transcribes. A second `std`
+  attribute on the same declaration is an error, since a parametric
+  attribute would otherwise replace the first in silence. `@[std theorem ...]`
   says the sentence is proved from the others. `@[std note ...]` and
   `@[std example ...]` are non-normative text used as proof targets.
   `@[assumed "slug"]` marks something the Standard does not say, linked

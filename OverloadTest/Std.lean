@@ -16,6 +16,22 @@ open Overload.Std
 #guard ({ stable := "temp.type", para := 2, sentence := some 3 } : Citation).key == "temp.type#2.sentence-3"
 #guard toString ({ stable := "temp.type", para := 2 } : Citation) == "[temp.type]/2"
 
+-- A second `std` attribute on one declaration is refused, and the first
+-- stays. The alternative, a parametric attribute's default, is that the
+-- second replaces the first in silence.
+/--
+error: std: twiceCited already carries citations; a second std attribute would replace them. Cite several sentences in one attribute: @[std role "a" "b"]
+-/
+#guard_msgs in
+@[std rule "temp.type#1", std rule "temp.type#2"] def twiceCited : Nat := 0
+
+open Lean Elab Command in
+run_cmd do
+  let some #[e] := citationsOf? (← getEnv) ``twiceCited
+    | throwError "twiceCited should keep its first citation and only that"
+  unless e.cite.stable == "temp.type" && e.cite.para == 1 do
+    throwError "twiceCited should cite [temp.type]/1, not {e.cite}"
+
 -- The attributes survive into the environment: a cited constructor, a
 -- tagged assumption, and an uncited declaration.
 open Lean Elab Command in
