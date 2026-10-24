@@ -154,7 +154,7 @@ On a constructor the attribute is written as a command after the inductive,
 in a constructor's declaration (`findings.md`). A declaration that
 transcribes several sentences cites them in one attribute, `@[std rule
 "a" "b"]`: a parametric attribute keeps one parameter per declaration, so
-a second `std` attribute would replace the first (`findings.md`).
+a second `std` attribute is refused with an error (`findings.md`).
 
 Three checks follow from it:
 

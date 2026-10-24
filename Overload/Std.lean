@@ -179,13 +179,23 @@ private def parseRole (s : String) : Except String Role :=
 
 /-- The `std` attribute. Its parameter, the declaration's citations,
 survives into the `.olean`, which is what lets the citation index and the
-drift check read it back. -/
-initialize stdAttr : ParametricAttribute (Array Entry) ←
-  registerParametricAttribute {
+drift check read it back.
+
+A parametric attribute keeps one parameter per declaration, and a second
+application would replace the first without a word. The extension is
+registered first so that the attribute can consult it and refuse a second
+`std` on a declaration that already has one: several sentences are cited
+in one attribute, `@[std rule "a" "b"]`. -/
+initialize stdAttr : ParametricAttribute (Array Entry) ← do
+  let ext ← registerParametricAttributeExt (α := Array Entry) `Overload.Std.stdAttr
+  registerParametricAttributeForExt {
     name := `std
     descr := "cites the sentences of the C++ Standard that a definition transcribes " ++
       "(rule), restates (theorem), or tests (note, example)"
-    getParam := fun _ stx => do
+    getParam := fun decl stx => do
+      if ((ext.getState (← getEnv)).2.find? decl).isSome then
+        throwError "std: {decl} already carries citations; a second std attribute would \
+          replace them. Cite several sentences in one attribute: @[std role \"a\" \"b\"]"
       let some roleText := firstAtom stx[1] | throwError "std: missing role"
       let texts := allStrLits stx[2]
       if texts.isEmpty then throwError "std: missing citation string"
@@ -197,7 +207,7 @@ initialize stdAttr : ParametricAttribute (Array Entry) ←
           | .ok c => pure c
           | .error e => throwError e
         return { role, cite : Entry }
-  }
+  } ext
 
 /-- The `assumed` attribute. The string names an entry in `docs/decisions.md`. -/
 initialize assumedAttr : ParametricAttribute String ←

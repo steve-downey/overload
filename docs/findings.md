@@ -168,7 +168,11 @@ and described here as they arrive.
   while the code cited them. The parameter is now the list of
   citations, written `@[std rule "a" "b"]`, the index flattens it, and
   the lint counts citations and declarations separately. No citation
-  was wrong; some were unrecorded.
+  was wrong; some were unrecorded. The comma form still parses, so the
+  attribute now refuses a second application on a declaration that
+  already carries citations, and the first citation stays; Lean's
+  `registerParametricAttributeExt` lets the attribute read its own
+  extension before it adds an entry.
 - **A class in the fragment has one value, so a conversion identifies
   totally** (23 October 2026). Phase 11 needed the value of the
   candidate initializer `constexpr T v = A;` when the initialization
