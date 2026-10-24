@@ -151,15 +151,43 @@ attribute [std rule "dcl.fct.def.default#5"] SmfBody.userProvided
 attribute [std rule "dcl.fct.def.default#1"] SmfBody.defaulted
 attribute [std rule "dcl.fct.def.delete#1"] SmfBody.deleted
 
+/-- How a member function is declared with respect to virtuality: with
+no specifier; with `virtual`; with `virtual` and a pure-specifier, `= 0`;
+with the virt-specifier `override`, which makes it virtual by overriding
+and is ill-formed otherwise; or with the virt-specifier `final`, a
+virtual function no derived class may override. A function at namespace
+scope has no virtuality, and the judgements of `Overload/Virtual.lean`
+look at member functions only. -/
+inductive Virt where
+  | none | virtual | pure | override | final
+  deriving Repr, DecidableEq, Inhabited
+
+attribute [std rule "class.virtual#1"] Virt.none Virt.virtual
+attribute [std rule "class.abstract#2"] Virt.pure
+attribute [std rule "class.virtual#5"] Virt.override
+attribute [std rule "class.virtual#4"] Virt.final
+
+/-- Is the function virtual by its own declaration, before any
+overriding: first declared `virtual`, pure, or `final`? An `override`
+is virtual only through the function it overrides. -/
+@[std rule "class.virtual#1.sentence-1"]
+def Virt.declared : Virt → Bool
+  | .virtual | .pure | .final => true
+  | .none | .override => false
+
 /-- A user-declared special member function: its kind, its body, and
 whether its parameter is a reference to `const` ([class.copy.ctor]/1,
 [class.copy.assign]/1), which a default constructor and a destructor
-ignore. Every special member of the fragment is public, unconstrained,
-and without an exception specification. -/
+ignore; a destructor may be declared virtual, pure, `override` or `final`
+([class.dtor]/11), which the other kinds ignore. Every special member of
+the fragment is public, unconstrained, and without an exception
+specification. -/
+@[std rule "class.dtor#11"]
 structure SmfDecl where
   kind : SmfKind
   body : SmfBody := .userProvided
   constParam : Bool := true
+  virt : Virt := .none
   deriving Repr, DecidableEq, Inhabited
 
 /-- A semantic requirement: what the arguments of a concept must do,
@@ -186,8 +214,10 @@ inductive Decl where
       (scope : Scope := [])
   /-- `template <head> struct name {};` -/
   | classTemplate (name : String) (head : Head) (scope : Scope := [])
-  /-- A non-template function, by name and parameter types. -/
-  | function (name : String) (params : List Ty) (scope : Scope := [])
+  /-- A non-template function, by name and parameter types; a member
+  function when its scope ends in a class step, and then with its
+  virtuality ([class.virtual]/1). -/
+  | function (name : String) (params : List Ty) (scope : Scope := []) (virt : Virt := .none)
   /-- A function template. -/
   | functionTemplate (ft : FunctionTemplate)
   /-- The primary of a lookup variable template, `trait<T>`, with a value
@@ -263,7 +293,7 @@ namespace Program
 /-- The declarations with a name, in order: the candidate set of a call. -/
 def candidates (p : Program) (name : String) : List Decl :=
   p.filter fun
-    | .function n _ _ => n = name
+    | .function n _ _ _ => n = name
     | .functionTemplate ft => ft.name = name
     | _ => false
 

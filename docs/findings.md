@@ -157,6 +157,11 @@ and described here as they arrive.
 
 ## About the model
 
+- **A sixth cited paragraph differs on the draft's main, editorially**
+  (24 October 2026). With phase 14's citations `make drift-check-current`
+  reports [class.virtual]/2 beside the five known: a comment in the
+  paragraph's example now spells "using-declaration" as a grammar term.
+  The rule the model cites, overriding by correspondence, is unchanged.
 - **Three more cited paragraphs differ on the draft's main, all
   editorially** (24 October 2026). `make drift-check-current` reports
   [class.dtor]/7, [special]/7 and [dcl.init.ref]/5 beside the two known

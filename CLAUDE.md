@@ -6,7 +6,8 @@ Guidance for Claude Code when working in this repository.
 
 A Lean 4 model of C++ template argument deduction, substitution, constraints,
 partial ordering and overload resolution, with the type categories, special
-member functions, type traits and requires-expressions beneath them, built to
+member functions, virtual functions, type traits and requires-expressions
+beneath them, built to
 prove properties of the typeclass encoding in
 [bemanproject/typeclass](https://github.com/bemanproject/typeclass).
 Read `docs/plan.md` first: it is the charter, with phases, target theorems,

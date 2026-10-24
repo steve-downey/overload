@@ -14,7 +14,8 @@ a class's constructors and assignment operators with the usable-candidate
 check ([meta.unary.prop]/9, [over.match.general]/4), `is_destructible`
 and the `is_trivially_` forms through the special member functions,
 `is_trivially_copyable` and `is_standard_layout` through [class.prop],
-`is_empty` through the members. So a trait's answer is a theorem of the
+`is_empty` through the members, `is_polymorphic`, `is_abstract` and
+`has_virtual_destructor` through the virtual functions. So a trait's answer is a theorem of the
 rules it rests on, and the differential tests compare it with the
 compilers' own trait.
 
@@ -46,16 +47,18 @@ def rref (t : Ty) : Ty := Ty.collapse (.rref t)
 /-- `is_convertible<From, To>`: the return statement `return
 declval<From>();` of a function returning `To` is well-formed. `void` to
 `void` holds and nothing else converts to or from `void`; no function
-type is a return type; otherwise the copy-initialization of the returned
+type is a return type, and no abstract class is the return type of a
+function definition ([dcl.fct.def.general]/2); otherwise the copy-initialization of the returned
 object or the binding of the returned reference forms an implicit
 conversion sequence that is not ambiguous, and when the destination is
 the argument's class or a base, the constructor it selects is usable.
 A conversion between two different non-class types is outside the
 fragment's sequences and is left to the oracle. -/
-@[std rule "meta.rel#6"]
+@[std rule "meta.rel#6" "dcl.fct.def.general#2"]
 def convertible (p : Program) (from_ to : Ty) : Subst Bool :=
   if to.isVoid then .ok from_.isVoid
   else if from_.isVoid || to.isFunction then .ok false
+  else if !to.isRef && to.stripConst.isClass && p.abstract to.stripConst then .ok false
   else
     let a := declval from_
     let src := a.ty.stripConst
@@ -72,11 +75,12 @@ def convertible (p : Program) (from_ to : Ty) : Subst Bool :=
 
 /-- `is_constructible<T, Args...>`: the variable definition
 `T t(declval<Args>()...);` is well-formed. A reference binds one
-argument; a class resolves its constructors for direct-initialization
-and the candidate must be usable; a scalar is value-initialized by no
+argument; no object of an abstract class is defined ([basic.def]/5); a
+class resolves its constructors for direct-initialization and the
+candidate must be usable; a scalar is value-initialized by no
 argument and initialized by one of its own type or of a class with a
 conversion function to it. No `void` or function type is constructible. -/
-@[std rule "meta.unary.prop#9" "over.match.general#4"]
+@[std rule "meta.unary.prop#9" "over.match.general#4" "basic.def#5"]
 def constructible (p : Program) (t : Ty) (args : List Ty) : Subst Bool :=
   let as := args.map declval
   if t.isVoid || t.isFunction then .ok false
@@ -85,7 +89,8 @@ def constructible (p : Program) (t : Ty) (args : List Ty) : Subst Bool :=
     | [a] => .ok (match p.ics .direct a t with | some .ambiguous | none => false | some _ => true)
     | _ => .ok false
   else if t.stripConst.isClass then
-    .ok (usable p.facts t.stripConst (resolveCtor p.facts p .direct t.stripConst as))
+    .ok (!p.abstract t.stripConst &&
+      usable p.facts t.stripConst (resolveCtor p.facts p .direct t.stripConst as))
   else
     match as with
     | [] => .ok true
@@ -181,17 +186,18 @@ def zeroOffsetWithin (p : Program) : Nat → Ty → List Ty
       t :: (if t.isClass then p.zeroOffsetWithin fuel t else [])
 
 /-- A standard-layout class within `fuel`, the bullets of [class.prop]/2
-on the fragment: no member of reference type or of a non-standard-layout
-class; every base standard-layout; at most one base subobject of any
-type; every member first declared in one class; no base among the types
-at offset zero. The fragment has no virtual functions or bases, no
-bit-fields, and public members only, so the other bullets hold. -/
+on the fragment: no virtual functions; no member of reference type or of
+a non-standard-layout class; every base standard-layout; at most one
+base subobject of any type; every member first declared in one class; no
+base among the types at offset zero. The fragment has no virtual bases,
+no bit-fields, and public members only, so the other bullets hold. -/
 @[std rule "class.prop#2"]
 def standardLayoutWithin (p : Program) : Nat → Ty → Bool
   | 0, _ => false
   | fuel + 1, c =>
     let members := p.membersOf c
     let all := p.allBases c
+    !p.polymorphic c &&
     members.all (fun m => !m.ty.isReference &&
       (!m.ty.stripConst.isClass || p.standardLayoutWithin fuel m.ty.stripConst)) &&
     (p.directBases c).all (p.standardLayoutWithin fuel) &&
@@ -202,12 +208,13 @@ def standardLayoutWithin (p : Program) : Nat → Ty → Bool
 /-- A standard-layout class. -/
 def standardLayoutClass (p : Program) (c : Ty) : Bool := p.standardLayoutWithin p.length c
 
-/-- An empty class within `fuel`: no non-static data members, and every
-base empty. -/
+/-- An empty class within `fuel`: no non-static data members, no virtual
+member functions, and every base empty. -/
 @[std rule "meta.unary.prop#5"]
 def emptyWithin (p : Program) : Nat → Ty → Bool
   | 0, _ => false
-  | fuel + 1, c => (p.membersOf c).isEmpty && (p.directBases c).all (p.emptyWithin fuel)
+  | fuel + 1, c =>
+    !p.polymorphic c && (p.membersOf c).isEmpty && (p.directBases c).all (p.emptyWithin fuel)
 
 /-- An empty class. -/
 def emptyClass (p : Program) (c : Ty) : Bool := p.emptyWithin p.length c
@@ -284,6 +291,9 @@ def trait (p : Program) (q : Trait) (args : List Ty) : Subst Bool :=
       if referenceable t then p.triviallyAssignable (Ty.collapse (.lref t)) (rref t) else .ok false
     | .isTriviallyDestructible, [t] => .ok (p.triviallyDestructible t)
     | .isNothrowDestructible, [t] => .ok (p.destructible t)
+    | .isPolymorphic, [t] => onClass t p.polymorphic false
+    | .isAbstract, [t] => onClass t p.abstract false
+    | .hasVirtualDestructor, [t] => onClass t p.virtualDtor false
     | .isInvocable, f :: as => p.invocable f as
     | q, _ => .soft s!"{q.spelling}: wrong number of arguments"
 
@@ -303,13 +313,52 @@ constructors for direct-initialization, with the usable-candidate check:
 the trait's answer is the initialization's. -/
 @[std theorem "meta.unary.prop#9"]
 theorem trait_is_resolution (p : Program) (c : Ty) (args : List Ty) (hc : c.stripConst.isClass = true)
-    (hr : c.isRef = false) (hall : (c :: args).all Ty.concrete = true) :
+    (hr : c.isRef = false) (habs : p.abstract c.stripConst = false)
+    (hall : (c :: args).all Ty.concrete = true) :
     p.trait .isConstructible (c :: args) =
       .ok (Program.usable p.facts c.stripConst
         (Program.resolveCtor p.facts p .direct c.stripConst (args.map Program.declval))) := by
   have hv := Ty.isClass_not_void c hc
   have hf := Ty.isClass_not_function c hc
-  simp [Program.trait, Trait.structural, hall, Program.constructible, hv, hf, hr, hc]
+  simp [Program.trait, Trait.structural, hall, Program.constructible, hv, hf, hr, hc, habs]
+
+/-- No object of an abstract class is created: `is_constructible` of an
+abstract class is false for every argument list. -/
+@[std theorem "basic.def#5" "class.abstract#2"]
+theorem abstract_not_constructible (p : Program) (c : Ty) (args : List Ty)
+    (hc : c.stripConst.isClass = true) (hr : c.isRef = false) (habs : p.abstract c.stripConst = true) :
+    p.constructible c args = .ok false ∧
+      ((c :: args).all Ty.concrete = true → p.trait .isConstructible (c :: args) = .ok false) := by
+  have hv := Ty.isClass_not_void c hc
+  have hf := Ty.isClass_not_function c hc
+  refine ⟨by simp [Program.constructible, hv, hf, hr, hc, habs], fun hall => ?_⟩
+  simp [Program.trait, Trait.structural, hall, Program.constructible, hv, hf, hr, hc, habs]
+
+/-- No special member of a polymorphic class is trivial, so a polymorphic
+class is neither trivially copyable nor standard-layout nor empty. -/
+@[std theorem "class.default.ctor#3" "class.copy.ctor#12" "class.copy.assign#9" "class.dtor#8"
+  "class.prop#1" "class.prop#2"]
+theorem polymorphic_not_trivial (p : Program) (c : Ty) (h : p.polymorphic c = true) :
+    (∀ k, p.trivial c k = false) ∧ p.triviallyCopyableClass c = false ∧
+      p.standardLayoutClass c = false ∧ p.emptyClass c = false := by
+  have ht : ∀ k, p.trivial c k = false := by
+    intro k
+    unfold Program.trivial
+    cases p.length with
+    | zero => rfl
+    | succ n =>
+      simp only [Program.trivialWithin]
+      split <;> simp [h]
+  refine ⟨ht, ?_, ?_, ?_⟩
+  · simp [Program.triviallyCopyableClass, ht]
+  · unfold Program.standardLayoutClass
+    cases p.length with
+    | zero => rfl
+    | succ n => simp [Program.standardLayoutWithin, h]
+  · unfold Program.emptyClass
+    cases p.length with
+    | zero => rfl
+    | succ n => simp [Program.emptyWithin, h]
 
 /-- `is_convertible` between two class types is the implicit conversion
 sequence of phase 11: a user-defined sequence converts, the ambiguous
@@ -317,7 +366,8 @@ sequence and none do not, and a standard sequence, the argument's own
 class or a base, converts when the constructor it selects is usable. -/
 @[std theorem "meta.rel#6"]
 theorem is_convertible_eq_ics (p : Program) (f t : Ty) (hf : f.referred.stripConst.isClass = true)
-    (ht : t.referred.stripConst.isClass = true) (hall : [f, t].all Ty.concrete = true) :
+    (ht : t.referred.stripConst.isClass = true) (habs : t.isRef = false → p.abstract t.stripConst = false)
+    (hall : [f, t].all Ty.concrete = true) :
     p.trait .isConvertible [f, t] =
       .ok (match p.ics .copy (Program.declval f) t with
         | some (.userDefined ..) => true
@@ -328,8 +378,12 @@ theorem is_convertible_eq_ics (p : Program) (f t : Ty) (hf : f.referred.stripCon
   have hfn := Ty.referred_isClass_not_function t ht
   have hsrc : (Program.declval f).ty.stripConst.isClass = true := by
     simpa [Program.declval] using hf
+  have habs' : (!t.isRef && t.stripConst.isClass && p.abstract t.stripConst) = false := by
+    cases hr : t.isRef with
+    | true => rfl
+    | false => simp [habs hr]
   simp only [Program.trait, Trait.structural, hall, Program.convertible, hv, hfv, hfn,
-    Bool.false_eq_true, ↓reduceIte, hsrc, Bool.not_true, Bool.false_and]
+    Bool.false_eq_true, ↓reduceIte, hsrc, Bool.not_true, Bool.false_and, habs']
   cases h : p.ics .copy (Program.declval f) t with
   | none => rfl
   | some u => cases u <;> rfl

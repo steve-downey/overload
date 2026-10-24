@@ -332,7 +332,7 @@ def returnTypes (p : Program) (callee : String) (ret : Nat → Head → String)
   let mut hidden := 0
   for d in p do
     let (name, h) := match d with
-      | .function n _ _ => (some n, [])
+      | .function n _ _ _ => (some n, [])
       | .functionTemplate ft => (some ft.name, ft.head)
       | _ => (none, [])
     match name with
@@ -347,11 +347,22 @@ def returnTypes (p : Program) (callee : String) (ret : Nat → Head → String)
         else rs := rs.push "void"
   return rs
 
+/-- The spelling of a function's virtuality: `virtual` before the
+declaration, and `= 0`, `override` or `final` after it. -/
+def virtText : Virt → String × String
+  | .none => ("", "")
+  | .virtual => ("virtual ", "")
+  | .pure => ("virtual ", " = 0")
+  | .override => ("", " override")
+  | .final => ("virtual ", " final")
+
 /-- A function or function template, as a declaration with the return
-type `r`, a member when `cv` is ` const`. -/
+type `r`, a member when `cv` is ` const`, with its virtuality spelled. -/
 def functionText (d : Decl) (r : String) (cv : String := "") : String :=
   match d with
-  | .function n ps _ => s!"{r} {n}({params ps}){cv};\n"
+  | .function n ps _ v =>
+    let (pre, post) := virtText v
+    s!"{pre}{r} {n}({params ps}){cv}{post};\n"
   | .functionTemplate ft =>
     let req := match ft.constraint with
       | some c => s!"\n    requires {constraint c}"
@@ -377,18 +388,22 @@ nothing, which is what a user-provided one of the fragment is. -/
 def specialsText (n : String) (ss : List SmfDecl) : String :=
   String.join (ss.map fun s =>
     let cv := if s.constParam then "const " else ""
+    let (pre, post) := if s.kind == .dtor then virtText s.virt else ("", "")
+    let pureDtor := s.kind == .dtor && s.virt == Virt.pure
     let head := match s.kind with
       | .defaultCtor => s!"constexpr {n}()"
       | .copyCtor => s!"constexpr {n}(const {n}&)".replace "const " cv
       | .moveCtor => s!"constexpr {n}(const {n}&&)".replace "const " cv
       | .copyAssign => s!"constexpr {n}& operator=(const {n}&)".replace "const " cv
       | .moveAssign => s!"constexpr {n}& operator=(const {n}&&)".replace "const " cv
-      | .dtor => s!"constexpr ~{n}()"
-    let body := match s.body, s.kind with
-      | .defaulted, _ => " = default;"
-      | .deleted, _ => " = delete;"
-      | .userProvided, .copyAssign | .userProvided, .moveAssign => " { return *this; }"
-      | .userProvided, _ => " {}"
+      | .dtor => if pureDtor then s!"virtual ~{n}()" else s!"{pre}constexpr ~{n}(){post}"
+    let body :=
+      if pureDtor then " = 0;"
+      else match s.body, s.kind with
+        | .defaulted, _ => " = default;"
+        | .deleted, _ => " = delete;"
+        | .userProvided, .copyAssign | .userProvided, .moveAssign => " { return *this; }"
+        | .userProvided, _ => " {}"
     s!"    {head}{body}\n")
 
 /-- The user-defined conversions of a class, as member declarations in its
@@ -572,7 +587,7 @@ def qualifyConstraint (q : List (String × String)) : Constraint → Constraint
 def qualifyDecl (q : List (String × String)) : Decl → Decl
   | .class n bs ps s => .class n (bs.map (qualifyTy q)) (ps.map (qualifyTy q)) s
   | .classTemplate n h s => .classTemplate n (h.map (qualifyParam q)) s
-  | .function n ps s => .function n (ps.map (qualifyTy q)) s
+  | .function n ps s v => .function n (ps.map (qualifyTy q)) s v
   | .functionTemplate ft =>
     .functionTemplate { ft with head := ft.head.map (qualifyParam q), params := ft.params.map (qualifyTy q)
                                 ret := qualifyTy q ft.ret, constraint := ft.constraint.map (qualifyConstraint q)
@@ -2328,6 +2343,98 @@ def traitTriviallyMoveAssignableFlat : Case :=
   traitCase "trait_trivially_move_assignable_flat" "class.copy.assign#9" classA
     .isTriviallyMoveAssignable [.named "A"]
 
+/-! ### Virtual functions, polymorphic and abstract classes -/
+
+/-- `struct B { virtual void f() const; };` -/
+private def virtualB : Program := [.class "B", .function "f" [] [.class "B"] .virtual]
+/-- `struct B { virtual void f() const; }; struct D : B {};` -/
+private def virtualDerived : Program := virtualB ++ [.class "D" [cB]]
+/-- `struct B { virtual void f() const = 0; };` -/
+private def pureB : Program := [.class "B", .function "f" [] [.class "B"] .pure]
+/-- `struct B { virtual void f() const = 0; }; struct D : B { void f() const override; };` -/
+private def overridden : Program := pureB ++ [.class "D" [cB], .function "f" [] [.class "D"] .override]
+/-- The note of [class.virtual]/3 on a pure function: `D::f(int)` hides
+`B::f()` and does not override it, `D2::f()` overrides it unseen. -/
+private def hiddenPure : Program :=
+  pureB ++ [ .class "D" [cB], .function "f" [.named "int"] [.class "D"]
+           , .class "D2" [cD], .function "f" [] [.class "D2"] ]
+/-- `struct B { virtual ~B() = default; };` -/
+private def virtualDtorB : Program := [.class "B", .special cB { kind := .dtor, body := .defaulted, virt := .virtual }]
+
+/-- `is_polymorphic_v`: a virtual function; inherited; a virtual
+destructor alone. -/
+def traitPolymorphic : Case := traitCase "trait_polymorphic" "class.virtual#1" virtualB .isPolymorphic [cB]
+def traitPolymorphicInherited : Case :=
+  traitCase "trait_polymorphic_inherited" "class.virtual#1" virtualDerived .isPolymorphic [cD]
+def traitPolymorphicVirtualDestructor : Case :=
+  traitCase "trait_polymorphic_virtual_destructor" "class.dtor#11" virtualDtorB .isPolymorphic [cB]
+
+/-- `is_abstract_v`: a pure virtual function; overridden; hidden but not
+overridden; overridden unseen; a pure destructor. -/
+def traitAbstract : Case := traitCase "trait_abstract" "class.abstract#2" pureB .isAbstract [cB]
+def traitAbstractOverridden : Case :=
+  traitCase "trait_abstract_overridden" "class.abstract#4" overridden .isAbstract [cD]
+def traitAbstractHidden : Case := traitCase "trait_abstract_hidden" "class.virtual#3" hiddenPure .isAbstract [cD]
+def traitAbstractHiddenOverride : Case :=
+  traitCase "trait_abstract_hidden_override" "class.virtual#3" hiddenPure .isAbstract [.named "D2"]
+def traitAbstractPureDestructor : Case :=
+  traitCase "trait_abstract_pure_destructor" "class.dtor#11"
+    [.class "B", .special cB { kind := .dtor, virt := .pure }] .isAbstract [cB]
+
+/-- `has_virtual_destructor_v`: declared; inherited by an implicit
+destructor; not from another virtual function. -/
+def traitHasVirtualDestructor : Case :=
+  traitCase "trait_has_virtual_destructor" "class.dtor#11" virtualDtorB .hasVirtualDestructor [cB]
+def traitHasVirtualDestructorInherited : Case :=
+  traitCase "trait_has_virtual_destructor_inherited" "class.virtual#2" (virtualDtorB ++ [.class "D" [cB]])
+    .hasVirtualDestructor [cD]
+def traitHasVirtualDestructorPlain : Case :=
+  traitCase "trait_has_virtual_destructor_plain" "meta.unary.prop#5" virtualB .hasVirtualDestructor [cB]
+
+/-- A polymorphic class is not trivially copyable, standard-layout or
+empty, and none of its special members is trivial. -/
+def traitTriviallyCopyablePolymorphic : Case :=
+  traitCase "trait_trivially_copyable_polymorphic" "class.prop#1" virtualB .isTriviallyCopyable [cB]
+def traitStandardLayoutPolymorphic : Case :=
+  traitCase "trait_standard_layout_polymorphic" "class.prop#2" virtualB .isStandardLayout [cB]
+def traitEmptyPolymorphic : Case :=
+  traitCase "trait_empty_polymorphic" "meta.unary.prop#5" virtualB .isEmpty [cB]
+def traitTriviallyDestructibleVirtual : Case :=
+  traitCase "trait_trivially_destructible_virtual" "class.dtor#8" virtualDtorB .isTriviallyDestructible [cB]
+def traitTriviallyDefaultConstructiblePolymorphic : Case :=
+  traitCase "trait_trivially_default_constructible_polymorphic" "class.default.ctor#3" virtualB
+    .isTriviallyDefaultConstructible [cB]
+
+/-- No object of an abstract class: not constructible, not copy
+constructible, not the target of a conversion by value, while a reference
+to it is bound and the concrete derived class is constructible. -/
+def traitConstructibleAbstract : Case :=
+  traitCase "trait_constructible_abstract" "basic.def#5" pureB .isConstructible [cB]
+def traitCopyConstructibleAbstract : Case :=
+  traitCase "trait_copy_constructible_abstract" "basic.def#5" pureB .isCopyConstructible [cB]
+def traitDefaultConstructibleOverridden : Case :=
+  traitCase "trait_default_constructible_overridden" "class.abstract#4" overridden .isDefaultConstructible [cD]
+def traitConvertibleToAbstract : Case :=
+  traitCase "trait_convertible_to_abstract" "dcl.fct.def.general#2" overridden .isConvertible [cD, cB]
+def traitConvertibleToAbstractReference : Case :=
+  traitCase "trait_convertible_to_abstract_reference" "class.abstract#3" overridden .isConvertible
+    [cD, .lref (.const cB)]
+
+/-- `void g(B);` with `B` abstract: the call `g(d)` is ill-formed, whatever
+the argument; `void g(const B&)` is fine. -/
+def abstractByValue : Case :=
+  { name := "abstract_by_value"
+    cite := cite "expr.call#7"
+    program := overridden ++ [.function "g" [cB]]
+    query := .call "g" [{ ty := cD, lvalue := true }] (.illFormed "a parameter is of abstract class type")
+    source := "computed by Program.call" }
+def abstractByReference : Case :=
+  { name := "abstract_by_reference"
+    cite := cite "class.abstract#3"
+    program := overridden ++ [.function "g" [.lref (.const cB)]]
+    query := .call "g" [{ ty := cD, lvalue := true }] (.selected 0)
+    source := "computed by Program.call" }
+
 /-- `is_invocable_v<int(int, const A&), int, A>` and with a missing
 argument. -/
 def traitInvocableFunction : Case :=
@@ -2552,6 +2659,13 @@ def cases : List Case :=
   , traitTriviallyDestructibleUserProvided, traitTriviallyDestructibleFlat
   , traitTriviallyMoveAssignableFlat, traitInvocableFunction, traitInvocableArity
   , traitConstraintCopyConstructible
+  , traitPolymorphic, traitPolymorphicInherited, traitPolymorphicVirtualDestructor, traitAbstract
+  , traitAbstractOverridden, traitAbstractHidden, traitAbstractHiddenOverride, traitAbstractPureDestructor
+  , traitHasVirtualDestructor, traitHasVirtualDestructorInherited, traitHasVirtualDestructorPlain
+  , traitTriviallyCopyablePolymorphic, traitStandardLayoutPolymorphic, traitEmptyPolymorphic
+  , traitTriviallyDestructibleVirtual, traitTriviallyDefaultConstructiblePolymorphic
+  , traitConstructibleAbstract, traitCopyConstructibleAbstract, traitDefaultConstructibleOverridden
+  , traitConvertibleToAbstract, traitConvertibleToAbstractReference, abstractByValue, abstractByReference
   , conceptRefinementSubsumes, conceptRefinementUnsatisfied, requiresCallHolds, requiresCallFails
   , requiresMemberHolds, requiresMemberFails, requiresTypeFails, requiresTypeHolds, requiresOrder
   , conceptCopyConstructibleRefines, conceptMoveOnly ]

@@ -16,6 +16,7 @@ import Overload.Transitivity
 import Overload.Specs
 import Overload.Resolution
 import Overload.Ranking
+import Overload.Virtual
 import Overload.Special
 import Overload.Traits
 import Overload.Requires
@@ -77,6 +78,16 @@ is the map.
 #audit Overload.requires_false_stops
 #audit Overload.requires_hard_stops
 #audit Overload.member_requirement_iff_call
+
+-- Virtual functions, polymorphic and abstract classes.
+#audit Overload.virtual_destructor_inherited
+#audit Overload.abstract_polymorphic
+#audit Overload.hidden_virtual_example
+#audit Overload.override_is_correspondence
+#audit Overload.overrides_iff
+#audit Overload.polymorphic_not_trivial
+#audit Overload.abstract_not_constructible
+#audit Overload.abstract_by_value_ill_formed
 
 -- What satisfies and what models.
 #audit Overload.models_satisfies
@@ -273,6 +284,7 @@ consults an oracle rests on what the environment says. -/
 #rests_on Overload.Program.convertible
 #rests_on Overload.Program.constructible
 #rests_on Overload.Program.triviallyCopyableClass
+#rests_on Overload.Program.abstract
 #rests_on Overload.Ty.isScalar
 #rests_on Overload.Program.normalize
 #rests_on Overload.Program.requirementsHold
@@ -338,6 +350,8 @@ consults an oracle rests on what the environment says. -/
 #audit Overload.Typeclass.refinement_normalizes
 #audit Overload.Typeclass.refinement_selects
 #audit Overload.Typeclass.member_probe_accurate
+#audit Overload.Typeclass.virtual_instance_costs
+#audit Overload.Typeclass.abstract_instance_by_reference
 
 -- The typeclass laws as semantic requirements.
 #audit Overload.Typeclass.monad_laws

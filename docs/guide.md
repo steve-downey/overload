@@ -497,6 +497,29 @@ when no sequence forms or the sequence is ambiguous. A class value in
 the fragment lists its base subobjects and nothing else, so a class has
 one value whichever constructor made it (`candidateInitializer_user`).
 
+### Virtual
+
+`Overload/Virtual.lean`: virtual functions, phase 14. `Virt` is a field of
+`Decl.function` and of a destructor's `SmfDecl`: no specifier, `virtual`,
+pure, `override` or `final` ([class.virtual]/1, /4, /5, [class.abstract]/2,
+[class.dtor]/11). `Program.virtualFunctions c` is the virtual functions
+a class's objects have, its final overriders: the class's own member
+functions declared virtual or overriding, and the bases' that no member
+overrides ([class.virtual]/1, /2). Overriding is `sameSignature`, the same
+name and parameter-type-list, which is correspondence on two function
+declarations (`override_is_correspondence` in `Overload/Scope.lean`, above
+this module in the layering); a function of the same name with another
+parameter list hides and does not override, the note of [class.virtual]/3,
+which `hidden_virtual_example` reproduces. `polymorphic` is a virtual
+function or a virtual destructor; `abstract` is a pure function among the
+final overriders or a pure destructor ([class.abstract]/2, /4);
+`virtualDtor` is a destructor declared virtual or a base's, since
+prospective destructors correspond (`virtual_destructor_inherited`, a
+rule N5054 states nowhere in one sentence). `abstract_polymorphic`: an
+abstract class is polymorphic. `virtualsWellFormed` is the program-level
+check that nothing overrides a `final` function and every `override`
+overrides something.
+
 ### Special
 
 `Overload/Special.lean`: the special member functions. `Program.special c k`
@@ -511,7 +534,8 @@ of [class.default.ctor]/2, [class.copy.ctor]/10, [class.copy.assign]/7 and
 over a subobject's class to find its corresponding constructor or
 assignment and whether that results in a usable candidate
 ([over.match.general]/4); `Program.trivial` and `Program.eligible`
-likewise. Every judgement is fuel-bounded through the program, as
+likewise, with the no-virtual-functions conjunct of every triviality
+rule read as `!polymorphic` (`polymorphic_not_trivial`). Every judgement is fuel-bounded through the program, as
 `derives` is, and the candidate lists and the resolution over them
 (`ctorCandidates`, `assignCandidates`, `resolveAmong`) are parametrized
 by `Facts`, the special members and their deletion at the fuel below, so
@@ -538,14 +562,20 @@ constructor it selects usable (`is_convertible_eq_ics`).
 `is_constructible` is the variable definition of [meta.unary.prop]/9:
 resolution over a class's constructors for direct-initialization with
 the usable-candidate check (`trait_is_resolution`), a reference binding
-one argument, a scalar taking none or one of its own type.
+one argument, a scalar taking none or one of its own type, and no
+object of an abstract class at all ([basic.def]/5,
+`abstract_not_constructible`); `is_convertible` to an abstract class by
+value is likewise false, since the test function is a definition
+([dcl.fct.def.general]/2).
 `is_assignable` is resolution over the assignment operators, a `const`
 object having none. `is_destructible` and the `is_trivially_` forms
 read the special members: the operation selected is a special member
 and trivial. `is_trivially_copyable` and `is_standard_layout` are
 [class.prop]/1 and /2 on the fragment, `triviallyCopyableClass` and
 `standardLayoutClass`, with `zeroOffsetWithin` the types at offset zero;
-`is_empty` is no members and empty bases. `is_invocable` of a function
+`is_empty` is no members, no virtual functions and empty bases;
+`is_polymorphic`, `is_abstract` and `has_virtual_destructor` read
+`Overload/Virtual.lean`. `is_invocable` of a function
 type or a pointer to one checks each argument's conversion sequence.
 The residue (`decisions.md#trait-residue`) answers `soft`: a conversion
 between two different non-class types, which the fragment's sequences
@@ -829,7 +859,9 @@ three.
 `Overload/Access.lean`: `Program.call`, a call as a program evaluates it
 in an environment: overload resolution, which ignores access
 ([over.best.ics.general]/2) and ranks an ambiguous conversion sequence
-as a user-defined one; then, on the selected function, an argument whose
+as a user-defined one; then, on the selected function, a by-value
+parameter of abstract class type makes the call ill-formed
+([expr.call]/7, `abstract_by_value_ill_formed`); then an argument whose
 conversion is ambiguous makes the call ill-formed
 ([over.best.ics.general]/12); then the access check on its conversions
 ([conv.ptr]/3, [dcl.init.ref]/4), after ambiguity resolution
@@ -1345,6 +1377,13 @@ one by Monad select the Monad overload at a Monad instance.
 `member_probe_accurate`: a requires-expression probing a member says
 what the member call says, the accurate-members obligation as the
 Standard states it (`member_requirement_iff_call` on the Standard side).
+Phase 14: `virtual_instance_costs`, an instance type with a virtual
+operation keeps value nature and stays structural, so the value route
+admits it, but is neither trivially copyable nor standard-layout nor
+empty, so the route's copy of it is a real copy;
+`abstract_instance_by_reference`, an abstract instance type is not
+constructible and an algorithm taking it by value is ill-formed to call
+even with a concrete derived instance, so only a reference reaches it.
 
 ### Laws
 

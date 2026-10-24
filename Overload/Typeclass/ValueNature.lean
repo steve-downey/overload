@@ -74,6 +74,45 @@ theorem reference_member_instance :
     referenceInstance.valueNature (.named "ref_i") = false := by
   decide
 
+/-! ## A polymorphic or abstract instance type -/
+
+/-- An instance type with a virtual operation, an abstract one, a
+concrete instance derived from it, and an algorithm taking the abstract
+instance by value and one taking it by reference to `const`. -/
+def polymorphicInstances : Program :=
+  [ .class "virtual_i", .function "fmap" [] [.class "virtual_i"] .virtual
+  , .class "abstract_i", .function "fmap" [] [.class "abstract_i"] .pure
+  , .class "concrete_i" [.named "abstract_i"], .function "fmap" [] [.class "concrete_i"] .override
+  , .function "by_value" [.named "abstract_i"]
+  , .function "by_reference" [.lref (.const (.named "abstract_i"))] ]
+
+/-- A polymorphic instance type keeps value nature, every special member
+defaulted and not deleted, and stays structural, so the value route
+admits it as a constant template argument; but none of its special
+members is trivial, so it is neither trivially copyable nor
+standard-layout nor empty: the route's copy of it is a real copy. -/
+theorem virtual_instance_costs :
+    polymorphicInstances.valueNature (.named "virtual_i") = true ∧
+    polymorphicInstances.structural (.named "virtual_i") = true ∧
+    polymorphicInstances.trait .isTriviallyCopyable [.named "virtual_i"] = .ok false ∧
+    polymorphicInstances.trait .isStandardLayout [.named "virtual_i"] = .ok false ∧
+    polymorphicInstances.trait .isEmpty [.named "virtual_i"] = .ok false := by
+  decide
+
+/-- An abstract instance type cannot take the value route at all: it is
+not constructible, and an algorithm that takes it by value is ill-formed
+to call even with a concrete derived instance. Only a reference reaches
+the algorithm. -/
+theorem abstract_instance_by_reference :
+    polymorphicInstances.trait .isConstructible [.named "abstract_i"] = .ok false ∧
+    polymorphicInstances.call (Env.ofProgram polymorphicInstances)
+        (polymorphicInstances.candidates "by_value") [{ ty := .named "concrete_i", lvalue := true }] =
+      .illFormed "a parameter is of abstract class type" ∧
+    (polymorphicInstances.call (Env.ofProgram polymorphicInstances)
+        (polymorphicInstances.candidates "by_reference") [{ ty := .named "concrete_i", lvalue := true }]).map
+        (·.index) = .selected 0 := by
+  refine ⟨by decide, by decide, by decide⟩
+
 /-! ## The callable-copying rule -/
 
 /-- A callable whose copy constructor is deleted, and the two ways an

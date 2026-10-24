@@ -661,7 +661,7 @@ Status, 15 October 2026:
   `citations.md` with every in-scope paragraph covered, and `make
   drift-check-current`, which reports the five known editorial drifts
   and no other.
-- Phase 14 is planned, 24 October 2026, in three stages: virtual
+- Phase 14 is open, planned 24 October 2026 in three stages: virtual
   functions, exception specifications, aggregates. Each extends the
   special member judgements of phase 12 with one new fact about
   declarations and the traits that rest on it, and the third corrects
@@ -669,9 +669,30 @@ Status, 15 October 2026:
   separates `T{}` from `T t;`. The plan, the cross-reference against
   N5054 and the stages are
   [below](#phase-14-virtual-functions-exception-specifications-and-aggregates).
-  Its in-scope paragraphs are listed and uncovered until the stages
-  land. Settles virtual-fragment, exception-specification-fragment and
+  Settles virtual-fragment, exception-specification-fragment and
   aggregate-fragment.
+  Stage 1, virtual-functions, landed 24 October 2026:
+  `Overload/Virtual.lean`, with `Virt` on `Decl.function` and on a
+  destructor's `SmfDecl`, the virtual functions a class's objects have
+  as its final overriders, overriding by signature, polymorphic and
+  abstract classes, the inherited virtual destructor, and
+  `virtualsWellFormed` for `final` and `override`. Triviality, standard
+  layout and emptiness take the no-virtual-functions conjunct;
+  `is_constructible`, `is_convertible` and `Program.call` refuse an
+  abstract class by value, on the normative rules [basic.def]/5,
+  [dcl.fct.def.general]/2 and [expr.call]/7 that the note
+  [class.abstract]/3 points to; `is_polymorphic`, `is_abstract` and
+  `has_virtual_destructor` are computed. The theorems
+  polymorphic-not-trivial, abstract-not-constructible,
+  override-is-correspondence and virtual-destructor-inherited are
+  proved, with `abstract_polymorphic`, `overrides_iff` and the draft's
+  note on an invisible virtual function as an example; on the encoding,
+  `virtual_instance_costs` and `abstract_instance_by_reference`.
+  Twenty-five emitted cases agree with GCC 15 and Clang 24, and `make
+  drift-check-current` reports one more editorial drift, [class.virtual]/2
+  (`findings.md`). One departure from the plan: `Virt` has an `override`
+  value the plan did not list, since without it [class.virtual]/5 has
+  nothing to check.
 
 ## Target theorems
 
@@ -2015,13 +2036,16 @@ overrides it ([class.virtual]/2), which is where the rule now lives.
 
 | Rule | N5054 text (abbreviated) | Model counterpart | Stage |
 |---|---|---|---|
-| [class.virtual]/1 | A non-static member function is virtual if first declared `virtual` or if it overrides a virtual member function of a base. A class with a virtual member function is a polymorphic class. | `Decl.function` gains `virt : Virt` (`.none`, `.virtual`, `.pure`, `.final`); `Program.virtualFunctions c`, `Program.polymorphic c`. | 1 |
+| [class.virtual]/1 | A non-static member function is virtual if first declared `virtual` or if it overrides a virtual member function of a base. A class with a virtual member function is a polymorphic class. | `Decl.function` gains `virt : Virt` (`.none`, `.virtual`, `.pure`, `.override`, `.final`); `Program.virtualFunctions c`, `Program.polymorphic c`. | 1 |
 | [class.virtual]/2 | `G` in a derived class overrides virtual `F` of a base when the declarations correspond; a final overrider; more than one final overrider is ill-formed. | `Program.overrides`, by `corresponds` from phase 9; `Program.finalOverrider`; the inherited virtual destructor, since prospective destructors correspond. | 1 |
 | [class.virtual]/3 | A virtual function need not be visible to be overridden; a function with another parameter list hides and does not override. | `override_is_correspondence`: overriding is correspondence, hiding is the name; `derived_member_hides_base` already covers the latter. | 1 |
 | [class.virtual]/4, /5 | Overriding a `final` function is ill-formed; `override` on a function that overrides nothing is ill-formed. | `Program.virtualsWellFormed`, a program-level check like `scopesWellFormed`. | 1 |
 | [class.virtual]/12 | A virtual function shall be defined or declared pure; no diagnostic required. | Out: the fragment has no definitions; noted. | 1 |
 | [class.abstract]/2, /4 | A pure virtual function; a class with a pure virtual function whose final overrider is pure is abstract; no object of an abstract class can be created except as a subobject. | `Program.abstract c`; `Program.constructible` is `false` at an abstract class; the aggregate and the value route refuse one. | 1 |
-| [class.abstract]/3 | An abstract class type cannot be a parameter or return type of a function being defined or called, or the type of an explicit conversion; pointers and references to it can. | `Program.call` is ill-formed when the selected function has a by-value parameter of abstract type; `abstract_by_value_ill_formed`. | 1 |
+| [class.abstract]/3 | An abstract class type cannot be a parameter or return type of a function being defined or called, or the type of an explicit conversion; pointers and references to it can. | A note; the rules it points to are the next three rows. `abstract_by_value_ill_formed`. | 1 |
+| [basic.def]/5 | In the definition of an object, its type shall not be an abstract class type. | `Program.constructible` is `false` at an abstract class: `T t(args)` defines an object. `abstract_not_constructible`. | 1 |
+| [expr.call]/7 | When a function is called, the type of any parameter shall not be a class type that is incomplete or abstract. | `Program.abstractParameter`; `Program.call` is ill-formed when the selected function has a by-value parameter of abstract type, before any argument's conversion is examined. | 1 |
+| [dcl.fct.def.general]/2 | The return type of a function definition shall not be an abstract class type. | `Program.convertible` to an abstract class by value is `false`: the test function of [meta.rel]/6 is a definition. | 1 |
 | [class.dtor]/11 | A prospective destructor can be declared virtual and pure. | `SmfDecl` of kind `.dtor` with `virt`. | 1 |
 | [class.default.ctor]/3, [class.copy.ctor]/12, [class.copy.assign]/9, [class.dtor]/8 | Trivial only with no virtual functions (and no virtual bases); a destructor trivial only if not virtual. | The "no virtual functions" conjunct of `trivialWithin`, always true until now, becomes `!p.polymorphic c`, and the destructor's `!virtual`. | 1 |
 | [class.prop]/1, /2 | Trivially copyable and standard-layout need no virtual functions. | `triviallyCopyableClass` through triviality; `standardLayoutWithin` gains the conjunct. | 1 |
@@ -2059,8 +2083,10 @@ and `decisions.md#aggregate-fragment`.
 
 ### Design
 
-- **Virtual functions.** `Virt` is `.none`, `.virtual`, `.pure` or
-  `.final`, a field of `Decl.function` and of a destructor's `SmfDecl`.
+- **Virtual functions.** `Virt` is `.none`, `.virtual`, `.pure`,
+  `.override` or `.final`, a field of `Decl.function` and of a
+  destructor's `SmfDecl`; `.override` is virtual only through what it
+  overrides, so that [class.virtual]/5 is checkable.
   `Program.overrides d b` is correspondence of a derived class's member
   declaration with a base's virtual one; `Program.virtualFunctions c`
   is the declared and the overriding; `polymorphic` is non-empty;
