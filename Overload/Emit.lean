@@ -13,6 +13,7 @@ import Overload.Adl
 import Overload.Members
 import Overload.DependentCandidate
 import Overload.Requires
+import Overload.Concepts
 
 /-!
 # The C++ emitter
@@ -462,8 +463,10 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
       let k := (instances.find? (·.1 == c)).map (·.2) |>.getD 0
       instances := (c, k + 1) :: instances.filter (·.1 != c)
       text := s!"{head h}\ninline constexpr selected<{k}> {c}<{ty pat}>\{};\n"
-    | .concept n body =>
-      text := s!"template <class T>\nconcept {n} = {body};\n"
+    | .concept n body arity =>
+      let ps := if arity ≤ 1 then "class T"
+        else String.intercalate ", " ((List.range arity).map fun i => s!"class T{i}")
+      text := s!"template <{ps}>\nconcept {n} = {body};\n"
     | .conceptDef n arity body =>
       let ps := String.intercalate ", " ((List.range arity).map fun i => s!"class T{i}")
       text := s!"template <{ps}>\nconcept {n} = {constraint body};\n"
@@ -2460,6 +2463,44 @@ def requiresOrder : Case :=
     atomics := nonclassTable
     source := "computed by Program.call" }
 
+/-! ### The library's concepts -/
+
+/-- `template <move_constructible T> void g(T&&); template <copy_constructible T> void g(T&&);`
+over the library's concepts, and the residue atoms the compilers decide
+for themselves, claimed in the table as the C++ has them. -/
+private def conceptOverloads (cls : Program) : Program :=
+  Concepts.libraryConcepts ++ cls ++
+  [ .functionTemplate { name := "g", head := [{ kind := .type }], params := [.rref (.param 0)]
+                        constraint := some (.conceptId "move_constructible" [.param 0]) }
+  , .functionTemplate { name := "g", head := [{ kind := .type }], params := [.rref (.param 0)]
+                        constraint := some (.conceptId "copy_constructible" [.param 0]) } ]
+private def castable (t : Ty) : List (String × List Ty × Bool) :=
+  [ ("static_castable", [t, t], true), ("static_castable", [.lref t, t], true)
+  , ("static_castable", [.lref (.const t), t], true), ("static_castable", [.const t, t], true) ]
+
+/-- At a flat class both overloads are viable and `copy_constructible`
+subsumes `move_constructible` through the normalized bodies, so the
+second is selected. -/
+def conceptCopyConstructibleRefines : Case :=
+  { name := "concept_copy_constructible_refines"
+    cite := cite "concepts.object#1"
+    program := conceptOverloads [.class "A"]
+    query := .call "g" [{ ty := .named "A" }] (.selected 1)
+    atomics := castable (.named "A")
+    source := "computed by Program.call" }
+
+/-- At `struct M { M(const M&) = delete; M(M&&) = default; };` only the
+`move_constructible` overload is viable. -/
+def conceptMoveOnly : Case :=
+  { name := "concept_move_only"
+    cite := cite "concept.copyconstructible#1"
+    program := conceptOverloads
+      [ .class "M", .special cM { kind := .copyCtor, body := .deleted }
+      , .special cM { kind := .moveCtor, body := .defaulted, constParam := false } ]
+    query := .call "g" [{ ty := cM }] (.selected 0)
+    atomics := castable cM
+    source := "computed by Program.call" }
+
 /-- Every case of the Standard side. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -2512,7 +2553,8 @@ def cases : List Case :=
   , traitTriviallyMoveAssignableFlat, traitInvocableFunction, traitInvocableArity
   , traitConstraintCopyConstructible
   , conceptRefinementSubsumes, conceptRefinementUnsatisfied, requiresCallHolds, requiresCallFails
-  , requiresMemberHolds, requiresMemberFails, requiresTypeFails, requiresTypeHolds, requiresOrder ]
+  , requiresMemberHolds, requiresMemberFails, requiresTypeFails, requiresTypeHolds, requiresOrder
+  , conceptCopyConstructibleRefines, conceptMoveOnly ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=

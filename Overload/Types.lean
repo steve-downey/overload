@@ -286,7 +286,7 @@ inductive Trait where
   | isTriviallyCopyable | isStandardLayout | isEmpty
   | isTriviallyDefaultConstructible | isTriviallyCopyConstructible | isTriviallyMoveConstructible
   | isTriviallyAssignable | isTriviallyCopyAssignable | isTriviallyMoveAssignable
-  | isTriviallyDestructible
+  | isTriviallyDestructible | isNothrowDestructible
   | isInvocable
   deriving Repr, DecidableEq, Inhabited
 
@@ -299,7 +299,7 @@ attribute [std rule "meta.unary.prop#5"] Trait.isConst Trait.isDefaultConstructi
   Trait.isMoveAssignable Trait.isDestructible Trait.isTriviallyCopyable Trait.isStandardLayout
   Trait.isEmpty Trait.isTriviallyDefaultConstructible Trait.isTriviallyCopyConstructible
   Trait.isTriviallyMoveConstructible Trait.isTriviallyAssignable Trait.isTriviallyCopyAssignable
-  Trait.isTriviallyMoveAssignable Trait.isTriviallyDestructible
+  Trait.isTriviallyMoveAssignable Trait.isTriviallyDestructible Trait.isNothrowDestructible
 attribute [std rule "meta.unary.prop#9"] Trait.isConstructible
 attribute [std rule "meta.rel#3"] Trait.isSame Trait.isBaseOf Trait.isInvocable
 attribute [std rule "meta.rel#6"] Trait.isConvertible
@@ -342,6 +342,7 @@ def spelling : Trait → String
   | .isTriviallyCopyAssignable => "std::is_trivially_copy_assignable_v"
   | .isTriviallyMoveAssignable => "std::is_trivially_move_assignable_v"
   | .isTriviallyDestructible => "std::is_trivially_destructible_v"
+  | .isNothrowDestructible => "std::is_nothrow_destructible_v"
   | .isInvocable => "std::is_invocable_v"
 
 /-- Is the trait answered from the types alone, with no program? -/

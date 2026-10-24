@@ -20,6 +20,7 @@ import Overload.Special
 import Overload.Traits
 import Overload.Requires
 import Overload.Models
+import Overload.Concepts
 import Overload.Lookup
 import Overload.Environment
 import Overload.Separability
@@ -82,6 +83,11 @@ is the map.
 #audit Overload.satisfied_not_modeled_example
 #audit Overload.satisfied_not_modeled_verdict
 #owes Overload.satisfied_not_modeled_example
+#audit Overload.nothrow_destructible_eq
+#audit Overload.same_as_symmetric
+#audit Overload.regular_refines
+#audit Overload.regular_invocable_semantic_only
+#audit Overload.regular_laws
 #owes Overload.coherence
 #owes Overload.stability
 

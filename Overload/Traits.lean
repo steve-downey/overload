@@ -283,10 +283,20 @@ def trait (p : Program) (q : Trait) (args : List Ty) : Subst Bool :=
     | .isTriviallyMoveAssignable, [t] =>
       if referenceable t then p.triviallyAssignable (Ty.collapse (.lref t)) (rref t) else .ok false
     | .isTriviallyDestructible, [t] => .ok (p.triviallyDestructible t)
+    | .isNothrowDestructible, [t] => .ok (p.destructible t)
     | .isInvocable, f :: as => p.invocable f as
     | q, _ => .soft s!"{q.spelling}: wrong number of arguments"
 
 end Program
+
+/-- `is_nothrow_destructible` is `is_destructible` on the fragment: no
+declaration carries a noexcept-specifier, so every destructor has the
+exception specification of an implicitly declared one, which does not
+throw. -/
+@[std theorem "class.dtor#6" "concept.destructible#1"]
+theorem nothrow_destructible_eq (p : Program) (t : Ty) (ht : t.concrete = true) :
+    p.trait .isNothrowDestructible [t] = p.trait .isDestructible [t] := by
+  simp [Program.trait, Trait.structural, ht]
 
 /-- `is_constructible` of a class is overload resolution over its
 constructors for direct-initialization, with the usable-candidate check:

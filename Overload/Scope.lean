@@ -62,7 +62,7 @@ def Decl.name? : Decl → Option String
   | .functionTemplate ft => some ft.name
   | .lookup n | .lookupHard n => some n
   | .object n _ _ => some n
-  | .concept n _ | .conceptDef n _ _ => some n
+  | .concept n _ _ | .conceptDef n _ _ => some n
   | .instance .. | .use .. | .dependentCall .. | .refersTo _ | .converting .. | .member .. | .special .. | .semantic .. => none
 
 /-- The kind of entity a declaration declares, if it declares one. -/

@@ -318,7 +318,7 @@ theorem singleSearch_global_eq_candidates (p : Program) (callee : String)
   | object m cls sc =>
     have : m ≠ callee := fun h => by simp [Decl.name?, Decl.declaresFunction, Decl.kind?, h] at hg
     simp [Decl.binds, Decl.name?, this]
-  | concept m body =>
+  | concept m body arity =>
     have : m ≠ callee := fun h => by simp [Decl.name?, Decl.declaresFunction, Decl.kind?, h] at hg
     simp [Decl.binds, Decl.name?, this]
   | conceptDef m a body =>

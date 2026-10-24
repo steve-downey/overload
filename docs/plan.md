@@ -624,7 +624,21 @@ Status, 15 October 2026:
   with `IllFormedNdr.satisfiedNotModeled`, `satisfied_not_modeled_verdict`,
   the example of [concepts.equality]/8 as a program, and `#owes`, which
   reports that `coherence` and `stability` owe no law
-  (`Overload/Models.lean`).
+  (`Overload/Models.lean`). Stage 3, library-concepts, landed the same
+  day: `Overload/Concepts.lean` with the library's concepts as a program
+  of `conceptDef`s and `semantic`s over the traits of phase 12 and a
+  residue atom for each expression the fragment lacks,
+  `Trait.isNothrowDestructible` equal to `is_destructible` by
+  [class.dtor]/6 (`nothrow_destructible_eq`), `same_as_symmetric`,
+  `regular_refines`, `regular_invocable_semantic_only` and
+  `regular_laws`, and two emitted cases, the `copy_constructible`
+  overload selected over the `move_constructible` one at a flat class
+  and the move-only class taking only the latter, in agreement with
+  GCC 15 and Clang 24. Two departures: a concept-id takes a fixed number
+  of arguments, so `constructible_from` and `invocable` are stated for
+  one argument type after the first; and the large normal forms are
+  decided in the kernel (`decide +kernel`), which the audit shows
+  resting on `propext` alone.
 
 ## Target theorems
 

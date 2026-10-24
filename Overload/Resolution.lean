@@ -261,7 +261,7 @@ theorem generate_go_suppressed (env : Env) (args : List CallArg) (explicit : Lis
     | «instance» c h p => exact ⟨cs, by simp [generate.go, hcs], hall⟩
     | use c t => exact ⟨cs, by simp [generate.go, hcs], hall⟩
     | object n => exact ⟨cs, by simp [generate.go, hcs], hall⟩
-    | concept n b => exact ⟨cs, by simp [generate.go, hcs], hall⟩
+    | concept n b a => exact ⟨cs, by simp [generate.go, hcs], hall⟩
     | dependentCall callee args sc => exact ⟨cs, by simp [generate.go, hcs], hall⟩
     | refersTo call => exact ⟨cs, by simp [generate.go, hcs], hall⟩
     | converting cls conv => exact ⟨cs, by simp [generate.go, hcs], hall⟩
