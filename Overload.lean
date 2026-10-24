@@ -2,6 +2,7 @@
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 import Overload.Std
 import Overload.Syntax
+import Overload.Types
 import Overload.Outcome
 import Overload.Deduction
 import Overload.Generality
@@ -55,6 +56,10 @@ is the map.
 #check_layering
 
 /-! ## The Standard side -/
+
+-- The type categories.
+#audit Overload.primary_category_unique
+#audit Overload.Trait.answer_not_hard
 
 -- Deduction and substitution.
 #audit Overload.deduceTy_iff

@@ -2,6 +2,7 @@
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 import Overload.Syntax
 import Overload.Outcome
+import Overload.Types
 
 /-!
 # Constraints
@@ -25,9 +26,11 @@ namespace Overload
 
 /-- A constraint in normal form: atomic constraints joined by conjunction
 and disjunction. An atomic constraint is an expression, named, with its
-parameter mapping. -/
+parameter mapping, or a type trait the model answers itself, with its
+mapping. -/
 inductive Constraint where
   | atomic (expr : String) (mapping : List Ty)
+  | trait (q : Trait) (mapping : List Ty)
   | conj (left right : Constraint)
   | disj (left right : Constraint)
   deriving Repr, DecidableEq, Inhabited
@@ -48,6 +51,10 @@ when the left is not. -/
 def satisfied (oracle : Oracle) (σ : Bindings) : Constraint → Subst Bool
   | atomic e m =>
     match oracle e (m.map (Ty.subst σ)) with
+    | .soft _ => .ok false
+    | r => r
+  | trait q m =>
+    match Trait.answer q (m.map (Ty.subst σ)) with
     | .soft _ => .ok false
     | r => r
   | conj l r => do
@@ -77,9 +84,40 @@ theorem satisfied_atomic (oracle : Oracle) (σ : Bindings) (e : String) (m : Lis
 
 /-! ## Subsumption -/
 
-/-- An atomic constraint, as a clause element: the expression and the
-targets of its parameter mapping. -/
-abbrev Atomic := String × List Ty
+/-- The head of an atomic constraint: an expression, identified by its
+name, or a trait query. -/
+inductive Atom where
+  | expr (e : String)
+  | trait (q : Trait)
+  deriving Repr, DecidableEq, Inhabited
+
+/-- An atomic constraint, as a clause element: its head and the targets
+of its parameter mapping. -/
+abbrev Atomic := Atom × List Ty
+
+/-- The constraint of one atomic constraint. -/
+def ofAtomic : Atomic → Constraint
+  | (.expr e, m) => atomic e m
+  | (.trait q, m) => trait q m
+
+/-- The answer of an atomic constraint under the oracle, once its mapping
+is substituted: the oracle's for an expression, the trait's for a trait. -/
+def answer (oracle : Oracle) (σ : Bindings) : Atomic → Subst Bool
+  | (.expr e, m) => oracle e (m.map (Ty.subst σ))
+  | (.trait q, m) => Trait.answer q (m.map (Ty.subst σ))
+
+theorem satisfied_trait (oracle : Oracle) (σ : Bindings) (q : Trait) (m : List Ty) :
+    satisfied oracle σ (trait q m) = atomicAnswer (Trait.answer q (m.map (Ty.subst σ))) := by
+  simp only [satisfied]
+  cases Trait.answer q (m.map (Ty.subst σ)) <;> rfl
+
+theorem satisfied_ofAtomic (oracle : Oracle) (σ : Bindings) (a : Atomic) :
+    satisfied oracle σ (ofAtomic a) = atomicAnswer (answer oracle σ a) := by
+  obtain ⟨h, m⟩ := a
+  cases h with
+  | expr e => exact satisfied_atomic oracle σ e m
+  | trait q => exact satisfied_trait oracle σ q m
+
 
 /-- Two atomic constraints are identical when they are formed from the
 same appearance of the same expression and their parameter mappings
@@ -93,7 +131,8 @@ def identical (a b : Atomic) : Bool := a == b
 conjunction of atomic constraints. -/
 @[std rule "temp.constr.order#1"]
 def dnf : Constraint → List (List Atomic)
-  | atomic e m => [[(e, m)]]
+  | atomic e m => [[(.expr e, m)]]
+  | trait q m => [[(.trait q, m)]]
   | disj l r => dnf l ++ dnf r
   | conj l r => (dnf l).flatMap fun p => (dnf r).map fun q => p ++ q
 
@@ -101,9 +140,16 @@ def dnf : Constraint → List (List Atomic)
 disjunction of atomic constraints. -/
 @[std rule "temp.constr.order#1"]
 def cnf : Constraint → List (List Atomic)
-  | atomic e m => [[(e, m)]]
+  | atomic e m => [[(.expr e, m)]]
+  | trait q m => [[(.trait q, m)]]
   | conj l r => cnf l ++ cnf r
   | disj l r => (cnf l).flatMap fun p => (cnf r).map fun q => p ++ q
+
+theorem dnf_ofAtomic (a : Atomic) : dnf (ofAtomic a) = [[a]] := by
+  obtain ⟨h, m⟩ := a; cases h <;> rfl
+
+theorem cnf_ofAtomic (a : Atomic) : cnf (ofAtomic a) = [[a]] := by
+  obtain ⟨h, m⟩ := a; cases h <;> rfl
 
 /-- `P` subsumes `Q` if and only if every disjunctive clause of `P`'s
 disjunctive normal form subsumes every conjunctive clause of `Q`'s
@@ -152,7 +198,8 @@ reading. -/
 /-- The value of a constraint when each atomic constraint is given a truth
 value. -/
 def eval (v : Atomic → Bool) : Constraint → Bool
-  | atomic e m => v (e, m)
+  | atomic e m => v (.expr e, m)
+  | trait q m => v (.trait q, m)
   | conj l r => eval v l && eval v r
   | disj l r => eval v l || eval v r
 
@@ -160,6 +207,7 @@ theorem eval_iff_dnf (v : Atomic → Bool) (c : Constraint) :
     eval v c = true ↔ ∃ pi ∈ dnf c, ∀ a ∈ pi, v a = true := by
   induction c with
   | atomic e m => simp [eval, dnf]
+  | trait q m => simp [eval, dnf]
   | disj l r ihl ihr =>
     simp only [eval, dnf, Bool.or_eq_true, ihl, ihr, List.mem_append]
     constructor
@@ -187,7 +235,13 @@ theorem eval_iff_cnf (v : Atomic → Bool) (c : Constraint) :
   | atomic e m =>
     simp only [eval, cnf, List.mem_singleton, forall_eq, Prod.exists, Prod.mk.injEq]
     constructor
-    · exact fun h => ⟨e, m, ⟨rfl, rfl⟩, h⟩
+    · exact fun h => ⟨.expr e, m, ⟨rfl, rfl⟩, h⟩
+    · rintro ⟨_, _, ⟨rfl, rfl⟩, h⟩
+      exact h
+  | trait q m =>
+    simp only [eval, cnf, List.mem_singleton, forall_eq, Prod.exists, Prod.mk.injEq]
+    constructor
+    · exact fun h => ⟨.trait q, m, ⟨rfl, rfl⟩, h⟩
     · rintro ⟨_, _, ⟨rfl, rfl⟩, h⟩
       exact h
   | conj l r ihl ihr =>
@@ -266,15 +320,14 @@ constraints `A` and `B`: `A ∧ B` subsumes `A` but not the other way round,
 subsumes itself. -/
 @[std example "temp.constr.order#1"]
 theorem subsumes_example (a b : Atomic) (hne : a ≠ b) :
-    let A := atomic a.1 a.2
-    let B := atomic b.1 b.2
+    let A := ofAtomic a
+    let B := ofAtomic b
     subsumes (conj A B) A = true ∧ subsumes A (conj A B) = false ∧
     subsumes A (disj A B) = true ∧ subsumes (disj A B) A = false ∧
     ∀ c, subsumes c c = true := by
-  obtain ⟨e, m⟩ := a
-  obtain ⟨e', m'⟩ := b
-  have hne' : ¬ (e' = e ∧ m' = m) := fun ⟨h₁, h₂⟩ => hne (by rw [h₁, h₂])
-  refine ⟨?_, ?_, ?_, ?_, subsumes_refl⟩ <;> simp_all [subsumes, dnf, cnf, identical]
+  have hne' : b ≠ a := Ne.symm hne
+  refine ⟨?_, ?_, ?_, ?_, subsumes_refl⟩ <;>
+    simp_all [subsumes, dnf, cnf, dnf_ofAtomic, cnf_ofAtomic, identical]
 
 /-- The note of [temp.constr.order]/2 calls subsumption a partial ordering.
 It is a preorder, reflexive and transitive, but not antisymmetric: `A ∧ B`
@@ -294,14 +347,14 @@ theorem subsumes_not_antisymm :
 /-- The truth value the oracle gives each atomic constraint under `σ`: true
 when it is valid and true, false otherwise. -/
 def oracleAssignment (oracle : Oracle) (σ : Bindings) (a : Atomic) : Bool :=
-  oracle a.1 (a.2.map (Ty.subst σ)) == .ok true
+  answer oracle σ a == .ok true
 
 /-- Satisfaction never fails softly: a substitution failure in an atomic
 constraint is "not satisfied". -/
 theorem satisfied_ne_soft (oracle : Oracle) (σ : Bindings) (c : Constraint) (r : Reason) :
     satisfied oracle σ c ≠ .soft r := by
   induction c generalizing r with
-  | atomic e m =>
+  | atomic e m | trait e m =>
     simp only [satisfied]
     split <;> simp_all
   | conj l _ ihl ihr | disj l _ ihl ihr =>
@@ -316,9 +369,9 @@ the oracle's assignment; short-circuiting does not change the value. -/
 theorem satisfied_ok_eval (oracle : Oracle) (σ : Bindings) (c : Constraint) (b : Bool)
     (h : satisfied oracle σ c = .ok b) : b = eval (oracleAssignment oracle σ) c := by
   induction c generalizing b with
-  | atomic e m =>
+  | atomic e m | trait e m =>
     simp only [satisfied] at h
-    simp only [eval, oracleAssignment]
+    simp only [eval, oracleAssignment, answer]
     split at h
     · next hs => simp_all
     · next r hs => rw [h]; cases b <;> simp_all

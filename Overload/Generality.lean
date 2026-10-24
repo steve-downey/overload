@@ -135,6 +135,15 @@ theorem deduceTy_sub (p : Ty) : ∀ (a : Ty) (σ σ' : Bindings), deduceTy p a �
     | some σ₁ =>
       rw [h₁] at h
       exact (ihp a σ σ₁ h₁).trans (ihps as σ₁ σ' h)
+  | fn ps r ihp ihr =>
+    intro a σ σ' h
+    cases a <;> simp only [deduceTy, reduceCtorEq] at h
+    rename_i as s
+    cases h₁ : deduceTy ps as σ with
+    | none => rw [h₁] at h; cases h
+    | some σ₁ =>
+      rw [h₁] at h
+      exact (ihp as σ σ₁ h₁).trans (ihr s σ₁ σ' h)
   | const p ih | ptr p ih | lref p ih | rref p ih =>
     intro a σ σ' h
     cases a <;> simp only [deduceTy, reduceCtorEq] at h
@@ -229,7 +238,7 @@ theorem deduceTy_subst_ext (p : Ty) (hp : p.firstOrder = true) :
       have hs := deduceTy_sub ps as σ₁ σ' h
       simp only [Ty.subst, ihp hp.1 a σ σ₁ h₁ τ (hs.trans hτ), ihps hp.2 as σ₁ σ' h τ hτ]
   | lref _ _ | rref _ _ | nondeduced _ _ | lookup _ _ _ | ref _ _ | removeCvref _ _ | typeOf _ _
-  | enableIf _ _ _ _ _ | synth _ =>
+  | enableIf _ _ _ _ _ | fn _ _ _ _ | synth _ =>
     simp [Ty.firstOrder] at hp
 
 /-- Soundness: on the fragment, substituting the bindings deduction returns
@@ -323,7 +332,7 @@ theorem deduceTy_most_general (p : Ty) (hp : p.firstOrder = true) :
     obtain ⟨σ', h₂, hsub⟩ := ihps hp.2 _ σ₁ τ hk hsub₁ rfl hd.2
     exact ⟨σ', by simp [Ty.subst, deduceTy, h₁, h₂], hsub⟩
   | lref _ _ | rref _ _ | nondeduced _ _ | lookup _ _ _ | ref _ _ | removeCvref _ _ | typeOf _ _
-  | enableIf _ _ _ _ _ | synth _ =>
+  | enableIf _ _ _ _ _ | fn _ _ _ _ | synth _ =>
     simp [Ty.firstOrder] at hp
 
 end Overload

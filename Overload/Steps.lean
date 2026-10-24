@@ -103,6 +103,7 @@ def form (env : Env) : Ty → Subst Ty
   | .spec c as => do return .spec c (← form env as)
   | .nil => .ok .nil
   | .cons a as => do return .cons (← form env a) (← form env as)
+  | .fn ps r => do return .fn (← form env ps) (← form env r)
   | .value v => .ok (.value v)
   | .nondeduced t => form env t
   | .lookup n a => do

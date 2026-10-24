@@ -141,6 +141,7 @@ def Ty.unsynth (θ : Bindings) : Ty → Ty
   | .removeCvref t => .removeCvref (Ty.unsynth θ t)
   | .typeOf t => .typeOf (Ty.unsynth θ t)
   | .enableIf c as t => .enableIf c (Ty.unsynth θ as) (Ty.unsynth θ t)
+  | .fn ps r => .fn (Ty.unsynth θ ps) (Ty.unsynth θ r)
 
 /-- A parameter type of the fragment: first-order, with no reference, no
 constant argument that mentions a parameter, and no synthesized type. -/

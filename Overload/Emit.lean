@@ -79,6 +79,9 @@ inductive Query where
   the candidate by its index among the declarations its two contexts
   find. -/
   | dependentCall (pos : Nat) (expected : Resolution Nat)
+  /-- Ask a type trait of the argument types; `expected` is the model's
+  answer, asserted against the `std::` trait. -/
+  | trait (q : Trait) (args : List Ty) (expected : Bool)
   deriving Repr, Inhabited
 
 /-- The fixture every emitted unit declares: `deduced<...>` and
@@ -131,6 +134,7 @@ def Case.wellFormed (c : Case) : Bool :=
   | .dependentCall _ (.illFormed _) => false
   | .dependentCall _ (.selected _) => true
   | .dependentCall pos _ => !c.program.contains (.refersTo pos)
+  | .trait .. => true
 
 /-! ## The environment a program defines -/
 
@@ -171,6 +175,7 @@ partial def ty : Ty → String
   | .removeCvref t => s!"std::remove_cvref_t<{ty t}>"
   | .typeOf t => s!"std::remove_cvref_t<decltype({ty t})>"
   | .enableIf c as t => s!"std::enable_if_t<{c}<{argList as}>, {ty t}>"
+  | .fn ps r => s!"{ty r}({argList ps})"
 where
   argList (as : Ty) : String :=
     match as.toList with
@@ -196,6 +201,7 @@ def constraint : Constraint → String
   | .atomic "has_instance" [.named c, a] =>
     s!"(!std::is_same_v<std::remove_cvref_t<decltype({c}<{ty a}>)>, std::false_type>)"
   | .atomic "lookup_formed" [.named c, a] => s!"(sizeof(decltype({c}<{ty a}>)) > 0)"
+  | .trait q m => s!"{q.spelling}<{String.intercalate ", " (m.map ty)}>"
   | .atomic e m =>
     if e.startsWith "!" then s!"(!{e.drop 1}<{String.intercalate ", " (m.map ty)}>)"
     else s!"{e}<{String.intercalate ", " (m.map ty)}>"
@@ -394,17 +400,23 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
       let specs := bases.map (s!"public {ty ·}") ++ prot.map (s!"protected {ty ·}")
       let inherit := if specs.isEmpty then "" else s!" : {String.intercalate ", " specs}"
       let members := p.zipIdx.filter fun (m, _) => m.scope == sc ++ [.class n]
+      let q := String.join (sc.filterMap fun | .namespace m => some s!"{m}::" | .class _ => none)
+      let ofClass (c : Ty) : Bool := c == .named n || c == .named (q ++ n)
       let convs := p.filterMap fun
-        | .converting c conv =>
-          let q := String.join (sc.filterMap fun | .namespace m => some s!"{m}::" | .class _ => none)
-          if c == .named n || c == .named (q ++ n) then some conv else none
+        | .converting c conv => if ofClass c then some conv else none
         | _ => none
-      if members.isEmpty && convs.isEmpty then
+      let data := p.filterMap fun
+        | .member c m => if ofClass c then some m else none
+        | _ => none
+      if members.isEmpty && convs.isEmpty && data.isEmpty then
         text := s!"struct {n}{inherit} \{};\n"
       else
+        let fields := String.join (data.map fun m =>
+          let init := if m.init then " {}" else ""
+          s!"    {ty m.ty} {m.name}{init};\n")
         let body := String.join (members.map fun (m, j) =>
           "    " ++ (functionText m (rs.getD j "void") " const").replace "\n    " "\n        ")
-        text := s!"struct {n}{inherit} \{\n{body}{conversionsText p i n convs}};\n"
+        text := s!"struct {n}{inherit} \{\n{fields}{body}{conversionsText p i n convs}};\n"
     | .classTemplate n h _ => text := s!"{head h}\nstruct {n} \{};\n"
     | .function .. | .functionTemplate _ => text := functionText d (rs.getD i "void")
     | .lookup c =>
@@ -431,7 +443,7 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
       | some (.dependentCall _ as _) =>
         text := s!"using reference_{i} = decltype({callExpr s!"dependent_{call}" [] as});\n"
       | _ => text := ""
-    | .converting .. => text := ""
+    | .converting .. | .member .. => text := ""
     out := out ++ inScope d.scope text
   return out
 
@@ -494,6 +506,7 @@ partial def qualifyTy (q : List (String × String)) : Ty → Ty
   | .removeCvref t => .removeCvref (qualifyTy q t)
   | .typeOf t => .typeOf (qualifyTy q t)
   | .enableIf c as t => .enableIf c (qualifyTy q as) (qualifyTy q t)
+  | .fn ps r => .fn (qualifyTy q ps) (qualifyTy q r)
   | t => t
 
 /-- Qualify the types of a template parameter. -/
@@ -506,6 +519,7 @@ def qualifyParam (q : List (String × String)) (tp : TemplateParam) : TemplatePa
 /-- Qualify the types a constraint maps. -/
 def qualifyConstraint (q : List (String × String)) : Constraint → Constraint
   | .atomic e ts => .atomic e (ts.map (qualifyTy q))
+  | .trait tr ts => .trait tr (ts.map (qualifyTy q))
   | .conj a b => .conj (qualifyConstraint q a) (qualifyConstraint q b)
   | .disj a b => .disj (qualifyConstraint q a) (qualifyConstraint q b)
 
@@ -521,6 +535,7 @@ def qualifyDecl (q : List (String × String)) : Decl → Decl
   | .instance c h pat => .instance c (h.map (qualifyParam q)) (qualifyTy q pat)
   | .use c t => .use c (qualifyTy q t)
   | .dependentCall callee as s => .dependentCall callee (as.map fun a => { a with ty := qualifyTy q a.ty }) s
+  | .member c m => .member (qualifyTy q c) { m with ty := qualifyTy q m.ty }
   | .converting c conv =>
     .converting (qualifyTy q c) (match conv with
       | .constructor param e => .constructor (qualifyTy q param) e
@@ -543,7 +558,8 @@ def qualifyCase (c : Case) : Case :=
       | .memberCall cls callee as expected explicit =>
         .memberCall (((q.lookup cls).getD "") ++ cls) callee (as.map arg) expected
           (explicit.map (qualifyTy q))
-      | .dependentCall pos expected => .dependentCall pos expected }
+      | .dependentCall pos expected => .dependentCall pos expected
+      | .trait tr as expected => .trait tr (as.map (qualifyTy q)) expected }
 
 /-- The whole translation unit for a case. The lookup that numbers the
 candidates runs on the case as stated; the rendering uses qualified
@@ -591,6 +607,10 @@ def render (c₀ : Case) : String := Id.run do
     out := out ++ inScope scope q
   | .raw cpp _ =>
     out := out ++ program c.program "" (fun _ _ => "void") (fun _ => none) ++ "\n" ++ cpp
+  | .trait tr as expected =>
+    out := out ++ program c.program "" (fun _ _ => "void") (fun _ => none) ++ "\n"
+    let args := String.intercalate ", " (as.map ty)
+    out := out ++ s!"static_assert({tr.spelling}<{args}> == {expected});\n"
   | .memberCall cls callee as expected explicit =>
     out := out ++ program c.program callee (fun k _ => s!"selected<{k}>")
       (fun d => found.findIdx? (sameEntity · d)) ++ "\n"
@@ -1896,6 +1916,109 @@ def convertedValue : Case :=
     query := .deduction "f" [] (some [(0, .value (.obj' "T" []))]) (explicit := [.value (.obj' "S" [])])
     source := "computed by deduceTemplate" }
 
+/-! ### Type categories and the structural traits -/
+
+/-- A trait case: the model's answer, asserted against the `std::` trait. -/
+private def traitCase (name : String) (c : String) (program : Program) (q : Trait) (as : List Ty) :
+    Case :=
+  { name, cite := cite c, program, query := .trait q as (Trait.answer q as == .ok true)
+    source := "computed by Trait.answer" }
+
+/-- `struct A { int x; int& r; };`: a class with a scalar member and a
+reference member, for the trait cases. -/
+private def classA : Program :=
+  [.class "A", .member (.named "A") { name := "x", ty := .named "int" }
+  , .member (.named "A") { name := "r", ty := .lref (.named "int") }]
+
+/-- `is_integral_v<const int>`: a primary category through `const`. -/
+def traitIntegralConst : Case :=
+  traitCase "trait_integral_const" "meta.unary.cat#3" [] .isIntegral [.const (.named "int")]
+
+/-- `is_class_v<A>`, for a class with members. -/
+def traitClass : Case := traitCase "trait_class" "meta.unary.cat#3" classA .isClass [.named "A"]
+
+/-- `is_class_v<int>` is false: a fundamental type is no class. -/
+def traitClassNotFundamental : Case :=
+  traitCase "trait_class_not_fundamental" "meta.unary.cat#3" [] .isClass [.named "int"]
+
+/-- `is_pointer_v<A* const>`. -/
+def traitPointerConst : Case :=
+  traitCase "trait_pointer_const" "meta.unary.cat#3" classA .isPointer [.const (.ptr (.named "A"))]
+
+/-- `is_function_v<int(int, A&)>`. -/
+def traitFunction : Case :=
+  traitCase "trait_function" "meta.unary.cat#3" classA .isFunction
+    [Ty.fn' [.named "int", .lref (.named "A")] (.named "int")]
+
+/-- `is_lvalue_reference_v<A&>`. -/
+def traitLvalueReference : Case :=
+  traitCase "trait_lvalue_reference" "meta.unary.cat#3" classA .isLvalueReference [.lref (.named "A")]
+
+/-- `is_rvalue_reference_v<int&>` is false: the categories are exclusive. -/
+def traitRvalueReferenceOfLvalue : Case :=
+  traitCase "trait_rvalue_reference_of_lvalue" "meta.unary.cat#3" [] .isRvalueReference
+    [.lref (.named "int")]
+
+/-- `is_void_v<const void>`. -/
+def traitVoidConst : Case :=
+  traitCase "trait_void_const" "meta.unary.cat#3" [] .isVoid [.const (.named "void")]
+
+/-- `is_object_v<A&>` is false: a reference type is not an object type. -/
+def traitReferenceNotObject : Case :=
+  traitCase "trait_reference_not_object" "meta.unary.comp#2" classA .isObject [.lref (.named "A")]
+
+/-- `is_object_v<int()>` is false: neither is a function type. -/
+def traitFunctionNotObject : Case :=
+  traitCase "trait_function_not_object" "meta.unary.comp#2" [] .isObject [Ty.fn' [] (.named "int")]
+
+/-- `is_scalar_v<A*>`: a pointer is a scalar type. -/
+def traitScalarPointer : Case :=
+  traitCase "trait_scalar_pointer" "meta.unary.comp#2" classA .isScalar [.ptr (.named "A")]
+
+/-- `is_compound_v<A>`: a class is a compound type. -/
+def traitCompoundClass : Case :=
+  traitCase "trait_compound_class" "meta.unary.comp#2" classA .isCompound [.named "A"]
+
+/-- `is_fundamental_v<void>`. -/
+def traitFundamentalVoid : Case :=
+  traitCase "trait_fundamental_void" "meta.unary.comp#2" [] .isFundamental [.named "void"]
+
+/-- `is_const_v<const int&>` is false: `is_const` is top-level only. -/
+def traitConstReference : Case :=
+  traitCase "trait_const_reference" "meta.unary.prop#5" [] .isConst [.lref (.const (.named "int"))]
+
+/-- `is_same_v<int, const int>` is false: the same type with the same
+cv-qualification. -/
+def traitSameCv : Case :=
+  traitCase "trait_same_cv" "meta.rel#3" [] .isSame [.named "int", .const (.named "int")]
+
+/-- `is_same_v<C<int>, C<int>>`. -/
+def traitSameSpecialization : Case :=
+  traitCase "trait_same_specialization" "meta.rel#3" [.classTemplate "C" [{ kind := .type }]] .isSame
+    [Ty.spec' "C" [.named "int"], Ty.spec' "C" [.named "int"]]
+
+/-- `template <class T> requires std::is_class_v<T> void f(T);`: a trait
+as an atomic constraint, answered by the model. -/
+private def traitConstrained : FunctionTemplate :=
+  { name := "f", head := [{ kind := .type }], params := [.param 0]
+    constraint := some (.trait .isClass [.param 0]) }
+
+/-- `f(A{})` selects the trait-constrained template. -/
+def traitConstraintSelects : Case :=
+  { name := "trait_constraint_selects"
+    cite := cite "temp.constr.atomic#3.sentence-1"
+    program := classA ++ [.functionTemplate traitConstrained]
+    query := .call "f" [{ ty := .named "A" }] (.selected 0)
+    source := "computed by Program.call" }
+
+/-- `f(0)` finds no viable function: the trait constraint is not satisfied. -/
+def traitConstraintExcludes : Case :=
+  { name := "trait_constraint_excludes"
+    cite := cite "temp.constr.atomic#3.sentence-1"
+    program := classA ++ [.functionTemplate traitConstrained]
+    query := .call "f" [{ ty := .named "int" }] .noMatch
+    source := "computed by Program.call" }
+
 /-- Every case of the Standard side. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -1924,7 +2047,12 @@ def cases : List Case :=
   , userConversionSelected, userConversionLosesRank, conversionFunctionSelected
   , convertedTemporaryBinds, convertedTemporaryRefused, explicitConstructorNotCandidate
   , secondSequenceDecides, conversionChainStops, draftBestIcsAmbiguous, draftBestIcsResolved
-  , ambiguousSequenceSelected, constructedValue, explicitConstructedValue, convertedValue ]
+  , ambiguousSequenceSelected, constructedValue, explicitConstructedValue, convertedValue
+  , traitIntegralConst, traitClass, traitClassNotFundamental, traitPointerConst, traitFunction
+  , traitLvalueReference, traitRvalueReferenceOfLvalue, traitVoidConst, traitReferenceNotObject
+  , traitFunctionNotObject, traitScalarPointer, traitCompoundClass, traitFundamentalVoid
+  , traitConstReference, traitSameCv, traitSameSpecialization, traitConstraintSelects
+  , traitConstraintExcludes ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=
@@ -1977,6 +2105,13 @@ def computed (c : Case) : Option (Option (List (ParamIdx × Ty))) :=
 
 def computedCall (c : Case) : Option (Resolution Nat) :=
   computedCallWith (fun p a => Env.ofProgram p a) c
+
+/-- For a trait case, what the model computes: the trait's answer, which
+is never a hard error, read as a constraint reads it. -/
+def computedTrait (c : Case) : Option Bool :=
+  match c.query with
+  | .trait tr as _ => some (Trait.answer tr as == .ok true)
+  | _ => none
 
 /-- For a lookup case, what the model computes. -/
 def computedLookup (c : Case) : Option (Resolution Nat) :=

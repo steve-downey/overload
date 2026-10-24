@@ -522,7 +522,15 @@ Status, 15 October 2026:
   [below](#phase-12-the-type-system-special-member-functions-and-traits).
   Its in-scope paragraphs are listed and uncovered until the stages
   land. Settles function-types, special-member-fragment, trait-residue
-  and value-nature.
+  and value-nature. Stage 2, type-categories, landed 24 October 2026:
+  `Ty.fn`, `Overload/Types.lean` with the categories, the
+  transformations, `primary_category_unique` and the structural
+  `Trait` queries, `Constraint.trait` answered without the oracle,
+  `Decl.member`, and eighteen emitted trait cases, all in agreement
+  with GCC 15 and Clang 24. One departure: a data member is its own
+  declaration after the class, `Decl.member`, as a conversion is,
+  rather than a field of `Decl.class`, so the flat program and every
+  match on `Decl.class` stand.
 
 ## Target theorems
 
@@ -1522,8 +1530,12 @@ and `decisions.md#trait-residue`.
   Adding a constructor to `Ty` touches every deduction induction; the
   cost is paid in stage 2, while it is one constructor and nothing
   depends on it.
-- **Members.** `Decl.class` gains `members : List Member`, each a name,
-  a type and whether it has a default member initializer. Members are
+- **Members.** A data member is its own declaration after its class,
+  `Decl.member cls m`, as a conversion is, with `Member` a name, a type
+  and whether it has a default member initializer; `Program.membersOf`
+  lists a class's in order. The plan had them as a field of
+  `Decl.class`; a separate declaration keeps the flat program and every
+  match on `Decl.class`, the reason phase 11 gave for `Decl.converting`. Members are
   public and non-static; a member's type may be a reference, a `const`
   type, a pointer, a scalar or another class. `Program.subobjectsOf` is
   the potentially constructed subobjects ([special]/7). Erasure

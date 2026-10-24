@@ -114,6 +114,16 @@ attribute [std rule "class.conv.fct#2"] UserConv.function
 def UserConv.explicit : UserConv → Bool
   | .constructor _ e | .function _ e _ => e
 
+/-- A non-static data member of a class: its name, its type, and whether
+it has a default member initializer. The initializer is an expression,
+so the model keeps only that there is one. -/
+@[std rule "class.mem.general#5" "class.mem.general#15"]
+structure Member where
+  name : String
+  ty : Ty
+  init : Bool := false
+  deriving Repr, DecidableEq, Inhabited
+
 /-- A declaration. Every namespace-scope declaration carries the scope it
 inhabits, defaulting to the global scope; a declaration whose scope ends
 in a class step is a member of that class. -/
@@ -164,11 +174,16 @@ inductive Decl where
   definition. Its own declaration, after the class, so the program stays
   a flat list ([class.conv.general]/1). -/
   | converting (cls : Ty) (conv : UserConv)
+  /-- A non-static data member of the class `cls`, a ground class type,
+  declared in its definition. Its own declaration, after the class, as a
+  conversion is, so the program stays a flat list. -/
+  | member (cls : Ty) (m : Member)
   deriving Repr, DecidableEq, Inhabited
 
 attribute [std rule "temp.dep.general#2"] Decl.dependentCall
 attribute [std rule "temp.point#1.sentence-2"] Decl.refersTo
 attribute [std rule "class.conv.general#1"] Decl.converting
+attribute [std rule "class.mem.general#5"] Decl.member
 
 /-- A program: declarations in order. -/
 abbrev Program := List Decl
@@ -181,6 +196,12 @@ def candidates (p : Program) (name : String) : List Decl :=
     | .function n _ _ => n = name
     | .functionTemplate ft => ft.name = name
     | _ => false
+
+/-- The non-static data members of a class, in declaration order. -/
+def membersOf (p : Program) (c : Ty) : List Member :=
+  p.filterMap fun
+    | .member d m => if d == c then some m else none
+    | _ => none
 
 /-- The first function template with a name, if any. -/
 def functionTemplate? (p : Program) (name : String) : Option FunctionTemplate :=
