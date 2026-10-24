@@ -12,6 +12,7 @@ import Overload.Names
 import Overload.Adl
 import Overload.Members
 import Overload.DependentCandidate
+import Overload.Requires
 
 /-!
 # The C++ emitter
@@ -202,6 +203,14 @@ def constraint : Constraint → String
     s!"(!std::is_same_v<std::remove_cvref_t<decltype({c}<{ty a}>)>, std::false_type>)"
   | .atomic "lookup_formed" [.named c, a] => s!"(sizeof(decltype({c}<{ty a}>)) > 0)"
   | .trait q m => s!"{q.spelling}<{String.intercalate ", " (m.map ty)}>"
+  | .conceptId n as => s!"{n}<{String.intercalate ", " (as.map ty)}>"
+  | .requires reqs _ =>
+    let declvals (as : List Ty) := String.intercalate ", " (as.map fun a => s!"std::declval<{ty a}>()")
+    let reqText : Constraint.Requirement → String
+      | .simple f as => s!"{f}({declvals as});"
+      | .memberCall c f as => s!"std::declval<{ty c}>().{f}({declvals as});"
+      | .type t => s!"typename {ty t};"
+    s!"requires \{ {String.intercalate " " (reqs.map reqText)} }"
   | .atomic e m =>
     if e.startsWith "!" then s!"(!{e.drop 1}<{String.intercalate ", " (m.map ty)}>)"
     else s!"{e}<{String.intercalate ", " (m.map ty)}>"
@@ -455,6 +464,9 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
       text := s!"{head h}\ninline constexpr selected<{k}> {c}<{ty pat}>\{};\n"
     | .concept n body =>
       text := s!"template <class T>\nconcept {n} = {body};\n"
+    | .conceptDef n arity body =>
+      let ps := String.intercalate ", " ((List.range arity).map fun i => s!"class T{i}")
+      text := s!"template <{ps}>\nconcept {n} = {constraint body};\n"
     | .use c t =>
       text := s!"static_assert(sizeof({c}<{ty t}>) > 0);\n"
     | .object n cls _ =>
@@ -543,6 +555,12 @@ def qualifyParam (q : List (String × String)) (tp : TemplateParam) : TemplatePa
 def qualifyConstraint (q : List (String × String)) : Constraint → Constraint
   | .atomic e ts => .atomic e (ts.map (qualifyTy q))
   | .trait tr ts => .trait tr (ts.map (qualifyTy q))
+  | .conceptId n ts => .conceptId n (ts.map (qualifyTy q))
+  | .requires reqs ts =>
+    .requires (reqs.map fun
+      | .simple f as => .simple f (as.map (qualifyTy q))
+      | .memberCall c f as => .memberCall (qualifyTy q c) f (as.map (qualifyTy q))
+      | .type t => .type (qualifyTy q t)) (ts.map (qualifyTy q))
   | .conj a b => .conj (qualifyConstraint q a) (qualifyConstraint q b)
   | .disj a b => .disj (qualifyConstraint q a) (qualifyConstraint q b)
 
@@ -560,6 +578,7 @@ def qualifyDecl (q : List (String × String)) : Decl → Decl
   | .dependentCall callee as s => .dependentCall callee (as.map fun a => { a with ty := qualifyTy q a.ty }) s
   | .member c m => .member (qualifyTy q c) { m with ty := qualifyTy q m.ty }
   | .special c s => .special (qualifyTy q c) s
+  | .conceptDef n a body => .conceptDef n a (qualifyConstraint q body)
   | .converting c conv =>
     .converting (qualifyTy q c) (match conv with
       | .constructor param e => .constructor (qualifyTy q param) e
@@ -2325,6 +2344,120 @@ def traitConstraintCopyConstructible : Case :=
     query := .call "f" [{ ty := cX, lvalue := true }] .noMatch
     source := "computed by Program.call" }
 
+/-! ### Concepts normalized, and requires-expressions -/
+
+private def tparam : TemplateParam := { kind := .type }
+/-- `template <class T> concept C1 = std::is_class_v<T>;` and
+`template <class T> concept C2 = C1<T> && std::is_empty_v<T>;`. -/
+private def refinedConcepts : Program :=
+  [ .conceptDef "C1" 1 (.trait .isClass [.param 0])
+  , .conceptDef "C2" 1 (.conj (.conceptId "C1" [.param 0]) (.trait .isEmpty [.param 0])) ]
+private def constrainedBy (c : Constraint) : Decl :=
+  .functionTemplate { name := "f", head := [tparam], params := [.param 0], constraint := some c }
+
+/-- `template <C1 T> void f(T); template <C2 T> void f(T); f(A{})`: both
+viable, and `C2` subsumes `C1` once its concept-id is expanded, so the
+second is selected. Compared by name, the two would be indistinguishable
+and the call ambiguous. -/
+def conceptRefinementSubsumes : Case :=
+  { name := "concept_refinement_subsumes"
+    cite := cite "temp.constr.normal#1"
+    program := [.class "A"] ++ refinedConcepts ++
+      [constrainedBy (.conceptId "C1" [.param 0]), constrainedBy (.conceptId "C2" [.param 0])]
+    query := .call "f" [{ ty := .named "A" }] (.selected 1)
+    source := "computed by Program.call" }
+
+/-- The same at a class with a member: `C2` is not satisfied, and only
+the `C1` template is viable. -/
+def conceptRefinementUnsatisfied : Case :=
+  { name := "concept_refinement_unsatisfied"
+    cite := cite "temp.constr.normal#1"
+    program := classA ++ refinedConcepts ++
+      [constrainedBy (.conceptId "C1" [.param 0]), constrainedBy (.conceptId "C2" [.param 0])]
+    query := .call "f" [{ ty := .named "A" }] (.selected 0)
+    source := "computed by Program.call" }
+
+/-- `void g(A); template <class T> concept HasG = requires { g(std::declval<T>()); };`
+and `template <HasG T> void f(T);`: `f(A{})` is viable, `f(B{})` is not. -/
+private def callRequirement : Program :=
+  [ .class "A", .class "B", .function "g" [.named "A"]
+  , .conceptDef "HasG" 1 (.requires [.simple "g" [.param 0]] [.param 0])
+  , constrainedBy (.conceptId "HasG" [.param 0]) ]
+def requiresCallHolds : Case :=
+  { name := "requires_call_holds"
+    cite := cite "expr.prim.req.simple#1"
+    program := callRequirement
+    query := .call "f" [{ ty := .named "A" }] (.selected 0)
+    source := "computed by Program.call" }
+def requiresCallFails : Case :=
+  { name := "requires_call_fails"
+    cite := cite "expr.prim.req.general#5"
+    program := callRequirement
+    query := .call "f" [{ ty := .named "B" }] .noMatch
+    source := "computed by Program.call" }
+
+/-- `struct A { void get() const; };` and
+`concept HasGet = requires { std::declval<T>().get(); };`. -/
+private def memberRequirement : Program :=
+  [ .class "A", .class "B", .function "get" [] [.class "A"]
+  , .conceptDef "HasGet" 1 (.requires [.memberCall (.param 0) "get" []] [.param 0])
+  , constrainedBy (.conceptId "HasGet" [.param 0]) ]
+def requiresMemberHolds : Case :=
+  { name := "requires_member_holds"
+    cite := cite "expr.prim.req.simple#1"
+    program := memberRequirement
+    query := .call "f" [{ ty := .named "A" }] (.selected 0)
+    source := "computed by Program.call" }
+def requiresMemberFails : Case :=
+  { name := "requires_member_fails"
+    cite := cite "expr.prim.req.general#5"
+    program := memberRequirement
+    query := .call "f" [{ ty := .named "B" }] .noMatch
+    source := "computed by Program.call" }
+
+/-- `template <class T0, class = std::enable_if_t<nonclass<T0>, int>> struct S {};`
+and `concept Spec = requires { typename S<T0>; };`: at a class the
+default argument fails to form, a substitution failure in the immediate
+context, so the requires-expression is `false`; at `int` it holds. A
+requirement that fails for every argument would be ill-formed, no
+diagnostic required, so the failure depends on the argument. -/
+private def enableIfS : Program :=
+  [ .class "A", .concept "nonclass" "!std::is_class_v<T>"
+  , .classTemplate "S" [tparam, { kind := .type, default := some (.enableIf "nonclass" (Ty.args [.param 0]) (.named "int")) }]
+  , .conceptDef "Spec" 1 (.requires [.type (Ty.spec' "S" [.param 0])] [.param 0])
+  , constrainedBy (.conceptId "Spec" [.param 0]) ]
+private def nonclassTable : List (String × List Ty × Bool) :=
+  [("nonclass", [.named "A"], false), ("nonclass", [.named "int"], true)]
+def requiresTypeFails : Case :=
+  { name := "requires_type_fails"
+    cite := cite "expr.prim.req.type#1"
+    program := enableIfS
+    query := .call "f" [{ ty := .named "A" }] .noMatch
+    atomics := nonclassTable
+    source := "computed by Program.call" }
+def requiresTypeHolds : Case :=
+  { name := "requires_type_holds"
+    cite := cite "expr.prim.req.type#1"
+    program := enableIfS
+    query := .call "f" [{ ty := .named "int" }] (.selected 0)
+    atomics := nonclassTable
+    source := "computed by Program.call" }
+
+/-- Lexical order: `requires { g(declval<T>()); typename S<T>; }` at `A`
+holds at the call and is `false` at the type, which is checked second;
+neither makes the program ill-formed. -/
+def requiresOrder : Case :=
+  { name := "requires_order"
+    cite := cite "expr.prim.req.general#5"
+    program := [ .class "A", .function "g" [.named "A"], .concept "nonclass" "!std::is_class_v<T>"
+               , .classTemplate "S" [tparam, { kind := .type, default := some (.enableIf "nonclass" (Ty.args [.param 0]) (.named "int")) }]
+               , .conceptDef "Both" 1 (.requires
+                   [.simple "g" [.param 0], .type (Ty.spec' "S" [.param 0])] [.param 0])
+               , constrainedBy (.conceptId "Both" [.param 0]) ]
+    query := .call "f" [{ ty := .named "A" }] .noMatch
+    atomics := nonclassTable
+    source := "computed by Program.call" }
+
 /-- Every case of the Standard side. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -2375,7 +2508,9 @@ def cases : List Case :=
   , traitTriviallyDefaultConstructibleInit, traitTriviallyCopyConstructibleUserProvided
   , traitTriviallyDestructibleUserProvided, traitTriviallyDestructibleFlat
   , traitTriviallyMoveAssignableFlat, traitInvocableFunction, traitInvocableArity
-  , traitConstraintCopyConstructible ]
+  , traitConstraintCopyConstructible
+  , conceptRefinementSubsumes, conceptRefinementUnsatisfied, requiresCallHolds, requiresCallFails
+  , requiresMemberHolds, requiresMemberFails, requiresTypeFails, requiresTypeHolds, requiresOrder ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=
@@ -2424,10 +2559,10 @@ def computedCallWith (envOf : EnvOf) (c : Case) : Option (Resolution Nat) :=
 /-- The Standard side's cases are computed in the program's own
 environment. -/
 def computed (c : Case) : Option (Option (List (ParamIdx × Ty))) :=
-  computedWith (fun p a => Env.ofProgram p a) c
+  computedWith (fun p a => Env.full p a) c
 
 def computedCall (c : Case) : Option (Resolution Nat) :=
-  computedCallWith (fun p a => Env.ofProgram p a) c
+  computedCallWith (fun p a => Env.full p a) c
 
 /-- For a trait case, what the model computes: the trait's answer, which
 is never a hard error, read as a constraint reads it. -/

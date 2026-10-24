@@ -184,8 +184,16 @@ constraint is an expression by name and a `trait` constraint a `Trait`
 query; the oracle answers an `Atom`, either kind, on the substituted
 mapping. `Oracle.ofExpr` lifts an oracle for expressions alone, answering
 traits structurally, and the environment a program defines answers them
-from the program. A clause element, `Atomic`, is an `Atom` with its
-mapping, and `Constraint.answer` reads one.
+from the program. A `requires` constraint is a
+requires-expression, an atomic constraint of its own
+([temp.constr.normal]/1): its requirements (`Requirement`: a call by
+callee and argument types, a call on an object of a class, or a type),
+with the bindings substituted into their types, go to the oracle as one
+`Atom`. A `conceptId` is what normalization expands; one left unexpanded
+names no concept the program declares, and the environment answers it
+with a hard error. A clause element, `Atomic`, is an `Atom` with its
+mapping, and `Constraint.answer` reads one, substituting into the head
+too (`Atom.subst`).
 
 The results are the whole of what the Standard's ordering of constraints
 amounts to on this fragment.
@@ -217,7 +225,9 @@ and whether it has a default member initializer; `Program.membersOf`
 lists them in order), their user-declared special member functions as
 `special` declarations (`SmfDecl`: kind, body with a definition, `=
 default` or `= delete`, and whether the parameter is a reference to
-`const`), class templates,
+`const`), class templates, a concept with a constraint for its body
+(`conceptDef`: name, arity, body over `Ty.param i`; the string-bodied
+`concept` stays for the emitted C++ the model reads as one atom),
 functions, function templates (`FunctionTemplate`: head, parameter types,
 default arguments, return type, associated constraint, Mandates), a
 variable template as `lookup` or `lookupHard` (a primary with a value, or
@@ -238,7 +248,15 @@ reduces it to the overload set, one declaration per entity, and `Names`
 computes what a call finds from a program point and a scope.
 `SingleTranslationUnit` is the one tagged assumption of the development:
 every partial specialization is declared before any use of its variable
-template. `Units` removes it.
+template. `Units` removes it. `Program.normalize` is constraint
+normalization ([temp.constr.normal]/1): a concept-id the program
+declares is replaced by the concept's body with the arguments
+substituted into the mappings of its atoms, fuel-bounded by the
+program's length, and `Program.normalizeDecl` gives a function template
+its associated constraints, the normal form of its constraint-expression
+([temp.constr.normal]/2), which `Program.call` applies to its candidates
+before resolution, so satisfaction and subsumption see atoms and a
+refined concept subsumes the concept it refines.
 
 ### Arguments
 
@@ -521,6 +539,28 @@ between two different non-class types, which the fragment's sequences
 do not form, and `is_invocable` of a class callee, whose call is
 resolved above the environment.
 
+### Requires
+
+`Overload/Requires.lean`: requires-expressions, above the member call.
+`Program.requirementHolds` decides one requirement with its types
+substituted: a simple-requirement is the call `callee(declval<args>()...)`
+at the end of the program in the global scope, found by `callCandidates`
+and resolved by `Program.call`, a hard error in generation staying hard
+and anything else viable or not; a member call likewise through
+`memberSearch`; a type-requirement is `validType`, a template-id whose
+arguments match its template's head and whose defaults form, by
+`explicitStep` and `defaultsStep`, a declared or fundamental class name,
+or any other concrete type. `Program.requirementsHold` checks a
+requires-expression's requirements in lexical order and stops at the
+first that decides, an invalid one making it `false`
+([expr.prim.req.general]/5): `requires_soft_is_false`,
+`requires_false_stops`, `requires_hard_stops`. `Env.full` is the
+program's environment with requires-expressions answered; the base
+environment, `Env.ofProgram`, decides the calls a requirement makes and
+their candidates' constraints, so a requires-expression nested in those
+is answered softly, one level down. The emitters compute their cases in
+`Env.full`.
+
 ### Lookup
 
 `Overload/Lookup.lean`: a variable template over a program.
@@ -546,7 +586,10 @@ specialization as much as for a typeclass instance.
 
 `Overload/Environment.lean`: `Env.ofProgram p atomics extra traits`, the
 environment a program defines. A trait atom is answered by `traits`,
-the program's own `Program.trait` by default. Instantiating `trait<a>` is lookup: a
+the program's own `Program.trait` by default; an unexpanded concept-id
+is a hard error; a requires-expression is answered softly here, since
+its calls need the program's lookup, which lives above the environment
+(`Requires`). Instantiating `trait<a>` is lookup: a
 selected partial specialization has a value (named by the type
 `instance_of<a, i>`), an ambiguous lookup is a hard error, since matching
 partial specializations is part of instantiation and so outside the
@@ -919,7 +962,9 @@ substitution failure. A `trait` query asks a type
 trait of argument types and asserts the program's answer,
 `Program.trait`, against the `std::` trait, so every trait judgement is
 tested against the compilers' own; a trait in a requires-clause is rendered as the `std::`
-variable template. A data member is rendered in its class's body, with
+variable template, a concept-id as `C<args>`, a requires-expression as a
+`requires { ... }` body of `declval` calls and `typename`s, and a
+`conceptDef` as a concept definition over `T0, ...`. A data member is rendered in its class's body, with
 `{}` when it has a default member initializer, and a declared special
 member as `= default`, `= delete` or an empty body; a class with a
 converting constructor that needs a default constructor declares one. A `Case` is a program, a

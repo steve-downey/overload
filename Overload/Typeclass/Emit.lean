@@ -604,9 +604,9 @@ def cases : List Case :=
 /-- What the model computes for the encoding's cases, in the encoding's
 environment. -/
 def computed (c : Case) : Option (Option (List (ParamIdx × Ty))) :=
-  computedWith (fun p a => encodingEnv p a) c
+  computedWith (fun p a => Env.full p a (memberAtomics p)) c
 
 def computedCall (c : Case) : Option (Resolution Nat) :=
-  computedCallWith (fun p a => encodingEnv p a) c
+  computedCallWith (fun p a => Env.full p a (memberAtomics p)) c
 
 end Overload.Typeclass.Emit

@@ -561,7 +561,23 @@ Status, 15 October 2026:
   parameter, the same on both sides, since `is_base_of` sees erasure.
   `is_invocable` of a class callee is residue for now: the call on an
   object is resolved above the environment, and the trait would need the
-  environment that answers it.
+  environment that answers it. Stage 5, requires-expressions, landed the
+  same day: `Constraint.conceptId` and `Constraint.requires`,
+  `Decl.conceptDef`, `Program.normalize` and `normalizeDecl` applied by
+  `Program.call` to its candidates, `Overload/Requires.lean` with
+  `requirementsHold`, `Env.full` and the three order theorems, and nine
+  emitted cases, the refined concept selected over the one it refines
+  among them, all in agreement with GCC 15 and Clang 24. Four
+  departures. A requires-expression's calls are resolved above the
+  environment, so `Env.full` answers them with the base environment
+  below it, one level deep. The requirement-parameter-list is not
+  modelled: a requirement names its arguments' types, an lvalue
+  reference for an lvalue. Compound and nested requirements and
+  `compound_eq_simple_nested` wait; a compound requirement's return type
+  needs the return type of the function selected. The always-failing
+  requirement, ill-formed no diagnostic required, is not checked; GCC 15
+  and Clang 24 diagnose it, which two cases met before their failures
+  were made to depend on the argument (`findings.md`).
 
 ## Target theorems
 
@@ -605,7 +621,7 @@ its counterexample and is a finding, not a setback.
 | value-nature | For a class that declares no special member function, every defaulted special member is non-deleted exactly when no member, through class-typed members likewise, is of reference type or `const` type; a pointer member deletes nothing. Added 24 October 2026; proved for flat classes the same day (`value_nature_flat`), the propagation through class-typed members computed and tested. | 12 |
 | deletion-propagates | A member or base whose class has a deleted or inaccessible corresponding special member deletes the enclosing class's defaulted one, through any depth ([class.default.ctor]/2, [class.copy.ctor]/10, [class.copy.assign]/7, [class.dtor]/7). Added 24 October 2026. | 12 |
 | trait-is-resolution | `is_constructible`, `is_assignable` and `is_convertible` are overload resolution over the class's constructors, assignment operators and conversions with the usable-candidate check, so a trait's answer is the call's ([meta.unary.prop]/9, [meta.rel]/6, [over.match.general]/4). Added 24 October 2026; proved the same day (`trait_is_resolution`, `is_convertible_eq_ics`). | 12 |
-| requires-soft-is-false | A requirement that fails in the immediate context makes the requires-expression `false`, checked in lexical order and stopping at the first decider; a failure outside it is a hard error ([expr.prim.req.general]/5). Added 24 October 2026. | 12 |
+| requires-soft-is-false | A requirement that fails in the immediate context makes the requires-expression `false`, checked in lexical order and stopping at the first decider; a failure outside it is a hard error ([expr.prim.req.general]/5). Added 24 October 2026; proved the same day (`requires_soft_is_false`, `requires_false_stops`, `requires_hard_stops`). | 12 |
 | copy-constraint-shields | A member constrained by copy-constructibility of its callable fails softly at a callable whose copy constructor is deleted, where the body's copy would be a hard error: the callable-copying rule as a theorem. Added 24 October 2026. | 12 |
 | refinement-normalizes | The normal form of a refined concept contains its superclass concept's atoms with the identity mapping, so the refinement subsumes by normalization alone ([temp.constr.normal]/1). Added 24 October 2026. | 12 |
 

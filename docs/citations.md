@@ -131,6 +131,16 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[dcl.ref]/5 sentence 1](https://eel.is/c++draft/dcl.ref#5.sentence-1) | rule | `Overload.formPtr` | `Overload.Steps` |
 | [[expr.const.const]/8](https://eel.is/c++draft/expr.const.const#8) | rule | `Overload.ConvertsTo.reference` | `Overload.Arguments` |
 | [[expr.const.const]/8](https://eel.is/c++draft/expr.const.const#8) | rule | `Overload.integralConversion` | `Overload.Arguments` |
+| [[expr.prim.req.general]/5](https://eel.is/c++draft/expr.prim.req.general#5) | rule | `Overload.Program.requirementsHold` | `Overload.Requires` |
+| [[expr.prim.req.general]/5](https://eel.is/c++draft/expr.prim.req.general#5) | theorem | `Overload.requires_false_stops` | `Overload.Requires` |
+| [[expr.prim.req.general]/5](https://eel.is/c++draft/expr.prim.req.general#5) | theorem | `Overload.requires_hard_stops` | `Overload.Requires` |
+| [[expr.prim.req.general]/5](https://eel.is/c++draft/expr.prim.req.general#5) | theorem | `Overload.requires_soft_is_false` | `Overload.Requires` |
+| [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | rule | `Overload.Constraint.Requirement.memberCall` | `Overload.Constraint` |
+| [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | rule | `Overload.Constraint.Requirement.simple` | `Overload.Constraint` |
+| [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | rule | `Overload.Program.requirementHolds` | `Overload.Requires` |
+| [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1) | rule | `Overload.Constraint.Requirement.type` | `Overload.Constraint` |
+| [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1) | rule | `Overload.Program.requirementHolds` | `Overload.Requires` |
+| [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1) | rule | `Overload.Program.validType` | `Overload.Requires` |
 | [[lex.icon]/3 sentence 1](https://eel.is/c++draft/lex.icon#3.sentence-1) | rule | `Overload.literalType` | `Overload.Arguments` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Program.invocable` | `Overload.Traits` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Program.trait` | `Overload.Traits` |
@@ -279,6 +289,11 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.constr.atomic]/3 sentence 1](https://eel.is/c++draft/temp.constr.atomic#3.sentence-1) | rule | `Overload.Constraint.satisfied` | `Overload.Constraint` |
 | [[temp.constr.atomic]/3 sentence 2](https://eel.is/c++draft/temp.constr.atomic#3.sentence-2) | rule | `Overload.Constraint.satisfied_atomic_soft` | `Overload.Constraint` |
 | [[temp.constr.atomic]/3 sentence 5](https://eel.is/c++draft/temp.constr.atomic#3.sentence-5) | rule | `Overload.IllFormedNdr.satisfactionChanged` | `Overload.Units` |
+| [[temp.constr.normal]/1](https://eel.is/c++draft/temp.constr.normal#1) | rule | `Overload.Constraint.conceptId` | `Overload.Constraint` |
+| [[temp.constr.normal]/1](https://eel.is/c++draft/temp.constr.normal#1) | rule | `Overload.Constraint.requires` | `Overload.Constraint` |
+| [[temp.constr.normal]/1](https://eel.is/c++draft/temp.constr.normal#1) | rule | `Overload.Decl.conceptDef` | `Overload.Program` |
+| [[temp.constr.normal]/1](https://eel.is/c++draft/temp.constr.normal#1) | rule | `Overload.Program.normalizeWithin` | `Overload.Program` |
+| [[temp.constr.normal]/2](https://eel.is/c++draft/temp.constr.normal#2) | rule | `Overload.Program.normalizeDecl` | `Overload.Program` |
 | [[temp.constr.op]/2 sentence 3](https://eel.is/c++draft/temp.constr.op#2.sentence-3) | theorem | `Overload.satisfied_conjunctionOf` | `Overload.Conjunction` |
 | [[temp.constr.order]/1](https://eel.is/c++draft/temp.constr.order#1) | example | `Overload.Constraint.subsumes_example` | `Overload.Constraint` |
 | [[temp.constr.order]/1](https://eel.is/c++draft/temp.constr.order#1) | rule | `Overload.Constraint.cnf` | `Overload.Constraint` |
@@ -352,6 +367,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.func.order]/8](https://eel.is/c++draft/temp.func.order#8) | rule | `Overload.PartialOrdering.MoreSpecialized.byConstraints` | `Overload.Specs` |
 | [[temp.func.order]/8](https://eel.is/c++draft/temp.func.order#8) | rule | `Overload.PartialOrdering.tieBreakApplies` | `Overload.Ordering` |
 | [[temp.func.order]/8](https://eel.is/c++draft/temp.func.order#8) | theorem | `Overload.PartialOrdering.tieBreak_needs_equal_heads` | `Overload.Ordering` |
+| [[temp.names]/13](https://eel.is/c++draft/temp.names#13) | rule | `Overload.Program.validType` | `Overload.Requires` |
 | [[temp.names]/13](https://eel.is/c++draft/temp.names#13) | rule | `Overload.explicitStep.go` | `Overload.Steps` |
 | [[temp.over.link]/6 sentence 2](https://eel.is/c++draft/temp.over.link#6.sentence-2) | rule | `Overload.PartialOrdering.paramEquivalent` | `Overload.Ordering` |
 | [[temp.param]/11](https://eel.is/c++draft/temp.param#11) | rule | `Overload.Ty.hasPlaceholder` | `Overload.Arguments` |
@@ -393,10 +409,6 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 - [[special]/5](https://eel.is/c++draft/special#5)
 - [[class.copy.assign]/1](https://eel.is/c++draft/class.copy.assign#1)
 - [[class.copy.assign]/3](https://eel.is/c++draft/class.copy.assign#3)
-- [[temp.constr.normal]/1](https://eel.is/c++draft/temp.constr.normal#1)
-- [[expr.prim.req.general]/5](https://eel.is/c++draft/expr.prim.req.general#5)
-- [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1)
-- [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1)
 - [[expr.prim.req.compound]/1](https://eel.is/c++draft/expr.prim.req.compound#1)
 - [[expr.prim.req.nested]/1](https://eel.is/c++draft/expr.prim.req.nested#1)
 

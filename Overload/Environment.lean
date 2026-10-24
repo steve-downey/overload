@@ -49,6 +49,12 @@ def Env.ofProgram (p : Program) (atomics : List (String × List Ty × Bool) := [
       match atom, args with
       -- A trait is the program's judgement.
       | .trait q, _ => traits q args
+      -- A concept-id normalization did not expand names no concept of
+      -- the program: the program is ill-formed.
+      | .concept n, _ => .hard s!"the concept {n} is not declared"
+      -- A requires-expression is resolved above the environment, by the
+      -- lookup its calls need (`Env.full`, `Overload/Requires.lean`).
+      | .requires _, _ => .soft "a requires-expression is resolved above the environment"
       -- The lookup selects a partial specialization rather than the primary.
       | .expr "has_instance", [.named c, a] => .ok ((p.selectInstance c a).toOption.isSome)
       -- A condition that names a lookup's variable, `sizeof(decltype(

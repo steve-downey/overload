@@ -157,6 +157,17 @@ and described here as they arrive.
 
 ## About the model
 
+- **A requirement that fails for every argument is diagnosed** (24
+  October 2026). [expr.prim.req.general]/5 ends: if the substitution of
+  template arguments into a requirement would always result in a
+  substitution failure, the program is ill-formed, no diagnostic
+  required. Two emitted cases first wrote `typename S<T, int>;` for an
+  `S` of one parameter, a type-requirement no argument can satisfy, and
+  GCC 15 and Clang 24 both rejected the translation unit the model
+  expected well-formed. The model does not check the condition; the
+  cases now fail through a default template argument, `std::enable_if_t`
+  on a concept the argument decides, so the failure depends on the
+  argument and both compilers agree.
 - **A second `std` attribute on a declaration replaced the first** (23
   October 2026). The citation attribute is a Lean parametric attribute,
   which holds one parameter per declaration, so `@[std rule "a", std rule

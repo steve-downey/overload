@@ -62,7 +62,7 @@ def Decl.name? : Decl → Option String
   | .functionTemplate ft => some ft.name
   | .lookup n | .lookupHard n => some n
   | .object n _ _ => some n
-  | .concept n _ => some n
+  | .concept n _ | .conceptDef n _ _ => some n
   | .instance .. | .use .. | .dependentCall .. | .refersTo _ | .converting .. | .member .. | .special .. => none
 
 /-- The kind of entity a declaration declares, if it declares one. -/
@@ -73,7 +73,7 @@ def Decl.kind? : Decl → Option EntityKind
   | .functionTemplate _ => some .functionTemplate
   | .lookup _ | .lookupHard _ => some .variableTemplate
   | .object .. => some .variable
-  | .concept .. => some .concept
+  | .concept .. | .conceptDef .. => some .concept
   | .instance .. | .use .. | .dependentCall .. | .refersTo _ | .converting .. | .member .. | .special .. => none
 
 /-- The scope a declaration inhabits, its target scope in the fragment
@@ -228,7 +228,7 @@ conversion introduce no name. -/
 @[std rule "basic.link#4"]
 def Decl.linkage : Decl → Linkage
   | .class .. | .classTemplate .. | .function .. | .functionTemplate _ | .object .. | .lookup _
-  | .lookupHard _ | .concept .. => .external
+  | .lookupHard _ | .concept .. | .conceptDef .. => .external
   | .instance .. | .use .. | .dependentCall .. | .refersTo _ | .converting .. | .member .. | .special .. => .none
 
 /-- Two declarations of one entity declare the same kind of entity: a
