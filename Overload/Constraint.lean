@@ -37,10 +37,28 @@ inductive Constraint where
 
 namespace Constraint
 
-/-- The oracle for an atomic constraint: given the expression and the
-substituted targets of its mapping, whether it is valid and `true`. A
-`soft` answer is an invalid substitution in the immediate context. -/
-abbrev Oracle := String → List Ty → Subst Bool
+/-- The head of an atomic constraint: an expression, identified by its
+name, or a trait query. -/
+inductive Atom where
+  | expr (e : String)
+  | trait (q : Trait)
+  deriving Repr, DecidableEq, Inhabited
+
+/-- The oracle for an atomic constraint: given its head, an expression or
+a trait, and the substituted targets of its mapping, whether it is valid
+and `true`. A `soft` answer is an invalid substitution in the immediate
+context. The environment a program defines answers a trait from the
+program (`Program.trait`) and an expression from what it knows. -/
+abbrev Oracle := Atom → List Ty → Subst Bool
+
+/-- An oracle for expressions alone, by name. -/
+abbrev ExprOracle := String → List Ty → Subst Bool
+
+/-- The oracle that answers expressions by `f` and traits by their
+structural answer, `Trait.answer`, which needs no program. -/
+def Oracle.ofExpr (f : ExprOracle) : Oracle
+  | .expr e, m => f e m
+  | .trait q, m => Trait.answer q m
 
 /-- Satisfaction. For an atomic constraint the mapping is substituted into
 the expression, an invalid result in the immediate context means not
@@ -50,11 +68,11 @@ when the left is not. -/
 @[std rule "temp.constr.atomic#3.sentence-1"]
 def satisfied (oracle : Oracle) (σ : Bindings) : Constraint → Subst Bool
   | atomic e m =>
-    match oracle e (m.map (Ty.subst σ)) with
+    match oracle (.expr e) (m.map (Ty.subst σ)) with
     | .soft _ => .ok false
     | r => r
   | trait q m =>
-    match Trait.answer q (m.map (Ty.subst σ)) with
+    match oracle (.trait q) (m.map (Ty.subst σ)) with
     | .soft _ => .ok false
     | r => r
   | conj l r => do
@@ -66,7 +84,7 @@ def satisfied (oracle : Oracle) (σ : Bindings) : Constraint → Subst Bool
 "not satisfied", never a deduction failure of its own. -/
 @[std rule "temp.constr.atomic#3.sentence-2"]
 theorem satisfied_atomic_soft (oracle : Oracle) (σ : Bindings) (e : String) (m : List Ty)
-    (r : Reason) (h : oracle e (m.map (Ty.subst σ)) = .soft r) :
+    (r : Reason) (h : oracle (.expr e) (m.map (Ty.subst σ)) = .soft r) :
     satisfied oracle σ (atomic e m) = .ok false := by
   simp [satisfied, h]
 
@@ -78,18 +96,11 @@ def atomicAnswer : Subst Bool → Subst Bool
   | .hard r => .hard r
 
 theorem satisfied_atomic (oracle : Oracle) (σ : Bindings) (e : String) (m : List Ty) :
-    satisfied oracle σ (atomic e m) = atomicAnswer (oracle e (m.map (Ty.subst σ))) := by
+    satisfied oracle σ (atomic e m) = atomicAnswer (oracle (.expr e) (m.map (Ty.subst σ))) := by
   simp only [satisfied]
-  cases oracle e (m.map (Ty.subst σ)) <;> rfl
+  cases oracle (.expr e) (m.map (Ty.subst σ)) <;> rfl
 
 /-! ## Subsumption -/
-
-/-- The head of an atomic constraint: an expression, identified by its
-name, or a trait query. -/
-inductive Atom where
-  | expr (e : String)
-  | trait (q : Trait)
-  deriving Repr, DecidableEq, Inhabited
 
 /-- An atomic constraint, as a clause element: its head and the targets
 of its parameter mapping. -/
@@ -101,15 +112,14 @@ def ofAtomic : Atomic → Constraint
   | (.trait q, m) => trait q m
 
 /-- The answer of an atomic constraint under the oracle, once its mapping
-is substituted: the oracle's for an expression, the trait's for a trait. -/
-def answer (oracle : Oracle) (σ : Bindings) : Atomic → Subst Bool
-  | (.expr e, m) => oracle e (m.map (Ty.subst σ))
-  | (.trait q, m) => Trait.answer q (m.map (Ty.subst σ))
+is substituted. -/
+def answer (oracle : Oracle) (σ : Bindings) (a : Atomic) : Subst Bool :=
+  oracle a.1 (a.2.map (Ty.subst σ))
 
 theorem satisfied_trait (oracle : Oracle) (σ : Bindings) (q : Trait) (m : List Ty) :
-    satisfied oracle σ (trait q m) = atomicAnswer (Trait.answer q (m.map (Ty.subst σ))) := by
+    satisfied oracle σ (trait q m) = atomicAnswer (oracle (.trait q) (m.map (Ty.subst σ))) := by
   simp only [satisfied]
-  cases Trait.answer q (m.map (Ty.subst σ)) <;> rfl
+  cases oracle (.trait q) (m.map (Ty.subst σ)) <;> rfl
 
 theorem satisfied_ofAtomic (oracle : Oracle) (σ : Bindings) (a : Atomic) :
     satisfied oracle σ (ofAtomic a) = atomicAnswer (answer oracle σ a) := by
@@ -426,7 +436,7 @@ and checking `B ∨ A` evaluates `B` first, which `A` never did. -/
 theorem subsumes_satisfied_hard :
     ∃ (oracle : Oracle) (p q : Constraint), subsumes p q = true ∧
       satisfied oracle [] p = .ok true ∧ ∃ r, satisfied oracle [] q = .hard r :=
-  ⟨fun e _ => if e = "A" then .ok true else .hard "B is ill-formed", atomic "A" [],
+  ⟨fun a _ => if a = .expr "A" then .ok true else .hard "B is ill-formed", atomic "A" [],
     disj (atomic "B" []) (atomic "A" []), rfl, rfl, _, rfl⟩
 
 end Constraint

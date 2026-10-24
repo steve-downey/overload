@@ -134,10 +134,11 @@ follow [basic.types.general]/6 and /7: `isObject`, `isScalar`,
 `isReference`, `isCompound`, `isFundamental`; `isConst` is top-level
 only. `removeConst`, `removeReference`, `stripCvref` and
 `addLvalueReference` are the transformations. `Trait` is the queries a
-constraint can state, `Trait.answer` answers one from the types alone,
-`soft` for a dependent type or a wrong arity and never `hard`
-(`Trait.answer_not_hard`). The traits that ask about members, special
-member functions or layout come in later stages of phase 12.
+constraint can state. The structural ones (`Trait.structural`) are
+answered by `Trait.answer` from the types alone, `soft` for a dependent
+type or a wrong arity and never `hard` (`Trait.answer_not_hard`); the
+rest ask about a program's classes and are `Program.trait`'s
+(`Traits`).
 
 ### Outcome
 
@@ -179,11 +180,12 @@ before deducing, so this covers `T`, `const T&`, `T&&` and `C<T>*`.
 evaluation that treats an invalid substitution as not satisfied; and
 subsumption ([temp.constr.order]/1) by disjunctive and conjunctive
 normal form with atomic identity ([temp.constr.atomic]/2). An `atomic`
-constraint is an expression by name, answered by the environment's
-oracle; a `trait` constraint is a `Trait` query, answered by
-`Trait.answer` from the substituted types, so no oracle is consulted. A
-clause element, `Atomic`, is an `Atom`, expression or trait, with its
-mapping, and `Constraint.answer` reads either.
+constraint is an expression by name and a `trait` constraint a `Trait`
+query; the oracle answers an `Atom`, either kind, on the substituted
+mapping. `Oracle.ofExpr` lifts an oracle for expressions alone, answering
+traits structurally, and the environment a program defines answers them
+from the program. A clause element, `Atomic`, is an `Atom` with its
+mapping, and `Constraint.answer` reads one.
 
 The results are the whole of what the Standard's ordering of constraints
 amounts to on this fragment.
@@ -493,6 +495,32 @@ without bases, class-typed members, initializers or declared specials,
 member is a reference or `const`, and `pointer_member_keeps_value_nature`
 that a pointer member deletes nothing.
 
+### Traits
+
+`Overload/Traits.lean`: `Program.trait q args`, the program's answer to
+every `Trait`. `is_base_of` is `derives` or the same class, access
+ignored ([meta.rel]/3). `is_convertible` is the return statement of
+[meta.rel]/6: `void` to `void` and nothing else with `void`, no function
+type, otherwise the implicit conversion sequence of `declval<From>()` to
+`To`, not ambiguous, and for the argument's own class or a base the
+constructor it selects usable (`is_convertible_eq_ics`).
+`is_constructible` is the variable definition of [meta.unary.prop]/9:
+resolution over a class's constructors for direct-initialization with
+the usable-candidate check (`trait_is_resolution`), a reference binding
+one argument, a scalar taking none or one of its own type.
+`is_assignable` is resolution over the assignment operators, a `const`
+object having none. `is_destructible` and the `is_trivially_` forms
+read the special members: the operation selected is a special member
+and trivial. `is_trivially_copyable` and `is_standard_layout` are
+[class.prop]/1 and /2 on the fragment, `triviallyCopyableClass` and
+`standardLayoutClass`, with `zeroOffsetWithin` the types at offset zero;
+`is_empty` is no members and empty bases. `is_invocable` of a function
+type or a pointer to one checks each argument's conversion sequence.
+The residue (`decisions.md#trait-residue`) answers `soft`: a conversion
+between two different non-class types, which the fragment's sequences
+do not form, and `is_invocable` of a class callee, whose call is
+resolved above the environment.
+
 ### Lookup
 
 `Overload/Lookup.lean`: a variable template over a program.
@@ -516,8 +544,9 @@ specialization as much as for a typeclass instance.
 
 ### Environment
 
-`Overload/Environment.lean`: `Env.ofProgram p atomics extra`, the
-environment a program defines. Instantiating `trait<a>` is lookup: a
+`Overload/Environment.lean`: `Env.ofProgram p atomics extra traits`, the
+environment a program defines. A trait atom is answered by `traits`,
+the program's own `Program.trait` by default. Instantiating `trait<a>` is lookup: a
 selected partial specialization has a value (named by the type
 `instance_of<a, i>`), an ambiguous lookup is a hard error, since matching
 partial specializations is part of instantiation and so outside the
@@ -560,7 +589,10 @@ rather than signatures because a template parameter deduced from one
 argument can meet another argument of a derived type.
 `deduceTemplate_congr`, on the
 way, says deduction depends on the environment only through
-instantiation, atomic answers, bases and convertibility.
+instantiation, atomic answers, bases and convertibility. The theorem
+takes the trait oracle as a parameter, the same on both sides: a trait
+the program answers, `is_base_of` among them, can see erasure, so the
+result is for a fixed trait oracle, structural or otherwise.
 
 ### Mandates
 
@@ -884,9 +916,9 @@ name lookup does not find gets a `hidden<j>` return type. A
 position, rendered as a template whose trailing return type names the
 call, so the function selected is observable and a lookup failure is a
 substitution failure. A `trait` query asks a type
-trait of argument types and asserts the model's answer against the
-`std::` trait, so every trait judgement is tested against the
-compilers' own; a trait in a requires-clause is rendered as the `std::`
+trait of argument types and asserts the program's answer,
+`Program.trait`, against the `std::` trait, so every trait judgement is
+tested against the compilers' own; a trait in a requires-clause is rendered as the `std::`
 variable template. A data member is rendered in its class's body, with
 `{}` when it has a default member initializer, and a declared special
 member as `= default`, `= delete` or an empty body; a class with a

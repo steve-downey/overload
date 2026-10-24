@@ -71,7 +71,7 @@ variable (tc : String) (f x : CallArg)
 /-- After the defaults, the steps that remain are the member call's answer
 and nothing else. -/
 theorem fmapObject_rest_member (env : Env) (v : Subst Bool)
-    (hv : env.atomic "fmap_call" (memberArgs tc f x) = v)
+    (hv : env.atomic (.expr "fmap_call") (memberArgs tc f x) = v)
     (hf : f.ty.isType = true) (hx : x.ty.isType = true)
     (hfF : f.ty.formed = true) (hxF : x.ty.formed = true)
     (hfr : f.ty.isRef = false) (hxr : x.ty.isRef = false) :
@@ -123,7 +123,7 @@ deduction failure where it is not, and a hard error where checking it is
 one. The environment is arbitrary, so this holds for any member, accurate
 or not. -/
 theorem fmapObject_member (env : Env) (v : Subst Bool)
-    (hv : env.atomic "fmap_call" (memberArgs tc f x) = v)
+    (hv : env.atomic (.expr "fmap_call") (memberArgs tc f x) = v)
     (hf : f.ty.isType = true) (hx : x.ty.isType = true)
     (hfF : f.ty.formed = true) (hxF : x.ty.formed = true)
     (hfr : f.ty.isRef = false) (hxr : x.ty.isRef = false) (hxd : x.ty.dependent = false) :
@@ -144,7 +144,7 @@ theorem fmapObject_member (env : Env) (v : Subst Bool)
 
 /-- The three outcomes, once the lookup is instantiated. -/
 theorem member_transfer (env : Env) (v : Subst Bool) (inst : Ty)
-    (hv : env.atomic "fmap_call" (memberArgs tc f x) = v)
+    (hv : env.atomic (.expr "fmap_call") (memberArgs tc f x) = v)
     (hi : env.instantiate tc x.ty.stripConst = .ok inst)
     (hf : f.ty.isType = true) (hx : x.ty.isType = true)
     (hfF : f.ty.formed = true) (hxF : x.ty.formed = true)
@@ -167,7 +167,7 @@ valid and true exactly when the lookup selects an instance. The theorems
 about the operation object in `Overload/Typeclass/Encoding.lean` are this
 case. -/
 theorem ofProgram_member (p : Program) :
-    (encodingEnv p).atomic "fmap_call" (memberArgs tc f x) =
+    (encodingEnv p).atomic (.expr "fmap_call") (memberArgs tc f x) =
       .ok (p.selectInstance tc x.ty.stripConst).toOption.isSome := by
   simp [encodingEnv, Env.ofProgram, memberAtomics, memberArgs]
 
@@ -178,7 +178,7 @@ end member
 /-- An environment whose member call answers `v` in place of the
 program's. -/
 def _root_.Overload.Env.withMember (env : Env) (v : Subst Bool) : Env :=
-  { env with atomic := fun e args => if e = "fmap_call" then v else env.atomic e args }
+  { env with atomic := fun a args => if a = .expr "fmap_call" then v else env.atomic a args }
 
 /-- A unit with a Functor instance for `box<T>`, and the operation
 object. -/
@@ -375,8 +375,9 @@ the algorithm is a hard error. This is why the folds test for a
 registered `Monoid` before they name one. -/
 def orderEnv : Env :=
   { encodingEnv [] with
-    atomic := fun e _ =>
-      if e = "registered" then .ok false else if e = "combine_call" then .hard "Monoid<V> is incomplete"
+    atomic := fun a _ =>
+      if a = .expr "registered" then .ok false
+      else if a = .expr "combine_call" then .hard "Monoid<V> is incomplete"
       else .ok true }
 
 theorem call_order_matters :

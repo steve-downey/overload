@@ -76,10 +76,12 @@ private def cInt : Ty := .named "int"
 
 -- A trait atom in a constraint is satisfied without the oracle, and an
 -- invalid one is "not satisfied".
-private def noOracle : Constraint.Oracle := fun e _ => .hard s!"oracle asked about {e}"
+private def noOracle : Constraint.Oracle := .ofExpr fun e _ => .hard s!"oracle asked about {e}"
 #guard Constraint.satisfied noOracle [(0, cInt)] (.trait .isIntegral [.param 0]) == .ok true
 #guard Constraint.satisfied noOracle [(0, cA)] (.trait .isIntegral [.param 0]) == .ok false
 #guard Constraint.satisfied noOracle [] (.trait .isIntegral [.param 0]) == .ok false
+#guard Trait.answer .isBaseOf [cA, cA] == .soft "std::is_base_of_v needs the program"
+#guard Trait.answer .isEmpty [cA] == .soft "std::is_empty_v needs the program"
 #guard Constraint.subsumes (.conj (.trait .isClass [.param 0]) (.atomic "C" [.param 0]))
   (.trait .isClass [.param 0])
 #guard !Constraint.subsumes (.trait .isClass [.param 0]) (.trait .isObject [.param 0])

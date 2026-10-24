@@ -17,6 +17,7 @@ import Overload.Specs
 import Overload.Resolution
 import Overload.Ranking
 import Overload.Special
+import Overload.Traits
 import Overload.Lookup
 import Overload.Environment
 import Overload.Separability
@@ -67,6 +68,8 @@ is the map.
 #audit Overload.deleted_flat
 #audit Overload.value_nature_flat
 #audit Overload.pointer_member_keeps_value_nature
+#audit Overload.trait_is_resolution
+#audit Overload.is_convertible_eq_ics
 
 -- Deduction and substitution.
 #audit Overload.deduceTy_iff

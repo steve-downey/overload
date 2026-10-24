@@ -866,6 +866,12 @@ named so that a constraint written with it is visibly an assumption.
 **Log:**
 
 - 2026-10-24 — Decided.
+- 2026-10-24 — Stage 4 landed, `Overload/Traits.lean`. One more residue:
+  `is_invocable` of a class callee, since the call on an object is
+  resolved above the environment that answers traits; a function type or
+  a pointer to one is computed. The environment answers a trait atom
+  from the program (`Env.ofProgram`'s `traits`, default `Program.trait`),
+  and `inheritance_erasure` takes the trait oracle as a parameter.
 
 ---
 

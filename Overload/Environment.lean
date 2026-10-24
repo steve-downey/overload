@@ -2,6 +2,7 @@
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 import Overload.Lookup
 import Overload.Ranking
+import Overload.Traits
 
 /-!
 # The environment a program defines
@@ -31,7 +32,8 @@ namespace Overload
 ground truths for the concepts it declares; `extra` answers any atomic
 constraint neither the lookup rules nor the table know. -/
 def Env.ofProgram (p : Program) (atomics : List (String × List Ty × Bool) := [])
-    (extra : Constraint.Oracle := fun e _ => .soft s!"unknown atomic constraint {e}") : Env :=
+    (extra : Constraint.ExprOracle := fun e _ => .soft s!"unknown atomic constraint {e}")
+    (traits : Trait → List Ty → Subst Bool := p.trait) : Env :=
   { instantiate := fun n a =>
       let hard := p.any fun | .lookupHard c => c = n | _ => false
       let soft := p.any fun | .lookup c => c = n | _ => false
@@ -43,14 +45,16 @@ def Env.ofProgram (p : Program) (atomics : List (String × List Ty × Bool) := [
         if hard then .hard s!"static_assert in the primary {n}<{repr a}>"
         else if soft then .ok (.named "std::false_type")
         else .soft s!"no variable template {n}"
-    atomic := fun e args =>
-      match e, args with
+    atomic := fun atom args =>
+      match atom, args with
+      -- A trait is the program's judgement.
+      | .trait q, _ => traits q args
       -- The lookup selects a partial specialization rather than the primary.
-      | "has_instance", [.named c, a] => .ok ((p.selectInstance c a).toOption.isSome)
+      | .expr "has_instance", [.named c, a] => .ok ((p.selectInstance c a).toOption.isSome)
       -- A condition that names a lookup's variable, `sizeof(decltype(
       -- tc<a>)) > 0`: true when the variable can be instantiated, and a
       -- failure outside the immediate context when it cannot.
-      | "lookup_formed", [.named c, a] =>
+      | .expr "lookup_formed", [.named c, a] =>
         match p.selectInstance c a with
         | .selected _ => .ok true
         | .ambiguous _ => .hard s!"ambiguous partial specializations of {c}<{repr a}>"
@@ -59,7 +63,7 @@ def Env.ofProgram (p : Program) (atomics : List (String × List Ty × Bool) := [
           if p.any fun | .lookupHard c' => c' = c | _ => false then
             .hard s!"static_assert in the primary {c}<{repr a}>"
           else .ok true
-      | _, _ =>
+      | .expr e, _ =>
         match atomics.find? fun (e', args', _) => e' == e && args' == args with
         | some (_, _, b) => .ok b
         | none => extra e args
@@ -71,7 +75,7 @@ def Env.ofProgram (p : Program) (atomics : List (String × List Ty × Bool) := [
 soft design: the selected specialization's value, the primary's, or a
 hard error for an ambiguous lookup. -/
 theorem Env.ofProgram_instantiate (p : Program) (atomics : List (String × List Ty × Bool))
-    (extra : Constraint.Oracle) (tc : String) (a : Ty)
+    (extra : Constraint.ExprOracle) (tc : String) (a : Ty)
     (hsoft : p.any (fun | .lookup c => c = tc | _ => false) = true)
     (hhard : p.any (fun | .lookupHard c => c = tc | _ => false) = false) :
     (Env.ofProgram p atomics extra).instantiate tc a =

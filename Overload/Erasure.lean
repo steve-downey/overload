@@ -432,15 +432,15 @@ theorem any_erase (p : Program) (I : List String) (f : Decl → Bool)
   | _ => rfl
 
 theorem instantiate_erase (p : Program) (I : List String) (atomics : List (String × List Ty × Bool))
-    (extra : Constraint.Oracle) :
-    (Env.ofProgram (p.eraseBases I) atomics extra).instantiate = (Env.ofProgram p atomics extra).instantiate := by
+    (extra : Constraint.ExprOracle) (traits : Trait → List Ty → Subst Bool) :
+    (Env.ofProgram (p.eraseBases I) atomics extra traits).instantiate = (Env.ofProgram p atomics extra traits).instantiate := by
   funext n a
   simp only [Env.ofProgram, selectInstance_erase]
   rw [any_erase p I _ (fun _ _ _ _ _ _ => rfl), any_erase p I _ (fun _ _ _ _ _ _ => rfl)]
 
 theorem atomic_erase (p : Program) (I : List String) (atomics : List (String × List Ty × Bool))
-    (extra : Constraint.Oracle) :
-    (Env.ofProgram (p.eraseBases I) atomics extra).atomic = (Env.ofProgram p atomics extra).atomic := by
+    (extra : Constraint.ExprOracle) (traits : Trait → List Ty → Subst Bool) :
+    (Env.ofProgram (p.eraseBases I) atomics extra traits).atomic = (Env.ofProgram p atomics extra traits).atomic := by
   funext e args
   simp only [Env.ofProgram, selectInstance_erase]
   split <;> try rfl
@@ -797,23 +797,23 @@ constructor's parameter or a conversion function's target, so it is the
 exact-type obligation again, for conversion declarations
 (`obligations.md`). -/
 theorem inheritance_erasure (mode : Mode) (p : Program) (I : List String)
-    (atomics : List (String × List Ty × Bool)) (extra : Constraint.Oracle) (decls : List Decl)
+    (atomics : List (String × List Ty × Bool)) (extra : Constraint.ExprOracle) (traits : Trait → List Ty → Subst Bool) (decls : List Decl)
     (args : List CallArg) (explicit : List Ty) (hfree : p.conversionFree = true)
     (hderived : ∀ ft, .functionTemplate ft ∈ decls → NoDerivedDeduction p I ft args)
     (hdeduce : ∀ ft, .functionTemplate ft ∈ decls → ∀ x ∈ args.zip ft.params,
       x.2.dependent = false → ExactPair p I x.1 x.2)
-    (huse : ∀ cs, generate mode (Env.ofProgram p atomics extra) decls args explicit = .ok cs →
+    (huse : ∀ cs, generate mode (Env.ofProgram p atomics extra traits) decls args explicit = .ok cs →
       ∀ c ∈ cs, ∀ x ∈ args.zip c.params, ExactPair p I x.1 x.2)
     (hconv : ∀ ft, .functionTemplate ft ∈ decls → ∀ σ, ∀ q ∈ ft.head, ∀ a,
       convertArg (p.eraseBases I).candidateInitializer σ q.kind a =
         convertArg p.candidateInitializer σ q.kind a) :
-    resolve mode (Env.ofProgram (p.eraseBases I) atomics extra) (p.eraseBases I).ranking decls args explicit =
-      resolve mode (Env.ofProgram p atomics extra) p.ranking decls args explicit := by
-  have hgen : generate mode (Env.ofProgram (p.eraseBases I) atomics extra) decls args explicit =
-      generate mode (Env.ofProgram p atomics extra) decls args explicit := by
+    resolve mode (Env.ofProgram (p.eraseBases I) atomics extra traits) (p.eraseBases I).ranking decls args explicit =
+      resolve mode (Env.ofProgram p atomics extra traits) p.ranking decls args explicit := by
+  have hgen : generate mode (Env.ofProgram (p.eraseBases I) atomics extra traits) decls args explicit =
+      generate mode (Env.ofProgram p atomics extra traits) decls args explicit := by
     simp only [generate]
     refine generate_go_congr _ _ args explicit _ decls (fun ft hm => ?_) 0
-    refine deduceTemplate_congr (instantiate_erase p I atomics extra) (atomic_erase p I atomics extra) ft
+    refine deduceTemplate_congr (instantiate_erase p I atomics extra traits) (atomic_erase p I atomics extra traits) ft
       explicit args (fun c hc => ?_) (fun σ x hx hd hsp => ?_) (fun x hx hd => ?_)
       (fun σ q hq a => ?_)
     · simp only [Env.ofProgram, allBases_spec _ c hc]
@@ -825,7 +825,7 @@ theorem inheritance_erasure (mode : Mode) (p : Program) (I : List String)
     · simp only [Env.ofProgram]; exact hconv ft hm σ q hq a
   unfold resolve
   rw [hgen]
-  cases hg : generate mode (Env.ofProgram p atomics extra) decls args explicit with
+  cases hg : generate mode (Env.ofProgram p atomics extra traits) decls args explicit with
   | ok cs =>
     have hcs := huse cs hg
     simp only [viable, viable_erase p I hfree args cs hcs]

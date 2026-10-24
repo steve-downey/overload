@@ -103,7 +103,7 @@ void g(T); // #4`. -/
 
 private def exampleEnv : Env :=
   { instantiate := fun _ _ => .soft "unknown"
-    atomic := fun e args =>
+    atomic := .ofExpr fun e args =>
       match e, args with
       | "C1", [.named "bool"] => .ok false
       | "C1", [_] => .ok true
