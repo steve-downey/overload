@@ -473,7 +473,29 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 
 ## In scope, no counterpart yet
 
-Every in-scope paragraph has a counterpart in the model.
+- [[class.virtual]/1](https://eel.is/c++draft/class.virtual#1)
+- [[class.virtual]/2](https://eel.is/c++draft/class.virtual#2)
+- [[class.virtual]/3](https://eel.is/c++draft/class.virtual#3)
+- [[class.virtual]/4](https://eel.is/c++draft/class.virtual#4)
+- [[class.virtual]/5](https://eel.is/c++draft/class.virtual#5)
+- [[class.abstract]/2](https://eel.is/c++draft/class.abstract#2)
+- [[class.abstract]/3](https://eel.is/c++draft/class.abstract#3)
+- [[class.abstract]/4](https://eel.is/c++draft/class.abstract#4)
+- [[class.dtor]/11](https://eel.is/c++draft/class.dtor#11)
+- [[except.spec]/1](https://eel.is/c++draft/except.spec#1)
+- [[except.spec]/2](https://eel.is/c++draft/except.spec#2)
+- [[except.spec]/3](https://eel.is/c++draft/except.spec#3)
+- [[except.spec]/4](https://eel.is/c++draft/except.spec#4)
+- [[except.spec]/5](https://eel.is/c++draft/except.spec#5)
+- [[except.spec]/6](https://eel.is/c++draft/except.spec#6)
+- [[except.spec]/7](https://eel.is/c++draft/except.spec#7)
+- [[except.spec]/8](https://eel.is/c++draft/except.spec#8)
+- [[except.spec]/9](https://eel.is/c++draft/except.spec#9)
+- [[dcl.init.aggr]/1](https://eel.is/c++draft/dcl.init.aggr#1)
+- [[dcl.init.aggr]/2](https://eel.is/c++draft/dcl.init.aggr#2)
+- [[dcl.init.aggr]/4](https://eel.is/c++draft/dcl.init.aggr#4)
+- [[dcl.init.aggr]/6](https://eel.is/c++draft/dcl.init.aggr#6)
+- [[class.prop]/8](https://eel.is/c++draft/class.prop#8)
 
 ## Assumptions
 
