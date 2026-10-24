@@ -32,6 +32,29 @@ run_cmd do
   unless e.cite.stable == "temp.type" && e.cite.para == 1 do
     throwError "twiceCited should cite [temp.type]/1, not {e.cite}"
 
+-- What a declaration rests on: `is_convertible` reaches the implicit
+-- conversion sequences and the usable candidate, `is_scalar` reaches
+-- nothing past the type categories, the requires-expressions consult
+-- the environment and the structural traits do not.
+open Lean Elab Command in
+run_cmd do
+  let env ← getEnv
+  let conv := Overload.Lint.restsOnKeys env ``Overload.Program.convertible
+  for k in ["meta.rel#6", "over.best.ics.general#6", "over.ics.ref#1", "over.match.general#4",
+            "class.derived.general#2"] do
+    unless conv.contains k do throwError "is_convertible should rest on [{k}]"
+  let scalar := Overload.Lint.restsOnKeys env ``Overload.Ty.isScalar
+  unless scalar.all (fun k => k.startsWith "basic.") do
+    throwError "is_scalar should rest on [basic.types] alone, not {scalar}"
+  let reqs := Overload.Lint.restsOn env ``Overload.Program.requirementsHold
+  unless reqs.oracles.contains ``Overload.Env.atomic do
+    throwError "a requires-expression's calls consult the environment"
+  let trait := Overload.Lint.restsOn env ``Overload.Trait.answer
+  unless trait.oracles.isEmpty do throwError "a structural trait consults no oracle"
+  let tc := Overload.Lint.restsOnKeys env ``Overload.Program.triviallyCopyableClass
+  for k in ["class.prop#1", "special#6", "class.copy.ctor#12", "class.copy.ctor#10"] do
+    unless tc.contains k do throwError "is_trivially_copyable should rest on [{k}]"
+
 -- The attributes survive into the environment: a cited constructor, a
 -- tagged assumption, and an uncited declaration.
 open Lean Elab Command in

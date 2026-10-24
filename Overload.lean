@@ -248,6 +248,20 @@ is the map.
 #audit Overload.late_adl_overload_verdict
 #audit Overload.temp_res_general_1_example
 
+/-! ## What the traits rest on
+
+`#rests_on` lists the sentences a judgement unfolds through. A trait
+whose list reaches past its own paragraph is a theorem of those rules;
+one whose list is its own paragraph alone is primitive; one that
+consults an oracle rests on what the environment says. -/
+
+#rests_on Overload.Program.convertible
+#rests_on Overload.Program.constructible
+#rests_on Overload.Program.triviallyCopyableClass
+#rests_on Overload.Ty.isScalar
+#rests_on Overload.Program.normalize
+#rests_on Overload.Program.requirementsHold
+
 /-! ## The typeclass encoding -/
 
 -- The operation object and its routes.

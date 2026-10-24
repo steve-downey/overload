@@ -103,7 +103,17 @@ sentences it transcribes, and what its theorems say in C++ terms.
 `Overload/Std.lean` defines the `std` and `assumed` attributes, the draft
 pin (`draftPin`, N5054), and the list of in-scope paragraphs (`inScope`)
 that the citation index checks for coverage. `Overload/Lint.lean` is the
-three lints: `#check_citations`, `#audit`, `#check_layering`.
+three lints, `#check_citations`, `#audit`, `#check_layering`, and
+`#rests_on decl`, which lists the sentences of the Standard a declaration
+rests on, every citation in its transitive dependency closure with its
+role, the assumptions among them, and the fields of the environment it
+consults. It is how to tell a trait that is a theorem of the core rules
+(`is_convertible` reaches [over.best.ics.general] and
+[over.match.general]) from one that is primitive (`is_scalar` reaches
+nothing past [basic.types]) or one that rests on an oracle (a
+requires-expression's calls consult `Env.atomic`). `Overload.lean` runs
+it on the judgements of phase 12; `restsOnKeys` is the same list as a
+value, for tests.
 
 ### Syntax
 
