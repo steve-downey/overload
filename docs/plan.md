@@ -70,7 +70,11 @@ Out of scope at the start:
   for priority tags and reference binding, is supplied to assess
   user-written dispatch. Phase 11 brings the user-defined conversion
   sequence in.
-- The expression language. Expression validity is an oracle.
+- The expression language. Expression validity is an oracle. Phase 12
+  takes the type traits and requires-expressions the fragment can state
+  out of the oracle, as judgements over the types, the special member
+  functions and the calls the model already decides; the oracle keeps
+  the residue.
 - Multiple translation units and points of instantiation.
 
 Standing assumption: one translation unit, with every instance declared
@@ -191,10 +195,11 @@ The four kinds of finding about the Standard are tabulated in
 
 ## Phases
 
-Eleven phases, each closed by a theorem or a passing test set. The
+Twelve phases, each closed by a theorem or a passing test set. The
 typeclass results first become reachable at phase 4, before any of
 call-site overload resolution exists. Phase 9 was added on 20 October
-2026, after the others closed, and phase 10 on 21 October 2026.
+2026, after the others closed, phase 10 on 21 October 2026, phase 11 on
+23 October 2026 and phase 12 on 24 October 2026.
 
 | Phase | Builds | Exit criterion | Needs |
 |---|---|---|---|
@@ -210,6 +215,7 @@ call-site overload resolution exists. Phase 9 was added on 20 October
 | 9 Declarations and lookup | Scopes, correspondence, unqualified and argument-dependent lookup, member lookup, the dependent-call verdict, entity identity across units, as P1787R6 rewrote them. See [below](#phase-9-declarations-and-where-to-find-them). | The candidate set of a call is computed, not given; every lookup claim the obligations rest on is a cited theorem. Settles lookup-scope and scope-syntax. | 5, 8 |
 | 10 Template arguments | The conversion of a constant template argument to its parameter's type: converted constant expressions and narrowing, class values sliced to a base, placeholders, and the identity of specializations through the converted values. See [below](#phase-10-template-arguments-and-their-conversion). | Every explicit and default constant argument is converted by a cited rule, the example of [temp.deduct.general]/12 reproduces, and leak 4 of instance inheritance is a theorem. Settles integer-widths and value-typing. | 2, 6 |
 | 11 User-defined conversions | Converting constructors and conversion functions, the user-defined conversion sequence and its rank, the ambiguous conversion sequence, reference binding to a converted temporary, `explicit` through the initialization context, and the conversion's effect on deduction and on constant template arguments. See [below](#phase-11-user-defined-conversions). | The concrete ranking forms every sequence of [over.best.ics.general]/3 the fragment can spell, with agreement and asymmetry; the four conversion theorems about the encoding are proved. Settles user-defined-conversions. | 5, 10 |
+| 12 The type system, special members and traits | The type categories and data members, function types; the special member functions as implicitly declared, defaulted, deleted and trivial; the type traits and requires-expressions as judgements over those, with concept-ids normalized; the value and reference nature of a type as a theorem of the deletion rules. See [below](#phase-12-the-type-system-special-member-functions-and-traits). | Every trait the fragment can state is computed from cited rules and agrees with GCC and Clang on the emitted cases; the special members of a class are a cited judgement with agreement; the callable-copying rule and refinement subsumption are theorems of the encoding. Settles function-types, special-member-fragment, trait-residue and value-nature. | 3, 9, 11 |
 
 Phase 6 can begin as soon as phase 4 closes. Phase 5 is on the critical
 path only for the function-call surface and the by-value explicit-instance
@@ -505,10 +511,22 @@ Status, 15 October 2026:
   refused, as [temp.arg.nontype]/6 says. Settles user-defined-conversions.
   Every in-scope paragraph has a counterpart, once the citation attribute
   learnt to keep several citations on one declaration (`findings.md`).
+- Phase 12 is planned, 24 October 2026: the type categories and data
+  members, with function types; the special member functions as
+  implicitly declared, defaulted, deleted and trivial, by the rules of
+  [special], [class.default.ctor], [class.copy.ctor], [class.copy.assign]
+  and [class.dtor]; the type traits and requires-expressions as
+  judgements over those, with concept-ids normalized; and the value and
+  reference nature of a type as a theorem of the deletion rules. The
+  plan, the cross-reference against N5054 and the stages are
+  [below](#phase-12-the-type-system-special-member-functions-and-traits).
+  Its in-scope paragraphs are listed and uncovered until the stages
+  land. Settles function-types, special-member-fragment, trait-residue
+  and value-nature.
 
 ## Target theorems
 
-Thirty-two theorems carry the results. A theorem that fails is recorded with
+Thirty-eight theorems carry the results. A theorem that fails is recorded with
 its counterexample and is a finding, not a setback.
 
 | Theorem | Statement | Phase |
@@ -545,6 +563,12 @@ its counterexample and is a finding, not a setback.
 | converted-argument-temporary | A user-defined conversion yields a prvalue: an lvalue reference parameter to non-const is not viable for it, a reference constant parameter refuses it, and a class-typed value parameter identifies every source that converts to one value. Added 23 October 2026. | 11 |
 | explicit-never-implicit | An explicit constructor or conversion function is no candidate for copy-initialization, so it forms no implicit conversion sequence at a call argument or a candidate initializer. Added 23 October 2026. | 11 |
 | instantiation-points | A dependent call referenced before a later overload of its name means different things at its two points of instantiation, which is ill-formed, no diagnostic required; a callee bound to an object has one meaning at every point. Added 22 October 2026. | 9 |
+| value-nature | For a class that declares no special member function, every defaulted special member is non-deleted exactly when no member, through class-typed members likewise, is of reference type or `const` non-class type; a pointer member deletes nothing. Added 24 October 2026. | 12 |
+| deletion-propagates | A member or base whose class has a deleted or inaccessible corresponding special member deletes the enclosing class's defaulted one, through any depth ([class.default.ctor]/2, [class.copy.ctor]/10, [class.copy.assign]/7, [class.dtor]/7). Added 24 October 2026. | 12 |
+| trait-is-resolution | `is_constructible`, `is_assignable` and `is_convertible` are overload resolution over the class's constructors, assignment operators and conversions with the usable-candidate check, so a trait's answer is the call's ([meta.unary.prop]/9, [meta.rel]/6, [over.match.general]/4). Added 24 October 2026. | 12 |
+| requires-soft-is-false | A requirement that fails in the immediate context makes the requires-expression `false`, checked in lexical order and stopping at the first decider; a failure outside it is a hard error ([expr.prim.req.general]/5). Added 24 October 2026. | 12 |
+| copy-constraint-shields | A member constrained by copy-constructibility of its callable fails softly at a callable whose copy constructor is deleted, where the body's copy would be a hard error: the callable-copying rule as a theorem. Added 24 October 2026. | 12 |
+| refinement-normalizes | The normal form of a refined concept contains its superclass concept's atoms with the identity mapping, so the refinement subsumes by normalization alone ([temp.constr.normal]/1). Added 24 October 2026. | 12 |
 
 Stability is the theorem that says open polymorphism has no surprises. Its
 hypotheses are expected to include soft failure of a missing instance and
@@ -1339,6 +1363,299 @@ constructor is a later stage if a question needs it).
    the emitted cases, the obligation row confirmed.
 7. [conversion-docs](#conversion-docs): the guide, the obligations, the
    findings, this status, `citations.md`, `make drift-check-current`.
+
+## Phase 12: the type system, special member functions and traits
+
+Planned 24 October 2026. The model's types are what deduction needs: a
+name, a parameter, `const`, a pointer, the two references, a
+specialization and a constant argument (`Ty`). A class is a name with
+bases, and since phase 11 its conversions. Every type trait and every
+concept the encoding's constraints use is an atomic constraint with a
+string for its expression, answered by the environment's oracle
+(`Constraint.Oracle`, `decisions.md#expression-depth`). So the model can
+say which candidate a constraint selects, and not why the constraint
+holds, and nothing it proves about the encoding's concepts rests on
+what the concepts say. Phase 12 widens the lower model in three
+directions that depend on one another: the type categories of
+[basic.types] and the data members of a class; the special member
+functions, implicitly declared, defaulted and deleted; and the type
+traits and requires-expressions as judgements computed from those, with
+the oracle kept for the residue.
+
+The order is forced by dependency. The traits that look like compiler
+magic are nearly all questions about special member functions or class
+layout. `is_copy_constructible` is overload resolution over the
+constructors with the usable-candidate check. `is_trivially_copyable` is
+eligibility and triviality of the copy and move members.
+`is_standard_layout` is a predicate on members and bases. Modelled
+before the special member functions they would be more oracle strings.
+The special member functions in turn need data members, since every
+deletion rule is a rule about a member or a base subobject. And the
+structural traits, `is_same`, `is_reference`, `is_class`, cost nothing
+once the type categories are named, and retire half of the oracle at
+once.
+
+Two consumers wait on the typeclass side. The
+[callable-copying](#callable-copying) obligation says an instance that
+copies its callable should say so in its constraint, so the sender's
+yes-then-fails becomes a clean no. That is a theorem once
+`is_copy_constructible` of a class with a deleted copy constructor is a
+judgement and not an oracle answer. The
+[typeclass-refinement](#typeclass-refinement) obligation writes
+refinement as a concept on the instance's shape. With concept-ids
+normalized, the superclass's atoms appear in the refined concept's
+normal form with the identity mapping, and the subsumption is computed
+where today a test states it as an atomic identity.
+
+The Standard has no words for value and reference semantics as
+properties of a type. The nearest are object type and reference type
+([basic.types.general]/1, /6). The phase gives the model two
+definitions under the author's names, data and codata: an `int` is
+data, an `int&` is codata, and a reference member gives the enclosing
+class a codata nature. That has an exact rendering in the rules, as a
+theorem and not a rule. A reference member without a default member
+initializer deletes the defaulted default constructor
+([class.default.ctor]/2), and a reference member deletes the defaulted
+copy and move assignment ([class.copy.assign]/7); a `const` non-class
+member deletes assignment too; and a member or base whose corresponding
+special member is deleted deletes the enclosing one
+([class.default.ctor]/2, [class.copy.ctor]/10, [class.copy.assign]/7,
+[class.dtor]/7). So for a class that declares no special member of its
+own, every defaulted special member is non-deleted exactly when no
+member, through class-typed members likewise, is of reference type or
+`const` non-class type. Pointers mark the limit of the idea. A
+pointer's codata aspect is aliasing of what it points to, which is a
+question about the object model, and the fragment has no object model.
+The type system says a pointer is data: a scalar, trivially copyable,
+and it deletes nothing. The scope statement is
+`decisions.md#value-nature`, so the model does not promise more.
+
+### The rules to transcribe, as they stand in N5054
+
+Paragraph numbers counted from `\pnum`, as `make drift-check` does. The
+trait tables of [meta.unary.cat], [meta.unary.comp], [meta.unary.prop]
+and [meta.rel] carry no `\pnum` of their own; each lies in the
+paragraph before it by that count, /3, /2, /5 and /3, and a row is
+cited there by its template's name. [special] is the section's stable
+name in N5054, with [class.mem.special] gone.
+
+| Rule | N5054 text (abbreviated) | Model counterpart |
+|---|---|---|
+| [basic.types.general]/1, /6 | Types describe objects, references, or functions. An object type is a type that is not a function type, not a reference type, and not cv `void`. | `Ty.isObject`, `Ty.isReference`, `Ty.isFunction`: every `Ty` that is a type is exactly one of the three. |
+| [basic.types.general]/7 | Scalar types: arithmetic, enumeration, pointer, pointer-to-member, `nullptr_t`, and cv-qualified versions. Trivially copyable types: scalar types, trivially copyable class types, arrays of such, cv versions. Standard-layout types likewise. | `Ty.isScalar`: the fragment's scalars are its integer types, `bool` and pointers. `Program.triviallyCopyable` and `Program.standardLayout` on a `Ty`, through the class predicates of [class.prop]. |
+| [basic.compound]/1 | Compound types: arrays, functions, pointers, references, classes, unions, enumerations, pointers to members. | `Ty.isCompound`. `Ty.fn params ret` is new: the function type of a parameter list and a return type, with `params` a `nil`/`cons` chain. |
+| [basic.fundamental]/1, /2 | The signed and unsigned integer types. | `Ty.isIntegral`, from phase 10's `integerTypes`; cited there already. |
+| [class.mem.general]/5, /15 | A data member is a non-function member introduced by a member-declarator. A brace-or-equal-initializer of a non-static data member is a default member initializer. | `Member := { name, ty, init : Bool }` on `Decl.class`. The initializer is a flag, since it is an expression. |
+| [special]/1 | Default constructors, copy and move constructors, copy and move assignment operators, and destructors are special member functions; the implementation implicitly declares them when the program does not. | `SmfKind`, six constructors; `Program.specialMembers c`, the six with their provenance. |
+| [special]/5 | Two special member functions are of the same kind if both are default constructors, both copy or move constructors with the same first parameter type, or both assignment operators with the same first parameter type and qualifiers. | Equality on `SmfKind` and the parameter's `const`; the fragment has no ref-qualifiers. |
+| [special]/6 | An eligible special member function is not deleted, has its constraints satisfied, and no other of the same kind with satisfied constraints is more constrained. | `Program.eligible`: not deleted. The fragment's special members carry no constraints, so the other two bullets hold. |
+| [special]/7 | A class's potentially constructed subobjects are its direct non-static data members, its non-virtual direct bases and, if not abstract, its virtual bases. | `Program.subobjectsOf c`: members then direct bases; no class in the fragment is abstract or has a virtual base. |
+| [class.default.ctor]/1 | If a class has no user-declared constructor, a non-explicit constructor with no parameters is implicitly declared as defaulted. | `Program.implicitDefaultCtor`: suppressed by any user-declared constructor, which in the fragment is a `Decl.converting` constructor or a declared special member. |
+| [class.default.ctor]/2 | Defined as deleted if: a reference member has no default member initializer; a `const` member without one is not const-default-constructible; a potentially constructed subobject of class type `M` has no usable candidate for `M`'s corresponding constructor; or a subobject's class has a deleted or inaccessible destructor. | `Program.deleted c .defaultCtor`, four bullets, with [dcl.init.general]/7 and [over.match.general]/4. The variant-member clauses are out. |
+| [class.default.ctor]/3 | Trivial if not user-provided and: no virtual functions or bases; no default member initializer; every direct base's default constructor trivial; every class-typed member's trivial. | `Program.trivial c .defaultCtor`. |
+| [class.copy.ctor]/1, /2 | A copy constructor's first parameter is `X&` or `const X&` (or volatile forms); a move constructor's is `X&&` or `const X&&`. | `SmfDecl` of kind `.copyCtor` or `.moveCtor` with `constParam`. `volatile` is out. |
+| [class.copy.ctor]/6 | Without a user-declared copy constructor, a non-explicit one is declared implicitly; defined as deleted if the class declares a move constructor or move assignment operator, otherwise defaulted. | `Program.implicitCopyCtor`, with the deprecated case kept as the text has it. |
+| [class.copy.ctor]/7 | The implicit copy constructor has the form `X(const X&)` if each potentially constructed subobject of class type `M` has a copy constructor taking `const M&`; otherwise `X(X&)`. | `Program.copyParam c`. |
+| [class.copy.ctor]/8 | Without a user-declared move constructor, a non-explicit one is declared as defaulted iff the class has no user-declared copy constructor, copy assignment, move assignment or destructor. | `Program.implicitMoveCtor`. |
+| [class.copy.ctor]/10 | A defaulted copy/move constructor is defined as deleted if: a potentially constructed subobject of type `M` has no usable candidate for `M`'s corresponding constructor; a subobject's class has a deleted or inaccessible destructor; or, for the copy constructor, a member of rvalue reference type. A deleted defaulted move constructor is ignored by overload resolution. | `Program.deleted c .copyCtor` and `.moveCtor`; `Program.constructors c`, the candidate list, omits a deleted defaulted move constructor. |
+| [class.copy.ctor]/12 | Trivial if not user-provided and: no virtual functions or bases; the constructor selected for each direct base is a direct member of the base and trivial; the one selected for each class-typed member is trivial. | `Program.trivial c .copyCtor`, `.moveCtor`, through the constructor `resolve` selects for the subobject. |
+| [class.copy.assign]/1, /3 | A user-declared copy assignment operator has one non-object parameter of type `X`, `X&` or `const X&`; a move assignment operator `X&&` or `const X&&`. | `SmfDecl` of kind `.copyAssign` or `.moveAssign`, with `constParam`; the by-value form is out. |
+| [class.copy.assign]/2 | Without a user-declared copy assignment operator one is declared implicitly; deleted if the class has a user-declared move constructor or move assignment, else defaulted; of the form `operator=(const X&)` if each direct base and class-typed member has a copy assignment taking `const M&` or `M`, else `operator=(X&)`. | `Program.implicitCopyAssign`, `Program.assignParam c`. |
+| [class.copy.assign]/4 | A move assignment operator is implicitly declared as defaulted iff the class has no user-declared copy constructor, move constructor, copy assignment or destructor. | `Program.implicitMoveAssign`. |
+| [class.copy.assign]/7 | A defaulted copy/move assignment operator is defined as deleted if the class has: a member of `const` non-class type; a member of reference type; a direct member or base of class type `M` with no usable candidate for `M`'s corresponding assignment operator. A deleted defaulted move assignment is ignored by overload resolution. | `Program.deleted c .copyAssign`, `.moveAssign`; `Program.assignments c` omits a deleted defaulted move assignment. |
+| [class.copy.assign]/9 | Trivial, as [class.copy.ctor]/12 for assignment. | `Program.trivial c .copyAssign`, `.moveAssign`. |
+| [class.dtor]/2 | Without a user-declared prospective destructor one is implicitly declared as defaulted. | `Program.implicitDtor`. |
+| [class.dtor]/7 | A defaulted destructor is defined as deleted if a potentially constructed subobject has class type `M` whose destructor is deleted or inaccessible. | `Program.deleted c .dtor`; the union and virtual-destructor bullets are out. |
+| [class.dtor]/8 | Trivial if not user-provided, not virtual, every direct base's destructor trivial and every class-typed member's trivial. | `Program.trivial c .dtor`. |
+| [dcl.fct.def.default]/1 | A function definition `= default;` is explicitly defaulted, and shall be a special member function (or a comparison or increment operator). | `SmfBody.defaulted` on a `SmfDecl`. |
+| [dcl.fct.def.default]/5 | Explicitly defaulted and implicitly declared functions are defaulted; a defaulted special member that is not eligible is defined as deleted; a function is user-provided if user-declared and not explicitly defaulted or deleted on its first declaration. | `Provenance`: `.implicit`, `.defaulted`, `.userProvided`, `.deleted`. `Program.deleted` is the "defined as deleted" judgement over the defaulted ones. |
+| [dcl.fct.def.delete]/1, /2 | A deleted function has a deleted definition or is implicitly defined as deleted. A construct that designates a deleted function is ill-formed; for an overload set only the selected function is referenced. | `SmfBody.deleted`; the usable-candidate check after selection, beside access, as the second sentence says. |
+| [dcl.init.general]/7 | A type is const-default-constructible if default-initialization would invoke a user-provided constructor, or it is a class each of whose direct members has a default member initializer or is const-default-constructible and each of whose potentially constructed bases is. | `Program.constDefaultConstructible`. |
+| [over.match.general]/4 | Overload resolution results in a usable candidate if it succeeds and the selected candidate is not deleted and is accessible from the context. | `Program.usable`, over the result of `resolve`. `Program.call`'s access check is this rule's second half, cited at last. |
+| [class.prop]/1 | A trivially copyable class has at least one eligible copy or move constructor or assignment operator, each eligible one trivial, and a trivial non-deleted destructor. | `Program.triviallyCopyableClass`. |
+| [class.prop]/2 | A standard-layout class: no member of non-standard-layout class or reference type; no virtual functions or bases; the same access for all members; no non-standard-layout base; at most one base subobject of any type; all members first declared in one class; no base in `M(S)`, the types at zero offset. | `Program.standardLayoutClass`, the seven bullets on the fragment, where members are public and there are no bit-fields; `M(S)` is the first member's type and its own `M`. |
+| [meta.unary.cat]/3 | Exactly one primary type category holds of any type: `is_integral`, `is_pointer`, `is_lvalue_reference`, `is_rvalue_reference`, `is_class`, `is_function` in the fragment. | `Trait` constructors answered by `Program.trait`; `one_primary_category`, a theorem of the table. The categories with no inhabitant in the fragment answer false, cited. |
+| [meta.unary.comp]/2 | `is_reference`, `is_object`, `is_scalar`, `is_compound`, `is_fundamental` as compositions. | `Program.trait`, through [basic.types.general]/6, /7. |
+| [meta.unary.prop]/5, the table | `is_const`; `is_trivially_copyable` and `is_standard_layout` by [basic.types.general]/7; `is_empty`: a non-union class with no non-static data members, no virtual members or bases, and every base empty; `is_default_constructible` and the copy and move forms as `is_constructible` with `const T&` and `T&&`; `is_assignable<T, U>`: `declval<T>() = declval<U>()` well-formed in the immediate context; `is_copy_assignable` and `is_move_assignable` from it; `is_destructible`; the `is_trivially_` forms: the trait holds and the operation is known to call nothing non-trivial. | `Program.trait` cases. `is_assignable` is `resolve` over `Program.assignments` of the class of `T` with the one argument, then `usable`; non-class assignment is an expression and stays with the residue. |
+| [meta.unary.prop]/9 | `is_constructible<T, Args...>` holds iff `T t(declval<Args>()...);` would be well-formed, access checked as from an unrelated context, only the immediate context considered. | `Program.constructible t args`: direct-initialization ([dcl.init.general]/14, `.direct`) resolved over `Program.constructors`, then `usable`. The model's access check is from an unrelated context already. |
+| [meta.rel]/3, the table | `is_same`: the same type with the same cv-qualification. `is_base_of`: a base class, private, protected or ambiguous included, or the same non-union class. `is_invocable<Fn, Args...>`: `INVOKE(declval<Fn>(), declval<Args>()...)` well-formed. | `is_same`: equality on `Ty`. `is_base_of`: `derives` or the same class, access ignored as the note says. `is_invocable`: the call on an object (`Overload/Members.lean`) for a class `Fn`, a direct call for a `Ty.fn`. |
+| [meta.rel]/6 | `is_convertible<From, To>` holds iff `To test() { return declval<From>(); }` would be well-formed, access as from an unrelated context, the immediate context only. | `Program.convertible from to`: `p.ics .copy` from the argument `declval<From>()` yields, to `To`, a sequence that is not ambiguous and whose conversion is usable. A return is copy-initialization. |
+| [temp.constr.normal]/1 | The normal form of a concept-id `C<A...>` substitutes the arguments into `C`'s constraint-expression, then into the parameter mappings of the atoms; any other expression is an atomic constraint with the identity mapping. | `Constraint.conceptId name args`; `Program.normalize`, with `Decl.concept`'s body a `Constraint`. Concept-dependent constraints and folds are out. |
+| [temp.constr.atomic]/2, /3 | Identity of atomic constraints; satisfaction, with an invalid substitution in the immediate context as not satisfied. | In scope already. Identity of `.trait q m` and `.requires` is structural equality; `Program.satisfied` on them, soft to false. |
+| [expr.prim.req.general]/5 | An invalid type or expression in the immediate context of a requirement, or a violated semantic constraint, makes the requires-expression `false`, not the program ill-formed; checking proceeds in lexical order and stops when the result is determined; a requires-expression that cannot succeed is ill-formed, no diagnostic required. | `Program.requiresSatisfied`, `requires_soft_is_false`, `requires_order`. The always-fails case is a program-level check, like `scopesWellFormed`. |
+| [expr.prim.req.simple]/1 | A simple-requirement asserts the validity of an expression. | `Requirement.simple call`: the fragment's expressions are calls, decided by `callAt` as viable and well-formed. |
+| [expr.prim.req.type]/1 | A type-requirement asserts the validity of a type. | `Requirement.type t`: a template-id valid by [temp.names]/13, which `explicitStep` decides. A nested type name is out. |
+| [expr.prim.req.compound]/1 | A compound-requirement asserts the expression valid and, with a return-type-requirement, the immediately-declared constraint of the type-constraint for `decltype((E))` satisfied; equivalent to a simple-requirement and a nested-requirement. | `Requirement.compound call constraint`: the selected function's `ret` substituted into the type-constraint; `compound_eq_simple_nested`, the paragraph's own equivalence. The noexcept-specifier is out. |
+| [expr.prim.req.nested]/1 | A nested-requirement's constraint-expression shall be satisfied by the substituted arguments. | `Requirement.nested c`. |
+
+Out of the fragment: unions and anonymous unions, variant members,
+arrays, bit-fields, virtual functions and virtual bases (so no
+polymorphic or abstract class, no virtual destructor), inherited
+constructors and using-declarations, exception specifications (the
+`is_nothrow_` traits), constexpr-suitability and literal types,
+aggregates ([dcl.init.aggr], so `is_aggregate` and
+`is_implicit_lifetime`), the access of a user-declared special member
+(every special member in the fragment is public; `= delete` carries
+the idiom a private copy constructor once did), enumerations,
+floating-point types and `nullptr_t`, pointers to members, `volatile`,
+the by-value copy assignment operator, the ref-qualifier and the
+explicit object parameter of [dcl.fct.def.default]/2, `is_swappable`,
+`has_unique_object_representations`, layout compatibility, alignment,
+concept-dependent constraints and fold expanded constraints, the
+noexcept-specifier of a compound requirement, and nested type names in
+a type-requirement. Recorded in `decisions.md#special-member-fragment`
+and `decisions.md#trait-residue`.
+
+### Design
+
+- **Types.** `Ty` gains one constructor, `fn (params : Ty) (ret : Ty)`,
+  the function type ([basic.compound]/1), with `params` a `nil`/`cons`
+  chain so every proof stays an ordinary `induction`. Deduction treats
+  it as it treats `spec`, structurally; the forms `T()` and `T(T)` of
+  [temp.deduct.type]/8 are already in scope. The predicates of
+  [basic.types.general] are functions on `Ty`: `isObject`, `isReference`,
+  `isFunction`, `isScalar`, `isClass`, `isIntegral`, `isCompound`,
+  `isConst`, with `removeConst`, `removeReference`, `removeCvref` and
+  `addLvalueReference` beside `stripConst`. `Decl.function` and
+  `FunctionTemplate` have a return type already (`ret`, defaulting to
+  `void`); the compound requirement and `is_invocable_r` read it.
+  Adding a constructor to `Ty` touches every deduction induction; the
+  cost is paid in stage 2, while it is one constructor and nothing
+  depends on it.
+- **Members.** `Decl.class` gains `members : List Member`, each a name,
+  a type and whether it has a default member initializer. Members are
+  public and non-static; a member's type may be a reference, a `const`
+  type, a pointer, a scalar or another class. `Program.subobjectsOf` is
+  the potentially constructed subobjects ([special]/7). Erasure
+  (`Overload/Erasure.lean`) carries members untouched, as it carries
+  bases.
+- **Special members.** `SmfKind` is the six kinds. A class declares
+  special members as `SmfDecl := { kind, body : SmfBody, constParam :
+  Bool }` with `SmfBody` one of `.userProvided`, `.defaulted`,
+  `.deleted`; `Decl.class` gains `special : List SmfDecl`.
+  `Program.specialMembers c` is the set of [special]/1: the declared
+  ones, and for each kind not user-declared the implicit one by
+  [class.default.ctor]/1, [class.copy.ctor]/6 and /8,
+  [class.copy.assign]/2 and /4, [class.dtor]/2, with its parameter form
+  by [class.copy.ctor]/7 and [class.copy.assign]/2. `Program.deleted c
+  k` is "defined as deleted" for a defaulted member, the bullets of
+  [class.default.ctor]/2, [class.copy.ctor]/10, [class.copy.assign]/7
+  and [class.dtor]/7, recursive through the subobjects' classes via
+  `resolve` over their constructors or assignments and the
+  usable-candidate check ([over.match.general]/4), fuel-bounded by
+  declaration order as `derivesWithin` is. `Program.trivial c k`
+  likewise. `Program.eligible` is non-deletion ([special]/6). The
+  relation is `SpecialMember`, the function `specialMembers`, the
+  agreement `specialMembers_iff`; `deleted_iff` and `trivial_iff` the
+  same for the two judgements. `Program.constructors c` and
+  `Program.assignments c` are the candidate lists: the special members
+  by signature and the `Decl.converting` constructors, less a deleted
+  defaulted move member. `Program.userConversions` draws its
+  constructors from `constructors` from here on, so a deleted copy
+  constructor is a candidate that resolution may select and the usable
+  check then refuses, as [dcl.fct.def.delete]/2 says.
+- **Value nature.** `Program.valueNature c`: every special member of
+  `c` is defaulted and non-deleted. `Program.referenceMember c`: some
+  member of `c`, or of a class-typed member's class likewise, is of
+  reference type or `const` non-class type. `value_nature_iff`: for a
+  class that declares no special member, and whose class-typed members
+  declare none, `valueNature` holds iff `referenceMember` fails.
+  `pointer_member_keeps_value_nature`: a pointer member deletes nothing.
+  `deletion_propagates`: a member or base of class `M` with a deleted
+  corresponding special member deletes the enclosing defaulted one,
+  through any depth. These are definitions and theorems; no cited
+  sentence states them, and the data and codata names stay in the docs.
+- **Traits.** `Trait` is an inductive of the queries the fragment can
+  state, with the arity each takes; `Program.trait q args : Subst Bool`
+  answers them by the rules above. `Constraint` gains `.trait (q :
+  Trait) (mapping : List Ty)` beside `.atomic`, with identity by
+  structural equality ([temp.constr.atomic]/2) and satisfaction by
+  `Program.trait` on the substituted mapping, an invalid substitution
+  in the immediate context giving `false` ([temp.constr.atomic]/3).
+  `Constraint.atomic` and the oracle remain for the residue, so every
+  existing case stands. `trait_is_resolution`: `is_constructible`,
+  `is_assignable` and `is_convertible` are `resolve` plus `usable` over
+  the class's candidates with the argument, so the trait's answer is
+  the call's; `is_convertible_eq_ics` names the phase 11 sequence.
+- **Requires-expressions and concept-ids.** `Constraint` gains
+  `.requires (params : List Ty) (reqs : List Requirement)` and
+  `.conceptId (name : String) (args : List Ty)`; `Decl.concept`'s body
+  becomes a `Constraint`, with the string body kept as `.atomic` for
+  the existing cases. `Requirement` is `.simple call`, `.type t`,
+  `.compound call constraint`, `.nested c`, where a `call` is a callee
+  and argument types over the requirement's parameters, decided by
+  `callAt`. `Program.normalize` expands concept-ids
+  ([temp.constr.normal]/1), fuel-bounded by declaration order, since a
+  concept names only concepts declared before it. Satisfaction of
+  `.requires` is in lexical order, a soft failure of any requirement is
+  `false`, a hard one is hard ([expr.prim.req.general]/5):
+  `requires_soft_is_false`, `requires_order`, `compound_eq_simple_nested`.
+  Subsumption (`Overload/Constraint.lean`) runs on the normal form, so
+  a refined concept subsumes its superclass's concept-id structurally.
+- **The call and the emitter.** `Program.call` gains the usable check
+  on the selected constructor of a copy-initialized class parameter,
+  beside access and the ambiguous sequence. `Overload/Emit.lean`
+  renders members, special member declarations with `= default` and
+  `= delete`, and a trait or requires-expression as a `static_assert`
+  on the `std::` trait or the concept, so every trait judgement is
+  differentially tested against the compilers' own answers.
+- **The encoding.** `Overload/Typeclass/ValueNature.lean`:
+  `instance_shape_regular`, an instance type with no data members and
+  no declared special member has every special member defaulted,
+  non-deleted and trivial, so it is trivially copyable and empty;
+  `copy_constraint_shields`, a member constrained by
+  `is_copy_constructible` of its callable fails softly at a callable
+  with a deleted copy constructor, where the body's copy would be a
+  hard error, the [callable-copying](#callable-copying) rule as a
+  theorem; `reference_member_instance`, an instance type that holds a
+  reference is structural for the value route ([temp.param]/12) and
+  not assignable, so the two notions do not coincide;
+  `refinement_normalizes`, the refined concept's normal form contains
+  the superclass's atoms with the identity mapping, so the refinement
+  subsumes with no hand-written identity, the
+  [typeclass-refinement](#typeclass-refinement) obligation's mechanism;
+  `member_probe_accurate`, a requires-expression over a member call
+  holds exactly where the call is viable and well-formed, which is the
+  accurate-members obligation stated as the Standard states it.
+
+### Stages
+
+1. [record-phase-twelve](#record-phase-twelve), docs only: this
+   section, the phase row, the status, the theorem rows, the decision
+   entries, `Overload.Std.inScope`.
+2. [type-categories](#type-categories): `Ty.fn` with its deduction and
+   substitution cases and every induction re-established; the
+   predicates and transformations on `Ty`; `Member` and
+   `Decl.class.members`, carried through `Scope`, `Names`, `Erasure` and
+   `Emit`; `Trait` with the structural queries, `Constraint.trait`,
+   identity and satisfaction, `one_primary_category`; emitted cases
+   asserting the `std::` traits.
+3. [special-members](#special-members): `SmfKind`, `SmfDecl`,
+   `Program.specialMembers` with `SpecialMember` and
+   `specialMembers_iff`; `deleted` and `trivial` with their relations
+   and agreement; `eligible`, `constructors`, `assignments`, `usable`;
+   `userConversions` over `constructors`; the usable check in
+   `Program.call`; `value_nature_iff`, `pointer_member_keeps_value_nature`,
+   `deletion_propagates`; emitted cases with `= default`, `= delete`,
+   reference and `const` members.
+4. [trait-judgements](#trait-judgements): the remaining `Trait` cases:
+   `is_constructible` and its family, `is_assignable` and its family,
+   `is_destructible`, `is_convertible`, `is_base_of`, `is_empty`,
+   `is_trivially_copyable`, `is_standard_layout`, the `is_trivially_`
+   forms, `is_invocable`; `trait_is_resolution`, `is_convertible_eq_ics`;
+   emitted cases for each against the compilers' traits.
+5. [requires-expressions](#requires-expressions): `Requirement`,
+   `Constraint.requires`, `Constraint.conceptId`, `Decl.concept` with a
+   `Constraint` body, `Program.normalize`, satisfaction in lexical
+   order; `requires_soft_is_false`, `requires_order`,
+   `compound_eq_simple_nested`; subsumption over the normal form, with
+   the phase 3 theorems re-established; emitted cases with concepts
+   and `requires` bodies.
+6. [instance-value-nature](#instance-value-nature):
+   `Overload/Typeclass/ValueNature.lean` with the five theorems above
+   and their emitted cases; the obligation rows confirmed.
+7. [type-system-docs](#type-system-docs): the guide, the obligations,
+   the findings, this status, `citations.md`, `make drift-check-current`.
 
 ## Draft citations and prior art
 
