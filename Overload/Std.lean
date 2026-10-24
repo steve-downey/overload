@@ -320,6 +320,22 @@ def inScope : List (String × Nat) :=
   , ("meta.unary.cat", 3), ("meta.unary.comp", 2), ("meta.unary.prop", 5), ("meta.unary.prop", 9)
   , ("meta.rel", 3), ("meta.rel", 6)
   , ("temp.constr.normal", 1)
-  , ("expr.prim.req.general", 5), ("expr.prim.req.simple", 1), ("expr.prim.req.type", 1) ]
+  , ("expr.prim.req.general", 5), ("expr.prim.req.simple", 1), ("expr.prim.req.type", 1)
+  -- Phase 13: semantic requirements, what satisfies and what models.
+  , ("res.on.requirements", 1), ("res.on.requirements", 2), ("res.on.requirements", 3)
+  , ("structure.requirements", 8)
+  , ("concepts.equality", 1), ("concepts.equality", 2), ("concepts.equality", 3), ("concepts.equality", 4)
+  , ("concepts.equality", 5), ("concepts.equality", 6), ("concepts.equality", 8)
+  , ("concept.same", 1), ("concept.derived", 1), ("concept.convertible", 1), ("concept.convertible", 2)
+  , ("concept.destructible", 1), ("concept.constructible", 1), ("concept.default.init", 1)
+  , ("concept.moveconstructible", 1), ("concept.copyconstructible", 1)
+  , ("concept.assignable", 1), ("concept.assignable", 2)
+  , ("concept.swappable", 1), ("concept.swappable", 2), ("concept.swappable", 3), ("concept.swappable", 4)
+  , ("concept.booleantestable", 1), ("concept.booleantestable", 2)
+  , ("concept.equalitycomparable", 1), ("concept.equalitycomparable", 2), ("concept.equalitycomparable", 3)
+  , ("concepts.object", 1), ("concepts.object", 2), ("concepts.object", 3)
+  , ("concept.invocable", 1), ("concept.invocable", 2)
+  , ("concept.regularinvocable", 1), ("concept.regularinvocable", 2), ("concept.regularinvocable", 3)
+  , ("class.dtor", 6) ]
 
 end Overload.Std

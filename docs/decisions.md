@@ -925,3 +925,38 @@ cannot check.
   a reference is structural for the value route and not assignable
   (`reference_member_instance`): structural and value nature are
   different properties.
+
+---
+
+## semantic-requirements
+
+**Question:** How does the model represent what a concept requires
+beyond its constraint, the semantic requirements of
+[res.on.requirements]/1 and the typeclass laws?
+**Status:** DECIDED 24 October 2026.
+**Decision:** As named statements nothing decides. `Semantic` is a slug
+and a statement in words, cited at the paragraph that gives it where the
+Standard does; `Decl.semantic concept law` attaches one to a concept's
+specification. `Laws := Semantic → List Ty → Prop` is the oracle, a
+hypothesis a theorem states, never a function the model computes.
+`Program.models` is satisfaction of the concept's normal form and every
+law of its specification and of the concepts it is defined in terms of.
+A case claims laws as it claims atomics, and `Program.modelVerdicts`
+gives the ill-formed-no-diagnostic verdict of [res.on.requirements]/2 at
+a use whose selected candidate's constraint names a concept that is
+satisfied with a law unclaimed. `#owes decl` lists the laws in a
+declaration's closure. The typeclass laws are `Semantic`s with their
+source in the statement and no citation, since the Standard does not
+state them. No law is encoded as a decidable property.
+**Why:** A law is a statement about values, and the fragment has no
+expressions to evaluate; encoding one as a predicate would be a second,
+unverified transcription of the same prose. What the model can give is
+what the Standard's own framework gives: one name, one citation, the
+distinction between satisfying and modelling, and the verdict that says
+the compiler cannot catch the difference. Listing which theorems owe
+which laws is what the obligations table was for; the audit makes the
+list a consequence of the proofs.
+**Decided by:** the author, on the plan of 24 October 2026.
+**Log:**
+
+- 2026-10-24 — Decided.

@@ -200,11 +200,11 @@ The four kinds of finding about the Standard are tabulated in
 
 ## Phases
 
-Twelve phases, each closed by a theorem or a passing test set. The
+Thirteen phases, each closed by a theorem or a passing test set. The
 typeclass results first become reachable at phase 4, before any of
 call-site overload resolution exists. Phase 9 was added on 20 October
 2026, after the others closed, phase 10 on 21 October 2026, phase 11 on
-23 October 2026 and phase 12 on 24 October 2026.
+23 October 2026, and phases 12 and 13 on 24 October 2026.
 
 | Phase | Builds | Exit criterion | Needs |
 |---|---|---|---|
@@ -221,6 +221,7 @@ call-site overload resolution exists. Phase 9 was added on 20 October
 | 10 Template arguments | The conversion of a constant template argument to its parameter's type: converted constant expressions and narrowing, class values sliced to a base, placeholders, and the identity of specializations through the converted values. See [below](#phase-10-template-arguments-and-their-conversion). | Every explicit and default constant argument is converted by a cited rule, the example of [temp.deduct.general]/12 reproduces, and leak 4 of instance inheritance is a theorem. Settles integer-widths and value-typing. | 2, 6 |
 | 11 User-defined conversions | Converting constructors and conversion functions, the user-defined conversion sequence and its rank, the ambiguous conversion sequence, reference binding to a converted temporary, `explicit` through the initialization context, and the conversion's effect on deduction and on constant template arguments. See [below](#phase-11-user-defined-conversions). | The concrete ranking forms every sequence of [over.best.ics.general]/3 the fragment can spell, with agreement and asymmetry; the four conversion theorems about the encoding are proved. Settles user-defined-conversions. | 5, 10 |
 | 12 The type system, special members and traits | The type categories and data members, function types; the special member functions as implicitly declared, defaulted, deleted and trivial; the type traits and requires-expressions as judgements over those, with concept-ids normalized; the value and reference nature of a type as a theorem of the deletion rules. See [below](#phase-12-the-type-system-special-member-functions-and-traits). | Every trait the fragment can state is computed from cited rules and agrees with GCC and Clang on the emitted cases; the special members of a class are a cited judgement with agreement; the callable-copying rule and refinement subsumption are theorems of the encoding. Settles function-types, special-member-fragment, trait-residue and value-nature. | 3, 9, 11 |
+| 13 Semantic requirements | What satisfies and what models ([res.on.requirements]): a semantic requirement as a named, cited statement nothing decides; modelling as satisfaction plus hypotheses; the ill-formed-no-diagnostic verdict for a satisfied concept not modeled; the library's concepts transcribed with their laws; the typeclass laws named; an audit of the laws each theorem owes. See [below](#phase-13-semantic-requirements-what-satisfies-and-what-models). | Every law a headline theorem of the encoding rests on is named and listed by `#owes`; the library's object concepts subsume one another by normalization; the superclass-coherence obligation is a theorem with its law as hypothesis. Settles semantic-requirements. | 8, 12 |
 
 Phase 6 can begin as soon as phase 4 closes. Phase 5 is on the critical
 path only for the function-call surface and the by-value explicit-instance
@@ -607,10 +608,20 @@ Status, 15 October 2026:
   (`findings.md`). [expr.prim.req.compound]/1 and
   [expr.prim.req.nested]/1 leave the in-scope list until compound and
   nested requirements land.
+- Phase 13 is planned, 24 October 2026: semantic requirements as named,
+  cited statements nothing decides; modelling as satisfaction plus
+  hypotheses, with the verdict of [res.on.requirements]/2 for a
+  satisfied concept not modeled; the library's concepts transcribed with
+  their laws; the typeclass laws named; and `#owes`, the audit of the
+  laws each theorem rests on. The plan, the cross-reference against
+  N5054 and the stages are
+  [below](#phase-13-semantic-requirements-what-satisfies-and-what-models).
+  Its in-scope paragraphs are listed and uncovered until the stages
+  land. Settles semantic-requirements.
 
 ## Target theorems
 
-Thirty-eight theorems carry the results. A theorem that fails is recorded with
+Forty-three theorems carry the results. A theorem that fails is recorded with
 its counterexample and is a finding, not a setback.
 
 | Theorem | Statement | Phase |
@@ -653,6 +664,11 @@ its counterexample and is a finding, not a setback.
 | requires-soft-is-false | A requirement that fails in the immediate context makes the requires-expression `false`, checked in lexical order and stopping at the first decider; a failure outside it is a hard error ([expr.prim.req.general]/5). Added 24 October 2026; proved the same day (`requires_soft_is_false`, `requires_false_stops`, `requires_hard_stops`). | 12 |
 | copy-constraint-shields | A member constrained by copy-constructibility of its callable fails softly at a callable whose copy constructor is deleted, where the body's copy would be a hard error: the callable-copying rule as a theorem. Added 24 October 2026; proved the same day (`copy_constraint_shields`). | 12 |
 | refinement-normalizes | The normal form of a refined concept contains its superclass concept's atoms with the identity mapping, so the refinement subsumes by normalization alone ([temp.constr.normal]/1). Added 24 October 2026; proved the same day (`refinement_normalizes`, `refinement_selects`). | 12 |
+| models-satisfies | Arguments that model a concept satisfy it; the converse needs every semantic requirement of the concept's specification, which nothing in the language decides ([res.on.requirements]/1). Added 24 October 2026. | 13 |
+| satisfied-not-modeled-verdict | A use whose validity depends on arguments modelling a concept that they satisfy with a law unclaimed is ill-formed, no diagnostic required, and the verdict names the law; a use with every law claimed gets none ([res.on.requirements]/2, /3). Added 24 October 2026. | 13 |
+| regular-refines | `regular` subsumes `semiregular`, which subsumes `copyable`, which subsumes `copy_constructible`, which subsumes `move_constructible`, each by normalization of the transcribed bodies ([concepts.object]/1). Added 24 October 2026. | 13 |
+| regular-invocable-semantic-only | `regular_invocable` and `invocable` have one normal form, so they are satisfied together, and differ only in the law the first owes ([concept.regularinvocable]/3). Added 24 October 2026. | 13 |
+| superclass-coherence-owed | A Monad instance that satisfies the Monad concept and claims no superclass agreement gets the verdict at a use that derives its Functor; one that claims it gets none: the obligations table's undiagnosable row as a theorem. Added 24 October 2026. | 13 |
 
 Stability is the theorem that says open polymorphism has no surprises. Its
 hypotheses are expected to include soft failure of a missing instance and
@@ -760,8 +776,10 @@ needs that the language does not guarantee is an obligation on someone. The
 list is then complete relative to the theorems, and each entry has a proof
 showing why it is needed.
 
-The algebraic laws of each typeclass are excluded. These are the
-obligations of the mechanism.
+The algebraic laws of each typeclass were excluded at the start; phase 13
+names them as semantic requirements, cited where the Standard states the
+kind, with the theorems that owe each listed by `#owes`, and still proves
+none. These are the obligations of the mechanism.
 
 Each obligation is classified by how it is discharged:
 
@@ -1744,6 +1762,162 @@ and `decisions.md#trait-residue`.
    and their emitted cases; the obligation rows confirmed.
 7. [type-system-docs](#type-system-docs): the guide, the obligations,
    the findings, this status, `citations.md`, `make drift-check-current`.
+
+## Phase 13: semantic requirements, what satisfies and what models
+
+Planned 24 October 2026. Phase 12 made every constraint the fragment can
+state a judgement: a trait is computed, a requires-expression is decided,
+a concept-id is expanded. What none of that reaches is the half of a
+concept's specification that is not a constraint. [res.on.requirements]/1
+says a sequence of template arguments *models* a concept when it
+*satisfies* it, which is [temp.constr.decl], and meets all semantic
+requirements given in the concept's specification; /2 says a program
+whose validity depends on modelling, where the arguments satisfy but do
+not model, is ill-formed, no diagnostic required. The library's concepts
+each carry such requirements: `copy_constructible` that the copy is
+equal to the original and leaves it unmodified ([concept.copyconstructible]/1),
+`equality_comparable` that `==` says `true` exactly for equal values
+([concept.equalitycomparable]/2), `regular_invocable` that the call is
+equality-preserving ([concept.regularinvocable]/1), which is the whole of
+its difference from `invocable` (/3). The typeclass laws are
+requirements of the same kind: an instance whose `fmap` has the right
+shape satisfies the Functor concept, and one whose `fmap` preserves
+identity and composition models it. The plan so far excluded the
+algebraic laws from the obligations table. Phase 13 brings them in, not
+as things proved but as things named: a semantic requirement is a cited,
+slugged statement that nothing decides, modelling is satisfaction plus
+hypotheses, a theorem that needs a law says so in its statement, and an
+audit lists the laws each headline theorem rests on. The verdict of
+[res.on.requirements]/2 joins the ill-formed-no-diagnostic verdicts of
+`Units`: it is the precise sentence for "the compiler cannot catch this".
+
+Two things the phase does not do. It does not check a law, since the
+fragment has no expressions to evaluate and a law is a statement about
+values; and it does not encode a law as a decidable property, since that
+would be a second, unverified transcription of the same prose. Its value
+is that every law has one name, one citation, and a list of the theorems
+that assume it.
+
+### The rules to transcribe, as they stand in N5054
+
+Paragraph numbers counted from `\pnum`, as `make drift-check` does. In
+the concepts library a concept's definition precedes its first numbered
+paragraph, so a body is cited at the paragraph that follows it. The
+object concepts are one section, [concepts.object]; [concept.object] is
+not a stable name.
+
+| Rule | N5054 text (abbreviated) | Model counterpart |
+|---|---|---|
+| [res.on.requirements]/1 | `Args` models `C` if `Args` satisfies `C` and meets all semantic requirements given in the specification of `C`. | `Program.models laws c args`: the normal form of `c<args>` satisfied, and every `Semantic` of `c` held by `laws`, an oracle nothing computes. |
+| [res.on.requirements]/2 | If the validity or meaning of a program depends on whether arguments model a concept, and the concept is satisfied but not modeled, the program is ill-formed, no diagnostic required. | `IllFormedNdr.satisfiedNotModeled`, the verdict `Program.modelVerdicts` gives at a use where a law is not claimed. |
+| [res.on.requirements]/3 | If the semantic requirements of a declaration's constraints are not modeled at the point of use, ill-formed, no diagnostic required. | `Program.conceptUses`: the concept-ids of the selected candidate's constraint, with the deduced arguments substituted, are the uses whose modelling the call depends on. |
+| [structure.requirements]/8 | Required operations need not be total functions; some arguments may make the required semantics fail; this does not affect whether a type models the concept. | The `Semantic` docstring: a law is stated on the domain of its expressions; the model's oracle takes it as given. |
+| [concepts.equality]/1, /2, /3 | An expression is equality-preserving if equal inputs give equal outputs; the domain of an expression is the inputs for which it is required to be well-defined; equality-preserving expressions are stable. | `Semantic` constants `equalityPreserving` and `stable`, the vocabulary the library's laws are written in. |
+| [concepts.equality]/4 | Expressions declared in a requires-expression in the library clauses are required to be equality-preserving unless annotated otherwise. | Each library concept's `Decl.semantic` includes `equalityPreserving` unless the concept's text annotates its expression, as `invocable` does. |
+| [concepts.equality]/5, /6 | Which operands an expression may modify; implicit expression variations, required to meet the same semantics. | `Semantic` constants `nonModifying` and `implicitVariations`. |
+| [concepts.equality]/8 | A type that meets the stated syntactic requirements of a concept but not the implicit ones satisfies but does not model it. | `@[std example]` theorem: a type satisfying a concept with an unclaimed law gets the verdict. |
+| [concept.same]/1 | `same_as<T, U>` subsumes `same_as<U, T>` and vice versa. | `same_as` as a `conceptDef` over `is_same` both ways; `same_as_symmetric`, a theorem of normalization. |
+| [concept.derived]/1 | `derived_from<Derived, Base>` is satisfied iff `Derived` is publicly and unambiguously derived from `Base`, or they are the same class. | `derived_from` over `is_base_of` and a pointer conversion the fragment lacks, a residue atom. |
+| [concept.convertible]/1, /2 | `convertible_to` requires implicit and explicit convertibility; models only if the two produce equal results and the source is left as stated. | Body over `is_convertible` and a residue atom for the `static_cast`; `Semantic` `convertibleToEqual`. |
+| [concept.destructible]/1 | `destructible<T> = is_nothrow_destructible_v<T>`. | `Trait.isNothrowDestructible`, equal to `is_destructible` in the fragment: no declaration has a noexcept-specifier, so a destructor has the exception specification of an implicitly declared one ([class.dtor]/6). |
+| [concept.constructible]/1 | `constructible_from<T, Args...> = destructible<T> && is_constructible_v<T, Args...>`. | A `conceptDef`. |
+| [concept.default.init]/1 | `default_initializable<T> = constructible_from<T> && requires { T{}; } && is-default-initializable<T>`, where the last is `T t;` well-formed. | A `conceptDef` over `is_default_constructible`, which is `T t;`; `T{}` is value-initialization in the fragment's classes, noted. |
+| [concept.moveconstructible]/1 | Body; models only if `T u = rv;` and `T(rv)` equal the value `rv` had, and `rv` is left valid but unspecified. | A `conceptDef`; `Semantic` `moveConstructibleEqual`. |
+| [concept.copyconstructible]/1 | Body; models only if the copy equals `v` and `v` is not modified. | A `conceptDef`; `Semantic` `copyConstructibleEqual`. |
+| [concept.assignable]/1, /2 | `assignable_from<LHS, RHS>`: `LHS` an lvalue reference, a common reference, and `lhs = rhs` of type `LHS`; models only if the assignment returns `lhs`, leaves `lhs` equal to `rhs`'s value, and treats `rhs` as stated; need not be total. | A `conceptDef` over `is_lvalue_reference`, `is_assignable` and a residue atom for the common reference; `Semantic` `assignableFromEqual`. |
+| [concept.swappable]/1, /2, /3, /4 | Exchanging values; `ranges::swap`, with a selected `swap` that does not exchange values ill-formed, no diagnostic required; `swappable<T> = requires(T& a, T& b) { ranges::swap(a, b); }`; the semantics are the customization point's. | A `conceptDef` over a residue atom; `Semantic` `swapExchanges`; /2's verdict is the same verdict at the `swap` use. |
+| [concept.booleantestable]/1, /2 | `boolean-testable-impl<T> = convertible_to<T, bool>`; models only if no `operator&&` or `operator||` is found. | A `conceptDef`; `Semantic` `booleanTestableNoLogicalOperators`. |
+| [concept.equalitycomparable]/1, /2, /3 | `weakly-equality-comparable-with`, the four comparisons boolean-testable; models only if they share a domain and agree; `equality_comparable<T>` models only if `==` is `true` exactly for equal values; the note that equality preservation makes `==` symmetric and transitive. | A `conceptDef` over a residue atom for the comparison operators; `Semantic` `weaklyEqualityComparable`, `equalityComparableEqual`. |
+| [concepts.object]/1, /2, /3 | `movable`, `copyable`, `semiregular`, `regular` as conjunctions; `semiregular` is modeled by types that behave like `int` without `==`, `regular` with it. | `conceptDef`s; `regular_refines`: each subsumes the one before by normalization. |
+| [concept.invocable]/1, /2 | `invocable<F, Args...>` by `invoke`, not required to be equality-preserving; a random number generator can model it. | A `conceptDef` over `is_invocable`, with no `equalityPreserving` law. |
+| [concept.regularinvocable]/1, /2, /3 | `regular_invocable = invocable`; the call shall be equality-preserving and not modify the function object or arguments; the distinction is purely semantic. | A `conceptDef` with the same body and the law `equalityPreserving`; `regular_invocable_semantic_only`: the two normal forms are equal, so satisfaction agrees and only the laws differ. |
+| [class.dtor]/6 | A destructor declaration without a noexcept-specifier has the exception specification of an implicitly declared one. | `isNothrowDestructible` equals `isDestructible` on the fragment. |
+
+Out of the fragment: `common_reference_with` and the common reference
+type, `derived_from`'s pointer conversion, the comparison operators and
+`ranges::swap` as expressions (each a residue atom in a concept's body,
+answered by a case's table), `totally_ordered` and the ordering concepts,
+`equality_comparable_with`'s cross-type requirement, `is_nothrow_`
+beyond destruction, `predicate` and `relation`, and any law's truth.
+Recorded in `decisions.md#semantic-requirements`.
+
+### Design
+
+- **A semantic requirement.** `Semantic` is a slug and a statement, the
+  slug kebab-case and named for the question, the statement the
+  requirement in words, with the citation on the Lean constant that
+  defines it. Nothing decides one: `Laws := Semantic → List Ty → Prop`
+  is the oracle, a hypothesis a theorem states. The Standard's are in
+  `Overload/Concepts.lean`; the encoding's laws, which the Standard does
+  not state, are in `Overload/Typeclass/Laws.lean` with their source in
+  the statement. `Decl.semantic concept law` attaches a requirement to a
+  concept's specification, its own declaration after the `conceptDef`,
+  as a member or a conversion is after its class.
+- **Modelling.** `Program.laws c` is the requirements of `c`'s
+  specification and, through the concept-ids in its body, of the
+  concepts it is defined in terms of: modelling `regular` is modelling
+  `semiregular` and `equality_comparable`. `Program.models env laws c
+  args` is satisfaction of the normal form of `c<args>` and every law
+  held; `models_satisfies` is the one direction the text gives.
+- **The verdict.** A case claims laws as it claims atomics, a table
+  `claims : List (Semantic × List Ty)`. `Program.conceptUses` takes the
+  selected candidate of a call and lists the concept-ids its template's
+  constraint-expression names, with the deduced arguments substituted,
+  which are the uses the call's validity depends on
+  ([res.on.requirements]/3). `Program.modelVerdicts` gives
+  `IllFormedNdr.satisfiedNotModeled c args law` for each such use that
+  is satisfied with a law not claimed. `satisfied_not_modeled_verdict`:
+  a claimed law gives no verdict, an unclaimed one names it; the example
+  of [concepts.equality]/8 reproduces as a program.
+- **The library's concepts.** `Overload/Concepts.lean` transcribes the
+  concepts above as a `Program` of `conceptDef`s and `semantic`s,
+  `libraryConcepts`, over the traits of phase 12 and residue atoms for
+  the expressions the fragment lacks. `Trait.isNothrowDestructible` is
+  added, equal to `isDestructible` by [class.dtor]/6. Theorems:
+  `same_as_symmetric`, `regular_refines` (regular subsumes semiregular
+  subsumes copyable subsumes copy_constructible subsumes
+  move_constructible), `regular_invocable_semantic_only`. Emitted cases
+  put two overloads under `semiregular` and `regular` at a class and
+  check the more refined is selected, with the residue atoms declared as
+  string-bodied concepts in the C++.
+- **The audit.** `#owes decl` lists the `Semantic` constants in a
+  declaration's closure, as `#rests_on` lists sentences: the laws a
+  theorem assumes. `Overload.lean` runs it on the encoding's headline
+  theorems, and `coherence` and `stability` owe none.
+- **The encoding.** `Overload/Typeclass/Laws.lean` names the Functor,
+  Applicative and Monad laws and the superclass-agreement law, which the
+  plan's inheritance section calls a law on instance authors, as
+  `Semantic`s attached to the encoding's concepts. `superclass_coherence_owed`:
+  a Monad instance that satisfies the Monad concept and claims no
+  superclass agreement gets the verdict at a use of `as_functor`, and
+  one that claims it gets none, which is the obligations table's
+  "undiagnosable" row as a theorem. `coherence_owes_no_law` and
+  `stability_owes_no_law`: the two headline theorems of lookup mention
+  no `Semantic`, checked by `#owes`.
+- **The obligations table.** Each row that is a law gains the slug of
+  its `Semantic`, and `docs/obligations.md` gains a section listing the
+  model's semantic requirements with the theorems that owe each, from
+  `#owes`.
+
+### Stages
+
+1. [record-phase-thirteen](#record-phase-thirteen), docs only: this
+   section, the phase row, the status, the theorem rows, the decision
+   entry, `Overload.Std.inScope`.
+2. [semantic-requirements](#semantic-requirements): `Semantic`,
+   `Decl.semantic`, `Program.laws`, `Laws`, `Program.models`,
+   `models_satisfies`, `Program.conceptUses`, `Program.modelVerdicts`,
+   `IllFormedNdr.satisfiedNotModeled`, `satisfied_not_modeled_verdict`,
+   the [concepts.equality]/8 example, `#owes`.
+3. [library-concepts](#library-concepts): `Overload/Concepts.lean`,
+   `Trait.isNothrowDestructible`, `same_as_symmetric`,
+   `regular_refines`, `regular_invocable_semantic_only`, emitted cases.
+4. [typeclass-laws](#typeclass-laws): `Overload/Typeclass/Laws.lean`,
+   `superclass_coherence_owed`, `coherence_owes_no_law`,
+   `stability_owes_no_law`, emitted cases.
+5. [semantic-docs](#semantic-docs): the guide, the obligations with the
+   slugs and the `#owes` section, the findings, this status,
+   `citations.md`, `make drift-check-current`.
 
 ## Draft citations and prior art
 
