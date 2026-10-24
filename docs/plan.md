@@ -608,16 +608,20 @@ Status, 15 October 2026:
   (`findings.md`). [expr.prim.req.compound]/1 and
   [expr.prim.req.nested]/1 leave the in-scope list until compound and
   nested requirements land.
-- Phase 13 is planned, 24 October 2026: semantic requirements as named,
-  cited statements nothing decides; modelling as satisfaction plus
-  hypotheses, with the verdict of [res.on.requirements]/2 for a
-  satisfied concept not modeled; the library's concepts transcribed with
-  their laws; the typeclass laws named; and `#owes`, the audit of the
-  laws each theorem rests on. The plan, the cross-reference against
-  N5054 and the stages are
+- Phase 13 is closed, 24 October 2026, planned and landed the same day,
+  on its exit criterion: every law a headline theorem of the encoding
+  rests on is named and listed by `#owes`, and the headline theorems of
+  lookup owe none; the library's object concepts subsume one another by
+  normalization (`regular_refines`); the superclass-coherence obligation
+  is a theorem with its law as hypothesis (`superclass_coherence_owed`).
+  Semantic requirements are named, cited statements nothing decides;
+  modelling is satisfaction plus hypotheses, with the verdict of
+  [res.on.requirements]/2 for a satisfied concept not modeled; the
+  library's concepts are transcribed with their laws; the typeclass laws
+  are named. The plan, the cross-reference against N5054 and the stages
+  are
   [below](#phase-13-semantic-requirements-what-satisfies-and-what-models).
-  Its in-scope paragraphs are listed and uncovered until the stages
-  land. Settles semantic-requirements. Stage 2, semantic-requirements,
+  Settles semantic-requirements. Stage 2, semantic-requirements,
   landed the same day: `Semantic`, `Decl.semantic`, `Program.laws`
   through a concept's body, `Laws`, `Program.models` with
   `models_satisfies`, `Program.conceptUses`, `Program.modelVerdicts`
@@ -651,6 +655,11 @@ Status, 15 October 2026:
   `call_stability`, `inheritance_erasure` and `superclass_identity` owe
   no law is an audit, `#owes` in `Overload.lean` and a test, not a
   theorem, as `#audit` is.
+  Stage 5, semantic-docs, closed the phase: the guide, the obligations
+  with the slugs and the semantic-requirements section, this status,
+  `citations.md` with every in-scope paragraph covered, and `make
+  drift-check-current`, which reports the five known editorial drifts
+  and no other.
 
 ## Target theorems
 
