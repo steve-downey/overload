@@ -12,6 +12,7 @@ import OverloadTest.Traits
 import OverloadTest.Requires
 import OverloadTest.Models
 import OverloadTest.Concepts
+import OverloadTest.Laws
 import OverloadTest.Inheritance
 import OverloadTest.Ordering
 import OverloadTest.Lookup

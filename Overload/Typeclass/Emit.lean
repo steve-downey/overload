@@ -7,6 +7,7 @@ import Overload.Typeclass.Members
 import Overload.Typeclass.Lookup
 import Overload.Typeclass.Conversion
 import Overload.Typeclass.ValueNature
+import Overload.Typeclass.Laws
 import Overload.Typeclass.Arguments
 
 /-!
@@ -650,6 +651,17 @@ def refinementSelectsMonad : Case :=
     source := "computed by Program.call"
     atomics := monadShapes }
 
+/-- The Monad-constrained algorithm selects at a Monad instance; the laws
+it owes are comments in the C++, since no compiler can check them. -/
+def monadAlgorithmSelects : Case :=
+  { name := "monad_algorithm_selects"
+    cite := cite "res.on.requirements#1"
+    program := [ .concept "functor_shape" "true", .concept "applicative_shape" "true"
+               , .concept "monad_shape" "true" ] ++ monadAlgorithm
+    query := .call "run" [{ ty := .named "monad_i", lvalue := true }] (.selected 0)
+    source := "computed by Program.call"
+    atomics := monadShapes }
+
 /-- Every case of the encoding. -/
 def cases : List Case :=
   [ opObjectSelects, opObjectNormalizedKey, opObjectMissingSoft, opObjectAmbiguousHard
@@ -663,7 +675,7 @@ def cases : List Case :=
   , conversionLeakGeneric, conversionLeakConcrete, conversionSitesAmbiguous, conversionExplicitDead
   , routesValueConverted
   , instanceTriviallyCopyable, instanceEmpty, instanceStandardLayout, referenceInstanceNotAssignable
-  , copyConstraintShields, copyMandateIllFormed, refinementSelectsMonad ]
+  , copyConstraintShields, copyMandateIllFormed, refinementSelectsMonad, monadAlgorithmSelects ]
 
 /-- What the model computes for the encoding's cases, in the encoding's
 environment. -/
