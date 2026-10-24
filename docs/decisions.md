@@ -960,3 +960,10 @@ list a consequence of the proofs.
 **Log:**
 
 - 2026-10-24 — Decided.
+- 2026-10-24 — Landed, in five stages merged the same day: `Semantic`,
+  `Decl.semantic`, `Program.laws`, `Program.models` and the verdict in
+  stage 2; the library's concepts with their laws in stage 3; the
+  typeclass laws and `superclass_coherence_owed` in stage 4. The large
+  normal forms are decided in the kernel (`decide +kernel`), resting on
+  `propext` alone. The algebraic laws, excluded from the obligations
+  table at the start, are its last section now.
