@@ -380,9 +380,9 @@ def orderEnv : Env :=
       else .ok true }
 
 theorem call_order_matters :
-    constraintStep orderEnv (some (conjunctionOf ("registered", []) [("combine_call", [])])) [] =
+    constraintStep orderEnv (some (conjunctionOf (.expr "registered", []) [(.expr "combine_call", [])])) [] =
       .soft "associated constraints not satisfied" ∧
-    constraintStep orderEnv (some (conjunctionOf ("combine_call", []) [("registered", [])])) [] =
+    constraintStep orderEnv (some (conjunctionOf (.expr "combine_call", []) [(.expr "registered", [])])) [] =
       .hard "Monoid<V> is incomplete" := by
   constructor <;> rfl
 

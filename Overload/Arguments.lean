@@ -1,6 +1,7 @@
 -- Overload/Arguments.lean                                            -*-lean-*-
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 import Overload.Program
+import Overload.Types
 
 /-!
 # Template arguments and their conversion
@@ -26,38 +27,10 @@ because a constant's value lies in its own type's range.
 
 namespace Overload
 
-/-! ## Integer types -/
+/-! ## Integer types
 
-/-- The integer types of the fragment, by name, with the least and
-greatest value each represents. The widths are the `integer-widths`
-decision: LP64, `char` signed, and `bool` an integer type with range 0
-to 1. -/
-@[assumed "integer-widths", std rule "basic.fundamental#4"]
-def integerTypes : List (String × Int × Int) :=
-  [ ("bool", 0, 1)
-  , ("char", -128, 127), ("signed char", -128, 127), ("unsigned char", 0, 255)
-  , ("short", -32768, 32767), ("unsigned short", 0, 65535)
-  , ("int", -2147483648, 2147483647)
-  , ("unsigned", 0, 4294967295), ("unsigned int", 0, 4294967295)
-  , ("long", -9223372036854775808, 9223372036854775807)
-  , ("unsigned long", 0, 18446744073709551615)
-  , ("long long", -9223372036854775808, 9223372036854775807)
-  , ("unsigned long long", 0, 18446744073709551615) ]
-
-/-- The range of an integer type, by name; `none` for any other name. -/
-def integerRange (n : String) : Option (Int × Int) :=
-  (integerTypes.find? (·.1 = n)).map (·.2)
-
-/-- Is the name an integer type of the fragment? -/
-def isInteger (n : String) : Bool := (integerRange n).isSome
-
-/-- Whether an integer type represents a value: the value lies in the
-type's range of representable values. -/
-@[std rule "basic.fundamental#1"]
-def representable (n : String) (v : Int) : Option Bool :=
-  match integerRange n with
-  | some (lo, hi) => some (decide (lo ≤ v ∧ v ≤ hi))
-  | none => none
+The integer types and their ranges are `Overload/Types.lean`'s
+(`integerTypes`, `representable`). -/
 
 /-- Does the target type represent every value of the source type: its
 range includes the source's. -/

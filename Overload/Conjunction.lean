@@ -23,14 +23,14 @@ over an instance (`Overload/Typeclass/Members.lean`).
 namespace Overload
 
 def conjunctionOf : Constraint.Atomic → List Constraint.Atomic → Constraint
-  | (e, m), [] => .atomic e m
-  | (e, m), b :: bs => .conj (.atomic e m) (conjunctionOf b bs)
+  | a, [] => Constraint.ofAtomic a
+  | a, b :: bs => .conj (Constraint.ofAtomic a) (conjunctionOf b bs)
 
 /-- The answer of each atomic constraint, once the deduced arguments are
 substituted. -/
 def answers (oracle : Constraint.Oracle) (σ : Bindings) (calls : List Constraint.Atomic) :
     List (Subst Bool) :=
-  calls.map fun c => oracle c.1 (c.2.map (Ty.subst σ))
+  calls.map (Constraint.answer oracle σ)
 
 /-- How a conjunction reads the answers of its atomic constraints: left to
 right, stopping at the first that is not valid and true. -/
@@ -58,18 +58,16 @@ theorem satisfied_conjunctionOf (oracle : Constraint.Oracle) (σ : Bindings) (a 
     Constraint.satisfied oracle σ (conjunctionOf a as) = answersAll (answers oracle σ (a :: as)) := by
   induction as generalizing a with
   | nil =>
-    obtain ⟨e, m⟩ := a
-    simp only [conjunctionOf, answers, List.map, answersAll, Constraint.satisfied_atomic]
-    cases Constraint.atomicAnswer (oracle e (m.map (Ty.subst σ))) with
+    simp only [conjunctionOf, answers, List.map, answersAll, Constraint.satisfied_ofAtomic]
+    cases Constraint.atomicAnswer (Constraint.answer oracle σ a) with
     | ok b => cases b <;> rfl
     | soft _ => rfl
     | hard _ => rfl
   | cons b bs ih =>
-    obtain ⟨e, m⟩ := a
-    simp only [conjunctionOf, Constraint.satisfied]
-    rw [ih b]
+    simp only [conjunctionOf, Constraint.satisfied, Subst.bind_eq]
+    rw [ih b, Constraint.satisfied_ofAtomic]
     simp only [answers, List.map, answersAll]
-    cases oracle e (m.map (Ty.subst σ)) with
+    cases Constraint.atomicAnswer (Constraint.answer oracle σ a) with
     | ok v => cases v <;> rfl
     | soft _ => rfl
     | hard _ => rfl

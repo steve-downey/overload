@@ -8,10 +8,12 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 
 | Citation | Role | Declaration | Module |
 |---|---|---|---|
+| [[basic.compound]/1](https://eel.is/c++draft/basic.compound#1) | rule | `Overload.Ty.isCompound` | `Overload.Types` |
+| [[basic.compound]/1](https://eel.is/c++draft/basic.compound#1) | rule | `Overload.Ty.isFunction` | `Overload.Types` |
 | [[basic.def.odr]/16](https://eel.is/c++draft/basic.def.odr#16) | rule | `Overload.IllFormedNdr.odrMismatch` | `Overload.Units` |
 | [[basic.def.odr]/16](https://eel.is/c++draft/basic.def.odr#16) | rule | `Overload.Units.odrVerdicts` | `Overload.Units` |
-| [[basic.fundamental]/1](https://eel.is/c++draft/basic.fundamental#1) | rule | `Overload.representable` | `Overload.Arguments` |
-| [[basic.fundamental]/4](https://eel.is/c++draft/basic.fundamental#4) | rule | `Overload.integerTypes` | `Overload.Arguments` |
+| [[basic.fundamental]/1](https://eel.is/c++draft/basic.fundamental#1) | rule | `Overload.representable` | `Overload.Types` |
+| [[basic.fundamental]/4](https://eel.is/c++draft/basic.fundamental#4) | rule | `Overload.integerTypes` | `Overload.Types` |
 | [[basic.link]/4](https://eel.is/c++draft/basic.link#4) | rule | `Overload.Decl.linkage` | `Overload.Scope` |
 | [[basic.link]/8](https://eel.is/c++draft/basic.link#8) | rule | `Overload.sameEntity` | `Overload.Scope` |
 | [[basic.link]/11](https://eel.is/c++draft/basic.link#11) | rule | `Overload.sameKind` | `Overload.Scope` |
@@ -21,7 +23,9 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.base` | `Overload.Adl` |
 | [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.cv` | `Overload.Adl` |
 | [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.lvalueReference` | `Overload.Adl` |
+| [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.parameter` | `Overload.Adl` |
 | [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.pointer` | `Overload.Adl` |
+| [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.returnType` | `Overload.Adl` |
 | [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.rvalueReference` | `Overload.Adl` |
 | [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.self` | `Overload.Adl` |
 | [[basic.lookup.argdep]/3](https://eel.is/c++draft/basic.lookup.argdep#3) | rule | `Overload.AssociatedEntity.specialization` | `Overload.Adl` |
@@ -57,6 +61,8 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[basic.scope.scope]/4](https://eel.is/c++draft/basic.scope.scope#4) | rule | `Overload.corresponds` | `Overload.Scope` |
 | [[basic.scope.scope]/6 sentence 1](https://eel.is/c++draft/basic.scope.scope#6.sentence-1) | rule | `Overload.potentiallyConflict` | `Overload.Scope` |
 | [[basic.scope.scope]/6 sentence 2](https://eel.is/c++draft/basic.scope.scope#6.sentence-2) | rule | `Overload.Program.conflicts` | `Overload.Scope` |
+| [[basic.types.general]/6](https://eel.is/c++draft/basic.types.general#6) | rule | `Overload.Ty.isObject` | `Overload.Types` |
+| [[basic.types.general]/7](https://eel.is/c++draft/basic.types.general#7) | rule | `Overload.Ty.isScalar` | `Overload.Types` |
 | [[class.access.base]/4](https://eel.is/c++draft/class.access.base#4) | rule | `Overload.Program.accessibleBase` | `Overload.Access` |
 | [[class.conv.ctor]/1](https://eel.is/c++draft/class.conv.ctor#1) | rule | `Overload.UserConv.constructor` | `Overload.Program` |
 | [[class.conv.fct]/2](https://eel.is/c++draft/class.conv.fct#2) | rule | `Overload.UserConv.function` | `Overload.Program` |
@@ -65,6 +71,9 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[class.conv.general]/2](https://eel.is/c++draft/class.conv.general#2) | rule | `Overload.Program.call` | `Overload.Access` |
 | [[class.conv.general]/4](https://eel.is/c++draft/class.conv.general#4) | theorem | `Overload.ics_one_user_defined` | `Overload.Ranking` |
 | [[class.derived.general]/2](https://eel.is/c++draft/class.derived.general#2) | rule | `Overload.Program.derives` | `Overload.Ranking` |
+| [[class.mem.general]/5](https://eel.is/c++draft/class.mem.general#5) | rule | `Overload.Decl.member` | `Overload.Program` |
+| [[class.mem.general]/5](https://eel.is/c++draft/class.mem.general#5) | rule | `Overload.Member` | `Overload.Program` |
+| [[class.mem.general]/15](https://eel.is/c++draft/class.mem.general#15) | rule | `Overload.Member` | `Overload.Program` |
 | [[class.member.lookup]/3](https://eel.is/c++draft/class.member.lookup#3) | rule | `Overload.LookupSetRel.here` | `Overload.Members` |
 | [[class.member.lookup]/3 sentence 1](https://eel.is/c++draft/class.member.lookup#3.sentence-1) | rule | `Overload.Program.declarationSet` | `Overload.Members` |
 | [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4) | rule | `Overload.LookupSetRel.bases` | `Overload.Members` |
@@ -92,6 +101,21 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[expr.const.const]/8](https://eel.is/c++draft/expr.const.const#8) | rule | `Overload.ConvertsTo.reference` | `Overload.Arguments` |
 | [[expr.const.const]/8](https://eel.is/c++draft/expr.const.const#8) | rule | `Overload.integralConversion` | `Overload.Arguments` |
 | [[lex.icon]/3 sentence 1](https://eel.is/c++draft/lex.icon#3.sentence-1) | rule | `Overload.literalType` | `Overload.Arguments` |
+| [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Trait.isSame` | `Overload.Types` |
+| [[meta.unary.cat]/3](https://eel.is/c++draft/meta.unary.cat#3) | rule | `Overload.Trait.isClass` | `Overload.Types` |
+| [[meta.unary.cat]/3](https://eel.is/c++draft/meta.unary.cat#3) | rule | `Overload.Trait.isFunction` | `Overload.Types` |
+| [[meta.unary.cat]/3](https://eel.is/c++draft/meta.unary.cat#3) | rule | `Overload.Trait.isIntegral` | `Overload.Types` |
+| [[meta.unary.cat]/3](https://eel.is/c++draft/meta.unary.cat#3) | rule | `Overload.Trait.isLvalueReference` | `Overload.Types` |
+| [[meta.unary.cat]/3](https://eel.is/c++draft/meta.unary.cat#3) | rule | `Overload.Trait.isPointer` | `Overload.Types` |
+| [[meta.unary.cat]/3](https://eel.is/c++draft/meta.unary.cat#3) | rule | `Overload.Trait.isRvalueReference` | `Overload.Types` |
+| [[meta.unary.cat]/3](https://eel.is/c++draft/meta.unary.cat#3) | rule | `Overload.Trait.isVoid` | `Overload.Types` |
+| [[meta.unary.cat]/3](https://eel.is/c++draft/meta.unary.cat#3) | theorem | `Overload.primary_category_unique` | `Overload.Types` |
+| [[meta.unary.comp]/2](https://eel.is/c++draft/meta.unary.comp#2) | rule | `Overload.Trait.isCompound` | `Overload.Types` |
+| [[meta.unary.comp]/2](https://eel.is/c++draft/meta.unary.comp#2) | rule | `Overload.Trait.isFundamental` | `Overload.Types` |
+| [[meta.unary.comp]/2](https://eel.is/c++draft/meta.unary.comp#2) | rule | `Overload.Trait.isObject` | `Overload.Types` |
+| [[meta.unary.comp]/2](https://eel.is/c++draft/meta.unary.comp#2) | rule | `Overload.Trait.isReference` | `Overload.Types` |
+| [[meta.unary.comp]/2](https://eel.is/c++draft/meta.unary.comp#2) | rule | `Overload.Trait.isScalar` | `Overload.Types` |
+| [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isConst` | `Overload.Types` |
 | [[module.context]/5](https://eel.is/c++draft/module.context#5) | rule | `Overload.Program.dependentLookup` | `Overload.DependentCandidate` |
 | [[over.best.ics.general]/1](https://eel.is/c++draft/over.best.ics.general#1) | rule | `Overload.Ics` | `Overload.Ranking` |
 | [[over.best.ics.general]/3](https://eel.is/c++draft/over.best.ics.general#3) | rule | `Overload.Ics.standard` | `Overload.Ranking` |
@@ -232,6 +256,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.deduct.type]/5](https://eel.is/c++draft/temp.deduct.type#5) | rule | `Overload.DeduceTy.removeCvref` | `Overload.Deduction` |
 | [[temp.deduct.type]/5](https://eel.is/c++draft/temp.deduct.type#5) | rule | `Overload.DeduceTy.typeOf` | `Overload.Deduction` |
 | [[temp.deduct.type]/8 sentence 1](https://eel.is/c++draft/temp.deduct.type#8.sentence-1) | rule | `Overload.DeduceTy.const` | `Overload.Deduction` |
+| [[temp.deduct.type]/8 sentence 1](https://eel.is/c++draft/temp.deduct.type#8.sentence-1) | rule | `Overload.DeduceTy.fn` | `Overload.Deduction` |
 | [[temp.deduct.type]/8 sentence 1](https://eel.is/c++draft/temp.deduct.type#8.sentence-1) | rule | `Overload.DeduceTy.lref` | `Overload.Deduction` |
 | [[temp.deduct.type]/8 sentence 1](https://eel.is/c++draft/temp.deduct.type#8.sentence-1) | rule | `Overload.DeduceTy.param` | `Overload.Deduction` |
 | [[temp.deduct.type]/8 sentence 1](https://eel.is/c++draft/temp.deduct.type#8.sentence-1) | rule | `Overload.DeduceTy.ptr` | `Overload.Deduction` |
@@ -288,11 +313,6 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 ## In scope, no counterpart yet
 
 - [[basic.types.general]/1](https://eel.is/c++draft/basic.types.general#1)
-- [[basic.types.general]/6](https://eel.is/c++draft/basic.types.general#6)
-- [[basic.types.general]/7](https://eel.is/c++draft/basic.types.general#7)
-- [[basic.compound]/1](https://eel.is/c++draft/basic.compound#1)
-- [[class.mem.general]/5](https://eel.is/c++draft/class.mem.general#5)
-- [[class.mem.general]/15](https://eel.is/c++draft/class.mem.general#15)
 - [[special]/1](https://eel.is/c++draft/special#1)
 - [[special]/5](https://eel.is/c++draft/special#5)
 - [[special]/6](https://eel.is/c++draft/special#6)
@@ -324,11 +344,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 - [[over.match.general]/4](https://eel.is/c++draft/over.match.general#4)
 - [[class.prop]/1](https://eel.is/c++draft/class.prop#1)
 - [[class.prop]/2](https://eel.is/c++draft/class.prop#2)
-- [[meta.unary.cat]/3](https://eel.is/c++draft/meta.unary.cat#3)
-- [[meta.unary.comp]/2](https://eel.is/c++draft/meta.unary.comp#2)
-- [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5)
 - [[meta.unary.prop]/9](https://eel.is/c++draft/meta.unary.prop#9)
-- [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3)
 - [[meta.rel]/6](https://eel.is/c++draft/meta.rel#6)
 - [[temp.constr.normal]/1](https://eel.is/c++draft/temp.constr.normal#1)
 - [[expr.prim.req.general]/5](https://eel.is/c++draft/expr.prim.req.general#5)

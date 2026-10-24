@@ -109,11 +109,35 @@ three lints: `#check_citations`, `#audit`, `#check_layering`.
 
 `Overload/Syntax.lean`: `Ty`, `Val` for constant template argument
 values, substitution of bindings into a type (`Ty.subst`), and
-template-argument equivalence. `Val.Equivalent` transcribes [temp.type]/2
+template-argument equivalence. `Ty.fn params ret` is a function type,
+with the parameter list a `nil`/`cons` chain like a template argument
+list (`decisions.md#function-types`); deduction compares it as it
+compares a specialization, part by part. `Val.Equivalent` transcribes [temp.type]/2
 and `Val.equivalent_iff` says it is structural equality on the values the
 fragment has. Constant arguments are structural values, trees with
 decidable equality, and that equality is the model's notion of two
 template arguments being the same.
+
+### Types
+
+`Overload/Types.lean`: the type categories of [basic.types] on the
+fragment, and the structural type traits as queries. `integerTypes` is
+the fragment's integer types with their ranges under LP64
+(`decisions.md#integer-widths`) and `representable` whether a type
+holds a value. `Ty.concrete` is a ground type the fragment can spell.
+The primary categories, `isVoid`, `isIntegral`, `isPointer`,
+`isLvalueReference`, `isRvalueReference`, `isClass`, `isFunction`, each
+look through a top-level `const`; `Ty.primaryCategory` names the one
+that holds, and `primary_category_unique` proves that exactly one does
+of every concrete type ([meta.unary.cat]/3). The composite categories
+follow [basic.types.general]/6 and /7: `isObject`, `isScalar`,
+`isReference`, `isCompound`, `isFundamental`; `isConst` is top-level
+only. `removeConst`, `removeReference`, `stripCvref` and
+`addLvalueReference` are the transformations. `Trait` is the queries a
+constraint can state, `Trait.answer` answers one from the types alone,
+`soft` for a dependent type or a wrong arity and never `hard`
+(`Trait.answer_not_hard`). The traits that ask about members, special
+member functions or layout come in later stages of phase 12.
 
 ### Outcome
 
@@ -150,11 +174,16 @@ before deducing, so this covers `T`, `const T&`, `T&&` and `C<T>*`.
 
 ### Constraint
 
-`Overload/Constraint.lean`: constraints as `atomic`, `conj`, `disj`;
-satisfaction ([temp.constr.atomic]/3) as left-to-right evaluation that
-treats an invalid substitution as not satisfied; and subsumption
-([temp.constr.order]/1) by disjunctive and conjunctive normal form with
-atomic identity ([temp.constr.atomic]/2).
+`Overload/Constraint.lean`: constraints as `atomic`, `trait`, `conj`,
+`disj`; satisfaction ([temp.constr.atomic]/3) as left-to-right
+evaluation that treats an invalid substitution as not satisfied; and
+subsumption ([temp.constr.order]/1) by disjunctive and conjunctive
+normal form with atomic identity ([temp.constr.atomic]/2). An `atomic`
+constraint is an expression by name, answered by the environment's
+oracle; a `trait` constraint is a `Trait` query, answered by
+`Trait.answer` from the substituted types, so no oracle is consulted. A
+clause element, `Atomic`, is an `Atom`, expression or trait, with its
+mapping, and `Constraint.answer` reads either.
 
 The results are the whole of what the Standard's ordering of constraints
 amounts to on this fragment.
@@ -180,7 +209,10 @@ amounts to on this fragment.
 ### Program
 
 `Overload/Program.lean`: programs as ordered lists of declarations,
-`Decl`: classes with public and protected bases, class templates,
+`Decl`: classes with public and protected bases, their non-static data
+members as `member` declarations after the class (`Member`: name, type,
+and whether it has a default member initializer; `Program.membersOf`
+lists them in order), class templates,
 functions, function templates (`FunctionTemplate`: head, parameter types,
 default arguments, return type, associated constraint, Mandates), a
 variable template as `lookup` or `lookupHard` (a primary with a value, or
@@ -206,10 +238,9 @@ template. `Units` removes it.
 ### Arguments
 
 `Overload/Arguments.lean`: the conversion of a constant template argument
-to its parameter's type ([temp.arg.nontype]). `integerTypes` is the
-fragment's integer types with their ranges under LP64
-(`decisions.md#integer-widths`), `representable` whether a type holds a
-value, `literalType` the type of an integer literal ([lex.icon]/3), and
+to its parameter's type ([temp.arg.nontype]). The integer types and
+their ranges are `Types`'s; here `literalType` is the type of an
+integer literal ([lex.icon]/3), and
 `Val.sourceType` the type a value's source expression has, since a value
 carries none (`decisions.md#value-typing`). `Narrowing` and `narrowing`
 are [dcl.init.list]/7 as relation and function (`narrowing_iff`), and
@@ -820,12 +851,18 @@ name lookup does not find gets a `hidden<j>` return type. A
 `dependentCall` query instantiates the dependent call declared at a
 position, rendered as a template whose trailing return type names the
 call, so the function selected is observable and a lookup failure is a
-substitution failure. A `Case` is a program, a query
-(deduction, call, lookup, or raw C++) and the expected outcome. `render`
+substitution failure. A `trait` query asks a type
+trait of argument types and asserts the model's answer against the
+`std::` trait, so every trait judgement is tested against the
+compilers' own; a trait in a requires-clause is rendered as the `std::`
+variable template. A data member is rendered in its class's body, with
+`{}` when it has a default member initializer. A `Case` is a program, a
+query (deduction, call, lookup, trait, or raw C++) and the expected
+outcome. `render`
 writes a translation unit whose `static_assert`s check the outcome in
 unevaluated contexts; a case carries its own `prelude` of fixtures beyond
 the common ones. `cases` are the Standard side's, and `computed`,
-`computedCall`, `computedLookup` are what the model says, which the tests
+`computedCall`, `computedLookup`, `computedTrait` are what the model says, which the tests
 compare with what each case states. `scripts/differential.sh` compiles
 every emitted unit with every compiler and reports where one disagrees
 with the model.

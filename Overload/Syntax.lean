@@ -119,6 +119,9 @@ inductive Ty where
   in the immediate context. An alias for a nested member type, so a
   non-deduced context. -/
   | enableIf : String → Ty → Ty → Ty
+  /-- A function type `ret(params)`, with `params` a `nil`/`cons` chain
+  ([basic.compound]/1). -/
+  | fn : Ty → Ty → Ty
   /-- The unique type that partial ordering synthesizes for a type
   template parameter ([temp.func.order]/3). No program can spell it, so
   it is a constructor of its own rather than a name. -/
@@ -229,6 +232,7 @@ def Ty.subst (σ : Bindings) : Ty → Ty
   | .removeCvref t => .removeCvref (Ty.subst σ t)
   | .typeOf t => .typeOf (Ty.subst σ t)
   | .enableIf c as t => .enableIf c (Ty.subst σ as) (Ty.subst σ t)
+  | .fn ps r => .fn (Ty.subst σ ps) (Ty.subst σ r)
   | .synth i => .synth i
 
 /-- Does the value mention a constant template parameter? -/
@@ -246,7 +250,7 @@ def Ty.dependent : Ty → Bool
   | .typeOf t =>
     Ty.dependent t
   | .spec _ as => Ty.dependent as
-  | .cons a as | .enableIf _ a as => Ty.dependent a || Ty.dependent as
+  | .cons a as | .enableIf _ a as | .fn a as => Ty.dependent a || Ty.dependent as
   | .value v => Val.dependent v
 
 /-! ## Template-argument equivalence -/
