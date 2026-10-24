@@ -915,3 +915,9 @@ cannot check.
   nature is a reference or `const` member, not a reference member alone.
   Proved for flat classes (`deleted_flat`, `value_nature_flat`,
   `pointer_member_keeps_value_nature`).
+- 2026-10-24 — Stage 6 landed. On the encoding's programs, an instance
+  type with no data members has value nature and is trivially copyable,
+  empty and standard-layout (`instance_shape_regular`), and one holding
+  a reference is structural for the value route and not assignable
+  (`reference_member_instance`): structural and value nature are
+  different properties.

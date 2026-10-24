@@ -8,6 +8,7 @@ import Overload.Typeclass.Members
 import Overload.Typeclass.Lookup
 import Overload.Typeclass.Arguments
 import Overload.Typeclass.Conversion
+import Overload.Typeclass.ValueNature
 import Overload.Typeclass.Emit
 
 /-!
@@ -38,6 +39,9 @@ the call through it.
   stability per unit.
 * `Overload.Typeclass.Conversion`: what a user-defined conversion between
   instance types would cost, and why the encoding has none.
+* `Overload.Typeclass.ValueNature`: the value nature of an instance type,
+  the callable-copying rule as constraint against Mandate, refinement by
+  normalization, and the member probe.
 * `Overload.Typeclass.Members`: the member call as a parameter, operation
   objects with several `operator()`s, and algorithms over an instance.
 * `Overload.Typeclass.Emit`: the emitted differential cases of the encoding.

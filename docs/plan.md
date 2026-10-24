@@ -577,7 +577,16 @@ Status, 15 October 2026:
   needs the return type of the function selected. The always-failing
   requirement, ill-formed no diagnostic required, is not checked; GCC 15
   and Clang 24 diagnose it, which two cases met before their failures
-  were made to depend on the argument (`findings.md`).
+  were made to depend on the argument (`findings.md`). Stage 6,
+  instance-value-nature, landed the same day:
+  `Overload/Typeclass/ValueNature.lean` with `instance_shape_regular`,
+  `reference_member_instance`, `copy_constraint_shields`,
+  `refinement_normalizes`, `refinement_selects` and
+  `member_probe_accurate`, with `member_requirement_iff_call` on the
+  Standard side, and seven emitted cases, all in agreement with GCC 15
+  and Clang 24. `Program.structural` now looks at members too. Stage 7
+  remains: the docs' status, the guide's map and the citation index are
+  current; the obligation rows cite the theorems.
 
 ## Target theorems
 
@@ -622,8 +631,8 @@ its counterexample and is a finding, not a setback.
 | deletion-propagates | A member or base whose class has a deleted or inaccessible corresponding special member deletes the enclosing class's defaulted one, through any depth ([class.default.ctor]/2, [class.copy.ctor]/10, [class.copy.assign]/7, [class.dtor]/7). Added 24 October 2026. | 12 |
 | trait-is-resolution | `is_constructible`, `is_assignable` and `is_convertible` are overload resolution over the class's constructors, assignment operators and conversions with the usable-candidate check, so a trait's answer is the call's ([meta.unary.prop]/9, [meta.rel]/6, [over.match.general]/4). Added 24 October 2026; proved the same day (`trait_is_resolution`, `is_convertible_eq_ics`). | 12 |
 | requires-soft-is-false | A requirement that fails in the immediate context makes the requires-expression `false`, checked in lexical order and stopping at the first decider; a failure outside it is a hard error ([expr.prim.req.general]/5). Added 24 October 2026; proved the same day (`requires_soft_is_false`, `requires_false_stops`, `requires_hard_stops`). | 12 |
-| copy-constraint-shields | A member constrained by copy-constructibility of its callable fails softly at a callable whose copy constructor is deleted, where the body's copy would be a hard error: the callable-copying rule as a theorem. Added 24 October 2026. | 12 |
-| refinement-normalizes | The normal form of a refined concept contains its superclass concept's atoms with the identity mapping, so the refinement subsumes by normalization alone ([temp.constr.normal]/1). Added 24 October 2026. | 12 |
+| copy-constraint-shields | A member constrained by copy-constructibility of its callable fails softly at a callable whose copy constructor is deleted, where the body's copy would be a hard error: the callable-copying rule as a theorem. Added 24 October 2026; proved the same day (`copy_constraint_shields`). | 12 |
+| refinement-normalizes | The normal form of a refined concept contains its superclass concept's atoms with the identity mapping, so the refinement subsumes by normalization alone ([temp.constr.normal]/1). Added 24 October 2026; proved the same day (`refinement_normalizes`, `refinement_selects`). | 12 |
 
 Stability is the theorem that says open polymorphism has no surprises. Its
 hypotheses are expected to include soft failure of a missing instance and

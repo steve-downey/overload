@@ -74,6 +74,7 @@ is the map.
 #audit Overload.requires_soft_is_false
 #audit Overload.requires_false_stops
 #audit Overload.requires_hard_stops
+#audit Overload.member_requirement_iff_call
 
 -- Deduction and substitution.
 #audit Overload.deduceTy_iff
@@ -300,3 +301,11 @@ is the map.
 #audit Overload.Typeclass.converted_instance_temporary
 #audit Overload.Typeclass.value_route_identifies_converted
 #audit Overload.Typeclass.explicit_conversion_dead
+
+-- The value nature of an instance type, and what a constraint owes.
+#audit Overload.Typeclass.instance_shape_regular
+#audit Overload.Typeclass.reference_member_instance
+#audit Overload.Typeclass.copy_constraint_shields
+#audit Overload.Typeclass.refinement_normalizes
+#audit Overload.Typeclass.refinement_selects
+#audit Overload.Typeclass.member_probe_accurate

@@ -109,8 +109,8 @@ theorem reference_keeps_identity (env : Env) (b : String) (r₁ r₂ : Ty) (ps :
 /-- `structuralWithin p fuel t`: is `t` a structural type, within `fuel`
 steps of derivation? A scalar type, an lvalue reference type, or a
 literal class type whose bases and members are all public and
-structural; the fragment has no data members, and a protected base is a
-non-public one. -/
+structural; every member of the fragment is public, and a protected
+base is a non-public one. -/
 def Program.structuralWithin (p : Program) : Nat → Ty → Bool
   | 0, _ => false
   | fuel + 1, t =>
@@ -119,9 +119,12 @@ def Program.structuralWithin (p : Program) : Nat → Ty → Bool
       if isInteger n then true
       else
         match p.findSome? (fun | .class m bs ps _ => if m = n then some (bs, ps) else none | _ => none) with
-        | some (bs, ps) => ps.isEmpty && bs.all (p.structuralWithin fuel)
+        | some (bs, ps) =>
+          ps.isEmpty && bs.all (p.structuralWithin fuel) &&
+            (p.membersOf (.named n)).all fun m => p.structuralWithin fuel m.ty
         | none => false
     | .lref _ => true
+    | .ptr _ => true
     | _ => false
 
 /-- A structural type. -/
