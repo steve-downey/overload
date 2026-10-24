@@ -530,7 +530,26 @@ Status, 15 October 2026:
   with GCC 15 and Clang 24. One departure: a data member is its own
   declaration after the class, `Decl.member`, as a conversion is,
   rather than a field of `Decl.class`, so the flat program and every
-  match on `Decl.class` stand.
+  match on `Decl.class` stand. Stage 3, special-members, landed the same
+  day: `Overload/Special.lean` with `Program.special`, `deleted`,
+  `trivial`, `eligible`, the candidate lists and resolution over them,
+  `copyInitUsable` in `Program.call`, and nine emitted cases observing
+  deletion through a by-value parameter, all in agreement with GCC 15
+  and Clang 24. Three departures. A user-declared special member is its
+  own declaration, `Decl.special`, like a member. The recursive
+  judgements are fuel-bounded functions cited as rules, as `derives`
+  is, not relations with agreement theorems; the fuel is the program's
+  length, since a subobject's class is complete before the class that
+  holds it. The value-nature theorems are stated for flat classes,
+  `deleted_flat`, `value_nature_flat` and
+  `pointer_member_keeps_value_nature`, where the deletion rules reduce
+  to the members' types; the propagation through class-typed members is
+  computed and tested, and its general theorem waits on lemmas about
+  resolution over a class's implicit constructors. One correction to the
+  plan's own statement: a `const` member without an initializer deletes
+  the default constructor too ([class.default.ctor]/2, through
+  [dcl.init.general]/7), so value nature fails for a reference or a
+  `const` member alike.
 
 ## Target theorems
 
@@ -571,7 +590,7 @@ its counterexample and is a finding, not a setback.
 | converted-argument-temporary | A user-defined conversion yields a prvalue: an lvalue reference parameter to non-const is not viable for it, a reference constant parameter refuses it, and a class-typed value parameter identifies every source that converts to one value. Added 23 October 2026. | 11 |
 | explicit-never-implicit | An explicit constructor or conversion function is no candidate for copy-initialization, so it forms no implicit conversion sequence at a call argument or a candidate initializer. Added 23 October 2026. | 11 |
 | instantiation-points | A dependent call referenced before a later overload of its name means different things at its two points of instantiation, which is ill-formed, no diagnostic required; a callee bound to an object has one meaning at every point. Added 22 October 2026. | 9 |
-| value-nature | For a class that declares no special member function, every defaulted special member is non-deleted exactly when no member, through class-typed members likewise, is of reference type or `const` non-class type; a pointer member deletes nothing. Added 24 October 2026. | 12 |
+| value-nature | For a class that declares no special member function, every defaulted special member is non-deleted exactly when no member, through class-typed members likewise, is of reference type or `const` type; a pointer member deletes nothing. Added 24 October 2026; proved for flat classes the same day (`value_nature_flat`), the propagation through class-typed members computed and tested. | 12 |
 | deletion-propagates | A member or base whose class has a deleted or inaccessible corresponding special member deletes the enclosing class's defaulted one, through any depth ([class.default.ctor]/2, [class.copy.ctor]/10, [class.copy.assign]/7, [class.dtor]/7). Added 24 October 2026. | 12 |
 | trait-is-resolution | `is_constructible`, `is_assignable` and `is_convertible` are overload resolution over the class's constructors, assignment operators and conversions with the usable-candidate check, so a trait's answer is the call's ([meta.unary.prop]/9, [meta.rel]/6, [over.match.general]/4). Added 24 October 2026. | 12 |
 | requires-soft-is-false | A requirement that fails in the immediate context makes the requires-expression `false`, checked in lexical order and stopping at the first decider; a failure outside it is a hard error ([expr.prim.req.general]/5). Added 24 October 2026. | 12 |

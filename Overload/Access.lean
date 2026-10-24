@@ -1,6 +1,7 @@
 -- Overload/Access.lean                                               -*-lean-*-
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 import Overload.Mandates
+import Overload.Special
 
 /-!
 # Access to a base class
@@ -70,9 +71,11 @@ the program defines (`Env.ofProgram`) or a layer above it: overload
 resolution, which ignores access and ranks an ambiguous conversion
 sequence as a user-defined one; then, on the selected function, an
 argument whose conversion is ambiguous makes the call ill-formed; then
-the access check on its conversions, after ambiguity resolution, an
-inaccessible base making the call ill-formed; then the selected
-specialization's Mandates. -/
+the copy-initialization of each by-value class parameter from an
+argument of its class, which is ill-formed when the constructor selected
+is deleted; then the access check on its conversions, after ambiguity
+resolution, an inaccessible base making the call ill-formed; then the
+selected specialization's Mandates. -/
 @[std rule "dcl.init.ref#4.sentence-3" "class.conv.general#2"]
 def call (p : Program) (env : Env) (decls : List Decl) (args : List CallArg)
     (explicit : List Ty := []) : Resolution Candidate :=
@@ -80,6 +83,8 @@ def call (p : Program) (env : Env) (decls : List Decl) (args : List CallArg)
   | .selected c =>
     if (args.zip c.params).any fun (a, t) => p.ambiguousConversion a t then
       .illFormed "the conversion of an argument is ambiguous"
+    else if !(args.zip c.params).all fun (a, t) => p.copyInitUsable a t then
+      .illFormed "the copy-initialization of a parameter uses a deleted constructor"
     else if (args.zip c.params).all fun (a, t) => p.accessibleConversion a t then
       invoke .text env p.ranking decls args explicit
     else .illFormed "conversion to an inaccessible base class"
@@ -94,6 +99,8 @@ theorem call_eq_invoke (p : Program) (env : Env) (decls : List Decl) (args : Lis
     (explicit : List Ty)
     (hamb : ∀ c, resolve .text env p.ranking decls args explicit = .selected c →
       ∀ x ∈ args.zip c.params, p.ambiguousConversion x.1 x.2 = false)
+    (husable : ∀ c, resolve .text env p.ranking decls args explicit = .selected c →
+      ∀ x ∈ args.zip c.params, p.copyInitUsable x.1 x.2 = true)
     (h : ∀ c, resolve .text env p.ranking decls args explicit = .selected c →
       ∀ x ∈ args.zip c.params, p.accessibleConversion x.1 x.2 = true) :
     p.call env decls args explicit = invoke .text env p.ranking decls args explicit := by
@@ -101,7 +108,8 @@ theorem call_eq_invoke (p : Program) (env : Env) (decls : List Decl) (args : Lis
   split
   · rename_i c hc
     simp only [List.any_eq_false.mpr fun x hx => by simpa using hamb c hc x hx,
-      List.all_eq_true.mpr fun x hx => h c hc x hx, Bool.false_eq_true, ↓reduceIte]
+      List.all_eq_true.mpr fun x hx => husable c hc x hx,
+      List.all_eq_true.mpr fun x hx => h c hc x hx, Bool.false_eq_true, ↓reduceIte, Bool.not_true]
   · rfl
 
 /-! ## A protected base -/

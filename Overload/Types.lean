@@ -238,7 +238,7 @@ theorem primary_category_unique (t : Ty) (ht : t.concrete = true) (hty : t.isTyp
   | _ =>
     cases c <;> simp_all [Ty.Category.holds, Ty.primaryCategory, Ty.isVoid, Ty.isIntegral,
       Ty.isPointer, Ty.isLvalueReference, Ty.isRvalueReference, Ty.isClass, Ty.isFunction,
-      Ty.stripConst, Ty.concrete, Ty.isType, Ty.isRef]
+      Ty.stripConst, Ty.concrete, Ty.isType]
 
 /-! ## Traits as queries -/
 

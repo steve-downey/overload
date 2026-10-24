@@ -361,17 +361,37 @@ def completeBefore (p : Program) (i : Nat) : Ty → Bool
   | .lref _ | .rref _ | .ptr _ => true
   | _ => true
 
+/-- The user-declared special member functions of a class, as member
+declarations in its body: `= default`, `= delete`, or a body that does
+nothing, which is what a user-provided one of the fragment is. -/
+def specialsText (n : String) (ss : List SmfDecl) : String :=
+  String.join (ss.map fun s =>
+    let cv := if s.constParam then "const " else ""
+    let head := match s.kind with
+      | .defaultCtor => s!"constexpr {n}()"
+      | .copyCtor => s!"constexpr {n}(const {n}&)".replace "const " cv
+      | .moveCtor => s!"constexpr {n}(const {n}&&)".replace "const " cv
+      | .copyAssign => s!"constexpr {n}& operator=(const {n}&)".replace "const " cv
+      | .moveAssign => s!"constexpr {n}& operator=(const {n}&&)".replace "const " cv
+      | .dtor => s!"constexpr ~{n}()"
+    let body := match s.body, s.kind with
+      | .defaulted, _ => " = default;"
+      | .deleted, _ => " = delete;"
+      | .userProvided, .copyAssign | .userProvided, .moveAssign => " { return *this; }"
+      | .userProvided, _ => " {}"
+    s!"    {head}{body}\n")
+
 /-- The user-defined conversions of a class, as member declarations in its
 body. A converting constructor is defined, with an empty body, so that it
 serves a constant template argument; a conversion function is defined
 when its target is complete and declared otherwise, since the cases call
-in unevaluated contexts where a declaration serves. A class with a
-converting constructor keeps a defaulted default constructor, so that an
-object of it can still be declared. -/
+in unevaluated contexts where a declaration serves. A class that needs a
+default constructor beside a converting constructor declares one as a
+special member, `= default`, since a user-declared constructor suppresses
+the implicit one ([class.default.ctor]/1). -/
 def conversionsText (p : Program) (i : Nat) (n : String) (convs : List UserConv) : String :=
   let keyword (e : Bool) := if e then "explicit " else ""
-  let dflt := if convs.any (· matches .constructor ..) then s!"    constexpr {n}() = default;\n" else ""
-  dflt ++ String.join (convs.map fun
+  String.join (convs.map fun
     | .constructor param e =>
       if completeBefore p i param then s!"    {keyword e}constexpr {n}({ty param}) \{}\n"
       else s!"    {keyword e}constexpr {n}({ty param});\n"
@@ -408,7 +428,10 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
       let data := p.filterMap fun
         | .member c m => if ofClass c then some m else none
         | _ => none
-      if members.isEmpty && convs.isEmpty && data.isEmpty then
+      let specials := p.filterMap fun
+        | .special c s => if ofClass c then some s else none
+        | _ => none
+      if members.isEmpty && convs.isEmpty && data.isEmpty && specials.isEmpty then
         text := s!"struct {n}{inherit} \{};\n"
       else
         let fields := String.join (data.map fun m =>
@@ -416,7 +439,7 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
           s!"    {ty m.ty} {m.name}{init};\n")
         let body := String.join (members.map fun (m, j) =>
           "    " ++ (functionText m (rs.getD j "void") " const").replace "\n    " "\n        ")
-        text := s!"struct {n}{inherit} \{\n{fields}{body}{conversionsText p i n convs}};\n"
+        text := s!"struct {n}{inherit} \{\n{fields}{body}{specialsText n specials}{conversionsText p i n convs}};\n"
     | .classTemplate n h _ => text := s!"{head h}\nstruct {n} \{};\n"
     | .function .. | .functionTemplate _ => text := functionText d (rs.getD i "void")
     | .lookup c =>
@@ -443,7 +466,7 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
       | some (.dependentCall _ as _) =>
         text := s!"using reference_{i} = decltype({callExpr s!"dependent_{call}" [] as});\n"
       | _ => text := ""
-    | .converting .. | .member .. => text := ""
+    | .converting .. | .member .. | .special .. => text := ""
     out := out ++ inScope d.scope text
   return out
 
@@ -536,6 +559,7 @@ def qualifyDecl (q : List (String × String)) : Decl → Decl
   | .use c t => .use c (qualifyTy q t)
   | .dependentCall callee as s => .dependentCall callee (as.map fun a => { a with ty := qualifyTy q a.ty }) s
   | .member c m => .member (qualifyTy q c) { m with ty := qualifyTy q m.ty }
+  | .special c s => .special (qualifyTy q c) s
   | .converting c conv =>
     .converting (qualifyTy q c) (match conv with
       | .constructor param e => .constructor (qualifyTy q param) e
@@ -1766,9 +1790,12 @@ def derivedToBaseValue : Case :=
 
 private def cS : Ty := .named "S"
 private def cT : Ty := .named "T"
-/-- `struct S {}; struct T { T(const S&); };`. -/
+/-- `T() = default;`, which a class with a converting constructor needs to
+keep a default constructor. -/
+private def defaultedCtor (c : Ty) : Decl := .special c { kind := .defaultCtor, body := .defaulted }
+/-- `struct S {}; struct T { T(const S&); T() = default; };`. -/
 private def ctorProgram : Program :=
-  [.class "S", .class "T", .converting cT (.constructor (.lref (.const cS)))]
+  [.class "S", .class "T", .converting cT (.constructor (.lref (.const cS))), defaultedCtor cT]
 
 /-- `void f(T); f(S{})`: the converting constructor forms a user-defined
 conversion sequence, and the call selects `f`. -/
@@ -1823,7 +1850,8 @@ constructor is no candidate for the copy-initialization of an argument. -/
 def explicitConstructorNotCandidate : Case :=
   { name := "explicit_constructor_not_candidate"
     cite := cite "over.match.copy#1"
-    program := [.class "S", .class "T", .converting cT (.constructor (.lref (.const cS)) true), .function "f" [cT]]
+    program := [.class "S", .class "T", .converting cT (.constructor (.lref (.const cS)) true), defaultedCtor cT
+               , .function "f" [cT]]
     query := .call "f" [{ ty := cS }] .noMatch
     source := "computed by Program.call" }
 
@@ -1860,6 +1888,7 @@ def draftBestIcsAmbiguous : Case :=
                , .converting (.named "A") (.constructor (.lref (.named "B")))
                , .converting (.named "B") (.function (.named "A") false false)
                , .converting (.named "C") (.constructor (.lref (.named "B")))
+               , defaultedCtor (.named "A"), defaultedCtor (.named "C")
                , .function "f" [.named "A"], .function "f" [.named "C"] ]
     query := .call "f" [{ ty := .named "B", lvalue := true }] (.ambiguous [0, 1])
     source := "computed by Program.call" }
@@ -1881,6 +1910,7 @@ def ambiguousSequenceSelected : Case :=
     program := [ .class "B", .class "A"
                , .converting (.named "A") (.constructor (.lref (.named "B")))
                , .converting (.named "B") (.function (.named "A") false false)
+               , defaultedCtor (.named "A")
                , .function "f" [.named "A"] ]
     query := .call "f" [{ ty := .named "B", lvalue := true }] (.illFormed "the conversion of an argument is ambiguous")
     source := "computed by Program.call" }
@@ -1903,7 +1933,7 @@ def explicitConstructedValue : Case :=
   { name := "explicit_constructed_value"
     cite := cite "over.match.copy#1"
     program := [ .class "S", .class "T", .converting cT (.constructor (.lref (.const cS)) true)
-               , .functionTemplate (constTemplate cT) ]
+               , defaultedCtor cT, .functionTemplate (constTemplate cT) ]
     query := .deduction "f" [] none (explicit := [.value (.obj' "S" [])])
     source := "computed by deduceTemplate" }
 
@@ -2019,6 +2049,108 @@ def traitConstraintExcludes : Case :=
     query := .call "f" [{ ty := .named "int" }] .noMatch
     source := "computed by Program.call" }
 
+/-! ### Special member functions, observed through a by-value parameter -/
+
+private def cM : Ty := .named "M"
+private def cX : Ty := .named "X"
+/-- `void f(X);`, with `X` passed by value, and the lvalue and xvalue of `X`. -/
+private def fX : Decl := .function "f" [cX]
+private def xLvalue : CallArg := { ty := cX, lvalue := true }
+private def xRvalue : CallArg := { ty := cX }
+private def deletedCopy : String := "the copy-initialization of a parameter uses a deleted constructor"
+
+/-- `struct M { M(const M&) = delete; }; struct X { M m; };`: `X`'s
+defaulted copy constructor is defined as deleted, since resolution for
+`M`'s copy selects a deleted constructor, so `f(x)` is ill-formed. -/
+def deletedCopyPropagates : Case :=
+  { name := "deleted_copy_propagates"
+    cite := cite "class.copy.ctor#10"
+    program := [ .class "M", .special cM { kind := .copyCtor, body := .deleted }
+               , .class "X", .member cX { name := "m", ty := cM }, fX ]
+    query := .call "f" [xLvalue] (.illFormed deletedCopy)
+    source := "computed by Program.call" }
+
+/-- The same `M` with `M(M&&) = default;`: `X`'s defaulted move
+constructor selects `M`'s move, which is usable, so `f(X{})` moves and is
+well-formed, while `f(x)` stays ill-formed. -/
+def deletedCopyMoveRescues : Case :=
+  { name := "deleted_copy_move_rescues"
+    cite := cite "class.copy.ctor#10"
+    program := [ .class "M", .special cM { kind := .copyCtor, body := .deleted }
+               , .special cM { kind := .moveCtor, body := .defaulted, constParam := false }
+               , .class "X", .member cX { name := "m", ty := cM }, fX ]
+    query := .call "f" [xRvalue] (.selected 0)
+    source := "computed by Program.call" }
+
+/-- `struct M { M(const M&) = default; M(M&&) = delete; }; struct X { M m; };`:
+`X`'s defaulted move constructor is defined as deleted and ignored by
+overload resolution, so `f(X{})` copies and is well-formed. -/
+def deletedDefaultedMoveIgnored : Case :=
+  { name := "deleted_defaulted_move_ignored"
+    cite := cite "class.copy.ctor#10"
+    program := [ .class "M", .special cM { kind := .copyCtor, body := .defaulted }
+               , .special cM { kind := .moveCtor, body := .deleted, constParam := false }
+               , .class "X", .member cX { name := "m", ty := cM }, fX ]
+    query := .call "f" [xRvalue] (.selected 0)
+    source := "computed by Program.call" }
+
+/-- `struct X { X(X&) {} };`: a copy constructor taking `X&` cannot copy a
+`const X`, so `f(cx)` is ill-formed. -/
+def nonConstCopyConstructor : Case :=
+  { name := "non_const_copy_constructor"
+    cite := cite "class.copy.ctor#1"
+    program := [ .class "X", .special cX { kind := .copyCtor, constParam := false }, fX ]
+    query := .call "f" [{ ty := .const cX, lvalue := true }] (.illFormed deletedCopy)
+    source := "computed by Program.call" }
+
+/-- `struct M { M(M&) {} }; struct X { M m; };`: `X`'s implicit copy
+constructor has the form `X(X&)`, since `M`'s takes `M&`, so `f(cx)` is
+ill-formed. -/
+def copyConstructorFormNonConst : Case :=
+  { name := "copy_constructor_form_non_const"
+    cite := cite "class.copy.ctor#7"
+    program := [ .class "M", .special cM { kind := .copyCtor, constParam := false }
+               , .class "X", .member cX { name := "m", ty := cM }, fX ]
+    query := .call "f" [{ ty := .const cX, lvalue := true }] (.illFormed deletedCopy)
+    source := "computed by Program.call" }
+
+/-- The same, with a non-const lvalue: `X(X&)` copies it. -/
+def copyConstructorFormNonConstLvalue : Case :=
+  { name := "copy_constructor_form_non_const_lvalue"
+    cite := cite "class.copy.ctor#7"
+    program := [ .class "M", .special cM { kind := .copyCtor, constParam := false }
+               , .class "X", .member cX { name := "m", ty := cM }, fX ]
+    query := .call "f" [xLvalue] (.selected 0)
+    source := "computed by Program.call" }
+
+/-- `struct X { int& r; };`: an lvalue reference member deletes the
+default constructor and the assignments, not the copy constructor, so
+`f(x)` copies. -/
+def referenceMemberCopies : Case :=
+  { name := "reference_member_copies"
+    cite := cite "class.copy.ctor#10"
+    program := [ .class "X", .member cX { name := "r", ty := .lref (.named "int") }, fX ]
+    query := .call "f" [xLvalue] (.selected 0)
+    source := "computed by Program.call" }
+
+/-- `struct X { int&& r; };`: an rvalue reference member deletes the
+defaulted copy constructor, so `f(x)` is ill-formed. -/
+def rvalueReferenceMemberDeletesCopy : Case :=
+  { name := "rvalue_reference_member_deletes_copy"
+    cite := cite "class.copy.ctor#10"
+    program := [ .class "X", .member cX { name := "r", ty := .rref (.named "int") }, fX ]
+    query := .call "f" [xLvalue] (.illFormed deletedCopy)
+    source := "computed by Program.call" }
+
+/-- The same class moved: the move constructor is defaulted and not
+deleted, so `f(X{})` is well-formed. -/
+def rvalueReferenceMemberMoves : Case :=
+  { name := "rvalue_reference_member_moves"
+    cite := cite "class.copy.ctor#10"
+    program := [ .class "X", .member cX { name := "r", ty := .rref (.named "int") }, fX ]
+    query := .call "f" [xRvalue] (.selected 0)
+    source := "computed by Program.call" }
+
 /-- Every case of the Standard side. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -2052,7 +2184,10 @@ def cases : List Case :=
   , traitLvalueReference, traitRvalueReferenceOfLvalue, traitVoidConst, traitReferenceNotObject
   , traitFunctionNotObject, traitScalarPointer, traitCompoundClass, traitFundamentalVoid
   , traitConstReference, traitSameCv, traitSameSpecialization, traitConstraintSelects
-  , traitConstraintExcludes ]
+  , traitConstraintExcludes
+  , deletedCopyPropagates, deletedCopyMoveRescues, deletedDefaultedMoveIgnored
+  , nonConstCopyConstructor, copyConstructorFormNonConst, copyConstructorFormNonConstLvalue
+  , referenceMemberCopies, rvalueReferenceMemberDeletesCopy, rvalueReferenceMemberMoves ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=
