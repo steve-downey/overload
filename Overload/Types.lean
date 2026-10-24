@@ -150,7 +150,10 @@ theorem referred_isClass_not_function (t : Ty) (h : t.referred.stripConst.isClas
 
 /-! ### The composite categories -/
 
-/-- A reference type, lvalue or rvalue. -/
+/-- A reference type, lvalue or rvalue. A type describes an object, a
+reference or a function, and `isObject`, `isReference` and `isFunction`
+are the three. -/
+@[std rule "basic.types.general#1"]
 def isReference (t : Ty) : Bool := t.isLvalueReference || t.isRvalueReference
 
 /-- An object type: a type that is not a function type, not a reference

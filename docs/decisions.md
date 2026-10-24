@@ -39,7 +39,11 @@ read against.
   [basic.fundamental]/1 differs from the pin only by a note, "plain
   `int`s are intended to have the natural width suggested by the
   architecture", removed on main; the normative sentences `representable`
-  cites are unchanged. [temp.spec.partial.general]/7 as before.
+  cites are unchanged. [temp.spec.partial.general]/7 as before.- 2026-10-24 — Phase 12 closed. `make drift-check-current` now reports
+  five cited paragraphs that differ on main, the three new ones
+  editorial: [class.dtor]/7, [special]/7 and [dcl.init.ref]/5
+  (`findings.md`).
+
 ---
 
 ## spec-style

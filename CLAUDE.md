@@ -5,8 +5,10 @@ Guidance for Claude Code when working in this repository.
 ## What this is
 
 A Lean 4 model of C++ template argument deduction, substitution, constraints,
-partial ordering and overload resolution, built to prove properties of the
-typeclass encoding in [bemanproject/typeclass](https://github.com/bemanproject/typeclass).
+partial ordering and overload resolution, with the type categories, special
+member functions, type traits and requires-expressions beneath them, built to
+prove properties of the typeclass encoding in
+[bemanproject/typeclass](https://github.com/bemanproject/typeclass).
 Read `docs/plan.md` first: it is the charter, with phases, target theorems,
 suspects and obligations. `docs/decisions.md` is the decision log; every
 `@[assumed "..."]` tag names an entry there. `docs/findings.md` collects what

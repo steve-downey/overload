@@ -320,7 +320,6 @@ def inScope : List (String × Nat) :=
   , ("meta.unary.cat", 3), ("meta.unary.comp", 2), ("meta.unary.prop", 5), ("meta.unary.prop", 9)
   , ("meta.rel", 3), ("meta.rel", 6)
   , ("temp.constr.normal", 1)
-  , ("expr.prim.req.general", 5), ("expr.prim.req.simple", 1), ("expr.prim.req.type", 1)
-  , ("expr.prim.req.compound", 1), ("expr.prim.req.nested", 1) ]
+  , ("expr.prim.req.general", 5), ("expr.prim.req.simple", 1), ("expr.prim.req.type", 1) ]
 
 end Overload.Std

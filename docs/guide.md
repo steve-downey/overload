@@ -1069,6 +1069,29 @@ name lookup is an input, and template-argument conversions are not yet
 transcribed. A result about the Standard is a result about this fragment
 of it.
 
+Beneath all of that, phase 12 gave the model the type system the
+encoding stands on. The type categories of [basic.types] are predicates
+on `Ty`, with exactly one primary category holding of every concrete
+type (`primary_category_unique`). A class has data members and
+user-declared special members, and `Program.special`, `deleted`,
+`trivial` and `eligible` decide which special member functions it has
+and what they are, the deletion rules recursing through subobjects by
+overload resolution over their classes; `Program.call` refuses a
+by-value class parameter whose copy-initialization selects a deleted
+constructor. Every type trait the fragment can state is `Program.trait`,
+a judgement from those rules, with `is_constructible` and
+`is_convertible` overload resolution with the usable-candidate check
+(`trait_is_resolution`, `is_convertible_eq_ics`), and a trait in a
+constraint is answered by the program's environment. A concept-id is
+normalized into the associated constraints before satisfaction and
+subsumption see it, and a requires-expression is an atom whose calls and
+types the full environment decides in lexical order
+(`requires_soft_is_false`, `requires_false_stops`, `requires_hard_stops`,
+`member_requirement_iff_call`). The value nature of a class, data and
+codata, is a definition and a theorem of the deletion rules
+(`deleted_flat`, `value_nature_flat`, `pointer_member_keeps_value_nature`),
+not a rule.
+
 ## The typeclass side, module by module
 
 The encoding, as the model has it. An instance is a partial specialization
