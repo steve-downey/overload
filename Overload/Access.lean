@@ -66,11 +66,19 @@ conversion sequence? A function selected with one is ill-formed. -/
 def ambiguousConversion (p : Program) (a : CallArg) (t : Ty) : Bool :=
   p.ics .copy a t == some .ambiguous
 
+/-- Is the parameter type an abstract class, passed by value? A pointer
+or reference to one is allowed. -/
+@[std rule "expr.call#7"]
+def abstractParameter (p : Program) (t : Ty) : Bool :=
+  !t.isRef && t.stripConst.isClass && p.abstract t.stripConst
+
 /-- A call, as a program evaluates it in an environment, normally the one
 the program defines (`Env.ofProgram`) or a layer above it: overload
 resolution, which ignores access and ranks an ambiguous conversion
-sequence as a user-defined one; then, on the selected function, an
-argument whose conversion is ambiguous makes the call ill-formed; then
+sequence as a user-defined one; then, on the selected function, a
+parameter of abstract class type makes the call ill-formed
+([expr.call]/7); then an argument whose conversion is ambiguous makes
+the call ill-formed; then
 the copy-initialization of each by-value class parameter from an
 argument of its class, which is ill-formed when the constructor selected
 is deleted; then the access check on its conversions, after ambiguity
@@ -79,13 +87,15 @@ selected specialization's Mandates. The candidates' associated
 constraints are the normal forms of their constraint-expressions
 (`Program.normalizeDecl`), so a concept-id is expanded before
 satisfaction and subsumption see it. -/
-@[std rule "dcl.init.ref#4.sentence-3" "class.conv.general#2"]
+@[std rule "dcl.init.ref#4.sentence-3" "class.conv.general#2" "expr.call#7"]
 def call (p : Program) (env : Env) (decls : List Decl) (args : List CallArg)
     (explicit : List Ty := []) : Resolution Candidate :=
   let decls := decls.map p.normalizeDecl
   match resolve .text env p.ranking decls args explicit with
   | .selected c =>
-    if (args.zip c.params).any fun (a, t) => p.ambiguousConversion a t then
+    if c.params.any (p.abstractParameter ·) then
+      .illFormed "a parameter is of abstract class type"
+    else if (args.zip c.params).any fun (a, t) => p.ambiguousConversion a t then
       .illFormed "the conversion of an argument is ambiguous"
     else if !(args.zip c.params).all fun (a, t) => p.copyInitUsable a t then
       .illFormed "the copy-initialization of a parameter uses a deleted constructor"
@@ -101,6 +111,8 @@ accessible, the call is the evaluated call of `invoke`; the two checks
 change nothing else. -/
 theorem call_eq_invoke (p : Program) (env : Env) (decls : List Decl) (args : List CallArg)
     (explicit : List Ty)
+    (habs : ∀ c, resolve .text env p.ranking (decls.map p.normalizeDecl) args explicit = .selected c →
+      ∀ t ∈ c.params, p.abstractParameter t = false)
     (hamb : ∀ c, resolve .text env p.ranking (decls.map p.normalizeDecl) args explicit = .selected c →
       ∀ x ∈ args.zip c.params, p.ambiguousConversion x.1 x.2 = false)
     (husable : ∀ c, resolve .text env p.ranking (decls.map p.normalizeDecl) args explicit = .selected c →
@@ -113,10 +125,23 @@ theorem call_eq_invoke (p : Program) (env : Env) (decls : List Decl) (args : Lis
   simp only
   split
   · rename_i c hc
-    simp only [List.any_eq_false.mpr fun x hx => by simpa using hamb c hc x hx,
+    simp only [List.any_eq_false.mpr fun t ht => by simpa using habs c hc t ht,
+      List.any_eq_false.mpr fun x hx => by simpa using hamb c hc x hx,
       List.all_eq_true.mpr fun x hx => husable c hc x hx,
       List.all_eq_true.mpr fun x hx => h c hc x hx, Bool.false_eq_true, ↓reduceIte, Bool.not_true]
   · rfl
+
+/-- A call that selects a function with a by-value parameter of abstract
+class type is ill-formed, whatever the arguments: the parameter's type
+is checked at the call, before any argument's conversion. -/
+@[std theorem "expr.call#7" "class.abstract#3"]
+theorem abstract_by_value_ill_formed (p : Program) (env : Env) (decls : List Decl) (args : List CallArg)
+    (explicit : List Ty) (c : Candidate)
+    (hsel : resolve .text env p.ranking (decls.map p.normalizeDecl) args explicit = .selected c)
+    (habs : ∃ t ∈ c.params, p.abstractParameter t = true) :
+    p.call env decls args explicit = .illFormed "a parameter is of abstract class type" := by
+  unfold Program.call
+  simp only [hsel, List.any_eq_true.mpr habs, ↓reduceIte]
 
 /-! ## A protected base -/
 

@@ -995,6 +995,22 @@ has.
 **Log:**
 
 - 2026-10-24 — Decided.
+- 2026-10-24 — Stage virtual-functions landed, `Overload/Virtual.lean`.
+  `Virt` has five values: `override` joined the planned four, since
+  [class.virtual]/5, the `override` that overrides nothing, has nothing
+  to check without it; a function declared `override` is virtual only
+  through the function it overrides. The abstract-class checks rest on
+  the normative rules the note [class.abstract]/3 points to: [basic.def]/5
+  for `is_constructible`, since `T t(args)` defines an object;
+  [expr.call]/7 for the by-value parameter at a call; and
+  [dcl.fct.def.general]/2 for `is_convertible`, whose test function is a
+  definition with the destination as its return type. A pure destructor
+  is in: it makes its class abstract, and a derived class's destructor
+  overrides it without being pure. The virtual functions a class's
+  objects have are computed as its final overriders, the class's own
+  declared or overriding functions and the bases' no member overrides;
+  with no virtual bases, two bases' functions of one signature are two
+  final overriders of two subobjects, which is well-formed.
 
 ---
 

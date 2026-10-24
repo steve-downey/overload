@@ -2,6 +2,7 @@
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 import Overload.Ranking
 import Overload.Types
+import Overload.Virtual
 
 /-!
 # Special member functions
@@ -94,7 +95,8 @@ def userDeclaredCtor (p : Program) (c : Ty) : Bool :=
 
 /-- The potentially constructed subobjects of a class: its direct
 non-static data members, by type, then its direct bases. No class of the
-fragment is abstract or has a virtual base. -/
+fragment has a virtual base, so the abstract classes' exception for
+them never applies. -/
 @[std rule "special#7"]
 def subobjectsOf (p : Program) (c : Ty) : List Ty :=
   (p.membersOf c).map (·.ty) ++ p.directBases c
@@ -318,10 +320,11 @@ def eligible (p : Program) (c : Ty) (k : SmfKind) : Bool :=
 /-! ## Trivial -/
 
 /-- A special member function of class `c` of kind `k` is trivial, within
-`fuel`: not user-provided, and, with no virtual functions or bases in the
-fragment, the corresponding member selected for each subobject of class
-type is a special member of that class and trivial; a default
-constructor also needs no default member initializer. -/
+`fuel`: the class is not polymorphic, so it has no virtual functions and
+its destructor is not virtual, with no virtual bases in the fragment;
+the member is not user-provided; the corresponding member selected for
+each subobject of class type is a special member of that class and
+trivial; and a default constructor needs no default member initializer. -/
 @[std rule "class.default.ctor#3" "class.copy.ctor#12" "class.copy.assign#9" "class.dtor#8"]
 def trivialWithin (p : Program) : Nat → Ty → SmfKind → Bool
   | 0, _, _ => false
@@ -331,7 +334,7 @@ def trivialWithin (p : Program) : Nat → Ty → SmfKind → Bool
     | some s =>
       let f := p.factsWithin fuel
       let classSub (t : Ty) : Bool := t.stripConst.isClass
-      s.prov != .userProvided &&
+      !p.polymorphic c && s.prov != .userProvided &&
       match k with
       | .defaultCtor =>
         (p.membersOf c).all (!·.init) &&
