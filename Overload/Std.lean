@@ -336,6 +336,14 @@ def inScope : List (String × Nat) :=
   , ("concepts.object", 1), ("concepts.object", 2), ("concepts.object", 3)
   , ("concept.invocable", 1), ("concept.invocable", 2)
   , ("concept.regularinvocable", 1), ("concept.regularinvocable", 2), ("concept.regularinvocable", 3)
-  , ("class.dtor", 6) ]
+  , ("class.dtor", 6)
+  -- Phase 14: virtual functions, exception specifications, aggregates.
+  , ("class.virtual", 1), ("class.virtual", 2), ("class.virtual", 3), ("class.virtual", 4), ("class.virtual", 5)
+  , ("class.abstract", 2), ("class.abstract", 3), ("class.abstract", 4)
+  , ("class.dtor", 11)
+  , ("except.spec", 1), ("except.spec", 2), ("except.spec", 3), ("except.spec", 4), ("except.spec", 5)
+  , ("except.spec", 6), ("except.spec", 7), ("except.spec", 8), ("except.spec", 9)
+  , ("dcl.init.aggr", 1), ("dcl.init.aggr", 2), ("dcl.init.aggr", 4), ("dcl.init.aggr", 6)
+  , ("class.prop", 8) ]
 
 end Overload.Std

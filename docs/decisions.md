@@ -967,3 +967,87 @@ list a consequence of the proofs.
   normal forms are decided in the kernel (`decide +kernel`), resting on
   `propext` alone. The algebraic laws, excluded from the obligations
   table at the start, are its last section now.
+
+---
+
+## virtual-fragment
+
+**Question:** Which of the virtual function rules are in the fragment?
+**Status:** DECIDED 24 October 2026.
+**Decision:** A member function is virtual, pure virtual or final by a
+field of its declaration, or by overriding a base's virtual function,
+which is correspondence of the declarations ([class.virtual]/1, /2); a
+destructor likewise. Polymorphic and abstract classes, the final
+overrider along single inheritance, the ill-formed override of a `final`
+function and the `override` that overrides nothing, the loss of
+triviality, standard layout and emptiness, the unconstructible abstract
+class and the ill-formed by-value parameter of abstract type. Out:
+virtual base classes and the unique final overrider across them,
+covariant return types, `final` on a class, the definition requirement of
+[class.virtual]/12, and the dynamic type: a call is resolved at the
+static type, where the derived class's override is what lookup finds.
+**Why:** The traits and the special member rules need to know whether a
+class is polymorphic and which functions are virtual, which declarations
+decide. What a virtual call does at run time is behaviour, and the model
+has none; what it selects at compile time is the lookup phase 9 already
+has.
+**Decided by:** the author, on the plan of 24 October 2026.
+**Log:**
+
+- 2026-10-24 — Decided.
+
+---
+
+## exception-specification-fragment
+
+**Question:** How are exception specifications represented?
+**Status:** DECIDED 24 October 2026.
+**Decision:** As a predicate on every function ([except.spec]/1):
+`noexcept : Option Bool` on each function-like declaration, `none` for no
+specifier, and `noexcept : Bool` on the function type. A user-provided
+function without a specifier is potentially throwing; a destructor or a
+defaulted special member without one has the implicit specification of
+[except.spec]/7 to /9, decided through the operation resolution selects
+for each subobject, in the facts beside deletion. The `is_nothrow_`
+traits are the base trait and the selected operation non-throwing. Out:
+`noexcept` with a dependent expression, the `noexcept` operator, the
+throw-expression and the other potentially-throwing expressions, since
+the fragment's expressions are calls, and deallocation functions.
+**Why:** The whole `is_nothrow_` family is one rule over the predicate,
+and the predicate's implicit cases are the special member machinery once
+more. A constant `noexcept(true)` or `noexcept(false)` is what the
+fragment's declarations can carry; a dependent one is an expression.
+**Decided by:** the author, on the plan of 24 October 2026.
+**Log:**
+
+- 2026-10-24 — Decided.
+
+---
+
+## aggregate-fragment
+
+**Question:** Which aggregates and which aggregate initializations are in
+the fragment, and what is a class value?
+**Status:** DECIDED 24 October 2026.
+**Decision:** A class is an aggregate by [dcl.init.aggr]/1 on its
+declarations: no constructor declared, no protected base, not
+polymorphic, and every member public as the fragment has them. Its
+elements are its direct bases then its members ([dcl.init.aggr]/2), and
+a class value, `Val.obj`, lists exactly those: the value is the
+aggregate. Brace initialization from a list of argument types, with `{}`
+for the unlisted elements and a reference without an initializer a
+failure ([dcl.init.aggr]/4, /6); parenthesized aggregate initialization
+when no constructor is viable ([dcl.init.general]/15); value-initialization
+of a non-aggregate by its default constructor. Out: arrays, designated
+initializers, anonymous unions, brace elision, inherited constructors.
+`uniqueValue` and `candidateInitializer` hold for classes whose elements
+are classes with one value; a converting constructor's result for a
+class with scalar members is the environment's oracle.
+**Why:** Phase 11's "one value per class" was true of classes without
+members and is false with them, and the aggregate's element list is what
+the model's values were already shaped as. `T{}` and `T t;` differ for an
+aggregate with a `const` member, which phase 13 had merged.
+**Decided by:** the author, on the plan of 24 October 2026.
+**Log:**
+
+- 2026-10-24 — Decided.

@@ -200,11 +200,11 @@ The four kinds of finding about the Standard are tabulated in
 
 ## Phases
 
-Thirteen phases, each closed by a theorem or a passing test set. The
+Fourteen phases, each closed by a theorem or a passing test set. The
 typeclass results first become reachable at phase 4, before any of
 call-site overload resolution exists. Phase 9 was added on 20 October
 2026, after the others closed, phase 10 on 21 October 2026, phase 11 on
-23 October 2026, and phases 12 and 13 on 24 October 2026.
+23 October 2026, and phases 12 to 14 on 24 October 2026.
 
 | Phase | Builds | Exit criterion | Needs |
 |---|---|---|---|
@@ -222,6 +222,7 @@ call-site overload resolution exists. Phase 9 was added on 20 October
 | 11 User-defined conversions | Converting constructors and conversion functions, the user-defined conversion sequence and its rank, the ambiguous conversion sequence, reference binding to a converted temporary, `explicit` through the initialization context, and the conversion's effect on deduction and on constant template arguments. See [below](#phase-11-user-defined-conversions). | The concrete ranking forms every sequence of [over.best.ics.general]/3 the fragment can spell, with agreement and asymmetry; the four conversion theorems about the encoding are proved. Settles user-defined-conversions. | 5, 10 |
 | 12 The type system, special members and traits | The type categories and data members, function types; the special member functions as implicitly declared, defaulted, deleted and trivial; the type traits and requires-expressions as judgements over those, with concept-ids normalized; the value and reference nature of a type as a theorem of the deletion rules. See [below](#phase-12-the-type-system-special-member-functions-and-traits). | Every trait the fragment can state is computed from cited rules and agrees with GCC and Clang on the emitted cases; the special members of a class are a cited judgement with agreement; the callable-copying rule and refinement subsumption are theorems of the encoding. Settles function-types, special-member-fragment, trait-residue and value-nature. | 3, 9, 11 |
 | 13 Semantic requirements | What satisfies and what models ([res.on.requirements]): a semantic requirement as a named, cited statement nothing decides; modelling as satisfaction plus hypotheses; the ill-formed-no-diagnostic verdict for a satisfied concept not modeled; the library's concepts transcribed with their laws; the typeclass laws named; an audit of the laws each theorem owes. See [below](#phase-13-semantic-requirements-what-satisfies-and-what-models). | Every law a headline theorem of the encoding rests on is named and listed by `#owes`; the library's object concepts subsume one another by normalization; the superclass-coherence obligation is a theorem with its law as hypothesis. Settles semantic-requirements. | 8, 12 |
+| 14 Virtual functions, exception specifications, aggregates | Three stages, one each: virtual and pure virtual functions, overriding by correspondence, polymorphic and abstract classes, and their effect on triviality and layout; exception specifications on every function, the implicit ones of the special members, and the `is_nothrow_` traits; aggregates, their elements as the model's class values, brace and parenthesized aggregate initialization, and `is_aggregate` and `is_implicit_lifetime`. See [below](#phase-14-virtual-functions-exception-specifications-and-aggregates). | `is_polymorphic`, `is_abstract`, `has_virtual_destructor`, every `is_nothrow_` trait, `is_aggregate` and `is_implicit_lifetime` are computed from cited rules and agree with GCC and Clang on the emitted cases; the class value is the aggregate's element list; the encoding's instance types are aggregates with non-throwing special members. Settles virtual-fragment, exception-specification-fragment and aggregate-fragment. | 12, 13 |
 
 Phase 6 can begin as soon as phase 4 closes. Phase 5 is on the critical
 path only for the function-call surface and the by-value explicit-instance
@@ -660,10 +661,21 @@ Status, 15 October 2026:
   `citations.md` with every in-scope paragraph covered, and `make
   drift-check-current`, which reports the five known editorial drifts
   and no other.
+- Phase 14 is planned, 24 October 2026, in three stages: virtual
+  functions, exception specifications, aggregates. Each extends the
+  special member judgements of phase 12 with one new fact about
+  declarations and the traits that rest on it, and the third corrects
+  the model's class value to the aggregate's element list and
+  separates `T{}` from `T t;`. The plan, the cross-reference against
+  N5054 and the stages are
+  [below](#phase-14-virtual-functions-exception-specifications-and-aggregates).
+  Its in-scope paragraphs are listed and uncovered until the stages
+  land. Settles virtual-fragment, exception-specification-fragment and
+  aggregate-fragment.
 
 ## Target theorems
 
-Forty-three theorems carry the results. A theorem that fails is recorded with
+Fifty-two theorems carry the results. A theorem that fails is recorded with
 its counterexample and is a finding, not a setback.
 
 | Theorem | Statement | Phase |
@@ -711,6 +723,15 @@ its counterexample and is a finding, not a setback.
 | regular-refines | `regular` subsumes `semiregular`, which subsumes `copyable`, which subsumes `copy_constructible`, which subsumes `move_constructible`, each by normalization of the transcribed bodies ([concepts.object]/1). Added 24 October 2026. | 13 |
 | regular-invocable-semantic-only | `regular_invocable` and `invocable` have one normal form, so they are satisfied together, and differ only in the law the first owes ([concept.regularinvocable]/3). Added 24 October 2026. | 13 |
 | superclass-coherence-owed | A Monad instance that satisfies the Monad concept and claims no superclass agreement gets the verdict at a use that derives its Functor; one that claims it gets none: the obligations table's undiagnosable row as a theorem. Added 24 October 2026. | 13 |
+| polymorphic-not-trivial | No special member of a polymorphic class is trivial, so it is neither trivially copyable nor standard-layout ([class.default.ctor]/3, [class.copy.ctor]/12, [class.copy.assign]/9, [class.dtor]/8, [class.prop]/1, /2). Added 24 October 2026. | 14 |
+| abstract-not-constructible | No object of an abstract class is created: `is_constructible` is false for every argument list, and a call selecting a function that takes it by value is ill-formed ([class.abstract]/2, /3). Added 24 October 2026. | 14 |
+| override-is-correspondence | A member function overrides a base's virtual one exactly when the declarations correspond; a function of the same name with another parameter list hides and does not override ([class.virtual]/2, /3). Added 24 October 2026. | 14 |
+| virtual-destructor-inherited | A class derived from one with a virtual destructor has a virtual destructor, declared or implicit, since prospective destructors correspond ([class.virtual]/1, /2). Added 24 October 2026. | 14 |
+| nothrow-propagates | A potentially-throwing destructor of a subobject makes the enclosing class's implicit destructor potentially-throwing, and likewise for the constructors and assignments through the operation resolution selects ([except.spec]/7 to /9). Added 24 October 2026. | 14 |
+| implicit-noexcept-from-subobjects | A flat class whose members have non-throwing operations has non-throwing special members, and a destructor without a specifier is non-throwing exactly when its subobjects' are ([except.spec]/4, /8). Added 24 October 2026. | 14 |
+| aggregate-elements-are-value | A class value's subobject list is the aggregate's element list, bases then members ([dcl.init.aggr]/2), so template-argument equivalence of class values is elementwise. Added 24 October 2026. | 14 |
+| brace-init-differs-from-default-init | For an aggregate with a `const` member and no initializer, `T{}` is well-formed and `T t;` is not, so `default_initializable` is false where `requires { T{}; }` holds ([dcl.init.aggr]/6, [dcl.init.general]/7, [concept.default.init]/1). Added 24 October 2026. | 14 |
+| paren-aggregate-constructible | An aggregate with no viable constructor is constructible from a parenthesized list of at most as many arguments as elements, each convertible to its element ([dcl.init.general]/15). Added 24 October 2026. | 14 |
 
 Stability is the theorem that says open polymorphism has no surprises. Its
 hypotheses are expected to include soft failure of a missing instance and
@@ -1960,6 +1981,177 @@ Recorded in `decisions.md#semantic-requirements`.
 5. [semantic-docs](#semantic-docs): the guide, the obligations with the
    slugs and the `#owes` section, the findings, this status,
    `citations.md`, `make drift-check-current`.
+
+## Phase 14: virtual functions, exception specifications and aggregates
+
+Planned 24 October 2026. Three parts of the type system that the traits of
+phase 12 reach for and the fragment does not have. A virtual function makes
+a class polymorphic, takes every special member's triviality with it, and
+makes an abstract class one no object can have. An exception
+specification is a predicate on every function, explicit or implicit, and
+the whole `is_nothrow_` family is one rule over it. An aggregate is what a
+class with no user-declared constructor is, and aggregate initialization
+is what `T{}` and, since C++20, `T(args)` mean for it, which is also what
+the model's class values have been all along: a value is its elements.
+Each is a stage, each closes with its own docs and citations, and each
+extends the same machinery, the special member judgements of phase 12 and
+the resolution they rest on, with one new fact about declarations.
+
+Two corrections come with the third stage. The model's class value,
+`Val.obj`, lists base subobjects and nothing else, and phase 11 rested
+"one value per class" on it; with data members since phase 12 that is
+wrong for a class with a scalar member, and the aggregate's elements,
+bases then members ([dcl.init.aggr]/2), are what the value should list.
+And phase 13 took `T{}` and `T t;` to be one condition in
+`default_initializable`; for an aggregate with a `const` member they
+differ, and the stage separates them.
+
+### The rules to transcribe, as they stand in N5054
+
+Paragraph numbers counted from `\pnum`, as `make drift-check` does. The
+inherited virtual destructor has no sentence of its own in N5054: a
+prospective destructor of a derived class corresponds to a base's and so
+overrides it ([class.virtual]/2), which is where the rule now lives.
+
+| Rule | N5054 text (abbreviated) | Model counterpart | Stage |
+|---|---|---|---|
+| [class.virtual]/1 | A non-static member function is virtual if first declared `virtual` or if it overrides a virtual member function of a base. A class with a virtual member function is a polymorphic class. | `Decl.function` gains `virt : Virt` (`.none`, `.virtual`, `.pure`, `.final`); `Program.virtualFunctions c`, `Program.polymorphic c`. | 1 |
+| [class.virtual]/2 | `G` in a derived class overrides virtual `F` of a base when the declarations correspond; a final overrider; more than one final overrider is ill-formed. | `Program.overrides`, by `corresponds` from phase 9; `Program.finalOverrider`; the inherited virtual destructor, since prospective destructors correspond. | 1 |
+| [class.virtual]/3 | A virtual function need not be visible to be overridden; a function with another parameter list hides and does not override. | `override_is_correspondence`: overriding is correspondence, hiding is the name; `derived_member_hides_base` already covers the latter. | 1 |
+| [class.virtual]/4, /5 | Overriding a `final` function is ill-formed; `override` on a function that overrides nothing is ill-formed. | `Program.virtualsWellFormed`, a program-level check like `scopesWellFormed`. | 1 |
+| [class.virtual]/12 | A virtual function shall be defined or declared pure; no diagnostic required. | Out: the fragment has no definitions; noted. | 1 |
+| [class.abstract]/2, /4 | A pure virtual function; a class with a pure virtual function whose final overrider is pure is abstract; no object of an abstract class can be created except as a subobject. | `Program.abstract c`; `Program.constructible` is `false` at an abstract class; the aggregate and the value route refuse one. | 1 |
+| [class.abstract]/3 | An abstract class type cannot be a parameter or return type of a function being defined or called, or the type of an explicit conversion; pointers and references to it can. | `Program.call` is ill-formed when the selected function has a by-value parameter of abstract type; `abstract_by_value_ill_formed`. | 1 |
+| [class.dtor]/11 | A prospective destructor can be declared virtual and pure. | `SmfDecl` of kind `.dtor` with `virt`. | 1 |
+| [class.default.ctor]/3, [class.copy.ctor]/12, [class.copy.assign]/9, [class.dtor]/8 | Trivial only with no virtual functions (and no virtual bases); a destructor trivial only if not virtual. | The "no virtual functions" conjunct of `trivialWithin`, always true until now, becomes `!p.polymorphic c`, and the destructor's `!virtual`. | 1 |
+| [class.prop]/1, /2 | Trivially copyable and standard-layout need no virtual functions. | `triviallyCopyableClass` through triviality; `standardLayoutWithin` gains the conjunct. | 1 |
+| [meta.unary.prop]/5, rows `is_polymorphic`, `is_abstract`, `has_virtual_destructor`, `is_empty` | A polymorphic class; an abstract class; a virtual destructor; empty needs no virtual member functions. | `Trait.isPolymorphic`, `isAbstract`, `hasVirtualDestructor`; `emptyWithin` gains the conjunct. | 1 |
+| [except.spec]/1 | The exception specification is a predicate, potentially-throwing or non-throwing, defined implicitly or by a noexcept-specifier. | `Decl.function`, `FunctionTemplate`, `UserConv` and `SmfDecl` gain `noexcept : Option Bool`, `none` for no specifier; `Program.throwing` decides the predicate. | 2 |
+| [except.spec]/2, /3 | `noexcept` without an expression is `noexcept(true)`; in a function type the specifier is the type's exception specification. | `Ty.fn` gains `noexcept : Bool`, part of the type, deduced by equality as the form `T() noexcept(i)` of [temp.deduct.type]/8 allows for a non-dependent `i`. | 2 |
+| [except.spec]/4 | A declaration without a noexcept-specifier is potentially throwing, unless it is a destructor or a deallocation function or is defaulted on its first declaration. | `Program.throwing` on a user-provided function: the specifier, or potentially throwing; on a destructor or a defaulted member: the implicit rule below. | 2 |
+| [except.spec]/5 | An override of a non-throwing virtual function shall be non-throwing unless deleted. | `Program.virtualsWellFormed` gains the check, joining the two stages. | 2 |
+| [except.spec]/6 | An expression is potentially-throwing if it calls a function with a potentially-throwing exception specification, implicitly invokes one, or has a potentially-throwing immediate subexpression. | The fragment's expressions are calls: a call is potentially-throwing when the selected function is; `is_nothrow_invocable` for a function type reads the type. | 2 |
+| [except.spec]/7 | An implicitly-declared or defaulted constructor is potentially-throwing iff a constructor selected to initialize a potentially constructed subobject is, or a default member initializer is. | `Program.throwingWithin c k` for the constructor kinds, through `resolveCtor` on each subobject, as `deletedWithin` is; a default member initializer is an expression, so `Member` gains `throwingInit : Bool`. | 2 |
+| [except.spec]/8 | An implicitly-declared destructor, or one without a specifier, is potentially-throwing iff a potentially constructed subobject's destructor is. | `Program.throwingWithin c .dtor`; `nothrow_destructible_eq` of phase 13 is retired for the real rule, and `destructible` distinguishes `~X() noexcept(false)`. | 2 |
+| [except.spec]/9 | An implicitly-declared or defaulted assignment operator is potentially-throwing iff an assignment it invokes is. | `Program.throwingWithin c k` for the assignment kinds, through `resolveAssign`. | 2 |
+| [meta.unary.prop]/5, the `is_nothrow_` rows; [meta.rel]/3, `is_nothrow_convertible`, `is_nothrow_invocable` | Each is the base trait and the operation known not to throw. | `Trait.isNothrow*` answered by the base judgement and `!throwing` of the function resolution selects; `is_nothrow_swappable` by the move operations when no `swap` is declared ([concept.swappable]/2). | 2 |
+| [dcl.init.aggr]/1 | An aggregate: a class with no user-declared or inherited constructors, no private or protected direct members, no private or protected direct bases, and no virtual functions or virtual bases. | `Program.aggregate c`: no special constructor declaration, no converting constructor, no protected base, not polymorphic; members are public. | 3 |
+| [dcl.init.aggr]/2 | The elements of a class aggregate: the direct bases in declaration order, then the direct non-static data members in declaration order. | `Program.elements c`; `Val.obj c subs` lists them, bases then members, and `candidateInitializer` and `uniqueValue` are restated for classes with members (`decisions.md#value-typing`). | 3 |
+| [dcl.init.aggr]/4 | The elements an initializer list explicitly initializes; `{}` explicitly initializes none. | `Program.braceInit c inits`: the first `k` elements from the list. | 3 |
+| [dcl.init.aggr]/6 | An element not explicitly initialized is initialized from its default member initializer, else copy-initialized from `{}` if not a reference, else the program is ill-formed. | The rest of `braceInit`: a reference element without an initializer fails; `T{}` for a class with a `const` member succeeds where `T t;` does not. | 3 |
+| [dcl.init.general]/15, the aggregate bullet | If no constructor is viable, the destination is an aggregate class and the initializer is a parenthesized expression-list, each element is copy-initialized from the corresponding expression, more expressions than elements is ill-formed, and the rest from their default member initializers or value-initialized. | `Program.constructible` gains the branch: `is_constructible<Agg, Args...>` holds through the elements when no constructor is viable. | 3 |
+| [class.prop]/8 | An implicit-lifetime class: an aggregate whose destructor is not user-provided, or one with a trivial eligible constructor and a trivial non-deleted destructor. | `Program.implicitLifetimeClass`; `Trait.isImplicitLifetime`. | 3 |
+| [meta.unary.prop]/5, row `is_aggregate` | `T` is an aggregate type. | `Trait.isAggregate`. | 3 |
+| [concept.default.init]/1 | `constructible_from<T> && requires { T{}; } && is-default-initializable<T>`. | The body's three conjuncts become three judgements: `braceInit` for `T{}`, `is_default_constructible` for `T t;`. | 3 |
+
+Out of the fragment: virtual base classes, so the virtual-base bullets of
+[special]/7, [class.dtor]/8 and [except.spec]/8 and the unique final
+overrider across virtual bases; covariant return types ([class.virtual]/8,
+/9); `final` on a class and `is_final`; deallocation functions and the
+virtual destructor's lookup of one ([class.dtor]/7 last bullet, /15);
+`noexcept` with a dependent expression and the `noexcept` operator; the
+throw-expression and the other potentially-throwing expressions of
+[except.spec]/6; arrays as aggregates, designated initializers, anonymous
+unions and brace elision ([dcl.init.aggr]/3, /5, /7 onward); inherited
+constructors; `is_nothrow_swappable_with`. Recorded in
+`decisions.md#virtual-fragment`, `decisions.md#exception-specification-fragment`
+and `decisions.md#aggregate-fragment`.
+
+### Design
+
+- **Virtual functions.** `Virt` is `.none`, `.virtual`, `.pure` or
+  `.final`, a field of `Decl.function` and of a destructor's `SmfDecl`.
+  `Program.overrides d b` is correspondence of a derived class's member
+  declaration with a base's virtual one; `Program.virtualFunctions c`
+  is the declared and the overriding; `polymorphic` is non-empty;
+  `finalOverrider c f` walks the derivation; `abstract c` is a pure
+  virtual whose final overrider is pure. `trivialWithin` takes
+  `!polymorphic` as the conjunct the plan left trivially true, and the
+  destructor's `!virtual`; `standardLayoutWithin` and `emptyWithin` take
+  it too. `constructible` is `false` at an abstract class, `aggregate`
+  is `false` at a polymorphic one, and `Program.call` is ill-formed when
+  the selected function takes an abstract class by value. Member lookup
+  needs no change: an override is found as the derived class's
+  declaration, which is the final overrider at that static type, and the
+  dynamic type is outside the fragment. `virtualsWellFormed` checks
+  `final` and `override`. Theorems: `polymorphic_not_trivial` (no
+  special member of a polymorphic class is trivial, so it is neither
+  trivially copyable nor standard-layout), `abstract_not_constructible`,
+  `abstract_by_value_ill_formed`, `override_is_correspondence`,
+  `virtual_destructor_inherited`. Emitted cases on the traits and the
+  by-value call.
+- **Exception specifications.** `noexcept : Option Bool` on every
+  function-like declaration, `none` for no specifier, and
+  `noexcept : Bool` on `Ty.fn`. `Program.throwingWithin fuel c k` is
+  the implicit rule for a defaulted special member, through the
+  function resolution selects for each subobject, in the `Facts`
+  record beside `special` and `deleted`; `Program.throwing` of any
+  function is its specifier, the implicit rule, or potentially throwing.
+  The `is_nothrow_` traits are the base trait and `!throwing` of the
+  selected operation; `is_nothrow_invocable` reads the function type;
+  `is_nothrow_swappable` is the move constructor and move assignment
+  non-throwing when no `swap` is declared, and residue otherwise.
+  `destructible` in `Concepts` becomes real. Theorems:
+  `nothrow_propagates` (a potentially-throwing subobject destructor
+  makes the enclosing destructor potentially-throwing),
+  `implicit_noexcept_from_subobjects` (a flat class with non-throwing
+  members has non-throwing special members), `override_keeps_noexcept`
+  as a well-formedness check, and the restatement of
+  `nothrow_destructible_eq` as a theorem about classes without a
+  specifier. Emitted cases on the `is_nothrow_` traits with
+  `noexcept(false)` members and the `destructible` concept.
+- **Aggregates.** `Program.aggregate c` by [dcl.init.aggr]/1;
+  `elements c` by /2. `Val.obj c subs` lists the elements, bases then
+  members, and `Val.Equivalent` is unchanged; `uniqueValue` and
+  `candidateInitializer` are restated: one value per class holds for a
+  class whose elements are all classes with one value, and a converting
+  constructor's result for a class with scalar members is the
+  environment's oracle again, as phase 11 first planned.
+  `Program.braceInit c inits` is aggregate initialization from a list
+  of argument types, with `{}` for the unlisted elements and a
+  reference element without an initializer a failure; for a non-aggregate
+  `T{}` is value-initialization, the default constructor.
+  `constructible` gains the parenthesized aggregate branch of
+  [dcl.init.general]/15. `default_initializable` in `Concepts` gets its
+  three conjuncts. `Trait.isAggregate`, `isImplicitLifetime`. Theorems:
+  `aggregate_elements_are_value` (a class value's subobject list is the
+  aggregate's element list), `brace_init_differs_from_default_init`
+  (a `const` member: `T{}` well-formed, `T t;` not),
+  `paren_aggregate_constructible` (`is_constructible<Agg, int>` for an
+  aggregate with one `int` member, where the model said `false`),
+  `aggregate_iff_declarations`. Emitted cases on `is_aggregate`,
+  `is_implicit_lifetime`, `is_constructible` through the aggregate
+  branch, and `default_initializable` at the `const`-member class.
+- **The encoding.** Each stage adds its theorems to
+  `Overload/Typeclass/ValueNature.lean`: a polymorphic instance type is
+  not trivially copyable, so the value route copies it in earnest, and
+  an abstract one cannot take the by-value route at all
+  (`virtual_instance_costs`, `abstract_instance_by_reference`); an
+  instance type with no members has non-throwing special members and
+  models `destructible`, and a constraint on `is_nothrow_copy_constructible`
+  of a callable is the noexcept-correct form of the callable-copying
+  rule (`instance_nothrow`, `nothrow_copy_constraint`); an instance
+  type is an aggregate and an implicit-lifetime class, so `X{}` in the
+  value route is aggregate initialization of the empty element list
+  (`instance_is_aggregate`).
+
+### Stages
+
+1. [virtual-functions](#virtual-functions): `Virt`, `polymorphic`,
+   `abstract`, `finalOverrider`, `virtualsWellFormed`, the triviality,
+   layout and emptiness conjuncts, the abstract checks in
+   `constructible` and `Program.call`, the three traits, the five
+   theorems, the encoding's two, emitted cases, docs and citations.
+2. [exception-specifications](#exception-specifications): `noexcept` on
+   declarations and `Ty.fn`, `throwingWithin` in `Facts`, `throwing`,
+   the `is_nothrow_` traits, `destructible` made real, the four
+   theorems, the encoding's two, emitted cases, docs and citations.
+3. [aggregates](#aggregates): `aggregate`, `elements`, `Val.obj` as the
+   elements with `uniqueValue` and `candidateInitializer` restated,
+   `braceInit`, the parenthesized aggregate branch of `constructible`,
+   `default_initializable`'s three conjuncts, `isAggregate` and
+   `isImplicitLifetime`, the four theorems, the encoding's one, emitted
+   cases, docs and citations.
 
 ## Draft citations and prior art
 
