@@ -94,6 +94,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[class.default.ctor]/3](https://eel.is/c++draft/class.default.ctor#3) | rule | `Overload.Program.trivialWithin` | `Overload.Special` |
 | [[class.derived.general]/2](https://eel.is/c++draft/class.derived.general#2) | rule | `Overload.Program.derives` | `Overload.Ranking` |
 | [[class.dtor]/2](https://eel.is/c++draft/class.dtor#2) | rule | `Overload.Program.specialWithin` | `Overload.Special` |
+| [[class.dtor]/6](https://eel.is/c++draft/class.dtor#6) | theorem | `Overload.nothrow_destructible_eq` | `Overload.Traits` |
 | [[class.dtor]/7](https://eel.is/c++draft/class.dtor#7) | rule | `Overload.Program.deletedWithin` | `Overload.Special` |
 | [[class.dtor]/8](https://eel.is/c++draft/class.dtor#8) | rule | `Overload.Program.trivialWithin` | `Overload.Special` |
 | [[class.mem.general]/5](https://eel.is/c++draft/class.mem.general#5) | rule | `Overload.Decl.member` | `Overload.Program` |
@@ -113,13 +114,52 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[class.prop]/1](https://eel.is/c++draft/class.prop#1) | rule | `Overload.Program.triviallyCopyableClass` | `Overload.Traits` |
 | [[class.prop]/2](https://eel.is/c++draft/class.prop#2) | rule | `Overload.Program.standardLayoutWithin` | `Overload.Traits` |
 | [[class.prop]/2](https://eel.is/c++draft/class.prop#2) | rule | `Overload.Program.zeroOffsetWithin` | `Overload.Traits` |
+| [[concept.assignable]/1](https://eel.is/c++draft/concept.assignable#1) | rule | `Overload.Concepts.assignableFrom` | `Overload.Concepts` |
+| [[concept.assignable]/1](https://eel.is/c++draft/concept.assignable#1) | rule | `Overload.Concepts.assignableFromEqual` | `Overload.Concepts` |
+| [[concept.assignable]/2](https://eel.is/c++draft/concept.assignable#2) | rule | `Overload.Concepts.assignableFromEqual` | `Overload.Concepts` |
+| [[concept.booleantestable]/1](https://eel.is/c++draft/concept.booleantestable#1) | rule | `Overload.Concepts.booleanTestable` | `Overload.Concepts` |
+| [[concept.booleantestable]/2](https://eel.is/c++draft/concept.booleantestable#2) | rule | `Overload.Concepts.booleanTestableNoLogicalOperators` | `Overload.Concepts` |
+| [[concept.constructible]/1](https://eel.is/c++draft/concept.constructible#1) | rule | `Overload.Concepts.constructibleFrom` | `Overload.Concepts` |
+| [[concept.convertible]/1](https://eel.is/c++draft/concept.convertible#1) | rule | `Overload.Concepts.convertibleTo` | `Overload.Concepts` |
+| [[concept.convertible]/2](https://eel.is/c++draft/concept.convertible#2) | rule | `Overload.Concepts.convertibleToEqual` | `Overload.Concepts` |
+| [[concept.copyconstructible]/1](https://eel.is/c++draft/concept.copyconstructible#1) | rule | `Overload.Concepts.copyConstructible` | `Overload.Concepts` |
+| [[concept.copyconstructible]/1](https://eel.is/c++draft/concept.copyconstructible#1) | rule | `Overload.Concepts.copyConstructibleEqual` | `Overload.Concepts` |
+| [[concept.default.init]/1](https://eel.is/c++draft/concept.default.init#1) | rule | `Overload.Concepts.defaultInitializable` | `Overload.Concepts` |
+| [[concept.derived]/1](https://eel.is/c++draft/concept.derived#1) | rule | `Overload.Concepts.derivedFrom` | `Overload.Concepts` |
+| [[concept.destructible]/1](https://eel.is/c++draft/concept.destructible#1) | rule | `Overload.Concepts.destructible` | `Overload.Concepts` |
+| [[concept.destructible]/1](https://eel.is/c++draft/concept.destructible#1) | theorem | `Overload.nothrow_destructible_eq` | `Overload.Traits` |
+| [[concept.equalitycomparable]/1](https://eel.is/c++draft/concept.equalitycomparable#1) | rule | `Overload.Concepts.equalityComparable` | `Overload.Concepts` |
+| [[concept.equalitycomparable]/1](https://eel.is/c++draft/concept.equalitycomparable#1) | rule | `Overload.Concepts.weaklyEqualityComparable` | `Overload.Concepts` |
+| [[concept.equalitycomparable]/2](https://eel.is/c++draft/concept.equalitycomparable#2) | rule | `Overload.Concepts.equalityComparableEqual` | `Overload.Concepts` |
+| [[concept.equalitycomparable]/3](https://eel.is/c++draft/concept.equalitycomparable#3) | rule | `Overload.Concepts.equalityComparableEqual` | `Overload.Concepts` |
+| [[concept.invocable]/1](https://eel.is/c++draft/concept.invocable#1) | rule | `Overload.Concepts.callableConcepts` | `Overload.Concepts` |
+| [[concept.invocable]/2](https://eel.is/c++draft/concept.invocable#2) | rule | `Overload.Concepts.callableConcepts` | `Overload.Concepts` |
+| [[concept.moveconstructible]/1](https://eel.is/c++draft/concept.moveconstructible#1) | rule | `Overload.Concepts.moveConstructible` | `Overload.Concepts` |
+| [[concept.moveconstructible]/1](https://eel.is/c++draft/concept.moveconstructible#1) | rule | `Overload.Concepts.moveConstructibleEqual` | `Overload.Concepts` |
+| [[concept.regularinvocable]/1](https://eel.is/c++draft/concept.regularinvocable#1) | rule | `Overload.Concepts.callableConcepts` | `Overload.Concepts` |
+| [[concept.regularinvocable]/1](https://eel.is/c++draft/concept.regularinvocable#1) | rule | `Overload.Concepts.regularInvocableEqualityPreserving` | `Overload.Concepts` |
+| [[concept.regularinvocable]/2](https://eel.is/c++draft/concept.regularinvocable#2) | rule | `Overload.Concepts.regularInvocableEqualityPreserving` | `Overload.Concepts` |
+| [[concept.regularinvocable]/3](https://eel.is/c++draft/concept.regularinvocable#3) | rule | `Overload.Concepts.regularInvocableEqualityPreserving` | `Overload.Concepts` |
+| [[concept.regularinvocable]/3](https://eel.is/c++draft/concept.regularinvocable#3) | theorem | `Overload.regular_invocable_semantic_only` | `Overload.Concepts` |
+| [[concept.same]/1](https://eel.is/c++draft/concept.same#1) | rule | `Overload.Concepts.sameAs` | `Overload.Concepts` |
+| [[concept.same]/1](https://eel.is/c++draft/concept.same#1) | theorem | `Overload.same_as_symmetric` | `Overload.Concepts` |
+| [[concept.swappable]/1](https://eel.is/c++draft/concept.swappable#1) | rule | `Overload.Concepts.swapExchanges` | `Overload.Concepts` |
+| [[concept.swappable]/2](https://eel.is/c++draft/concept.swappable#2) | rule | `Overload.Concepts.swapExchanges` | `Overload.Concepts` |
+| [[concept.swappable]/3](https://eel.is/c++draft/concept.swappable#3) | rule | `Overload.Concepts.swapExchanges` | `Overload.Concepts` |
+| [[concept.swappable]/3](https://eel.is/c++draft/concept.swappable#3) | rule | `Overload.Concepts.swappable` | `Overload.Concepts` |
+| [[concept.swappable]/4](https://eel.is/c++draft/concept.swappable#4) | rule | `Overload.Concepts.swapExchanges` | `Overload.Concepts` |
 | [[concepts.equality]/1](https://eel.is/c++draft/concepts.equality#1) | rule | `Overload.equalityPreserving` | `Overload.Models` |
 | [[concepts.equality]/2](https://eel.is/c++draft/concepts.equality#2) | rule | `Overload.onDomain` | `Overload.Models` |
 | [[concepts.equality]/3](https://eel.is/c++draft/concepts.equality#3) | rule | `Overload.stable` | `Overload.Models` |
+| [[concepts.equality]/4](https://eel.is/c++draft/concepts.equality#4) | rule | `Overload.Concepts.expressionLaws` | `Overload.Concepts` |
 | [[concepts.equality]/4](https://eel.is/c++draft/concepts.equality#4) | rule | `Overload.libraryExpressionsPreserveEquality` | `Overload.Models` |
 | [[concepts.equality]/5](https://eel.is/c++draft/concepts.equality#5) | rule | `Overload.nonModifying` | `Overload.Models` |
 | [[concepts.equality]/6](https://eel.is/c++draft/concepts.equality#6) | rule | `Overload.implicitVariations` | `Overload.Models` |
 | [[concepts.equality]/8](https://eel.is/c++draft/concepts.equality#8) | example | `Overload.satisfied_not_modeled_example` | `Overload.Models` |
+| [[concepts.object]/1](https://eel.is/c++draft/concepts.object#1) | rule | `Overload.Concepts.objectConcepts` | `Overload.Concepts` |
+| [[concepts.object]/1](https://eel.is/c++draft/concepts.object#1) | theorem | `Overload.regular_refines` | `Overload.Concepts` |
+| [[concepts.object]/2](https://eel.is/c++draft/concepts.object#2) | rule | `Overload.Concepts.objectConcepts` | `Overload.Concepts` |
+| [[concepts.object]/3](https://eel.is/c++draft/concepts.object#3) | rule | `Overload.Concepts.objectConcepts` | `Overload.Concepts` |
 | [[conv.ptr]/3 sentence 2](https://eel.is/c++draft/conv.ptr#3.sentence-2) | rule | `Overload.Program.accessibleConversion` | `Overload.Access` |
 | [[dcl.fct.def.default]/1](https://eel.is/c++draft/dcl.fct.def.default#1) | rule | `Overload.SmfBody.defaulted` | `Overload.Program` |
 | [[dcl.fct.def.default]/5](https://eel.is/c++draft/dcl.fct.def.default#5) | rule | `Overload.Provenance.defaulted` | `Overload.Special` |
@@ -195,6 +235,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isEmpty` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isMoveAssignable` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isMoveConstructible` | `Overload.Types` |
+| [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isNothrowDestructible` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isStandardLayout` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isTriviallyAssignable` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isTriviallyCopyAssignable` | `Overload.Types` |
@@ -282,6 +323,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[res.on.requirements]/1](https://eel.is/c++draft/res.on.requirements#1) | rule | `Overload.Program.models` | `Overload.Models` |
 | [[res.on.requirements]/1](https://eel.is/c++draft/res.on.requirements#1) | rule | `Overload.Semantic` | `Overload.Program` |
 | [[res.on.requirements]/1](https://eel.is/c++draft/res.on.requirements#1) | theorem | `Overload.models_satisfies` | `Overload.Models` |
+| [[res.on.requirements]/1](https://eel.is/c++draft/res.on.requirements#1) | theorem | `Overload.regular_laws` | `Overload.Concepts` |
 | [[res.on.requirements]/2](https://eel.is/c++draft/res.on.requirements#2) | rule | `Overload.IllFormedNdr.satisfiedNotModeled` | `Overload.Units` |
 | [[res.on.requirements]/2](https://eel.is/c++draft/res.on.requirements#2) | rule | `Overload.Program.modelVerdicts` | `Overload.Models` |
 | [[res.on.requirements]/2](https://eel.is/c++draft/res.on.requirements#2) | theorem | `Overload.satisfied_not_modeled_verdict` | `Overload.Models` |
@@ -431,35 +473,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 
 ## In scope, no counterpart yet
 
-- [[concept.same]/1](https://eel.is/c++draft/concept.same#1)
-- [[concept.derived]/1](https://eel.is/c++draft/concept.derived#1)
-- [[concept.convertible]/1](https://eel.is/c++draft/concept.convertible#1)
-- [[concept.convertible]/2](https://eel.is/c++draft/concept.convertible#2)
-- [[concept.destructible]/1](https://eel.is/c++draft/concept.destructible#1)
-- [[concept.constructible]/1](https://eel.is/c++draft/concept.constructible#1)
-- [[concept.default.init]/1](https://eel.is/c++draft/concept.default.init#1)
-- [[concept.moveconstructible]/1](https://eel.is/c++draft/concept.moveconstructible#1)
-- [[concept.copyconstructible]/1](https://eel.is/c++draft/concept.copyconstructible#1)
-- [[concept.assignable]/1](https://eel.is/c++draft/concept.assignable#1)
-- [[concept.assignable]/2](https://eel.is/c++draft/concept.assignable#2)
-- [[concept.swappable]/1](https://eel.is/c++draft/concept.swappable#1)
-- [[concept.swappable]/2](https://eel.is/c++draft/concept.swappable#2)
-- [[concept.swappable]/3](https://eel.is/c++draft/concept.swappable#3)
-- [[concept.swappable]/4](https://eel.is/c++draft/concept.swappable#4)
-- [[concept.booleantestable]/1](https://eel.is/c++draft/concept.booleantestable#1)
-- [[concept.booleantestable]/2](https://eel.is/c++draft/concept.booleantestable#2)
-- [[concept.equalitycomparable]/1](https://eel.is/c++draft/concept.equalitycomparable#1)
-- [[concept.equalitycomparable]/2](https://eel.is/c++draft/concept.equalitycomparable#2)
-- [[concept.equalitycomparable]/3](https://eel.is/c++draft/concept.equalitycomparable#3)
-- [[concepts.object]/1](https://eel.is/c++draft/concepts.object#1)
-- [[concepts.object]/2](https://eel.is/c++draft/concepts.object#2)
-- [[concepts.object]/3](https://eel.is/c++draft/concepts.object#3)
-- [[concept.invocable]/1](https://eel.is/c++draft/concept.invocable#1)
-- [[concept.invocable]/2](https://eel.is/c++draft/concept.invocable#2)
-- [[concept.regularinvocable]/1](https://eel.is/c++draft/concept.regularinvocable#1)
-- [[concept.regularinvocable]/2](https://eel.is/c++draft/concept.regularinvocable#2)
-- [[concept.regularinvocable]/3](https://eel.is/c++draft/concept.regularinvocable#3)
-- [[class.dtor]/6](https://eel.is/c++draft/class.dtor#6)
+Every in-scope paragraph has a counterpart in the model.
 
 ## Assumptions
 

@@ -207,8 +207,9 @@ inductive Decl where
   object whose class has the call operators. -/
   | object (name : String) (cls : String := "pinned_instance") (scope : Scope := [])
   /-- `template <class T> concept name = body;`, for the emitted C++; the
-  model sees the concept only as an atomic constraint by name. -/
-  | concept (name : String) (body : String)
+  model sees the concept only as an atomic constraint by name. With
+  `arity` two or more the parameters are `T0, T1, ...`. -/
+  | concept (name : String) (body : String) (arity : Nat := 1)
   /-- A dependent call `callee(args)` written in a template defined at
   this position, instantiated with these argument types: its name is
   looked up in the definition context here and in the instantiation
