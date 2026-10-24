@@ -46,7 +46,11 @@ structure Smf where
   constParam : Bool := true
   deriving Repr, DecidableEq, Inhabited
 
-/-- The parameter types of a special member of class `c`. -/
+/-- The parameter types of a special member of class `c`: none for a
+default constructor or destructor, `X&` or `const X&` for a copy
+constructor or copy assignment operator, `X&&` or `const X&&` for a move
+constructor or move assignment operator. -/
+@[std rule "class.copy.ctor#1" "class.copy.ctor#2" "class.copy.assign#1" "class.copy.assign#3"]
 def Smf.params (c : Ty) (s : Smf) : List Ty :=
   match s.kind with
   | .defaultCtor | .dtor => []
@@ -75,7 +79,10 @@ def copyMoveForm (c : Ty) : UserConv → Option SmfDecl
   | _ => none
 
 /-- The user-declared special member of a kind, if any: a `special`
-declaration, or a converting constructor of copy or move form. -/
+declaration, or a converting constructor of copy or move form. Two
+special members are of the same kind when their kinds agree; the
+fragment's have no cv-qualifiers or ref-qualifiers to tell apart. -/
+@[std rule "special#5"]
 def userDeclared (p : Program) (c : Ty) (k : SmfKind) : Option SmfDecl :=
   (p.specialDecls c ++ (p.conversionsOf c).filterMap (copyMoveForm c)).find? (·.kind == k)
 

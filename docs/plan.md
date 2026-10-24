@@ -62,6 +62,11 @@ In scope:
   as a parameter.
 - The typeclass encoding: canonical lookup, the three explicit-instance
   routes, and customization point objects that dispatch to an instance.
+- Since phase 12: the type categories of [basic.types], data members and
+  function types; the special member functions, implicitly declared,
+  defaulted, deleted and trivial; the type traits the fragment can state,
+  as judgements of the program; requires-expressions of calls and types;
+  and concept-ids, normalized into the associated constraints.
 
 Out of scope at the start:
 
@@ -511,18 +516,29 @@ Status, 15 October 2026:
   refused, as [temp.arg.nontype]/6 says. Settles user-defined-conversions.
   Every in-scope paragraph has a counterpart, once the citation attribute
   learnt to keep several citations on one declaration (`findings.md`).
-- Phase 12 is planned, 24 October 2026: the type categories and data
-  members, with function types; the special member functions as
-  implicitly declared, defaulted, deleted and trivial, by the rules of
-  [special], [class.default.ctor], [class.copy.ctor], [class.copy.assign]
-  and [class.dtor]; the type traits and requires-expressions as
-  judgements over those, with concept-ids normalized; and the value and
-  reference nature of a type as a theorem of the deletion rules. The
-  plan, the cross-reference against N5054 and the stages are
-  [below](#phase-12-the-type-system-special-member-functions-and-traits).
-  Its in-scope paragraphs are listed and uncovered until the stages
-  land. Settles function-types, special-member-fragment, trait-residue
-  and value-nature. Stage 2, type-categories, landed 24 October 2026:
+- Phase 12 is closed, 24 October 2026, planned and landed the same day,
+  on its exit criterion with the departures its stages record: every
+  trait the fragment can state is computed from cited rules and agrees
+  with GCC 15 and Clang 24 on forty-seven emitted trait cases
+  (`Program.trait`, `trait_is_resolution`, `is_convertible_eq_ics`); the
+  special members of a class are a cited judgement (`Program.special`,
+  `deleted`, `trivial`, `eligible`), fuel-bounded as `derives` is rather
+  than a relation with agreement, observed through nine call cases; the
+  callable-copying rule and refinement subsumption are theorems of the
+  encoding (`copy_constraint_shields`, `refinement_normalizes`,
+  `refinement_selects`); and the value nature of a class is a theorem of
+  the deletion rules for flat classes (`value_nature_flat`). The type
+  categories and data members, with function types; the special member
+  functions by [special], [class.default.ctor], [class.copy.ctor],
+  [class.copy.assign] and [class.dtor]; the traits and
+  requires-expressions as judgements over those, with concept-ids
+  normalized; the plan, the cross-reference against N5054 and the stages
+  are [below](#phase-12-the-type-system-special-member-functions-and-traits).
+  Compound and nested requirements, `compound_eq_simple_nested`,
+  `is_invocable` of a class callee and the general propagation theorem
+  of value nature wait on a later phase; their paragraphs are out of
+  scope until then. Settles function-types, special-member-fragment,
+  trait-residue and value-nature. Stage 2, type-categories, landed 24 October 2026:
   `Ty.fn`, `Overload/Types.lean` with the categories, the
   transformations, `primary_category_unique` and the structural
   `Trait` queries, `Constraint.trait` answered without the oracle,
@@ -584,9 +600,13 @@ Status, 15 October 2026:
   `refinement_normalizes`, `refinement_selects` and
   `member_probe_accurate`, with `member_requirement_iff_call` on the
   Standard side, and seven emitted cases, all in agreement with GCC 15
-  and Clang 24. `Program.structural` now looks at members too. Stage 7
-  remains: the docs' status, the guide's map and the citation index are
-  current; the obligation rows cite the theorems.
+  and Clang 24. `Program.structural` now looks at members too. Stage 7,
+  type-system-docs, closed the phase: this status, the guide, the
+  obligations, the findings, the citation index, and `make
+  drift-check-current`, which reports three more editorial drifts
+  (`findings.md`). [expr.prim.req.compound]/1 and
+  [expr.prim.req.nested]/1 leave the in-scope list until compound and
+  nested requirements land.
 
 ## Target theorems
 

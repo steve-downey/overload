@@ -157,6 +157,15 @@ and described here as they arrive.
 
 ## About the model
 
+- **Three more cited paragraphs differ on the draft's main, all
+  editorially** (24 October 2026). `make drift-check-current` reports
+  [class.dtor]/7, [special]/7 and [dcl.init.ref]/5 beside the two known
+  before. The first spells "multidimensional" without a hyphen, the
+  second indexes "potentially constructed subobjects" with a different
+  macro, and the third splits one bullet of the reference-binding rule
+  into two, "is either an rvalue (but not a bit-field), or an lvalue of
+  function type". No sentence the model cites changes its meaning
+  (`decisions.md#draft-pin`).
 - **A requirement that fails for every argument is diagnosed** (24
   October 2026). [expr.prim.req.general]/5 ends: if the substitution of
   template arguments into a requirement would always result in a
