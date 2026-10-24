@@ -162,6 +162,20 @@ structure SmfDecl where
   constParam : Bool := true
   deriving Repr, DecidableEq, Inhabited
 
+/-- A semantic requirement: what the arguments of a concept must do,
+beyond satisfying its constraint, to model it ([res.on.requirements]/1).
+A slug names the question, kebab-case; the statement is the requirement
+in words, which the Standard gives in prose about values and the model
+has no expressions to evaluate. Nothing decides one: `Laws` is the oracle,
+a hypothesis a theorem states (`decisions.md#semantic-requirements`). A
+required operation need not be a total function, so a requirement is
+stated on the domain of its expressions ([structure.requirements]/8). -/
+@[std rule "res.on.requirements#1" "structure.requirements#8"]
+structure Semantic where
+  slug : String
+  statement : String
+  deriving Repr, DecidableEq, Inhabited
+
 /-- A declaration. Every namespace-scope declaration carries the scope it
 inhabits, defaulting to the global scope; a declaration whose scope ends
 in a class step is a member of that class. -/
@@ -226,6 +240,10 @@ inductive Decl where
   arguments substituted ([temp.constr.normal]/1). The string-bodied
   `concept` stays for the emitted C++ that the model reads as one atom. -/
   | conceptDef (name : String) (arity : Nat) (body : Constraint)
+  /-- A semantic requirement given in the specification of the concept
+  `concept`: its own declaration after the `conceptDef`, as a member is
+  after its class. -/
+  | semantic (concept : String) (law : Semantic)
   deriving Repr, DecidableEq, Inhabited
 
 attribute [std rule "temp.dep.general#2"] Decl.dependentCall
@@ -234,6 +252,7 @@ attribute [std rule "class.conv.general#1"] Decl.converting
 attribute [std rule "class.mem.general#5"] Decl.member
 attribute [std rule "special#1"] Decl.special
 attribute [std rule "temp.constr.normal#1"] Decl.conceptDef
+attribute [std rule "res.on.requirements#1"] Decl.semantic
 
 /-- A program: declarations in order. -/
 abbrev Program := List Decl
@@ -263,6 +282,13 @@ def specialDecls (p : Program) (c : Ty) : List SmfDecl :=
 def conceptDef? (p : Program) (name : String) : Option (Nat × Constraint) :=
   p.findSome? fun
     | .conceptDef n a body => if n == name then some (a, body) else none
+    | _ => none
+
+/-- The semantic requirements the program gives in a concept's own
+specification, in order. -/
+def lawsOf (p : Program) (c : String) : List Semantic :=
+  p.filterMap fun
+    | .semantic n law => if n == c then some law else none
     | _ => none
 
 /-- The first function template with a name, if any. -/
@@ -316,6 +342,13 @@ where
     | .conj l r => .conj (go σ l) (go σ r)
     | .disj l r => .disj (go σ l) (go σ r)
 
+/-- The concept-ids a constraint names, with their arguments, outside any
+requires-expression. -/
+def Constraint.conceptIds : Constraint → List (String × List Ty)
+  | .conceptId n as => [(n, as)]
+  | .conj l r | .disj l r => l.conceptIds ++ r.conceptIds
+  | _ => []
+
 namespace Program
 
 /-- The normal form of a constraint within `fuel` expansions: a
@@ -343,6 +376,22 @@ where
 
 /-- The normal form of a constraint. -/
 def normalize (p : Program) (c : Constraint) : Constraint := p.normalizeWithin p.length c
+
+/-- The semantic requirements modelling `c` needs, within `fuel`
+expansions: those of `c`'s own specification, and those of every concept
+its body is defined in terms of, since modelling `regular` is modelling
+`semiregular` and `equality_comparable`. -/
+@[std rule "res.on.requirements#1"]
+def lawsWithin (p : Program) : Nat → String → List Semantic
+  | 0, c => p.lawsOf c
+  | fuel + 1, c =>
+    p.lawsOf c ++
+      match p.conceptDef? c with
+      | some (_, body) => body.conceptIds.flatMap fun (n, _) => p.lawsWithin fuel n
+      | none => []
+
+/-- The semantic requirements modelling `c` needs, each once. -/
+def laws (p : Program) (c : String) : List Semantic := (p.lawsWithin p.length c).eraseDups
 
 /-- A declaration with its constraints normalized: the associated
 constraints of a function template are the normal form of its

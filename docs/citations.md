@@ -113,6 +113,13 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[class.prop]/1](https://eel.is/c++draft/class.prop#1) | rule | `Overload.Program.triviallyCopyableClass` | `Overload.Traits` |
 | [[class.prop]/2](https://eel.is/c++draft/class.prop#2) | rule | `Overload.Program.standardLayoutWithin` | `Overload.Traits` |
 | [[class.prop]/2](https://eel.is/c++draft/class.prop#2) | rule | `Overload.Program.zeroOffsetWithin` | `Overload.Traits` |
+| [[concepts.equality]/1](https://eel.is/c++draft/concepts.equality#1) | rule | `Overload.equalityPreserving` | `Overload.Models` |
+| [[concepts.equality]/2](https://eel.is/c++draft/concepts.equality#2) | rule | `Overload.onDomain` | `Overload.Models` |
+| [[concepts.equality]/3](https://eel.is/c++draft/concepts.equality#3) | rule | `Overload.stable` | `Overload.Models` |
+| [[concepts.equality]/4](https://eel.is/c++draft/concepts.equality#4) | rule | `Overload.libraryExpressionsPreserveEquality` | `Overload.Models` |
+| [[concepts.equality]/5](https://eel.is/c++draft/concepts.equality#5) | rule | `Overload.nonModifying` | `Overload.Models` |
+| [[concepts.equality]/6](https://eel.is/c++draft/concepts.equality#6) | rule | `Overload.implicitVariations` | `Overload.Models` |
+| [[concepts.equality]/8](https://eel.is/c++draft/concepts.equality#8) | example | `Overload.satisfied_not_modeled_example` | `Overload.Models` |
 | [[conv.ptr]/3 sentence 2](https://eel.is/c++draft/conv.ptr#3.sentence-2) | rule | `Overload.Program.accessibleConversion` | `Overload.Access` |
 | [[dcl.fct.def.default]/1](https://eel.is/c++draft/dcl.fct.def.default#1) | rule | `Overload.SmfBody.defaulted` | `Overload.Program` |
 | [[dcl.fct.def.default]/5](https://eel.is/c++draft/dcl.fct.def.default#5) | rule | `Overload.Provenance.defaulted` | `Overload.Special` |
@@ -270,12 +277,23 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[over.match.viable]/4 sentence 1](https://eel.is/c++draft/over.match.viable#4.sentence-1) | rule | `Overload.Resolves.viabilityHard` | `Overload.Specs` |
 | [[over.match.viable]/4 sentence 1](https://eel.is/c++draft/over.match.viable#4.sentence-1) | rule | `Overload.Resolves.viabilitySoft` | `Overload.Specs` |
 | [[over.match.viable]/4 sentence 1](https://eel.is/c++draft/over.match.viable#4.sentence-1) | rule | `Overload.conversions` | `Overload.Resolution` |
+| [[res.on.requirements]/1](https://eel.is/c++draft/res.on.requirements#1) | rule | `Overload.Decl.semantic` | `Overload.Program` |
+| [[res.on.requirements]/1](https://eel.is/c++draft/res.on.requirements#1) | rule | `Overload.Program.lawsWithin` | `Overload.Program` |
+| [[res.on.requirements]/1](https://eel.is/c++draft/res.on.requirements#1) | rule | `Overload.Program.models` | `Overload.Models` |
+| [[res.on.requirements]/1](https://eel.is/c++draft/res.on.requirements#1) | rule | `Overload.Semantic` | `Overload.Program` |
+| [[res.on.requirements]/1](https://eel.is/c++draft/res.on.requirements#1) | theorem | `Overload.models_satisfies` | `Overload.Models` |
+| [[res.on.requirements]/2](https://eel.is/c++draft/res.on.requirements#2) | rule | `Overload.IllFormedNdr.satisfiedNotModeled` | `Overload.Units` |
+| [[res.on.requirements]/2](https://eel.is/c++draft/res.on.requirements#2) | rule | `Overload.Program.modelVerdicts` | `Overload.Models` |
+| [[res.on.requirements]/2](https://eel.is/c++draft/res.on.requirements#2) | theorem | `Overload.satisfied_not_modeled_verdict` | `Overload.Models` |
+| [[res.on.requirements]/3](https://eel.is/c++draft/res.on.requirements#3) | rule | `Overload.Program.conceptUses` | `Overload.Models` |
+| [[res.on.requirements]/3](https://eel.is/c++draft/res.on.requirements#3) | rule | `Overload.Program.modelVerdicts` | `Overload.Models` |
 | [[special]/1](https://eel.is/c++draft/special#1) | rule | `Overload.Decl.special` | `Overload.Program` |
 | [[special]/1](https://eel.is/c++draft/special#1) | rule | `Overload.SmfKind` | `Overload.Program` |
 | [[special]/5](https://eel.is/c++draft/special#5) | rule | `Overload.Program.userDeclared` | `Overload.Special` |
 | [[special]/6](https://eel.is/c++draft/special#6) | rule | `Overload.Program.eligible` | `Overload.Special` |
 | [[special]/7](https://eel.is/c++draft/special#7) | rule | `Overload.Program.subobjectsOf` | `Overload.Special` |
 | [[stmt.if]/2 sentence 2](https://eel.is/c++draft/stmt.if#2.sentence-2) | rule | `Overload.ifConstexpr` | `Overload.Dispatch` |
+| [[structure.requirements]/8](https://eel.is/c++draft/structure.requirements#8) | rule | `Overload.Semantic` | `Overload.Program` |
 | [[structure.specifications]/3](https://eel.is/c++draft/structure.specifications#3) | rule | `Overload.mandateCheck` | `Overload.Mandates` |
 | [[temp.arg.general]/1 sentence 1](https://eel.is/c++draft/temp.arg.general#1.sentence-1) | rule | `Overload.ConvertsTo.type` | `Overload.Arguments` |
 | [[temp.arg.general]/1 sentence 1](https://eel.is/c++draft/temp.arg.general#1.sentence-1) | rule | `Overload.kindMatches` | `Overload.Steps` |
@@ -413,17 +431,6 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 
 ## In scope, no counterpart yet
 
-- [[res.on.requirements]/1](https://eel.is/c++draft/res.on.requirements#1)
-- [[res.on.requirements]/2](https://eel.is/c++draft/res.on.requirements#2)
-- [[res.on.requirements]/3](https://eel.is/c++draft/res.on.requirements#3)
-- [[structure.requirements]/8](https://eel.is/c++draft/structure.requirements#8)
-- [[concepts.equality]/1](https://eel.is/c++draft/concepts.equality#1)
-- [[concepts.equality]/2](https://eel.is/c++draft/concepts.equality#2)
-- [[concepts.equality]/3](https://eel.is/c++draft/concepts.equality#3)
-- [[concepts.equality]/4](https://eel.is/c++draft/concepts.equality#4)
-- [[concepts.equality]/5](https://eel.is/c++draft/concepts.equality#5)
-- [[concepts.equality]/6](https://eel.is/c++draft/concepts.equality#6)
-- [[concepts.equality]/8](https://eel.is/c++draft/concepts.equality#8)
 - [[concept.same]/1](https://eel.is/c++draft/concept.same#1)
 - [[concept.derived]/1](https://eel.is/c++draft/concept.derived#1)
 - [[concept.convertible]/1](https://eel.is/c++draft/concept.convertible#1)

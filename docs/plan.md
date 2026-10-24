@@ -617,7 +617,14 @@ Status, 15 October 2026:
   N5054 and the stages are
   [below](#phase-13-semantic-requirements-what-satisfies-and-what-models).
   Its in-scope paragraphs are listed and uncovered until the stages
-  land. Settles semantic-requirements.
+  land. Settles semantic-requirements. Stage 2, semantic-requirements,
+  landed the same day: `Semantic`, `Decl.semantic`, `Program.laws`
+  through a concept's body, `Laws`, `Program.models` with
+  `models_satisfies`, `Program.conceptUses`, `Program.modelVerdicts`
+  with `IllFormedNdr.satisfiedNotModeled`, `satisfied_not_modeled_verdict`,
+  the example of [concepts.equality]/8 as a program, and `#owes`, which
+  reports that `coherence` and `stability` owe no law
+  (`Overload/Models.lean`).
 
 ## Target theorems
 
