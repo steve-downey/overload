@@ -75,10 +75,14 @@ the copy-initialization of each by-value class parameter from an
 argument of its class, which is ill-formed when the constructor selected
 is deleted; then the access check on its conversions, after ambiguity
 resolution, an inaccessible base making the call ill-formed; then the
-selected specialization's Mandates. -/
+selected specialization's Mandates. The candidates' associated
+constraints are the normal forms of their constraint-expressions
+(`Program.normalizeDecl`), so a concept-id is expanded before
+satisfaction and subsumption see it. -/
 @[std rule "dcl.init.ref#4.sentence-3" "class.conv.general#2"]
 def call (p : Program) (env : Env) (decls : List Decl) (args : List CallArg)
     (explicit : List Ty := []) : Resolution Candidate :=
+  let decls := decls.map p.normalizeDecl
   match resolve .text env p.ranking decls args explicit with
   | .selected c =>
     if (args.zip c.params).any fun (a, t) => p.ambiguousConversion a t then
@@ -97,14 +101,16 @@ accessible, the call is the evaluated call of `invoke`; the two checks
 change nothing else. -/
 theorem call_eq_invoke (p : Program) (env : Env) (decls : List Decl) (args : List CallArg)
     (explicit : List Ty)
-    (hamb : ∀ c, resolve .text env p.ranking decls args explicit = .selected c →
+    (hamb : ∀ c, resolve .text env p.ranking (decls.map p.normalizeDecl) args explicit = .selected c →
       ∀ x ∈ args.zip c.params, p.ambiguousConversion x.1 x.2 = false)
-    (husable : ∀ c, resolve .text env p.ranking decls args explicit = .selected c →
+    (husable : ∀ c, resolve .text env p.ranking (decls.map p.normalizeDecl) args explicit = .selected c →
       ∀ x ∈ args.zip c.params, p.copyInitUsable x.1 x.2 = true)
-    (h : ∀ c, resolve .text env p.ranking decls args explicit = .selected c →
+    (h : ∀ c, resolve .text env p.ranking (decls.map p.normalizeDecl) args explicit = .selected c →
       ∀ x ∈ args.zip c.params, p.accessibleConversion x.1 x.2 = true) :
-    p.call env decls args explicit = invoke .text env p.ranking decls args explicit := by
+    p.call env decls args explicit =
+      invoke .text env p.ranking (decls.map p.normalizeDecl) args explicit := by
   unfold Program.call
+  simp only
   split
   · rename_i c hc
     simp only [List.any_eq_false.mpr fun x hx => by simpa using hamb c hc x hx,

@@ -146,6 +146,12 @@ proof needs to see inside a call that a constraint depends on.
   atom and the oracle stay for the residue (`trait-residue`). Still no
   expressions: a default member initializer is a flag, a requirement is
   a call by callee and argument types.
+- 2026-10-24 — Stage 5 of phase 12 landed. A requires-expression is an
+  atom the environment answers; the base environment, `Env.ofProgram`,
+  cannot resolve its calls, which need the lookup above it, so
+  `Env.full` answers them one level deep (`Overload/Requires.lean`). The
+  oracle's atoms are now expressions, traits, requires-expressions and
+  unexpanded concept-ids.
 
 ---
 

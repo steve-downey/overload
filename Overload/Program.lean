@@ -220,6 +220,12 @@ inductive Decl where
   ground class type, declared in its definition. Its own declaration,
   after the class, like a conversion and a member. -/
   | special (cls : Ty) (s : SmfDecl)
+  /-- `template <class T0, ...> concept name = body;`, with `arity` type
+  parameters and a constraint for its body, whose parameters are
+  `Ty.param i`. A concept-id `name<args>` normalizes to the body with the
+  arguments substituted ([temp.constr.normal]/1). The string-bodied
+  `concept` stays for the emitted C++ that the model reads as one atom. -/
+  | conceptDef (name : String) (arity : Nat) (body : Constraint)
   deriving Repr, DecidableEq, Inhabited
 
 attribute [std rule "temp.dep.general#2"] Decl.dependentCall
@@ -227,6 +233,7 @@ attribute [std rule "temp.point#1.sentence-2"] Decl.refersTo
 attribute [std rule "class.conv.general#1"] Decl.converting
 attribute [std rule "class.mem.general#5"] Decl.member
 attribute [std rule "special#1"] Decl.special
+attribute [std rule "temp.constr.normal#1"] Decl.conceptDef
 
 /-- A program: declarations in order. -/
 abbrev Program := List Decl
@@ -250,6 +257,12 @@ def membersOf (p : Program) (c : Ty) : List Member :=
 def specialDecls (p : Program) (c : Ty) : List SmfDecl :=
   p.filterMap fun
     | .special d s => if d == c then some s else none
+    | _ => none
+
+/-- The concept definition of a name, if any: its arity and body. -/
+def conceptDef? (p : Program) (name : String) : Option (Nat × Constraint) :=
+  p.findSome? fun
+    | .conceptDef n a body => if n == name then some (a, body) else none
     | _ => none
 
 /-- The first function template with a name, if any. -/
@@ -285,5 +298,59 @@ def SingleTranslationUnit (p : Program) : Prop :=
 
 instance (p : Program) : Decidable (SingleTranslationUnit p) :=
   inferInstanceAs (Decidable (_ = true))
+
+/-! ## Constraint normalization -/
+
+/-- Substitute a concept-id's arguments for the concept's parameters
+throughout a constraint: in every mapping, and in the types of a
+requires-expression. -/
+def Constraint.substArgs (args : List Ty) : Constraint → Constraint :=
+  let σ : Bindings := args.zipIdx.map fun (a, i) => (i, a)
+  go σ
+where
+  go (σ : Bindings) : Constraint → Constraint
+    | .atomic e m => .atomic e (m.map (Ty.subst σ))
+    | .trait q m => .trait q (m.map (Ty.subst σ))
+    | .requires reqs m => .requires (reqs.map (Constraint.Requirement.subst σ)) (m.map (Ty.subst σ))
+    | .conceptId n as => .conceptId n (as.map (Ty.subst σ))
+    | .conj l r => .conj (go σ l) (go σ r)
+    | .disj l r => .disj (go σ l) (go σ r)
+
+namespace Program
+
+/-- The normal form of a constraint within `fuel` expansions: a
+concept-id the program declares is replaced by the concept's body with
+the arguments substituted into the parameter mappings of its atoms, and
+normalized in turn; a conjunction or disjunction by the normal forms of
+its operands; anything else is atomic with the identity mapping. A
+concept names only concepts declared before it, so the program's length
+bounds the expansion. -/
+@[std rule "temp.constr.normal#1"]
+def normalizeWithin (p : Program) : Nat → Constraint → Constraint
+  | 0, c => c
+  | fuel + 1, c =>
+    match c with
+    | .conceptId n as =>
+      match p.conceptDef? n with
+      | some (_, body) => p.normalizeWithin fuel (body.substArgs as)
+      | none => .conceptId n as
+    | .conj l r => .conj (p.normalizeWithin fuel l) (p.normalizeWithin fuel r)
+    | .disj l r => .disj (p.normalizeWithin fuel l) (p.normalizeWithin fuel r)
+    | c => c
+
+/-- The normal form of a constraint. -/
+def normalize (p : Program) (c : Constraint) : Constraint := p.normalizeWithin p.length c
+
+/-- A declaration with its constraints normalized: the associated
+constraints of a function template are the normal form of its
+constraint-expression ([temp.constr.normal]/2). -/
+@[std rule "temp.constr.normal#2"]
+def normalizeDecl (p : Program) : Decl → Decl
+  | .functionTemplate ft =>
+    .functionTemplate { ft with constraint := ft.constraint.map p.normalize
+                                mandate := ft.mandate.map p.normalize }
+  | d => d
+
+end Program
 
 end Overload

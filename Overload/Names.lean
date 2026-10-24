@@ -321,6 +321,9 @@ theorem singleSearch_global_eq_candidates (p : Program) (callee : String)
   | concept m body =>
     have : m ≠ callee := fun h => by simp [Decl.name?, Decl.declaresFunction, Decl.kind?, h] at hg
     simp [Decl.binds, Decl.name?, this]
+  | conceptDef m a body =>
+    have : m ≠ callee := fun h => by simp [Decl.name?, Decl.declaresFunction, Decl.kind?, h] at hg
+    simp [Decl.binds, Decl.name?, this]
   | «instance» => simp [Decl.binds, Decl.name?]
   | use => simp [Decl.binds, Decl.name?]
   | dependentCall => simp [Decl.binds, Decl.name?]

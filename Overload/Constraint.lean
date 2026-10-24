@@ -24,25 +24,65 @@ converse fails (`satisfaction_implication_not_subsumes`).
 
 namespace Overload
 
-/-- A constraint in normal form: atomic constraints joined by conjunction
-and disjunction. An atomic constraint is an expression, named, with its
-parameter mapping, or a type trait the model answers itself, with its
-mapping. -/
+/-- A requirement of a requires-expression, on the fragment: a
+simple-requirement asserting the validity of a call, by callee and
+argument types, where an lvalue reference type is an lvalue argument and
+any other type an xvalue, as `declval` gives; a call on an object of a
+class; and a type-requirement asserting the validity of a type. The
+requirement-parameter-list is notation ([expr.prim.req.general]/4), and
+the model writes the arguments' types directly. Compound and nested
+requirements are a later stage. -/
+inductive Constraint.Requirement where
+  | simple (callee : String) (args : List Ty)
+  | memberCall (cls : Ty) (callee : String) (args : List Ty)
+  | type (t : Ty)
+  deriving Repr, DecidableEq, Inhabited
+
+attribute [std rule "expr.prim.req.simple#1"] Constraint.Requirement.simple Constraint.Requirement.memberCall
+attribute [std rule "expr.prim.req.type#1"] Constraint.Requirement.type
+
+/-- Substitute bindings into a requirement's types. -/
+def Constraint.Requirement.subst (σ : Bindings) : Constraint.Requirement → Constraint.Requirement
+  | .simple f as => .simple f (as.map (Ty.subst σ))
+  | .memberCall c f as => .memberCall (Ty.subst σ c) f (as.map (Ty.subst σ))
+  | .type t => .type (Ty.subst σ t)
+
+/-- A constraint: atomic constraints joined by conjunction and
+disjunction, and the forms normalization expands or keeps. An atomic
+constraint is an expression, named, with its parameter mapping; a type
+trait the program answers, with its mapping; a requires-expression, an
+atomic constraint of its own ([temp.constr.normal]/1), with a mapping
+the environment may ignore; or a concept-id, which normalization
+replaces by the concept's constraint with the arguments substituted. -/
 inductive Constraint where
   | atomic (expr : String) (mapping : List Ty)
   | trait (q : Trait) (mapping : List Ty)
+  | requires (reqs : List Constraint.Requirement) (mapping : List Ty)
+  | conceptId (name : String) (args : List Ty)
   | conj (left right : Constraint)
   | disj (left right : Constraint)
   deriving Repr, DecidableEq, Inhabited
 
+attribute [std rule "temp.constr.normal#1"] Constraint.requires Constraint.conceptId
+
 namespace Constraint
 
 /-- The head of an atomic constraint: an expression, identified by its
-name, or a trait query. -/
+name; a trait query; a requires-expression, its requirements with the
+bindings substituted; or a concept-id normalization did not expand,
+which no program declares. -/
 inductive Atom where
   | expr (e : String)
   | trait (q : Trait)
+  | requires (reqs : List Constraint.Requirement)
+  | concept (name : String)
   deriving Repr, DecidableEq, Inhabited
+
+/-- Substitute bindings into a head: only a requires-expression carries
+types. -/
+def Atom.subst (σ : Bindings) : Atom → Atom
+  | .requires reqs => .requires (reqs.map (Requirement.subst σ))
+  | a => a
 
 /-- The oracle for an atomic constraint: given its head, an expression or
 a trait, and the substituted targets of its mapping, whether it is valid
@@ -59,6 +99,8 @@ structural answer, `Trait.answer`, which needs no program. -/
 def Oracle.ofExpr (f : ExprOracle) : Oracle
   | .expr e, m => f e m
   | .trait q, m => Trait.answer q m
+  | .requires _, _ => .soft "a requires-expression needs the program"
+  | .concept n, _ => .hard s!"the concept {n} is not declared"
 
 /-- Satisfaction. For an atomic constraint the mapping is substituted into
 the expression, an invalid result in the immediate context means not
@@ -73,6 +115,14 @@ def satisfied (oracle : Oracle) (σ : Bindings) : Constraint → Subst Bool
     | r => r
   | trait q m =>
     match oracle (.trait q) (m.map (Ty.subst σ)) with
+    | .soft _ => .ok false
+    | r => r
+  | requires reqs m =>
+    match oracle (.requires (reqs.map (Requirement.subst σ))) (m.map (Ty.subst σ)) with
+    | .soft _ => .ok false
+    | r => r
+  | conceptId n as =>
+    match oracle (.concept n) (as.map (Ty.subst σ)) with
     | .soft _ => .ok false
     | r => r
   | conj l r => do
@@ -110,16 +160,29 @@ abbrev Atomic := Atom × List Ty
 def ofAtomic : Atomic → Constraint
   | (.expr e, m) => atomic e m
   | (.trait q, m) => trait q m
+  | (.requires reqs, m) => requires reqs m
+  | (.concept n, m) => conceptId n m
 
-/-- The answer of an atomic constraint under the oracle, once its mapping
-is substituted. -/
+/-- The answer of an atomic constraint under the oracle, once the
+bindings are substituted into its head and its mapping. -/
 def answer (oracle : Oracle) (σ : Bindings) (a : Atomic) : Subst Bool :=
-  oracle a.1 (a.2.map (Ty.subst σ))
+  oracle (a.1.subst σ) (a.2.map (Ty.subst σ))
 
 theorem satisfied_trait (oracle : Oracle) (σ : Bindings) (q : Trait) (m : List Ty) :
     satisfied oracle σ (trait q m) = atomicAnswer (oracle (.trait q) (m.map (Ty.subst σ))) := by
   simp only [satisfied]
   cases oracle (.trait q) (m.map (Ty.subst σ)) <;> rfl
+
+theorem satisfied_requires (oracle : Oracle) (σ : Bindings) (reqs : List Requirement) (m : List Ty) :
+    satisfied oracle σ (requires reqs m) =
+      atomicAnswer (oracle (.requires (reqs.map (Requirement.subst σ))) (m.map (Ty.subst σ))) := by
+  simp only [satisfied]
+  cases oracle (.requires (reqs.map (Requirement.subst σ))) (m.map (Ty.subst σ)) <;> rfl
+
+theorem satisfied_conceptId (oracle : Oracle) (σ : Bindings) (n : String) (as : List Ty) :
+    satisfied oracle σ (conceptId n as) = atomicAnswer (oracle (.concept n) (as.map (Ty.subst σ))) := by
+  simp only [satisfied]
+  cases oracle (.concept n) (as.map (Ty.subst σ)) <;> rfl
 
 theorem satisfied_ofAtomic (oracle : Oracle) (σ : Bindings) (a : Atomic) :
     satisfied oracle σ (ofAtomic a) = atomicAnswer (answer oracle σ a) := by
@@ -127,6 +190,8 @@ theorem satisfied_ofAtomic (oracle : Oracle) (σ : Bindings) (a : Atomic) :
   cases h with
   | expr e => exact satisfied_atomic oracle σ e m
   | trait q => exact satisfied_trait oracle σ q m
+  | requires reqs => exact satisfied_requires oracle σ reqs m
+  | concept n => exact satisfied_conceptId oracle σ n m
 
 
 /-- Two atomic constraints are identical when they are formed from the
@@ -143,6 +208,8 @@ conjunction of atomic constraints. -/
 def dnf : Constraint → List (List Atomic)
   | atomic e m => [[(.expr e, m)]]
   | trait q m => [[(.trait q, m)]]
+  | requires reqs m => [[(.requires reqs, m)]]
+  | conceptId n as => [[(.concept n, as)]]
   | disj l r => dnf l ++ dnf r
   | conj l r => (dnf l).flatMap fun p => (dnf r).map fun q => p ++ q
 
@@ -152,6 +219,8 @@ disjunction of atomic constraints. -/
 def cnf : Constraint → List (List Atomic)
   | atomic e m => [[(.expr e, m)]]
   | trait q m => [[(.trait q, m)]]
+  | requires reqs m => [[(.requires reqs, m)]]
+  | conceptId n as => [[(.concept n, as)]]
   | conj l r => cnf l ++ cnf r
   | disj l r => (cnf l).flatMap fun p => (cnf r).map fun q => p ++ q
 
@@ -210,6 +279,8 @@ value. -/
 def eval (v : Atomic → Bool) : Constraint → Bool
   | atomic e m => v (.expr e, m)
   | trait q m => v (.trait q, m)
+  | requires reqs m => v (.requires reqs, m)
+  | conceptId n as => v (.concept n, as)
   | conj l r => eval v l && eval v r
   | disj l r => eval v l || eval v r
 
@@ -218,6 +289,8 @@ theorem eval_iff_dnf (v : Atomic → Bool) (c : Constraint) :
   induction c with
   | atomic e m => simp [eval, dnf]
   | trait q m => simp [eval, dnf]
+  | requires reqs m => simp [eval, dnf]
+  | conceptId n as => simp [eval, dnf]
   | disj l r ihl ihr =>
     simp only [eval, dnf, Bool.or_eq_true, ihl, ihr, List.mem_append]
     constructor
@@ -252,6 +325,18 @@ theorem eval_iff_cnf (v : Atomic → Bool) (c : Constraint) :
     simp only [eval, cnf, List.mem_singleton, forall_eq, Prod.exists, Prod.mk.injEq]
     constructor
     · exact fun h => ⟨.trait q, m, ⟨rfl, rfl⟩, h⟩
+    · rintro ⟨_, _, ⟨rfl, rfl⟩, h⟩
+      exact h
+  | requires reqs m =>
+    simp only [eval, cnf, List.mem_singleton, forall_eq, Prod.exists, Prod.mk.injEq]
+    constructor
+    · exact fun h => ⟨.requires reqs, m, ⟨rfl, rfl⟩, h⟩
+    · rintro ⟨_, _, ⟨rfl, rfl⟩, h⟩
+      exact h
+  | conceptId n as =>
+    simp only [eval, cnf, List.mem_singleton, forall_eq, Prod.exists, Prod.mk.injEq]
+    constructor
+    · exact fun h => ⟨.concept n, as, ⟨rfl, rfl⟩, h⟩
     · rintro ⟨_, _, ⟨rfl, rfl⟩, h⟩
       exact h
   | conj l r ihl ihr =>
@@ -364,7 +449,7 @@ constraint is "not satisfied". -/
 theorem satisfied_ne_soft (oracle : Oracle) (σ : Bindings) (c : Constraint) (r : Reason) :
     satisfied oracle σ c ≠ .soft r := by
   induction c generalizing r with
-  | atomic e m | trait e m =>
+  | atomic e m | trait e m | requires e m | conceptId e m =>
     simp only [satisfied]
     split <;> simp_all
   | conj l _ ihl ihr | disj l _ ihl ihr =>
@@ -379,9 +464,9 @@ the oracle's assignment; short-circuiting does not change the value. -/
 theorem satisfied_ok_eval (oracle : Oracle) (σ : Bindings) (c : Constraint) (b : Bool)
     (h : satisfied oracle σ c = .ok b) : b = eval (oracleAssignment oracle σ) c := by
   induction c generalizing b with
-  | atomic e m | trait e m =>
+  | atomic e m | trait e m | requires e m | conceptId e m =>
     simp only [satisfied] at h
-    simp only [eval, oracleAssignment, answer]
+    simp only [eval, oracleAssignment, answer, Atom.subst]
     split at h
     · next hs => simp_all
     · next r hs => rw [h]; cases b <;> simp_all
