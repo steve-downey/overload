@@ -9,6 +9,7 @@ import Overload.Typeclass.Lookup
 import Overload.Typeclass.Arguments
 import Overload.Typeclass.Conversion
 import Overload.Typeclass.ValueNature
+import Overload.Typeclass.Laws
 import Overload.Typeclass.Emit
 
 /-!
@@ -42,6 +43,9 @@ the call through it.
 * `Overload.Typeclass.ValueNature`: the value nature of an instance type,
   the callable-copying rule as constraint against Mandate, refinement by
   normalization, and the member probe.
+* `Overload.Typeclass.Laws`: the typeclass laws as semantic requirements,
+  and the superclass-coherence obligation as a theorem with its law as
+  hypothesis.
 * `Overload.Typeclass.Members`: the member call as a parameter, operation
   objects with several `operator()`s, and algorithms over an instance.
 * `Overload.Typeclass.Emit`: the emitted differential cases of the encoding.

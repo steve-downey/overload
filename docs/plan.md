@@ -639,6 +639,18 @@ Status, 15 October 2026:
   one argument type after the first; and the large normal forms are
   decided in the kernel (`decide +kernel`), which the audit shows
   resting on `propext` alone.
+  Stage 4, typeclass-laws, landed the same day:
+  `Overload/Typeclass/Laws.lean` names the Functor, Applicative and
+  Monad laws and the superclass agreement as `Semantic`s on the
+  encoding's concepts, `monad_laws` lists the eight modelling Monad
+  needs, `superclass_coherence_owed` is the undiagnosable row as a
+  theorem, with the verdict naming the law when unclaimed and none when
+  claimed, and `shape_without_laws` gives an instance with the shape and
+  no law every law as a verdict; one emitted case agrees with GCC 15 and
+  Clang 24. One departure: that `coherence`, `stability`,
+  `call_stability`, `inheritance_erasure` and `superclass_identity` owe
+  no law is an audit, `#owes` in `Overload.lean` and a test, not a
+  theorem, as `#audit` is.
 
 ## Target theorems
 

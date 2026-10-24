@@ -338,3 +338,11 @@ consults an oracle rests on what the environment says. -/
 #audit Overload.Typeclass.refinement_normalizes
 #audit Overload.Typeclass.refinement_selects
 #audit Overload.Typeclass.member_probe_accurate
+
+-- The typeclass laws as semantic requirements.
+#audit Overload.Typeclass.monad_laws
+#audit Overload.Typeclass.superclass_coherence_owed
+#audit Overload.Typeclass.shape_without_laws
+#owes Overload.Typeclass.superclass_coherence_owed
+#owes Overload.Typeclass.call_stability
+#owes Overload.Typeclass.superclass_identity
