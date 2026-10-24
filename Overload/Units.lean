@@ -90,6 +90,11 @@ inductive IllFormedNdr where
   specializations in the two, so the definitions of one definable item
   do not agree. -/
   | odrMismatch (unit other : Nat) (tc : String) (arg : Ty)
+  /-- A call's validity depends on `args` modelling `concept`, the
+  arguments satisfy it, and the semantic requirement `law` of its
+  specification is not claimed for them (`Overload/Models.lean`). The use
+  is the call, so no unit or position is recorded. -/
+  | satisfiedNotModeled (concept : String) (args : List Ty) (law : Semantic)
   deriving Repr, DecidableEq
 
 attribute [std rule "temp.point#7"] IllFormedNdr.laterInUnit
@@ -98,6 +103,7 @@ attribute [std rule "temp.constr.atomic#3.sentence-5"] IllFormedNdr.satisfaction
 attribute [std rule "temp.dep.candidate#1"] IllFormedNdr.dependentCandidate
 attribute [std rule "temp.point#7.sentence-4"] IllFormedNdr.laterCandidate
 attribute [std rule "basic.def.odr#16"] IllFormedNdr.odrMismatch
+attribute [std rule "res.on.requirements#2"] IllFormedNdr.satisfiedNotModeled
 
 /-- The verdict at one use, the `pos`th declaration of unit `u`. -/
 def useVerdict (us : Units) (u pos : Nat) (p : Program) (tc : String) (a : Ty) : Option IllFormedNdr :=
@@ -276,6 +282,7 @@ def IllFormedNdr.site : IllFormedNdr → Nat × Nat × String × Ty
   | .dependentCandidate u pos callee args | .laterCandidate u pos callee args =>
     (u, pos, callee, Ty.args (args.map (·.ty)))
   | .odrMismatch u v tc a => (u, v, tc, a)
+  | .satisfiedNotModeled c as _ => (0, 0, c, Ty.args as)
 
 /-- The rule a verdict at a registry's use falls under. Where the test's
 answer itself changes, from incomplete to complete, the use is one

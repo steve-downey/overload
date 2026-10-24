@@ -268,6 +268,7 @@ theorem generate_go_suppressed (env : Env) (args : List CallArg) (explicit : Lis
     | member cls m => exact ⟨cs, by simp [generate.go, hcs], hall⟩
     | special cls s => exact ⟨cs, by simp [generate.go, hcs], hall⟩
     | conceptDef n a body => exact ⟨cs, by simp [generate.go, hcs], hall⟩
+    | semantic c law => exact ⟨cs, by simp [generate.go, hcs], hall⟩
 
 /-- With a perfect non-template match, the P3606 mode never deduces a
 template: the candidates are the non-template functions and generation

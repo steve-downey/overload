@@ -479,6 +479,7 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
         text := s!"using reference_{i} = decltype({callExpr s!"dependent_{call}" [] as});\n"
       | _ => text := ""
     | .converting .. | .member .. | .special .. => text := ""
+    | .semantic c law => text := s!"// {c} is modeled only if {law.slug}: {law.statement}\n"
     out := out ++ inScope d.scope text
   return out
 
@@ -579,6 +580,7 @@ def qualifyDecl (q : List (String × String)) : Decl → Decl
   | .member c m => .member (qualifyTy q c) { m with ty := qualifyTy q m.ty }
   | .special c s => .special (qualifyTy q c) s
   | .conceptDef n a body => .conceptDef n a (qualifyConstraint q body)
+  | .semantic c law => .semantic c law
   | .converting c conv =>
     .converting (qualifyTy q c) (match conv with
       | .constructor param e => .constructor (qualifyTy q param) e

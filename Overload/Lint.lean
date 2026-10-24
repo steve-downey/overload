@@ -225,4 +225,25 @@ elab "#rests_on " id:ident : command => do
   let oracles := r.oracles.map fun d => s!"  {d}"
   logInfo m!"{declName} rests on {r.sentences.size} citations across {r.size} declarations:\n{String.intercalate "\n" lines.toList}\nassumptions:\n{if assumed.isEmpty then "  none" else String.intercalate "\n" assumed.toList}\noracles consulted:\n{if oracles.isEmpty then "  none" else String.intercalate "\n" oracles.toList}"
 
+/-! ## What a declaration owes -/
+
+/-- The semantic requirements in a declaration's closure: the laws a
+theorem states as hypotheses, or a definition names. -/
+def owes (env : Environment) (root : Name) : Array Name :=
+  (closure env root).filter fun n =>
+    match env.find? n with
+    | some info => info.type.isConstOf `Overload.Semantic
+    | none => false
+
+/-- `#owes decl`: the semantic requirements a declaration rests on, which
+nothing decides; a headline theorem that lists none assumes no law. -/
+elab "#owes " id:ident : command => do
+  let declName ← liftCoreM <| realizeGlobalConstNoOverload id
+  let env ← getEnv
+  let laws := owes env declName
+  if laws.isEmpty then
+    logInfo m!"{declName} owes no semantic requirement"
+  else
+    logInfo m!"{declName} owes: {laws.toList}"
+
 end Overload.Lint

@@ -331,6 +331,7 @@ theorem singleSearch_global_eq_candidates (p : Program) (callee : String)
   | converting => simp [Decl.binds, Decl.name?]
   | member => simp [Decl.binds, Decl.name?]
   | special => simp [Decl.binds, Decl.name?]
+  | semantic => simp [Decl.binds, Decl.name?]
 
 /-! ## Hiding, on a program -/
 

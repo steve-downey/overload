@@ -10,6 +10,7 @@ import OverloadTest.Ranking
 import OverloadTest.Special
 import OverloadTest.Traits
 import OverloadTest.Requires
+import OverloadTest.Models
 import OverloadTest.Inheritance
 import OverloadTest.Ordering
 import OverloadTest.Lookup

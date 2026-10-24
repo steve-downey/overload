@@ -19,6 +19,7 @@ import Overload.Ranking
 import Overload.Special
 import Overload.Traits
 import Overload.Requires
+import Overload.Models
 import Overload.Lookup
 import Overload.Environment
 import Overload.Separability
@@ -75,6 +76,14 @@ is the map.
 #audit Overload.requires_false_stops
 #audit Overload.requires_hard_stops
 #audit Overload.member_requirement_iff_call
+
+-- What satisfies and what models.
+#audit Overload.models_satisfies
+#audit Overload.satisfied_not_modeled_example
+#audit Overload.satisfied_not_modeled_verdict
+#owes Overload.satisfied_not_modeled_example
+#owes Overload.coherence
+#owes Overload.stability
 
 -- Deduction and substitution.
 #audit Overload.deduceTy_iff
