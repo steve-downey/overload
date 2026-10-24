@@ -138,6 +138,14 @@ proof needs to see inside a call that a constraint depends on.
   user-defined case is the class's one value in the fragment
   (`findings.md`). Conversion functions and constructors are declarations
   by type (`user-defined-conversions`), still no expressions.
+- 2026-10-24 — Phase 12 shrinks the oracle. The type traits and
+  requires-expressions the fragment can state become judgements:
+  `Constraint.trait` is answered by `Program.trait` from the types, the
+  special member functions and the calls the model decides, and a
+  requirement's expression is a call decided by `callAt`. The string
+  atom and the oracle stay for the residue (`trait-residue`). Still no
+  expressions: a default member initializer is a flag, a requirement is
+  a call by callee and argument types.
 
 ---
 
@@ -760,3 +768,131 @@ flag carries.
   (`findings.md`). `inheritance_erasure` gained the hypothesis that the
   program declares no user-defined conversion, harvested as the
   refinement-by-shape obligation.
+
+---
+
+## function-types
+
+**Question:** Does `Ty` get function types?
+**Status:** DECIDED 24 October 2026.
+**Decision:** Yes, one constructor, `Ty.fn params ret`, with `params` a
+`nil`/`cons` chain ([basic.compound]/1). Deduction treats it
+structurally, as `spec`; the forms `T()` and `T(T)` of
+[temp.deduct.type]/8 are in scope already. Functions keep the return
+type they have (`FunctionTemplate.ret`, defaulting to `void`), and
+`Decl.function` gains one. No pointer-to-member types, no
+noexcept in the type, no ref-qualifiers.
+**Why:** `is_invocable`, `is_function`, a compound requirement's
+return-type-requirement and the primary type categories all need a
+function type to name, and a trait fragment without one would answer
+`is_function` by fiat. The change touches every induction over `Ty`,
+so it is made first in phase 12, while nothing depends on it, and
+once.
+**Decided by:** the author, on the plan of 24 October 2026.
+**Log:**
+
+- 2026-10-24 — Decided.
+
+---
+
+## special-member-fragment
+
+**Question:** Which of the special member function rules are in the
+fragment?
+**Status:** DECIDED 24 October 2026.
+**Decision:** The six kinds of [special]/1 for classes with public
+non-static data members and public bases: implicit declaration and its
+suppression ([class.default.ctor]/1, [class.copy.ctor]/6, /8,
+[class.copy.assign]/2, /4, [class.dtor]/2), the parameter form
+([class.copy.ctor]/7, [class.copy.assign]/2), defined as deleted
+([class.default.ctor]/2, [class.copy.ctor]/10, [class.copy.assign]/7,
+[class.dtor]/7), triviality ([class.default.ctor]/3, [class.copy.ctor]/12,
+[class.copy.assign]/9, [class.dtor]/8), eligibility ([special]/6),
+explicitly defaulted and deleted ([dcl.fct.def.default]/1, /5,
+[dcl.fct.def.delete]/1, /2), const-default-constructible
+([dcl.init.general]/7) and the usable candidate ([over.match.general]/4).
+A user-declared special member is a declaration by kind, body and the
+`const` of its parameter; it is public and unconstrained.
+Out: unions and anonymous unions, variant members, arrays, bit-fields,
+virtual functions and virtual bases, inherited constructors and
+using-declarations, exception specifications, constexpr-suitability,
+the by-value copy assignment operator, ref-qualifiers and explicit
+object parameters, `volatile`, and the access of a user-declared
+special member.
+**Why:** Every deletion rule is a rule about a member or a base
+subobject, decided by overload resolution over the subobject's class
+and the usable-candidate check, which the model has. What is out is
+either a kind of entity the fragment lacks (unions, arrays, virtual
+functions) or a property of a function the fragment does not carry
+(exception specifications, constexpr). A private copy constructor was
+the idiom for an uncopyable class before `= delete`; the fragment keeps
+`= delete` and leaves access on special members for a later question.
+**Decided by:** the author, on the plan of 24 October 2026.
+**Log:**
+
+- 2026-10-24 — Decided.
+
+---
+
+## trait-residue
+
+**Question:** Which type traits does the model compute, and which stay
+with the oracle?
+**Status:** DECIDED 24 October 2026.
+**Decision:** Computed, as `Program.trait`: the primary and composite
+categories the fragment inhabits ([meta.unary.cat]/3,
+[meta.unary.comp]/2, by [basic.types.general]/6, /7 and
+[basic.compound]/1), with the uninhabited ones false; `is_const`,
+`is_same`, `is_base_of`; `is_convertible` ([meta.rel]/6);
+`is_constructible` and its default, copy and move forms
+([meta.unary.prop]/9); `is_assignable` on class types and its copy and
+move forms; `is_destructible`; the `is_trivially_` forms;
+`is_trivially_copyable` and `is_standard_layout` ([class.prop]/1, /2);
+`is_empty`; `is_invocable` and `is_invocable_r`. The transformations
+`remove_const`, `remove_reference`, `remove_cvref` and
+`add_lvalue_reference` are functions on `Ty`.
+Residue, as `Constraint.atomic` strings for the oracle: the
+`is_nothrow_` forms, `is_aggregate` and `is_implicit_lifetime`,
+`is_swappable`, `has_unique_object_representations`, layout
+compatibility and alignment, `is_signed` and `is_unsigned`,
+assignment to non-class types, and any expression that is not a call.
+**Why:** A trait is computed when its defining paragraph is a rule
+about types, special members or a call the model already decides, so
+that its answer is a theorem of those rules and is differentially
+tested against the compilers' own trait. A trait stays with the oracle
+when it needs a property the fragment does not carry. The residue is
+named so that a constraint written with it is visibly an assumption.
+**Decided by:** the author, on the plan of 24 October 2026.
+**Log:**
+
+- 2026-10-24 — Decided.
+
+---
+
+## value-nature
+
+**Question:** How does the model speak of value and reference semantics
+as properties of a type, when the Standard has no term for them?
+**Status:** DECIDED 24 October 2026.
+**Decision:** As definitions and theorems, never rules. `Program.valueNature
+c` holds when every special member of `c` is defaulted and non-deleted;
+`Program.referenceMember c` when some member, through class-typed
+members likewise, is of reference type or `const` non-class type.
+`value_nature_iff` connects them for classes that declare no special
+member, and `deletion_propagates` carries a deleted member through any
+depth. The author's names for the two natures, data and codata, appear
+in the docs; the Lean names are `valueNature` and `referenceMember`,
+and no `@[std rule]` cites a sentence for either, since none exists.
+A pointer is data: a scalar, trivially copyable, deleting nothing. Its
+codata aspect, aliasing of the pointee, is a property of the object
+model, which the fragment does not have, and the model does not state
+it.
+**Why:** The Standard renders the idea exactly, through the deletion
+rules for reference and `const` members and their propagation through
+subobjects, so a theorem says what a rule would have to invent. Naming
+the limit at pointers keeps the model from claiming a semantics it
+cannot check.
+**Decided by:** the author, on the plan of 24 October 2026.
+**Log:**
+
+- 2026-10-24 — Decided.

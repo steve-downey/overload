@@ -300,6 +300,27 @@ def inScope : List (String × Nat) :=
   , ("over.match.copy", 1), ("over.match.ctor", 1), ("over.match.conv", 1)
   , ("class.conv.general", 4), ("class.conv.ctor", 1), ("class.conv.fct", 2), ("class.conv.fct", 4)
   , ("dcl.init.general", 13), ("dcl.init.general", 14), ("dcl.init.general", 15)
-  , ("dcl.init.ref", 5) ]
+  , ("dcl.init.ref", 5)
+  -- Phase 12: the type system, special member functions and traits.
+  , ("basic.types.general", 1), ("basic.types.general", 6), ("basic.types.general", 7)
+  , ("basic.compound", 1)
+  , ("class.mem.general", 5), ("class.mem.general", 15)
+  , ("special", 1), ("special", 5), ("special", 6), ("special", 7)
+  , ("class.default.ctor", 1), ("class.default.ctor", 2), ("class.default.ctor", 3)
+  , ("class.copy.ctor", 1), ("class.copy.ctor", 2), ("class.copy.ctor", 6), ("class.copy.ctor", 7)
+  , ("class.copy.ctor", 8), ("class.copy.ctor", 10), ("class.copy.ctor", 12)
+  , ("class.copy.assign", 1), ("class.copy.assign", 2), ("class.copy.assign", 3)
+  , ("class.copy.assign", 4), ("class.copy.assign", 7), ("class.copy.assign", 9)
+  , ("class.dtor", 2), ("class.dtor", 7), ("class.dtor", 8)
+  , ("dcl.fct.def.default", 1), ("dcl.fct.def.default", 5)
+  , ("dcl.fct.def.delete", 1), ("dcl.fct.def.delete", 2)
+  , ("dcl.init.general", 7)
+  , ("over.match.general", 4)
+  , ("class.prop", 1), ("class.prop", 2)
+  , ("meta.unary.cat", 3), ("meta.unary.comp", 2), ("meta.unary.prop", 5), ("meta.unary.prop", 9)
+  , ("meta.rel", 3), ("meta.rel", 6)
+  , ("temp.constr.normal", 1)
+  , ("expr.prim.req.general", 5), ("expr.prim.req.simple", 1), ("expr.prim.req.type", 1)
+  , ("expr.prim.req.compound", 1), ("expr.prim.req.nested", 1) ]
 
 end Overload.Std
