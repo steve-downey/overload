@@ -130,7 +130,7 @@ def form (env : Env) : Ty → Subst Ty
     -- substituted, the way satisfaction asks of a constraint's mapping.
     -- Forming the type happens once its arguments are known.
     let t ← form env t
-    match env.atomic c (as.toList.getD []) with
+    match env.atomic (.expr c) (as.toList.getD []) with
     | .ok true => .ok t
     | .ok false => .soft s!"enable_if condition {c} is false"
     | .soft r => .soft r

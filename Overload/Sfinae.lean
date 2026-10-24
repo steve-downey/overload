@@ -55,7 +55,7 @@ private theorem functionTypeStep_enableIf (env : Env) (ft : FunctionTemplate) (c
     functionTypeStep env (enableIfForm ft c m) σ =
       ((formAll env (ft.params.map (Ty.subst σ))).bind fun ps =>
         (form env (ft.ret.subst σ)).bind fun t =>
-          match env.atomic c (m.map (Ty.subst σ)) with
+          match env.atomic (.expr c) (m.map (Ty.subst σ)) with
           | .ok true => .ok { template := enableIfForm ft c m, args := σ, params := ps, ret := t }
           | .ok false => .soft s!"enable_if condition {c} is false"
           | .soft r => .soft r
@@ -68,7 +68,7 @@ private theorem functionTypeStep_enableIf (env : Env) (ft : FunctionTemplate) (c
     cases form env (ft.ret.subst σ) with
     | ok t =>
       simp only [Subst.bind_ok]
-      cases env.atomic c (m.map (Ty.subst σ)) with
+      cases env.atomic (.expr c) (m.map (Ty.subst σ)) with
       | ok b => cases b <;> rfl
       | soft _ => rfl
       | hard _ => rfl
@@ -82,7 +82,7 @@ the template and the reason of a failure, provided the condition, the
 convertibility check and the function type never fail hard. -/
 theorem deduceTemplate_enableIf (env : Env) (ft : FunctionTemplate) (c : String) (m : List Ty)
     (explicit : List Ty) (args : List CallArg) (hcon : ft.constraint = none)
-    (hq : ∀ σ e, env.atomic c (m.map (Ty.subst σ)) ≠ .hard e)
+    (hq : ∀ σ e, env.atomic (.expr c) (m.map (Ty.subst σ)) ≠ .hard e)
     (hnd : ∀ σ e, nonDependentStep env ft.params args σ ≠ .hard e)
     (hfp : ∀ σ e, formAll env (ft.params.map (Ty.subst σ)) ≠ .hard e)
     (hfr : ∀ σ e, form env (ft.ret.subst σ) ≠ .hard e) :
@@ -105,7 +105,7 @@ theorem deduceTemplate_enableIf (env : Env) (ft : FunctionTemplate) (c : String)
     cases hN : nonDependentStep env ft.params args σ with
     | hard e => exact absurd hN (hnd σ e)
     | soft r =>
-      cases hqσ : env.atomic c (m.map (Ty.subst σ)) with
+      cases hqσ : env.atomic (.expr c) (m.map (Ty.subst σ)) with
       | hard e => exact absurd hqσ (hq σ e)
       | soft _ => exact .inr ⟨_, _, rfl, rfl⟩
       | ok b =>
@@ -119,7 +119,7 @@ theorem deduceTemplate_enableIf (env : Env) (ft : FunctionTemplate) (c : String)
       cases hP : formAll env (ft.params.map (Ty.subst σ')) with
       | hard e => exact absurd hP (hfp σ' e)
       | soft r =>
-        cases hqσ : env.atomic c (m.map (Ty.subst σ')) with
+        cases hqσ : env.atomic (.expr c) (m.map (Ty.subst σ')) with
         | hard e => exact absurd hqσ (hq σ' e)
         | soft _ => exact .inr ⟨_, _, rfl, rfl⟩
         | ok b =>
@@ -130,7 +130,7 @@ theorem deduceTemplate_enableIf (env : Env) (ft : FunctionTemplate) (c : String)
         cases hR : form env (ft.ret.subst σ') with
         | hard e => exact absurd hR (hfr σ' e)
         | soft r =>
-          cases hqσ : env.atomic c (m.map (Ty.subst σ')) with
+          cases hqσ : env.atomic (.expr c) (m.map (Ty.subst σ')) with
           | hard e => exact absurd hqσ (hq σ' e)
           | soft _ => exact .inr ⟨_, _, rfl, rfl⟩
           | ok b =>
@@ -138,7 +138,7 @@ theorem deduceTemplate_enableIf (env : Env) (ft : FunctionTemplate) (c : String)
             | true => left; simp [hN, functionTypeStep, hP, requiresForm, hR]; rfl
             | false => exact .inr ⟨_, _, rfl, rfl⟩
         | ok t =>
-          cases hqσ : env.atomic c (m.map (Ty.subst σ')) with
+          cases hqσ : env.atomic (.expr c) (m.map (Ty.subst σ')) with
           | hard e => exact absurd hqσ (hq σ' e)
           | soft _ => exact .inr ⟨_, _, rfl, rfl⟩
           | ok b =>
@@ -250,7 +250,7 @@ the function type never to fail hard. -/
 theorem sfinae_requires (env : Env) (decls : List Decl) (args : List CallArg) (explicit : List Ty)
     (k : Nat) (ft : FunctionTemplate) (c : String) (m : List Ty)
     (hk : decls[k]? = some (.functionTemplate (requiresForm ft c m))) (hcon : ft.constraint = none)
-    (hq : ∀ σ e, env.atomic c (m.map (Ty.subst σ)) ≠ .hard e)
+    (hq : ∀ σ e, env.atomic (.expr c) (m.map (Ty.subst σ)) ≠ .hard e)
     (hnd : ∀ σ e, nonDependentStep env ft.params args σ ≠ .hard e)
     (hfp : ∀ σ e, formAll env (ft.params.map (Ty.subst σ)) ≠ .hard e)
     (hfr : ∀ σ e, form env (ft.ret.subst σ) ≠ .hard e) :
@@ -272,7 +272,7 @@ theorem sfinae_requires_resolve (env : Env) (r : Ranking Conv) (decls : List Dec
     (args : List CallArg) (explicit : List Ty) (k : Nat) (ft : FunctionTemplate) (c : String)
     (m : List Ty) (hk : decls[k]? = some (.functionTemplate (requiresForm ft c m)))
     (hcon : ft.constraint = none)
-    (hq : ∀ σ e, env.atomic c (m.map (Ty.subst σ)) ≠ .hard e)
+    (hq : ∀ σ e, env.atomic (.expr c) (m.map (Ty.subst σ)) ≠ .hard e)
     (hnd : ∀ σ e, nonDependentStep env ft.params args σ ≠ .hard e)
     (hfp : ∀ σ e, formAll env (ft.params.map (Ty.subst σ)) ≠ .hard e)
     (hfr : ∀ σ e, form env (ft.ret.subst σ) ≠ .hard e)

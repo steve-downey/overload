@@ -53,7 +53,7 @@ object's call through its instance, `fmap_call`, true exactly when the
 lookup selects an instance, since an instance has the operation and the
 primary, `std::false_type`, does not; and the shape constraint of the
 by-value route, `fmap_shape`. -/
-def memberAtomics (p : Program) : Constraint.Oracle := fun e args =>
+def memberAtomics (p : Program) : Constraint.ExprOracle := fun e args =>
   match e, args with
   | "fmap_call", [.ref (.lookup c a), _, _] => .ok ((p.selectInstance c a).toOption.isSome)
   | "fmap_shape", [t] => .ok (fmapShape t)

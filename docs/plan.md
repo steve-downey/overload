@@ -549,7 +549,19 @@ Status, 15 October 2026:
   plan's own statement: a `const` member without an initializer deletes
   the default constructor too ([class.default.ctor]/2, through
   [dcl.init.general]/7), so value nature fails for a reference or a
-  `const` member alike.
+  `const` member alike. Stage 4, trait-judgements, landed the same day:
+  `Overload/Traits.lean` with `Program.trait` for every `Trait`,
+  `trait_is_resolution`, `is_convertible_eq_ics`, and forty emitted
+  trait cases against the compilers' own traits, all in agreement with
+  GCC 15 and Clang 24, `is_trivially_copyable` of a class with a deleted
+  copy constructor and a defaulted move constructor among them. Two
+  departures. The constraint oracle answers an `Atom`, expression or
+  trait, so the environment a program defines answers traits from the
+  program and `inheritance_erasure` takes the trait oracle as a
+  parameter, the same on both sides, since `is_base_of` sees erasure.
+  `is_invocable` of a class callee is residue for now: the call on an
+  object is resolved above the environment, and the trait would need the
+  environment that answers it.
 
 ## Target theorems
 
@@ -592,7 +604,7 @@ its counterexample and is a finding, not a setback.
 | instantiation-points | A dependent call referenced before a later overload of its name means different things at its two points of instantiation, which is ill-formed, no diagnostic required; a callee bound to an object has one meaning at every point. Added 22 October 2026. | 9 |
 | value-nature | For a class that declares no special member function, every defaulted special member is non-deleted exactly when no member, through class-typed members likewise, is of reference type or `const` type; a pointer member deletes nothing. Added 24 October 2026; proved for flat classes the same day (`value_nature_flat`), the propagation through class-typed members computed and tested. | 12 |
 | deletion-propagates | A member or base whose class has a deleted or inaccessible corresponding special member deletes the enclosing class's defaulted one, through any depth ([class.default.ctor]/2, [class.copy.ctor]/10, [class.copy.assign]/7, [class.dtor]/7). Added 24 October 2026. | 12 |
-| trait-is-resolution | `is_constructible`, `is_assignable` and `is_convertible` are overload resolution over the class's constructors, assignment operators and conversions with the usable-candidate check, so a trait's answer is the call's ([meta.unary.prop]/9, [meta.rel]/6, [over.match.general]/4). Added 24 October 2026. | 12 |
+| trait-is-resolution | `is_constructible`, `is_assignable` and `is_convertible` are overload resolution over the class's constructors, assignment operators and conversions with the usable-candidate check, so a trait's answer is the call's ([meta.unary.prop]/9, [meta.rel]/6, [over.match.general]/4). Added 24 October 2026; proved the same day (`trait_is_resolution`, `is_convertible_eq_ics`). | 12 |
 | requires-soft-is-false | A requirement that fails in the immediate context makes the requires-expression `false`, checked in lexical order and stopping at the first decider; a failure outside it is a hard error ([expr.prim.req.general]/5). Added 24 October 2026. | 12 |
 | copy-constraint-shields | A member constrained by copy-constructibility of its callable fails softly at a callable whose copy constructor is deleted, where the body's copy would be a hard error: the callable-copying rule as a theorem. Added 24 October 2026. | 12 |
 | refinement-normalizes | The normal form of a refined concept contains its superclass concept's atoms with the identity mapping, so the refinement subsumes by normalization alone ([temp.constr.normal]/1). Added 24 October 2026. | 12 |

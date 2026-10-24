@@ -1951,8 +1951,8 @@ def convertedValue : Case :=
 /-- A trait case: the model's answer, asserted against the `std::` trait. -/
 private def traitCase (name : String) (c : String) (program : Program) (q : Trait) (as : List Ty) :
     Case :=
-  { name, cite := cite c, program, query := .trait q as (Trait.answer q as == .ok true)
-    source := "computed by Trait.answer" }
+  { name, cite := cite c, program, query := .trait q as (program.trait q as == .ok true)
+    source := "computed by Program.trait" }
 
 /-- `struct A { int x; int& r; };`: a class with a scalar member and a
 reference member, for the trait cases. -/
@@ -2151,6 +2151,180 @@ def rvalueReferenceMemberMoves : Case :=
     query := .call "f" [xRvalue] (.selected 0)
     source := "computed by Program.call" }
 
+/-! ### Traits answered by the program -/
+
+private def cB : Ty := .named "B"
+private def cD : Ty := .named "D"
+/-- `struct B {}; struct D : B {};` -/
+private def derivation : Program := [.class "B", .class "D" [cB]]
+/-- `struct M { M(const M&) = delete; }; struct X { M m; };` -/
+private def deletedMember : Program :=
+  [ .class "M", .special cM { kind := .copyCtor, body := .deleted }
+  , .class "X", .member cX { name := "m", ty := cM } ]
+/-- `struct X { int& r; };` -/
+private def refMember : Program := [.class "X", .member cX { name := "r", ty := .lref (.named "int") }]
+/-- `struct X { const int c; };` -/
+private def constMember : Program := [.class "X", .member cX { name := "c", ty := .const (.named "int") }]
+
+def traitBaseOf : Case := traitCase "trait_base_of" "meta.rel#3" derivation .isBaseOf [cB, cD]
+def traitBaseOfReversed : Case :=
+  traitCase "trait_base_of_reversed" "meta.rel#3" derivation .isBaseOf [cD, cB]
+def traitBaseOfSelf : Case := traitCase "trait_base_of_self" "meta.rel#3" derivation .isBaseOf [cB, cB]
+def traitBaseOfScalar : Case :=
+  traitCase "trait_base_of_scalar" "meta.rel#3" [] .isBaseOf [.named "int", .named "int"]
+
+/-- `is_convertible_v<D, B>`: the derived-to-base copy. -/
+def traitConvertibleToBase : Case :=
+  traitCase "trait_convertible_to_base" "meta.rel#6" derivation .isConvertible [cD, cB]
+def traitConvertibleToDerived : Case :=
+  traitCase "trait_convertible_to_derived" "meta.rel#6" derivation .isConvertible [cB, cD]
+/-- `is_convertible_v<S, T>` through a converting constructor, and not
+through an explicit one. -/
+def traitConvertibleConstructor : Case :=
+  traitCase "trait_convertible_constructor" "meta.rel#6"
+    [.class "S", .class "T", .converting cT (.constructor (.lref (.const cS)))] .isConvertible [cS, cT]
+def traitConvertibleExplicit : Case :=
+  traitCase "trait_convertible_explicit" "meta.rel#6"
+    [.class "S", .class "T", .converting cT (.constructor (.lref (.const cS)) true)] .isConvertible [cS, cT]
+/-- `is_convertible_v<X, X>` with a deleted copy constructor and no move:
+the copy that the return performs is deleted. -/
+def traitConvertibleDeletedCopy : Case :=
+  traitCase "trait_convertible_deleted_copy" "meta.rel#6" deletedMember .isConvertible [cX, cX]
+
+/-- `is_copy_constructible_v<X>` where `X` holds an `M` whose copy
+constructor is deleted. -/
+def traitCopyConstructibleDeleted : Case :=
+  traitCase "trait_copy_constructible_deleted" "meta.unary.prop#5" deletedMember .isCopyConstructible [cX]
+def traitMoveConstructibleDeleted : Case :=
+  traitCase "trait_move_constructible_deleted" "meta.unary.prop#5" deletedMember .isMoveConstructible [cX]
+/-- `is_default_constructible_v<X>` with a reference member, and with a
+`const` member. -/
+def traitDefaultConstructibleReference : Case :=
+  traitCase "trait_default_constructible_reference" "meta.unary.prop#5" refMember
+    .isDefaultConstructible [cX]
+def traitDefaultConstructibleConst : Case :=
+  traitCase "trait_default_constructible_const" "meta.unary.prop#5" constMember
+    .isDefaultConstructible [cX]
+/-- `is_constructible_v<X, const X&>` and `is_constructible_v<T, const S&>`. -/
+def traitConstructibleCopy : Case :=
+  traitCase "trait_constructible_copy" "meta.unary.prop#9" refMember .isConstructible [cX, .lref (.const cX)]
+def traitConstructibleConverting : Case :=
+  traitCase "trait_constructible_converting" "meta.unary.prop#9"
+    [.class "S", .class "T", .converting cT (.constructor (.lref (.const cS)) true)] .isConstructible
+    [cT, .lref (.const cS)]
+
+/-- `is_copy_assignable_v<X>` with a reference member, and with a `const`
+member; `is_move_assignable_v` likewise. -/
+def traitCopyAssignableReference : Case :=
+  traitCase "trait_copy_assignable_reference" "meta.unary.prop#5" refMember .isCopyAssignable [cX]
+def traitMoveAssignableConst : Case :=
+  traitCase "trait_move_assignable_const" "meta.unary.prop#5" constMember .isMoveAssignable [cX]
+def traitCopyAssignablePlain : Case :=
+  traitCase "trait_copy_assignable_plain" "meta.unary.prop#5" classA .isCopyAssignable [.named "A"]
+/-- `is_assignable_v<X&, const X&>` and `<const X&, X>`. -/
+def traitAssignableConstObject : Case :=
+  traitCase "trait_assignable_const_object" "meta.unary.prop#5" derivation .isAssignable
+    [.lref (.const cB), cB]
+
+/-- `is_destructible_v<X>` with `~X() = delete;`, and through a member. -/
+def traitDestructibleDeleted : Case :=
+  traitCase "trait_destructible_deleted" "meta.unary.prop#5"
+    [.class "X", .special cX { kind := .dtor, body := .deleted }] .isDestructible [cX]
+def traitDestructibleMember : Case :=
+  traitCase "trait_destructible_member" "meta.unary.prop#5"
+    [ .class "M", .special cM { kind := .dtor, body := .deleted }
+    , .class "X", .member cX { name := "m", ty := cM } ] .isDestructible [cX]
+
+/-- `is_trivially_copyable_v`: a flat class is; a user-provided copy
+constructor is not; a deleted copy constructor beside a defaulted move
+constructor still is, since the move constructor is the one eligible
+copy or move member and it is trivial. -/
+def traitTriviallyCopyableFlat : Case :=
+  traitCase "trait_trivially_copyable_flat" "class.prop#1" classA .isTriviallyCopyable [.named "A"]
+def traitTriviallyCopyableUserProvided : Case :=
+  traitCase "trait_trivially_copyable_user_provided" "class.prop#1"
+    [.class "X", .special cX { kind := .copyCtor }] .isTriviallyCopyable [cX]
+def traitTriviallyCopyableDeletedCopy : Case :=
+  traitCase "trait_trivially_copyable_deleted_copy" "class.prop#1"
+    [ .class "X", .special cX { kind := .copyCtor, body := .deleted }
+    , .special cX { kind := .moveCtor, body := .defaulted, constParam := false } ] .isTriviallyCopyable [cX]
+def traitTriviallyCopyableScalar : Case :=
+  traitCase "trait_trivially_copyable_scalar" "basic.types.general#7" [] .isTriviallyCopyable
+    [.ptr (.named "int")]
+
+/-- `is_standard_layout_v`: a reference member breaks it; members in
+both a base and the derived class break it; two subobjects of one base
+class break it; a derived class with the members all in one class keeps
+it. -/
+def traitStandardLayoutReference : Case :=
+  traitCase "trait_standard_layout_reference" "class.prop#2" refMember .isStandardLayout [cX]
+def traitStandardLayoutTwoClasses : Case :=
+  traitCase "trait_standard_layout_two_classes" "class.prop#2"
+    [ .class "B", .member cB { name := "b", ty := .named "int" }
+    , .class "D" [cB], .member cD { name := "d", ty := .named "int" } ] .isStandardLayout [cD]
+def traitStandardLayoutRepeatedBase : Case :=
+  traitCase "trait_standard_layout_repeated_base" "class.prop#2"
+    [ .class "Q", .class "S" [.named "Q"], .class "T" [.named "Q"], .class "U" [.named "S", .named "T"] ]
+    .isStandardLayout [.named "U"]
+def traitStandardLayoutDerived : Case :=
+  traitCase "trait_standard_layout_derived" "class.prop#2"
+    [ .class "B", .member cB { name := "b", ty := .named "int" }, .class "D" [cB] ] .isStandardLayout [cD]
+/-- `is_standard_layout_v<D>` where `D : B` has a first member of type `B`:
+a base among the types at offset zero. -/
+def traitStandardLayoutZeroOffset : Case :=
+  traitCase "trait_standard_layout_zero_offset" "class.prop#2"
+    [ .class "B", .class "D" [cB], .member cD { name := "b", ty := cB } ] .isStandardLayout [cD]
+
+/-- `is_empty_v`: no members and empty bases; a base with a member
+breaks it. -/
+def traitEmpty : Case := traitCase "trait_empty" "meta.unary.prop#5" derivation .isEmpty [cD]
+def traitEmptyBaseMember : Case :=
+  traitCase "trait_empty_base_member" "meta.unary.prop#5"
+    [ .class "B", .member cB { name := "b", ty := .named "int" }, .class "D" [cB] ] .isEmpty [cD]
+
+/-- `is_trivially_default_constructible_v`: a default member initializer
+breaks it; `is_trivially_copy_constructible_v` of a user-provided copy
+constructor is false; `is_trivially_destructible_v` of a user-provided
+destructor is false, of a flat class true. -/
+def traitTriviallyDefaultConstructibleInit : Case :=
+  traitCase "trait_trivially_default_constructible_init" "class.default.ctor#3"
+    [.class "X", .member cX { name := "x", ty := .named "int", init := true }]
+    .isTriviallyDefaultConstructible [cX]
+def traitTriviallyCopyConstructibleUserProvided : Case :=
+  traitCase "trait_trivially_copy_constructible_user_provided" "class.copy.ctor#12"
+    [ .class "M", .special cM { kind := .copyCtor }, .class "X", .member cX { name := "m", ty := cM } ]
+    .isTriviallyCopyConstructible [cX]
+def traitTriviallyDestructibleUserProvided : Case :=
+  traitCase "trait_trivially_destructible_user_provided" "class.dtor#8"
+    [ .class "M", .special cM { kind := .dtor }, .class "X", .member cX { name := "m", ty := cM } ]
+    .isTriviallyDestructible [cX]
+def traitTriviallyDestructibleFlat : Case :=
+  traitCase "trait_trivially_destructible_flat" "class.dtor#8" classA .isTriviallyDestructible [.named "A"]
+def traitTriviallyMoveAssignableFlat : Case :=
+  traitCase "trait_trivially_move_assignable_flat" "class.copy.assign#9" classA
+    .isTriviallyMoveAssignable [.named "A"]
+
+/-- `is_invocable_v<int(int, const A&), int, A>` and with a missing
+argument. -/
+def traitInvocableFunction : Case :=
+  traitCase "trait_invocable_function" "meta.rel#3" classA .isInvocable
+    [Ty.fn' [.named "int", .lref (.const (.named "A"))] (.named "int"), .named "int", .named "A"]
+def traitInvocableArity : Case :=
+  traitCase "trait_invocable_arity" "meta.rel#3" classA .isInvocable
+    [Ty.fn' [.named "int", .lref (.const (.named "A"))] (.named "int"), .named "int"]
+
+/-- A trait the program answers, in a requires-clause:
+`template <class T> requires std::is_copy_constructible_v<T> void f(T);`
+at a class with a deleted copy constructor. -/
+def traitConstraintCopyConstructible : Case :=
+  { name := "trait_constraint_copy_constructible"
+    cite := cite "temp.constr.atomic#3.sentence-1"
+    program := deletedMember ++
+      [.functionTemplate { name := "f", head := [{ kind := .type }], params := [.lref (.const (.param 0))]
+                           constraint := some (.trait .isCopyConstructible [.param 0]) }]
+    query := .call "f" [{ ty := cX, lvalue := true }] .noMatch
+    source := "computed by Program.call" }
+
 /-- Every case of the Standard side. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -2187,7 +2361,21 @@ def cases : List Case :=
   , traitConstraintExcludes
   , deletedCopyPropagates, deletedCopyMoveRescues, deletedDefaultedMoveIgnored
   , nonConstCopyConstructor, copyConstructorFormNonConst, copyConstructorFormNonConstLvalue
-  , referenceMemberCopies, rvalueReferenceMemberDeletesCopy, rvalueReferenceMemberMoves ]
+  , referenceMemberCopies, rvalueReferenceMemberDeletesCopy, rvalueReferenceMemberMoves
+  , traitBaseOf, traitBaseOfReversed, traitBaseOfSelf, traitBaseOfScalar, traitConvertibleToBase
+  , traitConvertibleToDerived, traitConvertibleConstructor, traitConvertibleExplicit
+  , traitConvertibleDeletedCopy, traitCopyConstructibleDeleted, traitMoveConstructibleDeleted
+  , traitDefaultConstructibleReference, traitDefaultConstructibleConst, traitConstructibleCopy
+  , traitConstructibleConverting, traitCopyAssignableReference, traitMoveAssignableConst
+  , traitCopyAssignablePlain, traitAssignableConstObject, traitDestructibleDeleted
+  , traitDestructibleMember, traitTriviallyCopyableFlat, traitTriviallyCopyableUserProvided
+  , traitTriviallyCopyableDeletedCopy, traitTriviallyCopyableScalar, traitStandardLayoutReference
+  , traitStandardLayoutTwoClasses, traitStandardLayoutRepeatedBase, traitStandardLayoutDerived
+  , traitStandardLayoutZeroOffset, traitEmpty, traitEmptyBaseMember
+  , traitTriviallyDefaultConstructibleInit, traitTriviallyCopyConstructibleUserProvided
+  , traitTriviallyDestructibleUserProvided, traitTriviallyDestructibleFlat
+  , traitTriviallyMoveAssignableFlat, traitInvocableFunction, traitInvocableArity
+  , traitConstraintCopyConstructible ]
 
 /-- Bindings in head order, for comparison. -/
 def normalize (arity : Nat) (σ : Bindings) : List (ParamIdx × Ty) :=
@@ -2245,7 +2433,7 @@ def computedCall (c : Case) : Option (Resolution Nat) :=
 is never a hard error, read as a constraint reads it. -/
 def computedTrait (c : Case) : Option Bool :=
   match c.query with
-  | .trait tr as _ => some (Trait.answer tr as == .ok true)
+  | .trait tr as _ => some (c.program.trait tr as == .ok true)
   | _ => none
 
 /-- For a lookup case, what the model computes. -/

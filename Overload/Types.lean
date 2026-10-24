@@ -123,6 +123,31 @@ def isClass (t : Ty) : Bool :=
 @[std rule "basic.compound#1"]
 def isFunction (t : Ty) : Bool := t matches .fn _ _
 
+theorem isClass_not_void (t : Ty) (h : t.stripConst.isClass = true) : t.isVoid = false := by
+  unfold Ty.isVoid
+  cases hs : t.stripConst with
+  | named n =>
+    simp only [Ty.isClass] at h
+    rw [hs] at h
+    simp only [Ty.stripConst] at h
+    by_cases hv : n = "void"
+    · subst hv; simp [fundamentalName] at h
+    · simp [hv]
+  | _ => simp only [Ty.isClass] at h; rw [hs] at h; simp_all [Ty.stripConst]
+
+theorem isClass_not_function (t : Ty) (h : t.stripConst.isClass = true) : t.isFunction = false := by
+  cases t <;> simp_all [Ty.isFunction, Ty.isClass, Ty.stripConst]
+
+theorem referred_isClass_not_void (t : Ty) (h : t.referred.stripConst.isClass = true) :
+    t.isVoid = false := by
+  cases t with
+  | lref u | rref u => simp [Ty.isVoid, Ty.stripConst]
+  | _ => exact isClass_not_void _ (by simpa [Ty.referred] using h)
+
+theorem referred_isClass_not_function (t : Ty) (h : t.referred.stripConst.isClass = true) :
+    t.isFunction = false := by
+  cases t <;> simp_all [Ty.isFunction, Ty.isClass, Ty.stripConst, Ty.referred]
+
 /-! ### The composite categories -/
 
 /-- A reference type, lvalue or rvalue. -/
@@ -242,22 +267,39 @@ theorem primary_category_unique (t : Ty) (ht : t.concrete = true) (hty : t.isTyp
 
 /-! ## Traits as queries -/
 
-/-- A type trait the fragment can state as a judgement: the primary and
-composite categories, `is_const` and `is_same`. Each is answered by
-`Trait.answer` from the types alone. -/
+/-- A type trait the fragment can state as a judgement. The structural
+ones, the primary and composite categories, `is_const` and `is_same`,
+are answered by `Trait.answer` from the types alone; the rest ask about
+a program's classes and are answered by `Program.trait`
+(`Overload/Traits.lean`). -/
 inductive Trait where
   | isVoid | isIntegral | isPointer | isLvalueReference | isRvalueReference | isClass | isFunction
   | isReference | isObject | isScalar | isCompound | isFundamental
   | isConst
   | isSame
+  | isBaseOf | isConvertible
+  | isConstructible | isDefaultConstructible | isCopyConstructible | isMoveConstructible
+  | isAssignable | isCopyAssignable | isMoveAssignable | isDestructible
+  | isTriviallyCopyable | isStandardLayout | isEmpty
+  | isTriviallyDefaultConstructible | isTriviallyCopyConstructible | isTriviallyMoveConstructible
+  | isTriviallyAssignable | isTriviallyCopyAssignable | isTriviallyMoveAssignable
+  | isTriviallyDestructible
+  | isInvocable
   deriving Repr, DecidableEq, Inhabited
 
 attribute [std rule "meta.unary.cat#3"] Trait.isVoid Trait.isIntegral Trait.isPointer
   Trait.isLvalueReference Trait.isRvalueReference Trait.isClass Trait.isFunction
 attribute [std rule "meta.unary.comp#2"] Trait.isReference Trait.isObject Trait.isScalar
   Trait.isCompound Trait.isFundamental
-attribute [std rule "meta.unary.prop#5"] Trait.isConst
-attribute [std rule "meta.rel#3"] Trait.isSame
+attribute [std rule "meta.unary.prop#5"] Trait.isConst Trait.isDefaultConstructible
+  Trait.isCopyConstructible Trait.isMoveConstructible Trait.isAssignable Trait.isCopyAssignable
+  Trait.isMoveAssignable Trait.isDestructible Trait.isTriviallyCopyable Trait.isStandardLayout
+  Trait.isEmpty Trait.isTriviallyDefaultConstructible Trait.isTriviallyCopyConstructible
+  Trait.isTriviallyMoveConstructible Trait.isTriviallyAssignable Trait.isTriviallyCopyAssignable
+  Trait.isTriviallyMoveAssignable Trait.isTriviallyDestructible
+attribute [std rule "meta.unary.prop#9"] Trait.isConstructible
+attribute [std rule "meta.rel#3"] Trait.isSame Trait.isBaseOf Trait.isInvocable
+attribute [std rule "meta.rel#6"] Trait.isConvertible
 
 namespace Trait
 
@@ -277,10 +319,39 @@ def spelling : Trait → String
   | .isFundamental => "std::is_fundamental_v"
   | .isConst => "std::is_const_v"
   | .isSame => "std::is_same_v"
+  | .isBaseOf => "std::is_base_of_v"
+  | .isConvertible => "std::is_convertible_v"
+  | .isConstructible => "std::is_constructible_v"
+  | .isDefaultConstructible => "std::is_default_constructible_v"
+  | .isCopyConstructible => "std::is_copy_constructible_v"
+  | .isMoveConstructible => "std::is_move_constructible_v"
+  | .isAssignable => "std::is_assignable_v"
+  | .isCopyAssignable => "std::is_copy_assignable_v"
+  | .isMoveAssignable => "std::is_move_assignable_v"
+  | .isDestructible => "std::is_destructible_v"
+  | .isTriviallyCopyable => "std::is_trivially_copyable_v"
+  | .isStandardLayout => "std::is_standard_layout_v"
+  | .isEmpty => "std::is_empty_v"
+  | .isTriviallyDefaultConstructible => "std::is_trivially_default_constructible_v"
+  | .isTriviallyCopyConstructible => "std::is_trivially_copy_constructible_v"
+  | .isTriviallyMoveConstructible => "std::is_trivially_move_constructible_v"
+  | .isTriviallyAssignable => "std::is_trivially_assignable_v"
+  | .isTriviallyCopyAssignable => "std::is_trivially_copy_assignable_v"
+  | .isTriviallyMoveAssignable => "std::is_trivially_move_assignable_v"
+  | .isTriviallyDestructible => "std::is_trivially_destructible_v"
+  | .isInvocable => "std::is_invocable_v"
 
-/-- How many types the trait takes. -/
+/-- Is the trait answered from the types alone, with no program? -/
+def structural : Trait → Bool
+  | .isVoid | .isIntegral | .isPointer | .isLvalueReference | .isRvalueReference | .isClass
+  | .isFunction | .isReference | .isObject | .isScalar | .isCompound | .isFundamental | .isConst
+  | .isSame => true
+  | _ => false
+
+/-- How many types the trait takes; `is_constructible` and `is_invocable`
+take at least one. -/
 def arity : Trait → Nat
-  | .isSame => 2
+  | .isSame | .isBaseOf | .isConvertible | .isAssignable | .isTriviallyAssignable => 2
   | _ => 1
 
 /-- The unary traits, on one type. -/
@@ -298,23 +369,28 @@ def unary : Trait → Ty → Bool
   | .isCompound, t => t.isCompound
   | .isFundamental, t => t.isFundamental
   | .isConst, t => t.isConst
-  | .isSame, _ => false
+  | _, _ => false
 
 /-- The trait's answer on its arguments, once substituted. A trait asked
 of a type that is not concrete, or with the wrong number of arguments,
 is an invalid expression in the immediate context: `soft`. -/
-def answer : Trait → List Ty → Subst Bool
-  | .isSame, [a, b] =>
-    if a.concrete && b.concrete then .ok (a == b) else .soft "is_same of a dependent type"
-  | .isSame, _ => .soft "is_same takes two types"
-  | q, [t] => if t.concrete then .ok (q.unary t) else .soft s!"{q.spelling} of a dependent type"
-  | q, _ => .soft s!"{q.spelling} takes one type"
+def answer (q : Trait) (ts : List Ty) : Subst Bool :=
+  if !q.structural then .soft s!"{q.spelling} needs the program"
+  else
+    match q, ts with
+    | .isSame, [a, b] =>
+      if a.concrete && b.concrete then .ok (a == b) else .soft "is_same of a dependent type"
+    | .isSame, _ => .soft "is_same takes two types"
+    | q, [t] => if t.concrete then .ok (q.unary t) else .soft s!"{q.spelling} of a dependent type"
+    | q, _ => .soft s!"{q.spelling} takes one type"
 
 /-- A trait's answer is never a hard error: it is formed in the
 immediate context, from the types alone. -/
 theorem answer_not_hard (q : Trait) (ts : List Ty) (r : Reason) : q.answer ts ≠ .hard r := by
   unfold answer
-  split <;> (try split) <;> simp
+  split
+  · simp
+  · split <;> (repeat' split) <;> simp
 
 end Trait
 

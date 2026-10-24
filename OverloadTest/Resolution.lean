@@ -80,7 +80,7 @@ is never deduced. -/
 
 private def exampleEnv : Env :=
   { instantiate := fun _ _ => .soft "unknown"
-    atomic := fun e _ => if e == "S" then .hard "expression S<int>{} does not have type bool" else .soft "unknown"
+    atomic := .ofExpr fun e _ => if e == "S" then .hard "expression S<int>{} does not have type bool" else .soft "unknown"
     convertible := fun a t => .ok (a.ty.referred.stripConst == t.referred.stripConst) }
 
 private def constrained : Program :=

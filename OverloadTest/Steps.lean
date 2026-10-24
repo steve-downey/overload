@@ -16,7 +16,7 @@ private def typeParam : TemplateParam := { kind := .type }
 and only identical types convert. -/
 private def plain : Env :=
   { instantiate := fun n a => .soft s!"no {n}<{repr a}>"
-    atomic := fun e _ => .soft s!"no {e}"
+    atomic := .ofExpr fun e _ => .soft s!"no {e}"
     convertible := fun a t => .ok (a.ty.referred.stripConst == t.referred.stripConst) }
 
 private def argsOf (s : Subst Specialization) : Option (List (ParamIdx × Ty)) :=
@@ -57,7 +57,7 @@ private def exampleEnv : Env :=
       | "Z::xx", .named "A" => .ok (.named "A::x")
       | "Z::xx", _ => .hard "Z<T>::xx: T has no member x"
       | _, _ => .soft "unknown"
-    atomic := fun e args =>
+    atomic := .ofExpr fun e args =>
       match e, args with
       | "C", [.named "A"] => .ok true
       | "C", [_] => .ok false
