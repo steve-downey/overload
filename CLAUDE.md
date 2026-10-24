@@ -68,7 +68,9 @@ section of `docs/decisions.md`.
   `docs/citations.md`; CI fails if it is stale.
 - Headline theorems are audited with `#audit` in `Overload.lean`. A `sorry`
   is an axiom and fails the audit. Do not leave `sorry` anywhere: drop the
-  theorem rather than ship it unproved.
+  theorem rather than ship it unproved. `#rests_on decl` lists the
+  sentences, assumptions and oracles a declaration rests on, transitively;
+  use it to tell a derived judgement from a primitive one.
 
 ## Model conventions
 
