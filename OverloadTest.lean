@@ -7,6 +7,7 @@ import OverloadTest.Arguments
 import OverloadTest.Steps
 import OverloadTest.Resolution
 import OverloadTest.Ranking
+import OverloadTest.Special
 import OverloadTest.Inheritance
 import OverloadTest.Ordering
 import OverloadTest.Lookup

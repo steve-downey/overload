@@ -124,6 +124,44 @@ structure Member where
   init : Bool := false
   deriving Repr, DecidableEq, Inhabited
 
+/-- The kinds of special member function: default constructor, copy and
+move constructor, copy and move assignment operator, destructor. -/
+@[std rule "special#1"]
+inductive SmfKind where
+  | defaultCtor | copyCtor | moveCtor | copyAssign | moveAssign | dtor
+  deriving Repr, DecidableEq, Inhabited
+
+/-- Is the kind a constructor's? -/
+def SmfKind.isCtor : SmfKind → Bool
+  | .defaultCtor | .copyCtor | .moveCtor => true
+  | _ => false
+
+/-- Is the kind an assignment operator's? -/
+def SmfKind.isAssign : SmfKind → Bool
+  | .copyAssign | .moveAssign => true
+  | _ => false
+
+/-- How a user-declared special member function is defined on its first
+declaration: with a body, `= default`, or `= delete`. -/
+inductive SmfBody where
+  | userProvided | defaulted | deleted
+  deriving Repr, DecidableEq, Inhabited
+
+attribute [std rule "dcl.fct.def.default#5"] SmfBody.userProvided
+attribute [std rule "dcl.fct.def.default#1"] SmfBody.defaulted
+attribute [std rule "dcl.fct.def.delete#1"] SmfBody.deleted
+
+/-- A user-declared special member function: its kind, its body, and
+whether its parameter is a reference to `const` ([class.copy.ctor]/1,
+[class.copy.assign]/1), which a default constructor and a destructor
+ignore. Every special member of the fragment is public, unconstrained,
+and without an exception specification. -/
+structure SmfDecl where
+  kind : SmfKind
+  body : SmfBody := .userProvided
+  constParam : Bool := true
+  deriving Repr, DecidableEq, Inhabited
+
 /-- A declaration. Every namespace-scope declaration carries the scope it
 inhabits, defaulting to the global scope; a declaration whose scope ends
 in a class step is a member of that class. -/
@@ -178,12 +216,17 @@ inductive Decl where
   declared in its definition. Its own declaration, after the class, as a
   conversion is, so the program stays a flat list. -/
   | member (cls : Ty) (m : Member)
+  /-- A user-declared special member function of the class `cls`, a
+  ground class type, declared in its definition. Its own declaration,
+  after the class, like a conversion and a member. -/
+  | special (cls : Ty) (s : SmfDecl)
   deriving Repr, DecidableEq, Inhabited
 
 attribute [std rule "temp.dep.general#2"] Decl.dependentCall
 attribute [std rule "temp.point#1.sentence-2"] Decl.refersTo
 attribute [std rule "class.conv.general#1"] Decl.converting
 attribute [std rule "class.mem.general#5"] Decl.member
+attribute [std rule "special#1"] Decl.special
 
 /-- A program: declarations in order. -/
 abbrev Program := List Decl
@@ -201,6 +244,12 @@ def candidates (p : Program) (name : String) : List Decl :=
 def membersOf (p : Program) (c : Ty) : List Member :=
   p.filterMap fun
     | .member d m => if d == c then some m else none
+    | _ => none
+
+/-- The user-declared special member functions of a class, in order. -/
+def specialDecls (p : Program) (c : Ty) : List SmfDecl :=
+  p.filterMap fun
+    | .special d s => if d == c then some s else none
     | _ => none
 
 /-- The first function template with a name, if any. -/

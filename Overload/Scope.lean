@@ -63,7 +63,7 @@ def Decl.name? : Decl → Option String
   | .lookup n | .lookupHard n => some n
   | .object n _ _ => some n
   | .concept n _ => some n
-  | .instance .. | .use .. | .dependentCall .. | .refersTo _ | .converting .. | .member .. => none
+  | .instance .. | .use .. | .dependentCall .. | .refersTo _ | .converting .. | .member .. | .special .. => none
 
 /-- The kind of entity a declaration declares, if it declares one. -/
 def Decl.kind? : Decl → Option EntityKind
@@ -74,7 +74,7 @@ def Decl.kind? : Decl → Option EntityKind
   | .lookup _ | .lookupHard _ => some .variableTemplate
   | .object .. => some .variable
   | .concept .. => some .concept
-  | .instance .. | .use .. | .dependentCall .. | .refersTo _ | .converting .. | .member .. => none
+  | .instance .. | .use .. | .dependentCall .. | .refersTo _ | .converting .. | .member .. | .special .. => none
 
 /-- The scope a declaration inhabits, its target scope in the fragment
 ([basic.scope.scope]/2). A partial specialization, a use, a variable
@@ -229,7 +229,7 @@ conversion introduce no name. -/
 def Decl.linkage : Decl → Linkage
   | .class .. | .classTemplate .. | .function .. | .functionTemplate _ | .object .. | .lookup _
   | .lookupHard _ | .concept .. => .external
-  | .instance .. | .use .. | .dependentCall .. | .refersTo _ | .converting .. | .member .. => .none
+  | .instance .. | .use .. | .dependentCall .. | .refersTo _ | .converting .. | .member .. | .special .. => .none
 
 /-- Two declarations of one entity declare the same kind of entity: a
 variable with a variable, a function with a function, a class template

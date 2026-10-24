@@ -16,6 +16,7 @@ import Overload.Transitivity
 import Overload.Specs
 import Overload.Resolution
 import Overload.Ranking
+import Overload.Special
 import Overload.Lookup
 import Overload.Environment
 import Overload.Separability
@@ -60,6 +61,12 @@ is the map.
 -- The type categories.
 #audit Overload.primary_category_unique
 #audit Overload.Trait.answer_not_hard
+
+-- Special member functions and the value nature of a class.
+#audit Overload.special_flat
+#audit Overload.deleted_flat
+#audit Overload.value_nature_flat
+#audit Overload.pointer_member_keeps_value_nature
 
 -- Deduction and substitution.
 #audit Overload.deduceTy_iff

@@ -878,9 +878,10 @@ as properties of a type, when the Standard has no term for them?
 c` holds when every special member of `c` is defaulted and non-deleted;
 `Program.referenceMember c` when some member, through class-typed
 members likewise, is of reference type or `const` non-class type.
-`value_nature_iff` connects them for classes that declare no special
-member, and `deletion_propagates` carries a deleted member through any
-depth. The author's names for the two natures, data and codata, appear
+`value_nature_flat` connects them for flat classes, those without bases,
+class-typed members, initializers or declared specials, and the
+propagation through class-typed members is computed by `deletedWithin`
+and tested; its general theorem is open. The author's names for the two natures, data and codata, appear
 in the docs; the Lean names are `valueNature` and `referenceMember`,
 and no `@[std rule]` cites a sentence for either, since none exists.
 A pointer is data: a scalar, trivially copyable, deleting nothing. Its
@@ -896,3 +897,9 @@ cannot check.
 **Log:**
 
 - 2026-10-24 — Decided.
+- 2026-10-24 — Stage 3 landed. A `const` member without a default member
+  initializer deletes the default constructor as a reference member does
+  ([class.default.ctor]/2 with [dcl.init.general]/7), so the reference
+  nature is a reference or `const` member, not a reference member alone.
+  Proved for flat classes (`deleted_flat`, `value_nature_flat`,
+  `pointer_member_keeps_value_nature`).

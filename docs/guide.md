@@ -212,7 +212,10 @@ amounts to on this fragment.
 `Decl`: classes with public and protected bases, their non-static data
 members as `member` declarations after the class (`Member`: name, type,
 and whether it has a default member initializer; `Program.membersOf`
-lists them in order), class templates,
+lists them in order), their user-declared special member functions as
+`special` declarations (`SmfDecl`: kind, body with a definition, `=
+default` or `= delete`, and whether the parameter is a reference to
+`const`), class templates,
 functions, function templates (`FunctionTemplate`: head, parameter types,
 default arguments, return type, associated constraint, Mandates), a
 variable template as `lookup` or `lookupHard` (a primary with a value, or
@@ -460,6 +463,35 @@ copy-initialization goes through a user-defined sequence, and none
 when no sequence forms or the sequence is ambiguous. A class value in
 the fragment lists its base subobjects and nothing else, so a class has
 one value whichever constructor made it (`candidateInitializer_user`).
+
+### Special
+
+`Overload/Special.lean`: the special member functions. `Program.special c k`
+is the special member of kind `k` that class `c` has, if any: the
+user-declared one, a `special` declaration or a converting constructor of
+copy or move form ([class.copy.ctor]/1, /2), or the implicitly declared
+one, with its suppression and its parameter form ([class.default.ctor]/1,
+[class.copy.ctor]/6 to /8, [class.copy.assign]/2, /4, [class.dtor]/2).
+`Program.deleted` is "defined as deleted" for a defaulted one, the bullets
+of [class.default.ctor]/2, [class.copy.ctor]/10, [class.copy.assign]/7 and
+[class.dtor]/7, each about a member's type or about overload resolution
+over a subobject's class to find its corresponding constructor or
+assignment and whether that results in a usable candidate
+([over.match.general]/4); `Program.trivial` and `Program.eligible`
+likewise. Every judgement is fuel-bounded through the program, as
+`derives` is, and the candidate lists and the resolution over them
+(`ctorCandidates`, `assignCandidates`, `resolveAmong`) are parametrized
+by `Facts`, the special members and their deletion at the fuel below, so
+nothing is mutually recursive. `copyInitUsable` is the check `Program.call`
+makes on a by-value class parameter: the constructor that copy-initializes
+it from an argument of its class is not deleted. The value and reference
+nature of a class, data and codata, are `valueNature` and
+`referenceMember`, definitions and not rules: `deleted_flat` says which
+members delete which defaulted special members of a flat class, one
+without bases, class-typed members, initializers or declared specials,
+`value_nature_flat` that such a class has value nature exactly when no
+member is a reference or `const`, and `pointer_member_keeps_value_nature`
+that a pointer member deletes nothing.
 
 ### Lookup
 
@@ -856,7 +888,9 @@ trait of argument types and asserts the model's answer against the
 `std::` trait, so every trait judgement is tested against the
 compilers' own; a trait in a requires-clause is rendered as the `std::`
 variable template. A data member is rendered in its class's body, with
-`{}` when it has a default member initializer. A `Case` is a program, a
+`{}` when it has a default member initializer, and a declared special
+member as `= default`, `= delete` or an empty body; a class with a
+converting constructor that needs a default constructor declares one. A `Case` is a program, a
 query (deduction, call, lookup, trait, or raw C++) and the expected
 outcome. `render`
 writes a translation unit whose `static_assert`s check the outcome in
