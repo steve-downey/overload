@@ -113,7 +113,10 @@ consults. It is how to tell a trait that is a theorem of the core rules
 nothing past [basic.types]) or one that rests on an oracle (a
 requires-expression's calls consult `Env.atomic`). `Overload.lean` runs
 it on the judgements of phase 12; `restsOnKeys` is the same list as a
-value, for tests.
+value, for tests. `#owes decl` is its companion for semantic requirements:
+the `Semantic` constants in a declaration's closure, the laws a theorem
+assumes, with `owes` the same list as a value; `coherence` and
+`stability` owe none.
 
 ### Syntax
 
@@ -573,6 +576,44 @@ their candidates' constraints, so a requires-expression nested in those
 is answered softly, one level down. The emitters compute their cases in
 `Env.full`.
 
+### Models
+
+`Overload/Models.lean`: what satisfies and what models. `Semantic`
+(`Program`) is a slug and a statement nothing decides; `Decl.semantic`
+attaches one to a concept's specification, and `Program.laws` collects
+the requirements modelling a concept needs through the concept-ids its
+body is defined in terms of. `Laws` is the oracle, a `Prop` a theorem
+states. `Program.models env laws c args` is satisfaction of the normal
+form of `c<args>` and every law held ([res.on.requirements]/1);
+`models_satisfies` is the one direction the text gives.
+`Program.conceptUses` lists the concept-ids a call's validity depends on,
+those of the selected candidate's constraint at the deduced arguments
+([res.on.requirements]/3), and `Program.modelVerdicts` gives
+`satisfiedNotModeled` for each the arguments satisfy with a law the case
+has not claimed ([res.on.requirements]/2); `satisfied_not_modeled_verdict`
+says a law is a verdict exactly when it is unclaimed, and
+`satisfied_not_modeled_example` reproduces [concepts.equality]/8, a type
+that satisfies a concept and fails its implicit expression variations.
+The vocabulary of [concepts.equality], `equalityPreserving`, `onDomain`,
+`stable`, `nonModifying` and `implicitVariations`, is named here.
+
+### Concepts
+
+`Overload/Concepts.lean`: the library's concepts as the fragment states
+them, `libraryConcepts`, a program of `conceptDef`s over the traits of
+phase 12 with a residue atom for each expression the fragment lacks, and
+a `semantic` for each requirement a concept's specification gives beyond
+its body, with the equality-preservation laws of [concepts.equality]/4 on
+every library requires-expression that does not say otherwise.
+`same_as_symmetric` ([concept.same]/1), `regular_refines`, the chain from
+`regular` down to `move_constructible` by normalization
+([concepts.object]/1), `regular_invocable_semantic_only`, one normal form
+and one law of difference ([concept.regularinvocable]/3), and
+`regular_laws`, the ten laws modelling `regular` needs, are decided in
+the kernel. `constructible_from` and `invocable` are stated for one
+argument type after the first, since a concept-id takes a fixed number
+of arguments.
+
 ### Lookup
 
 `Overload/Lookup.lean`: a variable template over a program.
@@ -706,7 +747,10 @@ be selected at the end of the unit ([temp.point]/7, `laterInUnit`); one
 declared only in another unit is not reachable ([temp.spec.partial.general]/1,
 `notReachable`); a completeness test's answer differs between two points
 ([temp.constr.atomic]/3, `satisfactionChanged`). `Units.verdicts` lists
-them. The model says nothing about a program with a verdict, which is the
+them. A seventh verdict, `satisfiedNotModeled`, is phase 13's: a call
+whose selected candidate's constraint names a concept the arguments
+satisfy with a semantic requirement unclaimed ([res.on.requirements]/2;
+`Models`). The model says nothing about a program with a verdict, which is the
 honest reading of "no diagnostic required".
 
 - `verdicts_single`: for one unit, the `SingleTranslationUnit`
@@ -1102,6 +1146,20 @@ codata, is a definition and a theorem of the deletion rules
 (`deleted_flat`, `value_nature_flat`, `pointer_member_keeps_value_nature`),
 not a rule.
 
+Phase 13 added the half of a concept that is not a constraint. A semantic
+requirement is a named, cited statement nothing decides; modelling a
+concept is satisfying it and meeting every requirement of its
+specification and of the concepts it is defined in terms of
+(`models_satisfies`); a call whose validity depends on a modelling the
+arguments lack is ill-formed, no diagnostic required, and the verdict
+names the law (`satisfied_not_modeled_verdict`). The library's concepts
+are transcribed with their laws, and `regular` subsumes `semiregular`
+subsumes `copyable` subsumes `copy_constructible` by normalization alone
+(`regular_refines`), while `regular_invocable` differs from `invocable`
+in a law and nothing else (`regular_invocable_semantic_only`). `#owes`
+lists the laws a theorem rests on, and the headline theorems of lookup
+rest on none.
+
 ## The typeclass side, module by module
 
 The encoding, as the model has it. An instance is a partial specialization
@@ -1287,6 +1345,21 @@ one by Monad select the Monad overload at a Monad instance.
 `member_probe_accurate`: a requires-expression probing a member says
 what the member call says, the accurate-members obligation as the
 Standard states it (`member_requirement_iff_call` on the Standard side).
+
+### Laws
+
+`Overload/Typeclass/Laws.lean`: the Functor, Applicative and Monad laws
+and the superclass agreement as `Semantic`s on the encoding's concepts,
+with their source in each statement and no citation, since the Standard
+does not state them. `monad_laws` lists the eight modelling Monad needs.
+`superclass_coherence_owed` is the obligations table's undiagnosable row
+as a theorem: the Monad-constrained algorithm selects at an instance
+whose shape satisfies the concept, the verdict names the superclass
+agreement when every other law is claimed and it is not, and there is
+none when it is claimed too. `shape_without_laws` gives an instance with
+the shape and no law every law as a verdict. That `coherence`,
+`stability`, `call_stability`, `inheritance_erasure` and
+`superclass_identity` owe no law is an audit, `#owes`, and a test.
 
 ### Emit
 

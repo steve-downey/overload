@@ -70,7 +70,10 @@ section of `docs/decisions.md`.
   is an axiom and fails the audit. Do not leave `sorry` anywhere: drop the
   theorem rather than ship it unproved. `#rests_on decl` lists the
   sentences, assumptions and oracles a declaration rests on, transitively;
-  use it to tell a derived judgement from a primitive one.
+  use it to tell a derived judgement from a primitive one. `#owes decl`
+  lists the semantic requirements, the laws nothing decides, in a
+  declaration's closure; a theorem that needs a law states it as a
+  hypothesis, never proves it.
 
 ## Model conventions
 
