@@ -554,7 +554,9 @@ or any other concrete type. `Program.requirementsHold` checks a
 requires-expression's requirements in lexical order and stops at the
 first that decides, an invalid one making it `false`
 ([expr.prim.req.general]/5): `requires_soft_is_false`,
-`requires_false_stops`, `requires_hard_stops`. `Env.full` is the
+`requires_false_stops`, `requires_hard_stops`; and a requirement calling
+a member holds exactly where the member call is viable and well-formed
+(`member_requirement_iff_call`). `Env.full` is the
 program's environment with requires-expressions answered; the base
 environment, `Env.ofProgram`, decides the calls a requirement makes and
 their candidates' constraints, so a requires-expression nested in those
@@ -1230,6 +1232,28 @@ lookup rules rather than a hypothesis.
 instance type whose own `fmap` is unconstrained never reaches the
 derivation base's constrained one, which is the audit's finding against
 the library's Functor instances as a theorem.
+
+### ValueNature
+
+`Overload/Typeclass/ValueNature.lean`: phase 12 on the encoding, on
+concrete programs. `instance_shape_regular`: an instance type with no
+data members and no declared special member, flat or derived from such,
+has value nature and is trivially copyable, empty, standard-layout and
+default, copy and move constructible, so the value route's copy of it
+costs nothing. `reference_member_instance`: an instance type holding a
+reference is structural, so the value route admits it, and is neither
+default constructible nor assignable; structural and value nature are
+different properties. `copy_constraint_shields`: the callable-copying
+rule as a theorem, the trait `is_copy_constructible` as a constraint
+making the algorithm not viable at a callable whose copy constructor is
+deleted, where the same trait as a Mandate, the body's copy, makes the
+call ill-formed. `refinement_normalizes` and `refinement_selects`: the
+Monad concept's normal form subsumes the Functor concept's where the
+two compared by name would not, and a call constrained by Functor and
+one by Monad select the Monad overload at a Monad instance.
+`member_probe_accurate`: a requires-expression probing a member says
+what the member call says, the accurate-members obligation as the
+Standard states it (`member_requirement_iff_call` on the Standard side).
 
 ### Emit
 

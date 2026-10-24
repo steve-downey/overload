@@ -6,6 +6,7 @@ import Overload.Typeclass.Units
 import Overload.Typeclass.Members
 import Overload.Typeclass.Lookup
 import Overload.Typeclass.Conversion
+import Overload.Typeclass.ValueNature
 import Overload.Typeclass.Arguments
 
 /-!
@@ -588,6 +589,67 @@ def leakDerivedComposed : Case :=
     prelude := prelude }
 
 
+/-! ### Phase 12: value nature, the copying rule, refinement -/
+
+/-- The Monad instance type is trivially copyable, empty and
+standard-layout. -/
+def instanceTriviallyCopyable : Case :=
+  { name := "instance_trivially_copyable"
+    cite := cite "class.prop#1"
+    program := instanceShapes
+    query := .trait .isTriviallyCopyable [.named "monad_i"]
+      (instanceShapes.trait .isTriviallyCopyable [.named "monad_i"] == .ok true)
+    source := "computed by Program.trait" }
+def instanceEmpty : Case :=
+  { name := "instance_empty"
+    cite := cite "meta.unary.prop#5"
+    program := instanceShapes
+    query := .trait .isEmpty [.named "monad_i"] (instanceShapes.trait .isEmpty [.named "monad_i"] == .ok true)
+    source := "computed by Program.trait" }
+def instanceStandardLayout : Case :=
+  { name := "instance_standard_layout"
+    cite := cite "class.prop#2"
+    program := instanceShapes
+    query := .trait .isStandardLayout [.named "monad_i"]
+      (instanceShapes.trait .isStandardLayout [.named "monad_i"] == .ok true)
+    source := "computed by Program.trait" }
+
+/-- An instance type holding a reference is not copy assignable. -/
+def referenceInstanceNotAssignable : Case :=
+  { name := "reference_instance_not_assignable"
+    cite := cite "class.copy.assign#7"
+    program := referenceInstance
+    query := .trait .isCopyAssignable [.named "ref_i"]
+      (referenceInstance.trait .isCopyAssignable [.named "ref_i"] == .ok true)
+    source := "computed by Program.trait" }
+
+/-- The copying algorithm, constrained: not viable at the callable. -/
+def copyConstraintShields : Case :=
+  { name := "copy_constraint_shields"
+    cite := cite "temp.constr.atomic#3.sentence-1"
+    program := copyingAlgorithm true
+    query := .call "run" [callable] .noMatch
+    source := "computed by Program.call" }
+
+/-- The copying algorithm, with the copy as a Mandate: ill-formed. -/
+def copyMandateIllFormed : Case :=
+  { name := "copy_mandate_ill_formed"
+    cite := cite "dcl.fct.def.delete#2"
+    program := copyingAlgorithm false
+    query := .call "run" [callable] (.illFormed "a Mandate of the selected function is not met")
+    source := "computed by Program.call" }
+
+/-- Refinement by normalization: the Monad overload is selected at a
+Monad instance. -/
+def refinementSelectsMonad : Case :=
+  { name := "refinement_selects_monad"
+    cite := cite "temp.constr.normal#1"
+    program := [ .concept "functor_shape" "true", .concept "applicative_shape" "true"
+               , .concept "monad_shape" "true" ] ++ refinementOverloads
+    query := .call "use" [{ ty := .named "monad_i", lvalue := true }] (.selected 1)
+    source := "computed by Program.call"
+    atomics := monadShapes }
+
 /-- Every case of the encoding. -/
 def cases : List Case :=
   [ opObjectSelects, opObjectNormalizedKey, opObjectMissingSoft, opObjectAmbiguousHard
@@ -599,7 +661,9 @@ def cases : List Case :=
   , rankLeakExact, rankLeakDerived, erasureInherited, erasureComposed, deduceFromDerived
   , deduceFromTwoBases, leakDerivedInherited, leakDerivedComposed
   , conversionLeakGeneric, conversionLeakConcrete, conversionSitesAmbiguous, conversionExplicitDead
-  , routesValueConverted ]
+  , routesValueConverted
+  , instanceTriviallyCopyable, instanceEmpty, instanceStandardLayout, referenceInstanceNotAssignable
+  , copyConstraintShields, copyMandateIllFormed, refinementSelectsMonad ]
 
 /-- What the model computes for the encoding's cases, in the encoding's
 environment. -/

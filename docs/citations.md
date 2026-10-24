@@ -138,6 +138,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | rule | `Overload.Constraint.Requirement.memberCall` | `Overload.Constraint` |
 | [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | rule | `Overload.Constraint.Requirement.simple` | `Overload.Constraint` |
 | [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | rule | `Overload.Program.requirementHolds` | `Overload.Requires` |
+| [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | theorem | `Overload.member_requirement_iff_call` | `Overload.Requires` |
 | [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1) | rule | `Overload.Constraint.Requirement.type` | `Overload.Constraint` |
 | [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1) | rule | `Overload.Program.requirementHolds` | `Overload.Requires` |
 | [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1) | rule | `Overload.Program.validType` | `Overload.Requires` |
@@ -293,6 +294,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.constr.normal]/1](https://eel.is/c++draft/temp.constr.normal#1) | rule | `Overload.Constraint.requires` | `Overload.Constraint` |
 | [[temp.constr.normal]/1](https://eel.is/c++draft/temp.constr.normal#1) | rule | `Overload.Decl.conceptDef` | `Overload.Program` |
 | [[temp.constr.normal]/1](https://eel.is/c++draft/temp.constr.normal#1) | rule | `Overload.Program.normalizeWithin` | `Overload.Program` |
+| [[temp.constr.normal]/1](https://eel.is/c++draft/temp.constr.normal#1) | theorem | `Overload.Typeclass.refinement_normalizes` | `Overload.Typeclass.ValueNature` |
 | [[temp.constr.normal]/2](https://eel.is/c++draft/temp.constr.normal#2) | rule | `Overload.Program.normalizeDecl` | `Overload.Program` |
 | [[temp.constr.op]/2 sentence 3](https://eel.is/c++draft/temp.constr.op#2.sentence-3) | theorem | `Overload.satisfied_conjunctionOf` | `Overload.Conjunction` |
 | [[temp.constr.order]/1](https://eel.is/c++draft/temp.constr.order#1) | example | `Overload.Constraint.subsumes_example` | `Overload.Constraint` |

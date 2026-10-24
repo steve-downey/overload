@@ -49,8 +49,7 @@ def validType (p : Program) (env : Env) : Ty → Subst Bool
 fails hard is a hard error, outside the immediate context; otherwise the
 call is viable and well-formed, or it is not. -/
 def callHolds (p : Program) (env : Env) (decls : List Decl) (args : List CallArg) : Subst Bool :=
-  let decls := decls.map p.normalizeDecl
-  match generate .text env decls args [] with
+  match generate .text env (decls.map p.normalizeDecl) args [] with
   | .hard r => .hard r
   | _ =>
     match p.call env decls args with
@@ -89,6 +88,26 @@ def requirementsHold (p : Program) (env : Env) : List Constraint.Requirement →
     | .hard e => .hard e
 
 end Program
+
+/-- A requirement that calls a member of a class holds exactly where the
+member call is viable and well-formed, when generating its candidates is
+no hard error: a probe of a member through a requires-expression says
+what the call says. -/
+@[std theorem "expr.prim.req.simple#1"]
+theorem member_requirement_iff_call (p : Program) (env : Env) (c f : String) (args : List Ty)
+    (hgen : ∀ ms, p.memberSearch p.length c f = .selected ms →
+      ∀ r, generate .text env ((entities ms).map p.normalizeDecl) (args.map Program.declval) [] ≠ .hard r) :
+    p.requirementHolds env (.memberCall (.named c) f args) = .ok true ↔
+      ∃ cand, p.memberCallAt env p.length c f (args.map Program.declval) = .selected cand := by
+  simp only [Program.requirementHolds, Ty.referred, Ty.stripConst, Program.memberCallAt]
+  cases hs : p.memberSearch p.length c f with
+  | selected ms =>
+    simp only [Program.callHolds]
+    cases hg : generate .text env ((entities ms).map p.normalizeDecl) (args.map Program.declval) [] with
+    | hard r => exact absurd hg (hgen ms hs r)
+    | ok _ | soft _ =>
+      cases p.call env (entities ms) (args.map Program.declval) <;> simp
+  | illFormed _ | noMatch | ambiguous _ => simp
 
 /-- The environment a program defines, with requires-expressions
 answered: the base environment, `Env.ofProgram`, decides the calls a

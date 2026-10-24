@@ -56,6 +56,7 @@ private def traitsAgree (cs : List Case) : Bool :=
 -- The encoding's cases, in the encoding's environment.
 #guard deductionsAgree Typeclass.Emit.computed Typeclass.Emit.cases
 #guard callsAgree Typeclass.Emit.computedCall Typeclass.Emit.cases
+#guard traitsAgree Typeclass.Emit.cases
 #guard lookupsAgree Typeclass.Emit.cases
 
 -- Names are unique across both lists, so the emitted files do not collide.

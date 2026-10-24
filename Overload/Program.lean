@@ -328,14 +328,17 @@ bounds the expansion. -/
 @[std rule "temp.constr.normal#1"]
 def normalizeWithin (p : Program) : Nat → Constraint → Constraint
   | 0, c => c
-  | fuel + 1, c =>
-    match c with
+  | fuel + 1, c => expand (fun d => p.normalizeWithin fuel d) c
+where
+  /-- Expand every concept-id of the constraint once, normalizing what
+  each expands to with `next`. -/
+  expand (next : Constraint → Constraint) : Constraint → Constraint
     | .conceptId n as =>
       match p.conceptDef? n with
-      | some (_, body) => p.normalizeWithin fuel (body.substArgs as)
+      | some (_, body) => next (body.substArgs as)
       | none => .conceptId n as
-    | .conj l r => .conj (p.normalizeWithin fuel l) (p.normalizeWithin fuel r)
-    | .disj l r => .disj (p.normalizeWithin fuel l) (p.normalizeWithin fuel r)
+    | .conj l r => .conj (expand next l) (expand next r)
+    | .disj l r => .disj (expand next l) (expand next r)
     | c => c
 
 /-- The normal form of a constraint. -/
