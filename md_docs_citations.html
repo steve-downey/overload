@@ -206,6 +206,18 @@ What rests on each sentence</h1>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/class.access.base#4">[class.access.base]/4</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.accessibleBase</code>   </td><td class="markdownTableBodyNone"><code>Overload.Access</code>    </td></tr>
 <tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/class.conv.ctor#1">[class.conv.ctor]/1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.UserConv.constructor</code>   </td><td class="markdownTableBodyNone"><code>Overload.Program</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/class.conv.fct#2">[class.conv.fct]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.UserConv.function</code>   </td><td class="markdownTableBodyNone"><code>Overload.Program</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/class.conv.fct#4">[class.conv.fct]/4</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.UserConv.candidate</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/class.conv.general#1">[class.conv.general]/1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Decl.converting</code>   </td><td class="markdownTableBodyNone"><code>Overload.Program</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/class.conv.general#2">[class.conv.general]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.call</code>   </td><td class="markdownTableBodyNone"><code>Overload.Access</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/class.conv.general#4">[class.conv.general]/4</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.ics_one_user_defined</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/class.derived.general#2">[class.derived.general]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.derives</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/class.member.lookup#3">[class.member.lookup]/3</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.LookupSetRel.here</code>   </td><td class="markdownTableBodyNone"><code>Overload.Members</code>    </td></tr>
@@ -232,39 +244,91 @@ What rests on each sentence</h1>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/conv.ptr#3.sentence-2">[conv.ptr]/3 sentence 2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.accessibleConversion</code>   </td><td class="markdownTableBodyNone"><code>Overload.Access</code>    </td></tr>
 <tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/dcl.init.general#13">[dcl.init.general]/13</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Init.copy</code>   </td><td class="markdownTableBodyNone"><code>Overload.Program</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/dcl.init.general#13">[dcl.init.general]/13</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.ranking</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/dcl.init.general#14">[dcl.init.general]/14</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Init.direct</code>   </td><td class="markdownTableBodyNone"><code>Overload.Program</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/dcl.init.general#15">[dcl.init.general]/15</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.IcsForms.userDefined</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/dcl.init.general#15">[dcl.init.general]/15</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.betterCandidate</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/dcl.init.general#15">[dcl.init.general]/15</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.candidateInitializer</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/dcl.init.list#7">[dcl.init.list]/7</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Narrowing.integer</code>   </td><td class="markdownTableBodyNone"><code>Overload.Arguments</code>    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/dcl.init.ref#4.sentence-2">[dcl.init.ref]/4 sentence 2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.referenceCompatible</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/dcl.init.ref#4.sentence-3">[dcl.init.ref]/4 sentence 3</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.call</code>   </td><td class="markdownTableBodyNone"><code>Overload.Access</code>    </td></tr>
 <tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/dcl.init.ref#5">[dcl.init.ref]/5</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.ics</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/dcl.ref#1.sentence-3">[dcl.ref]/1 sentence 3</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.formConst</code>   </td><td class="markdownTableBodyNone"><code>Overload.Steps</code>    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/dcl.ref#5.sentence-1">[dcl.ref]/5 sentence 1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.formPtr</code>   </td><td class="markdownTableBodyNone"><code>Overload.Steps</code>    </td></tr>
-<tr class="markdownTableRowOdd">
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/expr.const.const#8">[expr.const.const]/8</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.ConvertsTo.reference</code>   </td><td class="markdownTableBodyNone"><code>Overload.Arguments</code>    </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/expr.const.const#8">[expr.const.const]/8</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.integralConversion</code>   </td><td class="markdownTableBodyNone"><code>Overload.Arguments</code>    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/lex.icon#3.sentence-1">[lex.icon]/3 sentence 1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.literalType</code>   </td><td class="markdownTableBodyNone"><code>Overload.Arguments</code>    </td></tr>
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/expr.const.const#8">[expr.const.const]/8</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.integralConversion</code>   </td><td class="markdownTableBodyNone"><code>Overload.Arguments</code>    </td></tr>
 <tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/lex.icon#3.sentence-1">[lex.icon]/3 sentence 1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.literalType</code>   </td><td class="markdownTableBodyNone"><code>Overload.Arguments</code>    </td></tr>
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/module.context#5">[module.context]/5</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.dependentLookup</code>   </td><td class="markdownTableBodyNone"><code>Overload.DependentCandidate</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.best.ics.general#1">[over.best.ics.general]/1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Ics</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.best.ics.general#3">[over.best.ics.general]/3</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Ics.standard</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.best.ics.general#4">[over.best.ics.general]/4</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.userSequence</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.best.ics.general#6">[over.best.ics.general]/6</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.ics</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.best.ics.general#7">[over.best.ics.general]/7</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.IcsForms.standard</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.best.ics.general#7">[over.best.ics.general]/7</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.baseConv</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.call.func#3.sentence-2">[over.call.func]/3 sentence 2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.callAt</code>   </td><td class="markdownTableBodyNone"><code>Overload.Members</code>    </td></tr>
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.best.ics.general#9">[over.best.ics.general]/9</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.userSequence</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.best.ics.general#12">[over.best.ics.general]/12</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Ics.ambiguous</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.best.ics.general#12">[over.best.ics.general]/12</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.IcsForms.ambiguous</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.best.ics.general#12">[over.best.ics.general]/12</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.ambiguousConversion</code>   </td><td class="markdownTableBodyNone"><code>Overload.Access</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.best.ics.general#12">[over.best.ics.general]/12</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.bestSequence</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.call.func#3.sentence-2">[over.call.func]/3 sentence 2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.callAt</code>   </td><td class="markdownTableBodyNone"><code>Overload.Members</code>    </td></tr>
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.call.object#1.sentence-2">[over.call.object]/1 sentence 2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.callOperators</code>   </td><td class="markdownTableBodyNone"><code>Overload.Members</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.rank#1.sentence-1">[over.ics.rank]/1 sentence 1</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.betterIcs_asymm</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.rank#1.sentence-1">[over.ics.rank]/1 sentence 1</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.better_asymm</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.rank#2">[over.ics.rank]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.BetterIcs.form</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.rank#2">[over.ics.rank]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.betterIcs</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.rank#2">[over.ics.rank]/2</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.Typeclass.conversion_loses_rank</code>   </td><td class="markdownTableBodyNone"><code>Overload.Typeclass.Conversion</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.rank#2">[over.ics.rank]/2</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.standard_beats_user_defined</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.rank#3">[over.ics.rank]/3</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.BetterConv.qualification</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.rank#3">[over.ics.rank]/3</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.BetterConv.rvalueBinding</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.rank#3">[over.ics.rank]/3</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.byQualification</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.rank#3">[over.ics.rank]/3</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.BetterIcs.standard</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.rank#3">[over.ics.rank]/3</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.BetterIcs.userDefined</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.rank#3">[over.ics.rank]/3</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.betterIcs</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.rank#3">[over.ics.rank]/3</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.byQualification</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.rank#3">[over.ics.rank]/3</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.byRvalueBinding</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.rank#3">[over.ics.rank]/3</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.Typeclass.converting_sites_ambiguous</code>   </td><td class="markdownTableBodyNone"><code>Overload.Typeclass.Conversion</code>    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.rank#4">[over.ics.rank]/4</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.BetterConv.rank</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowEven">
@@ -272,15 +336,27 @@ What rests on each sentence</h1>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.rank#4.sentence-1">[over.ics.rank]/4 sentence 1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.ConvRank.better</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.ref#1">[over.ics.ref]/1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.ics</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.ref#1">[over.ics.ref]/1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.standardIcs</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.ref#2">[over.ics.ref]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.ics</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.ref#3.sentence-1">[over.ics.ref]/3 sentence 1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.canBind</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.match.best.general#2">[over.match.best.general]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.BetterFunction.betterConversion</code>   </td><td class="markdownTableBodyNone"><code>Overload.Specs</code>    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.match.best.general#2">[over.match.best.general]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.BetterFunction.moreSpecialized</code>   </td><td class="markdownTableBodyNone"><code>Overload.Specs</code>    </td></tr>
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.user#1">[over.ics.user]/1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Ics.userDefined</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.user#1">[over.ics.user]/1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.userSequence</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.user#2">[over.ics.user]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Ics.userDefined</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.ics.user#4">[over.ics.user]/4</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.related</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.match.best.general#2">[over.match.best.general]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.BetterFunction.betterConversion</code>   </td><td class="markdownTableBodyNone"><code>Overload.Specs</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.match.best.general#2">[over.match.best.general]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.BetterFunction.moreSpecialized</code>   </td><td class="markdownTableBodyNone"><code>Overload.Specs</code>    </td></tr>
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.match.best.general#2">[over.match.best.general]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.BetterFunction.nonTemplate</code>   </td><td class="markdownTableBodyNone"><code>Overload.Specs</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.match.best.general#2">[over.match.best.general]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.betterCandidate</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.match.best.general#2">[over.match.best.general]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.betterFunction</code>   </td><td class="markdownTableBodyNone"><code>Overload.Resolution</code>    </td></tr>
 <tr class="markdownTableRowEven">
@@ -299,6 +375,18 @@ What rests on each sentence</h1>
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.match.best.general#3.sentence-1">[over.match.best.general]/3 sentence 1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.bestViable</code>   </td><td class="markdownTableBodyNone"><code>Overload.Resolution</code>    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.match.call.general#1">[over.match.call.general]/1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.candidatesOf</code>   </td><td class="markdownTableBodyNone"><code>Overload.Members</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.match.conv#1">[over.match.conv]/1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.userConversions</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.match.copy#1">[over.match.copy]/1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.userConversions</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.match.copy#1">[over.match.copy]/1</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.Typeclass.explicit_conversion_dead</code>   </td><td class="markdownTableBodyNone"><code>Overload.Typeclass.Conversion</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.match.copy#1">[over.match.copy]/1</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.explicit_never_implicit</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.match.ctor#1">[over.match.ctor]/1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.UserConv.candidate</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.match.funcs.general#5">[over.match.funcs.general]/5</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.userSequence</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/over.match.funcs.general#8.sentence-1">[over.match.funcs.general]/8 sentence 1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Resolves.generationSoft</code>   </td><td class="markdownTableBodyNone"><code>Overload.Specs</code>    </td></tr>
 <tr class="markdownTableRowOdd">
@@ -332,15 +420,23 @@ What rests on each sentence</h1>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.arg.nontype#2.sentence-2">[temp.arg.nontype]/2 sentence 2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.convertedConstant</code>   </td><td class="markdownTableBodyNone"><code>Overload.Arguments</code>    </td></tr>
 <tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.arg.nontype#3">[temp.arg.nontype]/3</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.candidateInitializer</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.arg.nontype#3.sentence-1">[temp.arg.nontype]/3 sentence 1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.ConvertsTo.classBase</code>   </td><td class="markdownTableBodyNone"><code>Overload.Arguments</code>    </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.arg.nontype#3.sentence-1">[temp.arg.nontype]/3 sentence 1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.subobject</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.arg.nontype#4">[temp.arg.nontype]/4</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.tpo_value</code>   </td><td class="markdownTableBodyNone"><code>Overload.Arguments</code>    </td></tr>
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.arg.nontype#3.sentence-1">[temp.arg.nontype]/3 sentence 1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.subobject</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ranking</code>    </td></tr>
 <tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.arg.nontype#4">[temp.arg.nontype]/4</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.tpo_value</code>   </td><td class="markdownTableBodyNone"><code>Overload.Arguments</code>    </td></tr>
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.arg.nontype#5">[temp.arg.nontype]/5</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.ConvertsTo.classSame</code>   </td><td class="markdownTableBodyNone"><code>Overload.Arguments</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.arg.nontype#6">[temp.arg.nontype]/6</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.bindsTemporary</code>   </td><td class="markdownTableBodyNone"><code>Overload.Arguments</code>    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.arg.nontype#6">[temp.arg.nontype]/6</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.convertArg</code>   </td><td class="markdownTableBodyNone"><code>Overload.Arguments</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.arg.nontype#6">[temp.arg.nontype]/6</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.Typeclass.converted_instance_temporary</code>   </td><td class="markdownTableBodyNone"><code>Overload.Typeclass.Conversion</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.arg.nontype#6">[temp.arg.nontype]/6</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.placeholder_reference_refuses_value</code>   </td><td class="markdownTableBodyNone"><code>Overload.Arguments</code>    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.constr.atomic#2.sentence-1">[temp.constr.atomic]/2 sentence 1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Constraint.identical</code>   </td><td class="markdownTableBodyNone"><code>Overload.Constraint</code>    </td></tr>
 <tr class="markdownTableRowEven">
@@ -375,6 +471,10 @@ What rests on each sentence</h1>
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.deduct.call#3.sentence-3">[temp.deduct.call]/3 sentence 3</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.isForwardingRef</code>   </td><td class="markdownTableBodyNone"><code>Overload.Deduction</code>    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.deduct.call#4">[temp.deduct.call]/4</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.deduceFromBase</code>   </td><td class="markdownTableBodyNone"><code>Overload.Deduction</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.deduct.call#4">[temp.deduct.call]/4</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.Typeclass.conversion_invisible_to_deduction</code>   </td><td class="markdownTableBodyNone"><code>Overload.Typeclass.Conversion</code>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.deduct.call#4">[temp.deduct.call]/4</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.deduction_ignores_conversion</code>   </td><td class="markdownTableBodyNone"><code>Overload.Steps</code>    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.deduct.call#5.sentence-1">[temp.deduct.call]/5 sentence 1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.deduceParam</code>   </td><td class="markdownTableBodyNone"><code>Overload.Deduction</code>    </td></tr>
 <tr class="markdownTableRowOdd">
@@ -502,54 +602,60 @@ What rests on each sentence</h1>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.point#1.sentence-2">[temp.point]/1 sentence 2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Decl.refersTo</code>   </td><td class="markdownTableBodyNone"><code>Overload.Program</code>    </td></tr>
 <tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.point#1.sentence-2">[temp.point]/1 sentence 2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.instantiationPoints</code>   </td><td class="markdownTableBodyNone"><code>Overload.DependentCandidate</code>    </td></tr>
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.point#7">[temp.point]/7</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.IllFormedNdr.laterInUnit</code>   </td><td class="markdownTableBodyNone"><code>Overload.Units</code>    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.point#7.sentence-1">[temp.point]/7 sentence 1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.instantiationPoints</code>   </td><td class="markdownTableBodyNone"><code>Overload.DependentCandidate</code>    </td></tr>
-<tr class="markdownTableRowOdd">
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.point#7.sentence-4">[temp.point]/7 sentence 4</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.IllFormedNdr.laterCandidate</code>   </td><td class="markdownTableBodyNone"><code>Overload.Units</code>    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.point#7.sentence-4">[temp.point]/7 sentence 4</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.pointVerdict</code>   </td><td class="markdownTableBodyNone"><code>Overload.DependentCandidate</code>    </td></tr>
-<tr class="markdownTableRowOdd">
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.res.general#1">[temp.res.general]/1</a>   </td><td class="markdownTableBodyNone">example   </td><td class="markdownTableBodyNone"><code>Overload.temp_res_general_1_example</code>   </td><td class="markdownTableBodyNone"><code>Overload.DependentCandidate</code>    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.res.general#1.sentence-1">[temp.res.general]/1 sentence 1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Program.dependentCandidates</code>   </td><td class="markdownTableBodyNone"><code>Overload.DependentCandidate</code>    </td></tr>
-<tr class="markdownTableRowOdd">
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.spec.partial.general#1.sentence-3">[temp.spec.partial.general]/1 sentence 3</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.IllFormedNdr.notReachable</code>   </td><td class="markdownTableBodyNone"><code>Overload.Units</code>    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.spec.partial.general#7">[temp.spec.partial.general]/7</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.reachable</code>   </td><td class="markdownTableBodyNone"><code>Overload.Units</code>    </td></tr>
-<tr class="markdownTableRowOdd">
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.spec.partial.match#1">[temp.spec.partial.match]/1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.PartialOrdering.Selects.ambiguous</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ordering</code>    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.spec.partial.match#1">[temp.spec.partial.match]/1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.PartialOrdering.Selects.mostSpecialized</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ordering</code>    </td></tr>
-<tr class="markdownTableRowOdd">
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.spec.partial.match#1">[temp.spec.partial.match]/1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.PartialOrdering.Selects.primary</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ordering</code>    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.spec.partial.match#1">[temp.spec.partial.match]/1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.PartialOrdering.Selects.unique</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ordering</code>    </td></tr>
-<tr class="markdownTableRowOdd">
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.spec.partial.match#1">[temp.spec.partial.match]/1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.PartialOrdering.select</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ordering</code>    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.spec.partial.match#2.sentence-1">[temp.spec.partial.match]/2 sentence 1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.PartialOrdering.patternMatches</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ordering</code>    </td></tr>
-<tr class="markdownTableRowOdd">
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.spec.partial.order#1.sentence-1">[temp.spec.partial.order]/1 sentence 1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.PartialOrdering.rewrite</code>   </td><td class="markdownTableBodyNone"><code>Overload.Ordering</code>    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.type#1">[temp.type]/1</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.sameSpecialization</code>   </td><td class="markdownTableBodyNone"><code>Overload.Identity</code>    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.type#1">[temp.type]/1</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.Typeclass.value_route_identifies_converted</code>   </td><td class="markdownTableBodyNone"><code>Overload.Typeclass.Conversion</code>    </td></tr>
 <tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.type#1">[temp.type]/1</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.conversion_identifies</code>   </td><td class="markdownTableBodyNone"><code>Overload.Identity</code>    </td></tr>
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.type#1">[temp.type]/1</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.explicitStep_converted</code>   </td><td class="markdownTableBodyNone"><code>Overload.Steps</code>    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.type#1">[temp.type]/1</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.slicing_identifies</code>   </td><td class="markdownTableBodyNone"><code>Overload.Identity</code>    </td></tr>
-<tr class="markdownTableRowOdd">
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.type#2">[temp.type]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Val.Equivalent.bool</code>   </td><td class="markdownTableBodyNone"><code>Overload.Syntax</code>    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.type#2">[temp.type]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Val.Equivalent.cons</code>   </td><td class="markdownTableBodyNone"><code>Overload.Syntax</code>    </td></tr>
-<tr class="markdownTableRowOdd">
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.type#2">[temp.type]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Val.Equivalent.int</code>   </td><td class="markdownTableBodyNone"><code>Overload.Syntax</code>    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.type#2">[temp.type]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Val.Equivalent.nil</code>   </td><td class="markdownTableBodyNone"><code>Overload.Syntax</code>    </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.type#2">[temp.type]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Val.Equivalent.obj</code>   </td><td class="markdownTableBodyNone"><code>Overload.Syntax</code>    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.type#2">[temp.type]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Val.Equivalent.param</code>   </td><td class="markdownTableBodyNone"><code>Overload.Syntax</code>    </td></tr>
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.type#2">[temp.type]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Val.Equivalent.obj</code>   </td><td class="markdownTableBodyNone"><code>Overload.Syntax</code>    </td></tr>
 <tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.type#2">[temp.type]/2</a>   </td><td class="markdownTableBodyNone">rule   </td><td class="markdownTableBodyNone"><code>Overload.Val.Equivalent.param</code>   </td><td class="markdownTableBodyNone"><code>Overload.Syntax</code>    </td></tr>
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><a href="https://eel.is/c++draft/temp.type#2">[temp.type]/2</a>   </td><td class="markdownTableBodyNone">theorem   </td><td class="markdownTableBodyNone"><code>Overload.reference_keeps_identity</code>   </td><td class="markdownTableBodyNone"><code>Overload.Identity</code>   </td></tr>
 </table>
 <h1><a class="anchor" id="autotoc_md2"></a>
