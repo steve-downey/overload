@@ -164,6 +164,9 @@ partial def ty : Ty → String
   | .synth i => s!"synthesized_{i}"
   | .param i => paramName i
   | .const t => s!"const {ty t}"
+  | .ptr (.fn ps r ne) => s!"{ty r}(*)({argList ps}){if ne then " noexcept" else ""}"
+  | .lref (.ptr (.fn ps r ne)) => s!"{ty r}(*&)({argList ps}){if ne then " noexcept" else ""}"
+  | .lref (.fn ps r ne) => s!"{ty r}(&)({argList ps}){if ne then " noexcept" else ""}"
   | .ptr t => s!"{ty t}*"
   | .lref t => s!"{ty t}&"
   | .rref t => s!"{ty t}&&"
@@ -272,11 +275,13 @@ def callExpr (callee : String) (explicit : List Ty) (as : List CallArg) : String
 
 /-- The assertion that a call is not viable. The requires-expression must
 be dependent: outside a template, a call with no matching function is an
-error rather than a false requires-expression. -/
+error rather than a false requires-expression. The pack and its
+parameter carry names no case declares, so that a callee named `a` or a
+class named `A` is not shadowed. -/
 def notViable (callee : String) (explicit : List Ty) (as : List CallArg) : String :=
   let name := if explicit.isEmpty then callee
     else s!"{callee}<{String.intercalate ", " (explicit.map ty)}>"
-  s!"template <class... A>\nconstexpr bool viable = requires(A&&... a) \{ {name}(static_cast<A&&>(a)...); };\n" ++
+  s!"template <class... Arg_>\nconstexpr bool viable = requires(Arg_&&... arg_) \{ {name}(static_cast<Arg_&&>(arg_)...); };\n" ++
     s!"static_assert(!viable<{argTypes as}>);\n"
 
 /-- The return type that carries deduced arguments. -/
@@ -461,8 +466,18 @@ def conversionsText (p : Program) (i : Nat) (n : String) (convs : List UserConv)
       if completeBefore p i param then s!"    {keyword e}constexpr {n}({ty param}){noexceptText ne} \{}\n"
       else s!"    {keyword e}constexpr {n}({ty param}){noexceptText ne};\n"
     | .function t e c ne =>
-      let body := if completeBefore p i t then " { return {}; }" else ";"
-      s!"    {keyword e}constexpr operator {ty t}(){if c then " const" else ""}{noexceptText ne}{body}\n")
+      -- A conversion-type-id cannot spell a pointer or reference to
+      -- function; it goes through an alias, and is declared only, since
+      -- every use is unevaluated.
+      let callable := match t with
+        | .ptr (.fn ..) | .lref (.ptr (.fn ..)) | .lref (.fn ..) => true
+        | _ => false
+      let body := if !callable && completeBefore p i t then " { return {}; }" else ";"
+      if callable then
+        s!"    using conv_{ty t |>.hash} = {ty t};\n" ++
+        s!"    {keyword e}constexpr operator conv_{ty t |>.hash}(){if c then " const" else ""}{noexceptText ne}{body}\n"
+      else
+        s!"    {keyword e}constexpr operator {ty t}(){if c then " const" else ""}{noexceptText ne}{body}\n")
 
 /-- The declarations of a program, as C++, each in its namespaces, with
 the members of a class in its body. -/
@@ -548,7 +563,7 @@ finds. -/
 def foundEntities (p : Program) : Query → List Decl
   | .call callee as _ _ scope =>
     match p.callCandidates p.length scope callee as with
-    | .selected fs => fs
+    | .selected (fs, _) => fs
     | _ => []
   | .memberCall cls callee _ _ _ =>
     match p.memberSearch p.length cls callee with
@@ -558,7 +573,7 @@ def foundEntities (p : Program) : Query → List Decl
     match p[pos]? with
     | some (.dependentCall callee args s) =>
       match p.dependentCandidates pos s callee args with
-      | .selected fs => fs
+      | .selected (fs, _) => fs
       | _ => []
     | _ => []
   | _ => []
@@ -707,7 +722,7 @@ def render (c₀ : Case) : String := Id.run do
       out := out ++ notViable callee explicit as
   | .call callee as expected explicit scope =>
     out := out ++ program c.program callee (fun k _ => s!"selected<{k}>")
-      (fun d => found.findIdx? (sameEntity · d)) ++ "\n"
+      (fun d => found.findIdx? fun f => sameEntity f d || sameEntity f d.withImplicitObject) ++ "\n"
     let mut q := ""
     match expected with
     | .selected k =>
@@ -2782,15 +2797,16 @@ def traitInvocableObjectNoConversion : Case :=
 def traitInvocableObjectNone : Case :=
   traitCase "trait_invocable_object_none" "over.call.object#1" callObject .isInvocable [.named "A", .named "int"]
 
-/-- Two call operators, `(int, long)` and `(long, int)`, each better on
-one argument of `(int, int)`: the call is ambiguous, so the trait is
-`false`. -/
+/-- Two call operators, `(B, D)` and `(D, B)` for `D` derived from `B`,
+each better on one argument of `(D, D)`: the call is ambiguous, so the
+trait is `false`. -/
 private def callObjectAmbiguous : Program :=
-  [ .class "G", .function "operator()" [.named "int", .named "long"] (inClass "G") .none none (.named "int")
-  , .function "operator()" [.named "long", .named "int"] (inClass "G") .none none (.named "int") ]
+  [ .class "B", .class "D" [.named "B"], .class "G"
+  , .function "operator()" [.named "B", .named "D"] (inClass "G") .none none (.named "int")
+  , .function "operator()" [.named "D", .named "B"] (inClass "G") .none none (.named "int") ]
 def traitInvocableObjectAmbiguous : Case :=
   traitCase "trait_invocable_object_ambiguous" "meta.rel#3" callObjectAmbiguous .isInvocable
-    [.named "G", .named "int", .named "int"]
+    [.named "G", .named "D", .named "D"]
 
 /-- The call operators are a member search: `struct B { int operator()(int) const; };`
 `struct D : B { int operator()(A) const; };` hides the base's for
@@ -2845,6 +2861,85 @@ def traitNothrowInvocableObjectThrowingParameter : Case :=
   traitCase "trait_nothrow_invocable_object_throwing_parameter" "except.spec#6"
     (throwingCopy ++ [.class "F", .function "operator()" [cM] (inClass "F") .none (some true) (.named "int")])
     .isNothrowInvocable [cF, .lref cM]
+
+/-- Surrogate call functions. `struct A { operator fp1() const; operator fp2() const; }`
+with `fp1 = selected<0>(*)(int)` and `fp2 = selected<1>(*)(B)`: `a(1)`
+calls through the first conversion function. The return types are
+spelled `selected<K>` by hand, `K` the surrogate's index among the
+candidates, since a surrogate is no declaration of the program. -/
+private def sel (k : Nat) : Ty := .spec' "selected" [.value (.int k)]
+private def surrogateCase : Program :=
+  [ .class "B", .class "A"
+  , .converting (.named "A") (.function (.ptr (.fn' [.named "int"] (sel 0))))
+  , .converting (.named "A") (.function (.ptr (.fn' [.named "B"] (sel 1))))
+  , .object "a" "A" ]
+def surrogateCall : Case :=
+  { name := "over_call_object_3_surrogate"
+    cite := cite "over.call.object#3"
+    program := surrogateCase
+    query := .call "a" [{ ty := .named "int" }] (.selected 0)
+    source := "computed by Program.call over the surrogates; the surrogates' return types spell their index" }
+def surrogateCallSecond : Case :=
+  { name := "over_call_object_3_surrogate_second"
+    cite := cite "over.call.object#2"
+    program := surrogateCase
+    query := .call "a" [{ ty := .named "B" }] (.selected 1)
+    source := "computed by Program.call over the surrogates; the surrogates' return types spell their index" }
+
+/-- A call operator and a surrogate of the same parameters: the call
+operator wins on the implied object argument. -/
+def surrogateLoses : Case :=
+  { name := "over_call_object_3_operator_beats_surrogate"
+    cite := cite "over.call.object#3"
+    program := [ .class "A", .function "operator()" [.named "int"] (inClass "A")
+               , .converting (.named "A") (.function (.ptr (.fn' [.named "int"] (sel 1))))
+               , .object "a" "A" ]
+    query := .call "a" [{ ty := .named "int" }] (.selected 0)
+    source := "computed by Program.call over the call operator and the surrogate" }
+
+/-- Two conversion functions to pointers to the same function type: two
+surrogates no call distinguishes, so the call is ambiguous. -/
+def surrogatesAmbiguous : Case :=
+  { name := "over_call_object_2_surrogates_ambiguous"
+    cite := cite "over.call.object#2"
+    program := [ .class "A"
+               , .converting (.named "A") (.function (.ptr (.fn' [.named "int"] (sel 0))))
+               , .converting (.named "A") (.function (.lref (.ptr (.fn' [.named "int"] (sel 1)))))
+               , .object "a" "A" ]
+    query := .call "a" [{ ty := .named "int" }] (.ambiguous [0, 1])
+    source := "computed by Program.call over the surrogates" }
+
+/-- `is_invocable_v` through a surrogate: a class whose only callable is
+a conversion to a pointer to function; a conversion function that is
+not `const`, on a `const` callee and on a non-const one; a conversion
+to a reference to function; `is_nothrow_invocable_v` with both the
+conversion function and the function type `noexcept`, and with the
+function type alone. -/
+private def surrogateTraits : Program :=
+  [ .class "S", .converting (.named "S") (.function (.ptr (.fn' [.named "int"] (.named "int"))))
+  , .class "N", .converting (.named "N") (.function (.ptr (.fn' [.named "int"] (.named "int"))) false false)
+  , .class "R", .converting (.named "R") (.function (.lref (.fn' [.named "int"] (.named "int"))))
+  , .class "T", .converting (.named "T") (.function (.ptr (.fn' [.named "int"] (.named "int") true)) false true (some true))
+  , .class "U", .converting (.named "U") (.function (.ptr (.fn' [.named "int"] (.named "int") true))) ]
+def traitInvocableSurrogate : Case :=
+  traitCase "trait_invocable_surrogate" "over.call.object#2" surrogateTraits .isInvocable [.named "S", .named "int"]
+def traitInvocableSurrogateArity : Case :=
+  traitCase "trait_invocable_surrogate_arity" "over.call.object#2" surrogateTraits .isInvocable [.named "S"]
+def traitInvocableSurrogateNonConst : Case :=
+  traitCase "trait_invocable_surrogate_nonconst" "over.match.funcs.general#4" surrogateTraits .isInvocable
+    [.lref (.const (.named "N")), .named "int"]
+def traitInvocableSurrogateNonConstRvalue : Case :=
+  traitCase "trait_invocable_surrogate_nonconst_rvalue" "over.match.funcs.general#5" surrogateTraits .isInvocable
+    [.named "N", .named "int"]
+def traitInvocableSurrogateReference : Case :=
+  traitCase "trait_invocable_surrogate_reference" "over.call.object#2" surrogateTraits .isInvocable
+    [.named "R", .named "int"]
+def traitNothrowInvocableSurrogate : Case :=
+  traitCase "trait_nothrow_invocable_surrogate" "except.spec#6" surrogateTraits .isNothrowInvocable
+    [.named "T", .named "int"]
+def traitNothrowInvocableSurrogateConversionThrows : Case :=
+  traitCase "trait_nothrow_invocable_surrogate_conversion_throws" "except.spec#6" surrogateTraits
+    .isNothrowInvocable [.named "U", .named "int"]
 
 /-- A trait the program answers, in a requires-clause:
 `template <class T> requires std::is_copy_constructible_v<T> void f(T);`
@@ -3130,6 +3225,10 @@ def cases : List Case :=
   , traitInvocableObjectConstrainedFails, traitInvocableObjectNested, traitInvocableObjectNestedFails
   , traitNothrowInvocableObject, traitNothrowInvocableObjectPlain
   , traitNothrowInvocableObjectThrowingParameter
+  , surrogateCall, surrogateCallSecond, surrogateLoses, surrogatesAmbiguous
+  , traitInvocableSurrogate, traitInvocableSurrogateArity, traitInvocableSurrogateNonConst
+  , traitInvocableSurrogateNonConstRvalue, traitInvocableSurrogateReference
+  , traitNothrowInvocableSurrogate, traitNothrowInvocableSurrogateConversionThrows
   , traitConstraintCopyConstructible
   , traitPolymorphic, traitPolymorphicInherited, traitPolymorphicVirtualDestructor, traitAbstract
   , traitAbstractOverridden, traitAbstractHidden, traitAbstractHiddenOverride, traitAbstractPureDestructor

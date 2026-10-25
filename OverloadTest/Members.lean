@@ -64,7 +64,10 @@ private def q : Program :=
   [ .class "fn", .function "operator()" [int] (inClass "fn"), .object "f" "fn"
   , .class "X", .function "f" [.named "X"] [.namespace "N"] ]
 #guard q.callOperators 5 "fn" == .selected [.function "operator()" [int] (inClass "fn")]
-#guard q.callCandidates 5 [] "f" [{ ty := int }] == .selected [.function "operator()" [int] (inClass "fn")]
+#guard q.callCandidates 5 [] "f" [{ ty := int }] ==
+  .selected ([.function "operator()" [.lref (.const (.named "fn")), int] (inClass "fn")],
+             [impliedObject "fn", { ty := int }])
+#guard q.surrogates "fn" == []
 #guard (q.callAt (Env.ofProgram q) 5 [] "f" [{ ty := int }]).map (·.index) == .selected 0
 #guard (q.callAt (Env.ofProgram q) 5 [] "f" [{ ty := .named "X" }]).map (·.index) == .noMatch
 -- A member call.

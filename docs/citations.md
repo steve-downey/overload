@@ -276,6 +276,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[expr.call]/7](https://eel.is/c++draft/expr.call#7) | rule | `Overload.Program.call` | `Overload.Access` |
 | [[expr.call]/7](https://eel.is/c++draft/expr.call#7) | theorem | `Overload.abstract_by_value_ill_formed` | `Overload.Access` |
 | [[expr.call]/15](https://eel.is/c++draft/expr.call#15) | rule | `Overload.Program.callExpression` | `Overload.Requires` |
+| [[expr.call]/15](https://eel.is/c++draft/expr.call#15) | rule | `Overload.Program.conversionResult` | `Overload.Ranking` |
 | [[expr.const.const]/8](https://eel.is/c++draft/expr.const.const#8) | rule | `Overload.ConvertsTo.reference` | `Overload.Arguments` |
 | [[expr.const.const]/8](https://eel.is/c++draft/expr.const.const#8) | rule | `Overload.integralConversion` | `Overload.Arguments` |
 | [[expr.prim.req.compound]/1](https://eel.is/c++draft/expr.prim.req.compound#1) | rule | `Overload.Constraint.Requirement.compound` | `Overload.Constraint` |
@@ -317,7 +318,6 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Trait.isNothrowInvocable` | `Overload.Types` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Trait.isSame` | `Overload.Types` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | theorem | `Overload.full_invocable_class` | `Overload.Requires` |
-| [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | theorem | `Overload.invocable_class_eq_member_requirement` | `Overload.Requires` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | theorem | `Overload.invocable_class_iff_call` | `Overload.Requires` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | theorem | `Overload.nothrow_invocable_class_invocable` | `Overload.Requires` |
 | [[meta.rel]/6](https://eel.is/c++draft/meta.rel#6) | rule | `Overload.Program.convertible` | `Overload.Traits` |
@@ -400,8 +400,19 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[over.best.ics.general]/12](https://eel.is/c++draft/over.best.ics.general#12) | rule | `Overload.Program.ambiguousConversion` | `Overload.Access` |
 | [[over.best.ics.general]/12](https://eel.is/c++draft/over.best.ics.general#12) | rule | `Overload.Program.bestSequence` | `Overload.Ranking` |
 | [[over.call.func]/3 sentence 2](https://eel.is/c++draft/over.call.func#3.sentence-2) | rule | `Overload.Program.callAt` | `Overload.Members` |
+| [[over.call.object]/1 sentence 1](https://eel.is/c++draft/over.call.object#1.sentence-1) | rule | `Overload.Program.objectCandidates` | `Overload.Members` |
 | [[over.call.object]/1 sentence 1](https://eel.is/c++draft/over.call.object#1.sentence-1) | rule | `Overload.Program.objectInvoke` | `Overload.Requires` |
 | [[over.call.object]/1 sentence 2](https://eel.is/c++draft/over.call.object#1.sentence-2) | rule | `Overload.Program.callOperators` | `Overload.Members` |
+| [[over.call.object]/2](https://eel.is/c++draft/over.call.object#2) | note | `Overload.surrogates_ambiguous` | `Overload.Members` |
+| [[over.call.object]/2](https://eel.is/c++draft/over.call.object#2) | rule | `Overload.Program.objectCandidates` | `Overload.Members` |
+| [[over.call.object]/2](https://eel.is/c++draft/over.call.object#2) | rule | `Overload.Program.objectInvoke` | `Overload.Requires` |
+| [[over.call.object]/2](https://eel.is/c++draft/over.call.object#2) | rule | `Overload.Program.surrogates` | `Overload.Members` |
+| [[over.call.object]/3](https://eel.is/c++draft/over.call.object#3) | example | `Overload.surrogate_example` | `Overload.Members` |
+| [[over.call.object]/3](https://eel.is/c++draft/over.call.object#3) | note | `Overload.operator_beats_surrogate` | `Overload.Members` |
+| [[over.call.object]/3 sentence 1](https://eel.is/c++draft/over.call.object#3.sentence-1) | rule | `Overload.Program.candidatesOf` | `Overload.Members` |
+| [[over.call.object]/3 sentence 1](https://eel.is/c++draft/over.call.object#3.sentence-1) | rule | `Overload.Program.objectCallAt` | `Overload.Members` |
+| [[over.call.object]/3 sentence 1](https://eel.is/c++draft/over.call.object#3.sentence-1) | rule | `Overload.Program.objectInvoke` | `Overload.Requires` |
+| [[over.call.object]/3 sentence 1](https://eel.is/c++draft/over.call.object#3.sentence-1) | rule | `Overload.impliedObject` | `Overload.Members` |
 | [[over.ics.rank]/1 sentence 1](https://eel.is/c++draft/over.ics.rank#1.sentence-1) | theorem | `Overload.betterIcs_asymm` | `Overload.Ranking` |
 | [[over.ics.rank]/1 sentence 1](https://eel.is/c++draft/over.ics.rank#1.sentence-1) | theorem | `Overload.better_asymm` | `Overload.Ranking` |
 | [[over.ics.rank]/2](https://eel.is/c++draft/over.ics.rank#2) | rule | `Overload.BetterIcs.form` | `Overload.Ranking` |
@@ -445,6 +456,9 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[over.match.copy]/1](https://eel.is/c++draft/over.match.copy#1) | theorem | `Overload.explicit_never_implicit` | `Overload.Ranking` |
 | [[over.match.ctor]/1](https://eel.is/c++draft/over.match.ctor#1) | rule | `Overload.Program.ctorCandidates` | `Overload.Special` |
 | [[over.match.ctor]/1](https://eel.is/c++draft/over.match.ctor#1) | rule | `Overload.UserConv.candidate` | `Overload.Ranking` |
+| [[over.match.funcs.general]/2](https://eel.is/c++draft/over.match.funcs.general#2) | rule | `Overload.Decl.withImplicitObject` | `Overload.Members` |
+| [[over.match.funcs.general]/3](https://eel.is/c++draft/over.match.funcs.general#3) | rule | `Overload.impliedObject` | `Overload.Members` |
+| [[over.match.funcs.general]/4](https://eel.is/c++draft/over.match.funcs.general#4) | rule | `Overload.Decl.withImplicitObject` | `Overload.Members` |
 | [[over.match.funcs.general]/5](https://eel.is/c++draft/over.match.funcs.general#5) | rule | `Overload.Program.userSequence` | `Overload.Ranking` |
 | [[over.match.funcs.general]/8 sentence 1](https://eel.is/c++draft/over.match.funcs.general#8.sentence-1) | rule | `Overload.Resolves.generationSoft` | `Overload.Specs` |
 | [[over.match.funcs.general]/8 sentence 1](https://eel.is/c++draft/over.match.funcs.general#8.sentence-1) | rule | `Overload.generate` | `Overload.Resolution` |
@@ -454,6 +468,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[over.match.general]/4](https://eel.is/c++draft/over.match.general#4) | rule | `Overload.Program.constructible` | `Overload.Traits` |
 | [[over.match.general]/4](https://eel.is/c++draft/over.match.general#4) | rule | `Overload.Program.copyInitUsable` | `Overload.Special` |
 | [[over.match.general]/4](https://eel.is/c++draft/over.match.general#4) | rule | `Overload.Program.usable` | `Overload.Special` |
+| [[over.match.ref]/1](https://eel.is/c++draft/over.match.ref#1) | rule | `Overload.Program.userConversions` | `Overload.Ranking` |
 | [[over.match.viable]/2 sentence 1](https://eel.is/c++draft/over.match.viable#2.sentence-1) | rule | `Overload.arityOk` | `Overload.Resolution` |
 | [[over.match.viable]/4 sentence 1](https://eel.is/c++draft/over.match.viable#4.sentence-1) | rule | `Overload.Resolves.viabilityHard` | `Overload.Specs` |
 | [[over.match.viable]/4 sentence 1](https://eel.is/c++draft/over.match.viable#4.sentence-1) | rule | `Overload.Resolves.viabilitySoft` | `Overload.Specs` |
