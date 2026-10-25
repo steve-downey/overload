@@ -58,7 +58,7 @@ declaration. -/
 def Decl.name? : Decl → Option String
   | .class n _ _ _ => some n
   | .classTemplate n _ _ => some n
-  | .function n _ _ _ _ => some n
+  | .function n _ _ _ _ _ => some n
   | .functionTemplate ft => some ft.name
   | .lookup n | .lookupHard n => some n
   | .object n _ _ => some n
@@ -81,7 +81,7 @@ def Decl.kind? : Decl → Option EntityKind
 template and a concept are at global scope until lookup needs them
 elsewhere. -/
 def Decl.scope : Decl → Scope
-  | .class _ _ _ s | .classTemplate _ _ s | .function _ _ s _ _ | .object _ _ s
+  | .class _ _ _ s | .classTemplate _ _ s | .function _ _ s _ _ _ | .object _ _ s
   | .dependentCall _ _ s => s
   | .functionTemplate ft => ft.scope
   | _ => []
@@ -115,7 +115,7 @@ Equivalence of template parameters is [temp.over.link]/6, as the
 tie-break gate reads it. -/
 @[std rule "basic.scope.scope#4"]
 def correspondingOverloads : Decl → Decl → Bool
-  | .function _ ps _ _ _, .function _ qs _ _ _ => ps == qs
+  | .function _ ps _ _ _ _, .function _ qs _ _ _ _ => ps == qs
   | .functionTemplate f, .functionTemplate g =>
     headsEquivalent f.head g.head && f.params == g.params && f.ret == g.ret &&
       f.constraint == g.constraint
@@ -142,9 +142,10 @@ name that the paragraph's exceptions do not separate. -/
 @[specification]
 inductive Corresponds : Decl → Decl → Prop where
   /-- Two function declarations with the same name and parameter-type-list;
-  their scopes, virtuality and exception specifications play no part. -/
-  | overloads (n : String) (ps : List Ty) (s t : Scope) (v w : Virt) (ne ne' : Option Bool) :
-      Corresponds (.function n ps s v ne) (.function n ps t w ne')
+  their scopes, virtuality, exception specifications and return types
+  play no part. -/
+  | overloads (n : String) (ps : List Ty) (s t : Scope) (v w : Virt) (ne ne' : Option Bool) (r r' : Ty) :
+      Corresponds (.function n ps s v ne r) (.function n ps t w ne' r')
   /-- Two function template declarations with the same name, equivalent
   template-heads, parameter lists, return types and constraints. -/
   | templateOverloads (f g : FunctionTemplate) (hn : f.name = g.name)
@@ -164,7 +165,7 @@ attribute [std rule "basic.scope.scope#4"] Corresponds.sameName
 /-- The shapes on which `correspondingOverloads` holds. -/
 theorem correspondingOverloads_iff (d₁ d₂ : Decl) :
     correspondingOverloads d₁ d₂ = true ↔
-      (∃ n m ps s t v w ne ne', d₁ = .function n ps s v ne ∧ d₂ = .function m ps t w ne') ∨
+      (∃ n m ps s t v w ne ne' r r', d₁ = .function n ps s v ne r ∧ d₂ = .function m ps t w ne' r') ∨
       (∃ f g, d₁ = .functionTemplate f ∧ d₂ = .functionTemplate g ∧
         headsEquivalent f.head g.head = true ∧ f.params = g.params ∧ f.ret = g.ret ∧
         f.constraint = g.constraint) := by
@@ -189,11 +190,11 @@ theorem corresponds_iff (d₁ d₂ : Decl) : corresponds d₁ d₂ = true ↔ Co
           · rintro ⟨a, b⟩; simp_all
           · rintro ⟨a, b⟩; simp_all
           · rintro ⟨a, b⟩; simp_all
-        · rcases (correspondingOverloads_iff d₁ d₂).1 hf with ⟨a, b, ps, s, t, v, w, ne, ne', rfl, rfl⟩ |
+        · rcases (correspondingOverloads_iff d₁ d₂).1 hf with ⟨a, b, ps, s, t, v, w, ne, ne', r, r', rfl, rfl⟩ |
             ⟨f, g, rfl, rfl, hh, hp, hr, hc⟩
           · simp only [Decl.name?, Option.some.injEq] at hn₁ hn₂
             subst hn₁ hn₂
-            exact .overloads _ _ _ _ _ _ _ _
+            exact .overloads _ _ _ _ _ _ _ _ _ _
           · simp only [Decl.name?, Option.some.injEq] at hn₁ hn₂
             exact .templateOverloads f g (hn₁.trans hn₂.symm) hh hp hr hc
   · intro h
@@ -245,9 +246,9 @@ same name with another parameter list does not correspond, so it hides
 the base's and does not override it. -/
 @[std theorem "class.virtual#2" "class.virtual#3"]
 theorem override_is_correspondence (n m : String) (ps qs : List Ty) (s t : Scope) (v w : Virt)
-    (ne ne' : Option Bool) :
-    Program.sameSignature (.function n ps s v ne) (.function m qs t w ne') = true ↔
-      Corresponds (.function n ps s v ne) (.function m qs t w ne') := by
+    (ne ne' : Option Bool) (r r' : Ty) :
+    Program.sameSignature (.function n ps s v ne r) (.function m qs t w ne' r') = true ↔
+      Corresponds (.function n ps s v ne r) (.function m qs t w ne' r') := by
   rw [← corresponds_iff]
   simp [Program.sameSignature, corresponds, Decl.name?, correspondingOverloads, Decl.declaresType,
     Decl.declaresNonType, Decl.declaresFunction, Decl.kind?]
@@ -257,17 +258,17 @@ it corresponds to one of the virtual functions a direct base's objects
 have. -/
 @[std theorem "class.virtual#2"]
 theorem overrides_iff (p : Program) (c : Ty) (n : String) (ps : List Ty) (s : Scope) (v : Virt)
-    (ne : Option Bool) :
-    p.overrides c (.function n ps s v ne) = true ↔
-      ∃ b ∈ p.directBases c, ∃ f ∈ p.virtualFunctions b, Corresponds f (.function n ps s v ne) := by
+    (ne : Option Bool) (r : Ty) :
+    p.overrides c (.function n ps s v ne r) = true ↔
+      ∃ b ∈ p.directBases c, ∃ f ∈ p.virtualFunctions b, Corresponds f (.function n ps s v ne r) := by
   simp only [Program.overrides, List.any_eq_true]
   constructor
   · rintro ⟨b, hb, f, hf, hs⟩
-    obtain ⟨a, qs, t, w, ne', rfl⟩ := virtualFunctionsWithin_function p _ b f hf
-    exact ⟨b, hb, _, hf, (override_is_correspondence _ _ _ _ _ _ _ _ _ _).1 hs⟩
+    obtain ⟨a, qs, t, w, ne', r', rfl⟩ := virtualFunctionsWithin_function p _ b f hf
+    exact ⟨b, hb, _, hf, (override_is_correspondence _ _ _ _ _ _ _ _ _ _ _ _).1 hs⟩
   · rintro ⟨b, hb, f, hf, hc⟩
-    obtain ⟨a, qs, t, w, ne', rfl⟩ := virtualFunctionsWithin_function p _ b f hf
-    exact ⟨b, hb, _, hf, (override_is_correspondence _ _ _ _ _ _ _ _ _ _).2 hc⟩
+    obtain ⟨a, qs, t, w, ne', r', rfl⟩ := virtualFunctionsWithin_function p _ b f hf
+    exact ⟨b, hb, _, hf, (override_is_correspondence _ _ _ _ _ _ _ _ _ _ _ _).2 hc⟩
 
 /-- Two declarations declare the same entity when they correspond, have
 the same target scope, both declare names with external linkage, and

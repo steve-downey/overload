@@ -36,16 +36,18 @@ namespace Overload
 /-- The virtuality a declaration carries: a function's, `.none` for
 anything else. -/
 def Decl.virt : Decl → Virt
-  | .function _ _ _ v _ => v
+  | .function _ _ _ v _ _ => v
   | _ => .none
 
 /-- Is a function declaration potentially throwing, the predicate that is
 its exception specification: its noexcept-specifier says so, or it has
-none and the function, user-provided, is potentially throwing. Nothing
-but a function declaration is asked. -/
+none and the function, user-provided, is potentially throwing. A
+function template's specialization has its template's. Nothing but a
+function declaration is asked. -/
 @[std rule "except.spec#1" "except.spec#4"]
 def Decl.throwing : Decl → Bool
-  | .function _ _ _ _ ne => ne != some true
+  | .function _ _ _ _ ne _ => ne != some true
+  | .functionTemplate ft => ft.noexcept != some true
   | _ => true
 
 namespace Program
@@ -54,7 +56,7 @@ namespace Program
 scope ends in the class's step. -/
 def memberFunctions (p : Program) : Ty → List Decl
   | .named n => p.filter fun
-      | .function _ _ s _ _ => s.getLast? == some (.class n)
+      | .function _ _ s _ _ _ => s.getLast? == some (.class n)
       | _ => false
   | _ => []
 
@@ -64,7 +66,7 @@ member functions, which have no object parameters, ref-qualifiers or
 trailing requires-clauses to compare. -/
 @[std rule "class.virtual#2"]
 def sameSignature : Decl → Decl → Bool
-  | .function n ps _ _ _, .function m qs _ _ _ => n == m && ps == qs
+  | .function n ps _ _ _ _, .function m qs _ _ _ _ => n == m && ps == qs
   | _, _ => false
 
 /-- The virtual member functions a class's objects have, within `fuel`
@@ -153,7 +155,7 @@ is not checked here. -/
 def virtualsWellFormed (p : Program) : Bool :=
   let finalDtor (c : Ty) : Bool := (p.specialDecls c).any fun s => s.kind == .dtor && s.virt == .final
   p.all fun
-    | g@(.function _ _ s v _) =>
+    | g@(.function _ _ s v _ _) =>
       match s.getLast? with
       | some (.class n) =>
         let overridden :=
@@ -204,13 +206,13 @@ theorem virtual_destructor_inherited (p : Program) (d b : Ty) (hd : p.derives d 
 /-- Every virtual function a class's objects have is a function
 declaration. -/
 theorem virtualFunctionsWithin_function (p : Program) : ∀ (n : Nat) (c : Ty) (f : Decl),
-    f ∈ p.virtualFunctionsWithin n c → ∃ a ps s v ne, f = .function a ps s v ne := by
-  have hmem : ∀ c f, f ∈ p.memberFunctions c → ∃ a ps s v ne, f = .function a ps s v ne := by
+    f ∈ p.virtualFunctionsWithin n c → ∃ a ps s v ne r, f = .function a ps s v ne r := by
+  have hmem : ∀ c f, f ∈ p.memberFunctions c → ∃ a ps s v ne r, f = .function a ps s v ne r := by
     intro c f hf
     cases c <;> simp only [Program.memberFunctions, List.mem_filter, List.not_mem_nil] at hf
     · obtain ⟨-, hf⟩ := hf
       cases f <;> simp at hf
-      exact ⟨_, _, _, _, _, rfl⟩
+      exact ⟨_, _, _, _, _, _, rfl⟩
     all_goals exact hf.elim
   intro n
   induction n with

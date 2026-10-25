@@ -536,11 +536,11 @@ Status, 15 October 2026:
   requires-expressions as judgements over those, with concept-ids
   normalized; the plan, the cross-reference against N5054 and the stages
   are [below](#phase-12-the-type-system-special-member-functions-and-traits).
-  Compound and nested requirements, `compound_eq_simple_nested` and
-  `is_invocable` of a class callee wait on a later phase; their
-  paragraphs are out of scope until then. The general value-nature
-  theorem landed 25 October 2026 (`value_nature_iff`,
-  `deletion_propagates`; the stage 3 status below). Settles function-types, special-member-fragment,
+  `is_invocable` of a class callee waits on a later phase; its paragraph
+  is out of scope until then. The general value-nature theorem landed 25
+  October 2026 (`value_nature_iff`, `deletion_propagates`; the stage 3
+  status below), and compound and nested requirements the same day
+  (`compound_eq_simple_nested`; the stage 5 status below). Settles function-types, special-member-fragment,
   trait-residue and value-nature. Stage 2, type-categories, landed 24 October 2026:
   `Ty.fn`, `Overload/Types.lean` with the categories, the
   transformations, `primary_category_unique` and the structural
@@ -604,9 +604,28 @@ Status, 15 October 2026:
   environment, so `Env.full` answers them with the base environment
   below it, one level deep. The requirement-parameter-list is not
   modelled: a requirement names its arguments' types, an lvalue
-  reference for an lvalue. Compound and nested requirements and
-  `compound_eq_simple_nested` wait; a compound requirement's return type
-  needs the return type of the function selected. The always-failing
+  reference for an lvalue. Compound and nested requirements waited on
+  the return type of the function selected, and landed 25 October 2026:
+  `Decl.function` carries a return type, `Program.expression` is what an
+  expression requirement's expression is once valid, `decltype((E))` by
+  [expr.call]/15 and [dcl.type.decltype]/1 and whether it is potentially
+  throwing by [except.spec]/6, `Requirement.compound` holds its
+  expression, an optional noexcept-specifier and an optional
+  return-type-requirement, `Requirement.nested` a constraint-expression
+  without a requires-expression written in place
+  (`Constraint.NestedExpr`, since the two types would otherwise be
+  mutually inductive, which the derived instances and the `induction`
+  tactic do not support), and `Env.full` answers requires-expressions to
+  the program's depth rather than one level, so a nested-requirement's
+  concept may itself be a requires-expression. `compound_eq_simple_nested`
+  is the paragraph's own equivalence, `{ E } -> C<As...>;` as
+  `E; requires C<decltype((E)), As...>;`, with `compound_eq_simple` and
+  `compound_invalid_eq_simple` for the forms without a
+  return-type-requirement and for an invalid expression, and
+  `compound_noexcept_throwing` for the noexcept-specifier. Nine emitted
+  cases agree with GCC 15 and Clang 24. One residue: whether a braced
+  initialization is potentially throwing, so `{ T{} } noexcept;` is
+  soft, hence `false` (`decisions.md#trait-residue`). The always-failing
   requirement, ill-formed no diagnostic required, is not checked; GCC 15
   and Clang 24 diagnose it, which two cases met before their failures
   were made to depend on the argument (`findings.md`). Stage 6,
@@ -621,8 +640,9 @@ Status, 15 October 2026:
   obligations, the findings, the citation index, and `make
   drift-check-current`, which reports three more editorial drifts
   (`findings.md`). [expr.prim.req.compound]/1 and
-  [expr.prim.req.nested]/1 leave the in-scope list until compound and
-  nested requirements land.
+  [expr.prim.req.nested]/1 joined the in-scope list on 25 October 2026,
+  with [expr.call]/15, [dcl.type.decltype]/1 and [temp.param]/9, when
+  compound and nested requirements landed.
 - Phase 13 is closed, 24 October 2026, planned and landed the same day,
   on its exit criterion: every law a headline theorem of the encoding
   rests on is named and listed by `#owes`, and the headline theorems of
@@ -804,6 +824,7 @@ its counterexample and is a finding, not a setback.
 | instantiation-points | A dependent call referenced before a later overload of its name means different things at its two points of instantiation, which is ill-formed, no diagnostic required; a callee bound to an object has one meaning at every point. Added 22 October 2026. | 9 |
 | value-nature | For a class that declares no special member function, every defaulted special member is non-deleted exactly when no member, through class-typed members likewise, is of reference type or `const` type; a pointer member deletes nothing. Added 24 October 2026; proved for flat classes the same day (`value_nature_flat`), and in general on 25 October 2026 for every class whose special members are the rules' own through its subobjects (`value_nature_iff`). | 12 | 12 |
 | deletion-propagates | A member or base whose class has a deleted or inaccessible corresponding special member deletes the enclosing class's defaulted one, through any depth ([class.default.ctor]/2, [class.copy.ctor]/10, [class.copy.assign]/7, [class.dtor]/7). Added 24 October 2026; proved 25 October 2026 (`deletion_propagates`) for a subobject whose class's special members are the rules' own, the move kinds through the copy member's deletion since a deleted defaulted move member is not a candidate. | 12 |
+| compound-is-simple-nested | A compound-requirement with a return-type-requirement is the simple-requirement followed by the nested-requirement of the immediately-declared constraint for `decltype((E))`, and one without is the simple-requirement ([expr.prim.req.compound]/1, [temp.param]/9). Added 24 October 2026; proved 25 October 2026 (`compound_eq_simple_nested`, `compound_eq_simple`, `compound_invalid_eq_simple`). | 12 |
 | trait-is-resolution | `is_constructible`, `is_assignable` and `is_convertible` are overload resolution over the class's constructors, assignment operators and conversions with the usable-candidate check, so a trait's answer is the call's ([meta.unary.prop]/9, [meta.rel]/6, [over.match.general]/4). Added 24 October 2026; proved the same day (`trait_is_resolution`, `is_convertible_eq_ics`). | 12 |
 | requires-soft-is-false | A requirement that fails in the immediate context makes the requires-expression `false`, checked in lexical order and stopping at the first decider; a failure outside it is a hard error ([expr.prim.req.general]/5). Added 24 October 2026; proved the same day (`requires_soft_is_false`, `requires_false_stops`, `requires_hard_stops`). | 12 |
 | copy-constraint-shields | A member constrained by copy-constructibility of its callable fails softly at a callable whose copy constructor is deleted, where the body's copy would be a hard error: the callable-copying rule as a theorem. Added 24 October 2026; proved the same day (`copy_constraint_shields`). | 12 |
@@ -1756,9 +1777,11 @@ floating-point types and `nullptr_t`, pointers to members, `volatile`,
 the by-value copy assignment operator, the ref-qualifier and the
 explicit object parameter of [dcl.fct.def.default]/2, `is_swappable`,
 `has_unique_object_representations`, layout compatibility, alignment,
-concept-dependent constraints and fold expanded constraints, the
-noexcept-specifier of a compound requirement, and nested type names in
-a type-requirement. Recorded in `decisions.md#special-member-fragment`
+concept-dependent constraints and fold expanded constraints, a
+requires-expression written in place inside a nested-requirement, and
+nested type names in a type-requirement. The noexcept-specifier of a
+compound requirement landed with phase 14's exception specifications,
+for a call; for a braced initialization it is residue. Recorded in `decisions.md#special-member-fragment`
 and `decisions.md#trait-residue`.
 
 ### Design

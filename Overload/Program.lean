@@ -230,10 +230,10 @@ inductive Decl where
   | classTemplate (name : String) (head : Head) (scope : Scope := [])
   /-- A non-template function, by name and parameter types; a member
   function when its scope ends in a class step, and then with its
-  virtuality ([class.virtual]/1); and its noexcept-specifier, `none` for
-  no specifier ([except.spec]/1). -/
+  virtuality ([class.virtual]/1); its noexcept-specifier, `none` for
+  no specifier ([except.spec]/1); and its return type. -/
   | function (name : String) (params : List Ty) (scope : Scope := []) (virt : Virt := .none)
-      (noexcept : Option Bool := none)
+      (noexcept : Option Bool := none) (ret : Ty := .named "void")
   /-- A function template. -/
   | functionTemplate (ft : FunctionTemplate)
   /-- The primary of a lookup variable template, `trait<T>`, with a value
@@ -309,9 +309,16 @@ namespace Program
 /-- The declarations with a name, in order: the candidate set of a call. -/
 def candidates (p : Program) (name : String) : List Decl :=
   p.filter fun
-    | .function n _ _ _ _ => n = name
+    | .function n _ _ _ _ _ => n = name
     | .functionTemplate ft => ft.name = name
     | _ => false
+
+/-- The declared return type of a function or function template; for a
+template, in terms of its head. -/
+def _root_.Overload.Decl.ret? : Decl → Option Ty
+  | .function _ _ _ _ _ r => some r
+  | .functionTemplate ft => some ft.ret
+  | _ => none
 
 /-- The non-static data members of a class, in declaration order. -/
 def membersOf (p : Program) (c : Ty) : List Member :=

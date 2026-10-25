@@ -892,6 +892,14 @@ named so that a constraint written with it is visibly an assumption.
   a pointer to one is computed. The environment answers a trait atom
   from the program (`Env.ofProgram`'s `traits`, default `Program.trait`),
   and `inheritance_erasure` takes the trait oracle as a parameter.
+- 2026-10-25 — Compound and nested requirements landed. One residue of
+  the same kind: whether a braced initialization `T{args}` is
+  potentially throwing, which a compound requirement's
+  noexcept-specifier asks. For a call the answer is the selected
+  function's exception specification and its parameters'
+  initializations ([except.spec]/6); for a braced initialization the
+  model answers softly, so `{ T{} } noexcept;` makes the
+  requires-expression `false`.
 
 ---
 

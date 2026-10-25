@@ -24,14 +24,43 @@ converse fails (`satisfaction_implication_not_subsumes`).
 
 namespace Overload
 
+/-- The constraint-expression of a nested-requirement, on the fragment:
+an expression, a trait or a concept-id, joined by conjunction and
+disjunction, the forms of `Constraint` other than a requires-expression
+written out in place. A requires-expression reached through a
+concept-id is in, since normalization expands the concept; one written
+directly inside a nested-requirement is out. `Constraint.NestedExpr.toConstraint`
+embeds it. -/
+inductive Constraint.NestedExpr where
+  | atomic (expr : String) (mapping : List Ty)
+  | trait (q : Trait) (mapping : List Ty)
+  | conceptId (name : String) (args : List Ty)
+  | conj (left right : Constraint.NestedExpr)
+  | disj (left right : Constraint.NestedExpr)
+  deriving Repr, DecidableEq, Inhabited
+
+attribute [std rule "expr.prim.req.nested#1"] Constraint.NestedExpr.atomic Constraint.NestedExpr.trait
+  Constraint.NestedExpr.conceptId Constraint.NestedExpr.conj Constraint.NestedExpr.disj
+
+/-- Substitute bindings into the mappings of a nested constraint-expression. -/
+def Constraint.NestedExpr.subst (σ : Bindings) : Constraint.NestedExpr → Constraint.NestedExpr
+  | .atomic e m => .atomic e (m.map (Ty.subst σ))
+  | .trait q m => .trait q (m.map (Ty.subst σ))
+  | .conceptId n as => .conceptId n (as.map (Ty.subst σ))
+  | .conj l r => .conj (l.subst σ) (r.subst σ)
+  | .disj l r => .disj (l.subst σ) (r.subst σ)
+
 /-- A requirement of a requires-expression, on the fragment: a
 simple-requirement asserting the validity of a call, by callee and
 argument types, where an lvalue reference type is an lvalue argument and
 any other type an xvalue, as `declval` gives; a call on an object of a
-class; and a type-requirement asserting the validity of a type. The
-requirement-parameter-list is notation ([expr.prim.req.general]/4), and
-the model writes the arguments' types directly. Compound and nested
-requirements are a later stage. -/
+class; a type-requirement asserting the validity of a type; a
+compound-requirement, an expression requirement with an optional
+noexcept-specifier and an optional return-type-requirement, the
+type-constraint by concept name and trailing arguments; and a
+nested-requirement. The requirement-parameter-list is notation
+([expr.prim.req.general]/4), and the model writes the arguments' types
+directly. -/
 inductive Constraint.Requirement where
   | simple (callee : String) (args : List Ty)
   | memberCall (cls : Ty) (callee : String) (args : List Ty)
@@ -39,11 +68,20 @@ inductive Constraint.Requirement where
   /-- A simple requirement whose expression is a braced initialization,
   `T{args...}`. -/
   | braceInit (t : Ty) (args : List Ty)
+  /-- `{ E } noexcept -> C<As...>;`: `expr` is the expression requirement
+  `E`, `returnType` the type-constraint `C<As...>` if any, and `noexcept`
+  whether the noexcept-specifier is present. -/
+  | compound (expr : Constraint.Requirement) (returnType : Option (String × List Ty) := none)
+      (noexcept : Bool := false)
+  /-- `requires C;` for a constraint-expression `C`. -/
+  | nested (c : Constraint.NestedExpr)
   deriving Repr, DecidableEq, Inhabited
 
 attribute [std rule "expr.prim.req.simple#1"] Constraint.Requirement.simple Constraint.Requirement.memberCall
   Constraint.Requirement.braceInit
 attribute [std rule "expr.prim.req.type#1"] Constraint.Requirement.type
+attribute [std rule "expr.prim.req.compound#1"] Constraint.Requirement.compound
+attribute [std rule "expr.prim.req.nested#1"] Constraint.Requirement.nested
 
 /-- Substitute bindings into a requirement's types. -/
 def Constraint.Requirement.subst (σ : Bindings) : Constraint.Requirement → Constraint.Requirement
@@ -51,6 +89,14 @@ def Constraint.Requirement.subst (σ : Bindings) : Constraint.Requirement → Co
   | .memberCall c f as => .memberCall (Ty.subst σ c) f (as.map (Ty.subst σ))
   | .type t => .type (Ty.subst σ t)
   | .braceInit t as => .braceInit (Ty.subst σ t) (as.map (Ty.subst σ))
+  | .compound e tc ne => .compound (e.subst σ) (tc.map fun (c, as) => (c, as.map (Ty.subst σ))) ne
+  | .nested c => .nested (c.subst σ)
+
+/-- Is the requirement an expression: a call, a member call or a braced
+initialization, the forms a compound-requirement wraps? -/
+def Constraint.Requirement.isExpression : Constraint.Requirement → Bool
+  | .simple .. | .memberCall .. | .braceInit .. => true
+  | _ => false
 
 /-- A constraint: atomic constraints joined by conjunction and
 disjunction, and the forms normalization expands or keeps. An atomic
@@ -69,6 +115,14 @@ inductive Constraint where
   deriving Repr, DecidableEq, Inhabited
 
 attribute [std rule "temp.constr.normal#1"] Constraint.requires Constraint.conceptId
+
+/-- A nested constraint-expression as the constraint it is. -/
+def Constraint.NestedExpr.toConstraint : Constraint.NestedExpr → Constraint
+  | .atomic e m => .atomic e m
+  | .trait q m => .trait q m
+  | .conceptId n as => .conceptId n as
+  | .conj l r => .conj l.toConstraint r.toConstraint
+  | .disj l r => .disj l.toConstraint r.toConstraint
 
 namespace Constraint
 
