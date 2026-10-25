@@ -117,19 +117,23 @@ type `tgt` from an expression of type `src`, both without top-level
 cv-qualifiers, in an initialization context: the constructors of a class
 `tgt`, all of them for direct-initialization and the non-explicit ones
 otherwise ([over.match.ctor]/1, [over.match.copy]/1); and, when `src` is
-a class, its conversion functions to `tgt` or to a class derived from a
-class `tgt` ([over.match.copy]/1), or to a non-class `tgt` itself, the
-fragment's only standard conversion to one ([over.match.conv]/1).
-Each is paired with the class that declares it, which is what tells two
-conversions apart when sequences are ranked. -/
-@[std rule "over.match.copy#1" "over.match.conv#1"]
+a class, its conversion functions yielding `tgt` or a class derived from
+a class `tgt` ([over.match.copy]/1), or a non-class `tgt` itself, the
+fragment's only standard conversion to one ([over.match.conv]/1); a
+conversion function yielding a reference to `tgt` is a candidate for
+binding a reference to it ([over.match.ref]/1), and `userSequence`
+forms the binding or refuses it. Each is paired with the class that
+declares it, which is what tells two conversions apart when sequences
+are ranked. -/
+@[std rule "over.match.copy#1" "over.match.conv#1" "over.match.ref#1"]
 def userConversions (p : Program) (init : Init) (tgt src : Ty) : List (Ty × UserConv) :=
   let ctors := (p.conversionsOf tgt).filterMap fun
     | c@(.constructor ..) => if c.candidate init then some (tgt, c) else none
     | _ => none
   let fns := (p.conversionsOf src).filterMap fun
     | c@(.function t _ _ _) =>
-      if c.candidate init && (t == tgt || p.derives t tgt) then some (src, c) else none
+      let yields := t.referred.stripConst
+      if c.candidate init && (yields == tgt || p.derives yields tgt) then some (src, c) else none
     | _ => none
   ctors ++ fns
 
@@ -381,18 +385,29 @@ def Ics.userConversions : Ics → Nat
 
 namespace Program
 
+/-- The result of a conversion function returning `target`, as an
+argument: an lvalue of the referred type for an lvalue reference, an
+xvalue for an rvalue reference, a prvalue otherwise. -/
+@[std rule "expr.call#15"]
+def conversionResult : Ty → CallArg
+  | .lref u => { ty := u, lvalue := true }
+  | .rref u => { ty := u }
+  | t => { ty := t }
+
 /-- The user-defined conversion sequence through one candidate, when its
 two standard sequences form. For a constructor the first converts the
 argument to the parameter and the second converts the constructed
 prvalue to the target; for a conversion function the first binds the
 implicit object parameter, a reference to the class, to which an rvalue
 binds as an lvalue would ([over.match.funcs.general]/5), and the second
-converts the prvalue result to the target. The first is formed by the
-standard cases alone: no user-defined sequence is considered for the
-parameter of a candidate constructor or the object parameter of a
-candidate conversion function. A reference target binds the prvalue as
-a temporary, so an lvalue reference to non-const forms no sequence
-([over.ics.ref]/3). -/
+converts the result to the target: an lvalue of the referred type when
+the conversion function returns an lvalue reference, an xvalue for an
+rvalue reference, a prvalue otherwise ([expr.call]/15). The first is
+formed by the standard cases alone: no user-defined sequence is
+considered for the parameter of a candidate constructor or the object
+parameter of a candidate conversion function. A reference target binds
+a prvalue as a temporary, so an lvalue reference to non-const forms no
+sequence from one ([over.ics.ref]/3). -/
 @[std rule "over.ics.user#1" "over.best.ics.general#4" "over.best.ics.general#9"
   "over.match.funcs.general#5"]
 def userSequence (p : Program) (a : CallArg) (t : Ty) (cls : Ty) (conv : UserConv) : Option Ics :=
@@ -403,7 +418,7 @@ def userSequence (p : Program) (a : CallArg) (t : Ty) (cls : Ty) (conv : UserCon
     some (.userDefined first (cls, conv) second)
   | .function target _ const _ => do
     let first ← p.standardIcs { a with lvalue := true } (.lref (if const then .const cls else cls))
-    let second ← p.standardIcs { ty := target } t
+    let second ← p.standardIcs (conversionResult target) t
     some (.userDefined first (cls, conv) second)
 
 /-- The user-defined sequences the candidates of an initialization form. -/
@@ -654,7 +669,7 @@ theorem explicit_never_implicit (p : Program) (a : CallArg) (t : Ty) (f s : StdC
         cases h₁ : p.standardIcs { a with lvalue := true } (.lref (if cst then .const c' else c')) with
         | none => simp [h₁] at hs
         | some first =>
-          cases h₂ : p.standardIcs { ty := tgt } t with
+          cases h₂ : p.standardIcs (Program.conversionResult tgt) t with
           | none => simp [h₁, h₂] at hs
           | some second =>
             simp [h₁, h₂] at hs

@@ -911,6 +911,19 @@ named so that a constraint written with it is visibly an assumption.
   satisfied. Still residue: a class template specialization as callee,
   whose members the fragment's search does not see, and surrogate call
   functions ([over.call.object]/2).
+- 2026-10-25 — Surrogate call functions are in ([over.call.object]/2,
+  `Program.surrogates`), and with them the implied object argument: a
+  call on an object resolves over its call operators carrying their
+  implicit object parameter, `const X&` for the fragment's const members
+  ([over.match.funcs.general]/2 to /4, `Decl.withImplicitObject`), and
+  its surrogates, with the object first in the argument list
+  ([over.call.object]/3, `impliedObject`; `declval<Fn>()` for the
+  trait). A member call `obj.f(args)` still leaves the object out. That
+  the implicit object parameter changes no resolution over const call
+  operators alone is stated as a target theorem, not proved; the
+  concrete programs decide it. Still residue: a class template
+  specialization as callee, and conversion functions declared in a base
+  class, which neither the sequences nor the surrogates see.
 
 ---
 

@@ -26,10 +26,17 @@ An invalid set is ill-formed (/6).
   relation `LookupSetRel` and `lookupSet_iff` are the agreement.
 * A call on an object of class type resolves over the function call
   operators of its class, the result of a search for `operator()` in its
-  scope ([over.call.object]/1, [over.match.call.general]/1). Every call
-  operator the fragment has is a const member of one class, so the
-  implicit object parameter converts alike for all and is left out, as
-  the candidates are resolved over the explicit arguments.
+  scope ([over.call.object]/1, [over.match.call.general]/1), and over
+  its surrogate call functions, one for each non-explicit conversion
+  function to a pointer or reference to function ([over.call.object]/2).
+  The argument list is the implied object argument followed by the
+  call's arguments ([over.call.object]/3): a call operator compares it
+  against its implicit object parameter, `const X&` for the fragment's
+  const members ([over.match.funcs.general]/2, /4), a surrogate against
+  its first parameter, the conversion's type, which the object reaches by
+  that conversion function. A member call `obj.name(args)` still leaves
+  the object out, since its members are all const and it has no
+  surrogates.
 * `Program.callCandidates` and `Program.callAt`: what a call from a point
   resolves over, through the lookup of the callee and then, for an
   object, of its call operators.
@@ -303,63 +310,126 @@ theorem hiding_member_example :
 /-! ## A call on an object -/
 
 /-- The function call operators of a class: a search for `operator()` in
-its scope. Surrogate call functions are out of the fragment. -/
+its scope. -/
 @[std rule "over.call.object#1.sentence-2"]
 def Program.callOperators (p : Program) (pos : Nat) (cls : String) : Resolution (List Decl) :=
   p.memberSearch pos cls "operator()"
 
-/-- The candidates a call resolves over, given what lookup found for its
-name: the overload set, or, when the name denotes an object of class
-type, the function call operators of its class, one declaration per
-entity. Anything else is ill-formed. -/
-@[std rule "over.match.call.general#1"]
-def Program.candidatesOf (p : Program) (pos : Nat) (found : List Decl) (callee : String) :
-    Resolution (List Decl) :=
+/-- A member function with its implicit object parameter, an lvalue
+reference to `const X` for `X` the class of which it is a direct
+member: every member function of the fragment is declared `const` and
+without a ref-qualifier. A declaration that is not a member is left as
+it is. -/
+@[std rule "over.match.funcs.general#2" "over.match.funcs.general#4"]
+def Decl.withImplicitObject : Decl → Decl
+  | .function n ps sc v ne r =>
+    match sc.getLast? with
+    | some (.class x) => .function n (.lref (.const (.named x)) :: ps) sc v ne r
+    | _ => .function n ps sc v ne r
+  | .functionTemplate ft =>
+    match ft.scope.getLast? with
+    | some (.class x) => .functionTemplate { ft with params := .lref (.const (.named x)) :: ft.params }
+    | _ => .functionTemplate ft
+  | d => d
+
+/-- The surrogate call functions of a class: for each non-explicit
+conversion function it declares to a pointer to function, a reference
+to pointer to function or a reference to function of `(P1, ..., Pn)`
+returning `R`, the function `R call-function(F, P1, ..., Pn)` with `F`
+the conversion's type. The call `(F)(a1, ..., an)` invokes the
+conversion function and then the function, so the surrogate is known
+not to throw when both are. Conversion functions declared in a base
+class are out, as they are for the fragment's conversion sequences. -/
+@[std rule "over.call.object#2"]
+def Program.surrogates (p : Program) (cls : String) : List Decl :=
+  (p.conversionsOf (.named cls)).filterMap fun
+    | .function t false _ ne =>
+      let fn : Option (Ty × Ty × Bool) := match t with
+        | .ptr (.fn ps r fne) | .lref (.ptr (.fn ps r fne)) | .lref (.fn ps r fne) => some (ps, r, fne)
+        | _ => none
+      fn.bind fun (ps, r, fne) => ps.toList.map fun params =>
+        .function "call-function" (t :: params) [] .none (if ne == some true && fne then some true else none) r
+    | _ => none
+
+/-- The candidates of a call on an object of class `cls`: its function
+call operators, each with its implicit object parameter, then its
+surrogate call functions. A class with neither makes the call
+ill-formed. -/
+@[std rule "over.call.object#1.sentence-1" "over.call.object#2"]
+def Program.objectCandidates (p : Program) (pos : Nat) (cls : String) : Resolution (List Decl) :=
+  let found : Resolution (List Decl) := match p.callOperators pos cls with
+    | .selected ms => .selected ((entities ms).map Decl.withImplicitObject ++ p.surrogates cls)
+    | .noMatch => .selected (p.surrogates cls)
+    | .illFormed e => .illFormed e
+    | .ambiguous _ => .illFormed s!"the function call operators of {cls} are ambiguous"
+  match found with
+  | .selected [] => .illFormed s!"{cls} has no function call operator"
+  | r => r
+
+/-- The implied object argument of a call on a named object: the object,
+an lvalue of its class, `const` since the fragment's objects are
+`constexpr`. -/
+@[std rule "over.call.object#3.sentence-1" "over.match.funcs.general#3"]
+def impliedObject (cls : String) : CallArg := { ty := .const (.named cls), lvalue := true }
+
+/-- The candidates a call resolves over and the argument list submitted
+to overload resolution, given what lookup found for its name: the
+overload set with the call's arguments, or, when the name denotes an
+object of class type, the candidates of a call on the object, its call
+operators and surrogates, with the implied object argument first.
+Anything else is ill-formed. -/
+@[std rule "over.match.call.general#1" "over.call.object#3.sentence-1"]
+def Program.candidatesOf (p : Program) (pos : Nat) (found : List Decl) (callee : String)
+    (args : List CallArg) : Resolution (List Decl × List CallArg) :=
   match lookupResult found with
-  | .overloadSet fs => .selected fs
+  | .overloadSet fs => .selected (fs, args)
   | .entity (.object _ cls _) =>
     if (p.classScope? cls).isNone then .illFormed s!"the class {cls} of {callee} is not declared"
-    else
-      match p.callOperators pos cls with
-      | .selected ms => .selected (entities ms)
-      | .illFormed e => .illFormed e
-      | .noMatch => .illFormed s!"{cls} has no function call operator"
-      | .ambiguous _ => .illFormed s!"the function call operators of {cls} are ambiguous"
+    else (p.objectCandidates pos cls).map fun cs => (cs, impliedObject cls :: args)
   | .entity _ => .illFormed s!"{callee} does not denote a function or an object"
   | .none => .illFormed s!"no declaration of {callee} is found"
   | .ambiguous _ => .illFormed s!"the lookup of {callee} is ambiguous"
 
-/-- The candidates a call from a point resolves over: those of what the
-call's lookup found. -/
+/-- The candidates a call from a point resolves over, and its argument
+list: those of what the call's lookup found. -/
 def Program.callCandidates (p : Program) (pos : Nat) (s : Scope) (callee : String)
-    (args : List CallArg) : Resolution (List Decl) :=
-  p.candidatesOf pos (p.callLookup pos s callee args) callee
+    (args : List CallArg) : Resolution (List Decl × List CallArg) :=
+  p.candidatesOf pos (p.callLookup pos s callee args) callee args
 
 /-- A call from a program point in a scope: the candidates, resolved as
-`Program.call` does. -/
+`Program.call` does over the argument list submitted. -/
 @[std rule "over.call.func#3.sentence-2"]
 def Program.callAt (p : Program) (env : Env) (pos : Nat) (s : Scope) (callee : String)
     (args : List CallArg) (explicit : List Ty := []) : Resolution Candidate :=
   match p.callCandidates pos s callee args with
-  | .selected fs => p.call env fs args explicit
+  | .selected (fs, as) => p.call env fs as explicit
   | .illFormed e => .illFormed e
   | .noMatch => .noMatch
   | .ambiguous _ => .illFormed s!"the lookup of {callee} is ambiguous"
 
+/-- A call on an object of class `cls`, `obj(args)` with `obj` the implied
+object argument: the class's call operators and surrogates, resolved
+over the object followed by the arguments. -/
+@[std rule "over.call.object#3.sentence-1"]
+def Program.objectCallAt (p : Program) (env : Env) (pos : Nat) (cls : String) (obj : CallArg)
+    (args : List CallArg) (explicit : List Ty := []) : Resolution Candidate :=
+  match p.objectCandidates pos cls with
+  | .selected cs => p.call env cs (obj :: args) explicit
+  | .illFormed e => .illFormed e
+  | .noMatch => .noMatch
+  | .ambiguous _ => .illFormed s!"the function call operators of {cls} are ambiguous"
+
 /-- A callee that unqualified lookup binds to an object resolves over the
-call operators of the object's class and nothing else: argument-dependent
-lookup is suppressed, and no function of the name anywhere is a
-candidate. -/
+candidates of a call on the object, its class's call operators and
+surrogates, with the object as the first argument, and nothing else:
+argument-dependent lookup is suppressed, and no function of the name
+anywhere is a candidate. -/
 theorem object_call_candidates (p : Program) (pos : Nat) (s : Scope) (callee cls : String)
     (sc : Scope) (args : List CallArg)
     (h : unqualifiedLookup p pos s callee = [.object callee cls sc])
     (hcls : (p.classScope? cls).isSome = true) :
     p.callCandidates pos s callee args =
-      match p.callOperators pos cls with
-      | .selected ms => .selected (entities ms)
-      | .illFormed e => .illFormed e
-      | .noMatch => .illFormed s!"{cls} has no function call operator"
-      | .ambiguous _ => .illFormed s!"the function call operators of {cls} are ambiguous" := by
+      (p.objectCandidates pos cls).map fun cs => (cs, impliedObject cls :: args) := by
   have hl : p.callLookup pos s callee args = [.object callee cls sc] := by
     rw [object_suppresses_adl p pos s callee args ⟨_, by rw [h]; exact List.mem_singleton_self _, rfl⟩]
     exact h
@@ -544,17 +614,75 @@ def objectProgram : Program :=
 scope finds the user's function through the argument's namespace, and
 it wins as a non-template exact match. With the operation an object,
 lookup finds the object and nothing else, the candidates are its
-class's call operators, and the call selects the one `operator()`: the
-user's function is never a candidate. -/
+class's call operators with their implicit object parameter, the
+argument list begins with the object, and the call selects the one
+`operator()`: the user's function is never a candidate. -/
 theorem free_function_admits_adl :
     (freeFunctionProgram.callAt (Env.ofProgram freeFunctionProgram) 3 [] "fmap"
           [{ ty := .named "X" }]).map (·.index) = .selected 1 ∧
       objectProgram.callLookup 5 [] "fmap" [{ ty := .named "X" }] = [.object "fmap" "fmap_fn"] ∧
       objectProgram.callCandidates 5 [] "fmap" [{ ty := .named "X" }] =
-        .selected [.functionTemplate { name := "operator()", head := [{ kind := .type }]
-                                       params := [.param 0], scope := [.class "fmap_fn"] }] ∧
+        .selected ([.functionTemplate { name := "operator()", head := [{ kind := .type }]
+                                        params := [.lref (.const (.named "fmap_fn")), .param 0]
+                                        scope := [.class "fmap_fn"] }],
+                   [impliedObject "fmap_fn", { ty := .named "X" }]) ∧
       (objectProgram.callAt (Env.ofProgram objectProgram) 5 [] "fmap"
           [{ ty := .named "X" }]).map (·.index) = .selected 0 := by
   refine ⟨by decide, by decide, by decide, by decide⟩
+
+/-! ## Surrogate call functions -/
+
+/-- `int f1(int); int f2(B); using fp1 = int(*)(int); using fp2 = int(*)(B);
+struct A { operator fp1() const; operator fp2() const; }; A a;`: the
+draft's example with a class in place of `float`, which the fragment
+lacks. -/
+def surrogateProgram : Program :=
+  [ .class "B", .class "A"
+  , .converting (.named "A") (.function (.ptr (.fn' [.named "int"] (.named "int"))))
+  , .converting (.named "A") (.function (.ptr (.fn' [.named "B"] (.named "int"))))
+  , .object "a" "A" ]
+
+/-- `a(1)` calls `f1` through the pointer the first conversion function
+returns: the surrogate of `fp1` is the only viable candidate. -/
+@[std example "over.call.object#3"]
+theorem surrogate_example :
+    surrogateProgram.objectCandidates 5 "A" =
+      .selected [ .function "call-function" [.ptr (.fn' [.named "int"] (.named "int")), .named "int"] [] .none none (.named "int")
+                , .function "call-function" [.ptr (.fn' [.named "B"] (.named "int")), .named "B"] [] .none none (.named "int") ] ∧
+    (surrogateProgram.callAt (Env.ofProgram surrogateProgram) 5 [] "a" [{ ty := .named "int" }]).map (·.index) =
+      .selected 0 := by
+  refine ⟨by decide, by decide⟩
+
+/-- A class with a call operator and a conversion to a pointer to
+function of the same parameters: `a(1)` selects the call operator. Its
+implicit object parameter binds the object by the identity, the
+surrogate's first parameter needs the conversion function, and on the
+other argument the two are the same. -/
+def operatorAndSurrogateProgram : Program :=
+  [ .class "A", .function "operator()" [.named "int"] [.class "A"] .none none (.named "int")
+  , .converting (.named "A") (.function (.ptr (.fn' [.named "int"] (.named "int"))))
+  , .object "a" "A" ]
+
+@[std note "over.call.object#3"]
+theorem operator_beats_surrogate :
+    (operatorAndSurrogateProgram.callAt (Env.ofProgram operatorAndSurrogateProgram) 4 [] "a"
+      [{ ty := .named "int" }]).map (·.index) = .selected 0 := by
+  decide
+
+/-- Two conversion functions to the same pointer to function, through a
+`const` and a non-const reference, give two surrogates with identical
+parameters: no call to either is uniquely better, and the call is
+ambiguous, as the paragraph's footnote says. -/
+def twoSurrogatesProgram : Program :=
+  [ .class "A"
+  , .converting (.named "A") (.function (.ptr (.fn' [.named "int"] (.named "int"))))
+  , .converting (.named "A") (.function (.lref (.ptr (.fn' [.named "int"] (.named "int")))))
+  , .object "a" "A" ]
+
+@[std note "over.call.object#2"]
+theorem surrogates_ambiguous :
+    ((twoSurrogatesProgram.callAt (Env.ofProgram twoSurrogatesProgram) 4 [] "a"
+      [{ ty := .named "int" }]).map (·.index) matches .ambiguous _) = true := by
+  decide
 
 end Overload

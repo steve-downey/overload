@@ -166,6 +166,32 @@ and described here as they arrive.
 
 ## About the model
 
+- **A conversion function's call had no value category** (25 October
+  2026). `Program.userSequence` formed the second standard sequence of
+  a user-defined conversion from a prvalue of the conversion function's
+  return type, whatever that type, so a conversion function returning
+  `fp&` could never initialize an `fp&` parameter, and
+  `Program.userConversions` admitted a conversion function only when
+  its return type was the destination's referred type literally, so a
+  function yielding a reference was never a candidate for binding one.
+  The surrogate call functions of [over.call.object]/2 need both: a
+  conversion to a reference to pointer to function or a reference to
+  function is a surrogate whose first parameter is that reference. Now
+  `conversionResult` is the call as an argument, an lvalue, an xvalue
+  or a prvalue as [expr.call]/15 says, and `userConversions` compares
+  the type yielded with its reference and `const` stripped
+  ([over.match.ref]/1). No earlier case declared a conversion function
+  returning a reference, so no earlier answer changes.
+- **An emitted ambiguity was false for the wrong reason** (25 October
+  2026). `trait_invocable_object_ambiguous` first wrote call operators
+  `(int, long)` and `(long, int)` for arguments `(int, int)`, which the
+  compilers find ambiguous; the fragment forms no conversion between two
+  different integer types, so in the model neither was viable, and the
+  trait was `false` on both sides for different reasons. The case now
+  uses `(B, D)` and `(D, B)` for `D` derived from `B`, where the model's
+  derived-to-base conversion makes the call ambiguous as the compilers
+  do. A differential agreement is evidence only when the model's reason
+  is the paragraph's.
 - **A sixth cited paragraph differs on the draft's main, editorially**
   (24 October 2026). With phase 14's citations `make drift-check-current`
   reports [class.virtual]/2 beside the five known: a comment in the

@@ -177,9 +177,9 @@ private def cone : Env := Env.fullWithin callable [] (fun e _ => .soft e) callab
 #guard cenv.atomic (.trait .isInvocable) [Ty.fn' [.named "int"] cA, .named "int"] == .ok true
 
 -- The call's expression: the return type and whether it throws.
-#guard callable.objectInvoke cbase "F" [.named "int"] == .ok (some { ty := .named "int", throwing := some false })
-#guard callable.objectInvoke cbase "H" [.named "int"] == .ok none
-#guard callable.objectInvoke cone "G" [.named "int"] == .ok (some { ty := cA, throwing := some true })
+#guard callable.objectInvoke cbase (Program.declval cF) "F" [.named "int"] == .ok (some { ty := .named "int", throwing := some false })
+#guard callable.objectInvoke cbase (Program.declval (.named "H")) "H" [.named "int"] == .ok none
+#guard callable.objectInvoke cone (Program.declval (.named "G")) "G" [.named "int"] == .ok (some { ty := cA, throwing := some true })
 
 -- Depth: `G`'s call operator is constrained on `is_invocable_v<F, T>`,
 -- which the environment below must answer, so one level is not enough.
@@ -194,8 +194,60 @@ private def cone : Env := Env.fullWithin callable [] (fun e _ => .soft e) callab
 #guard cbase.atomic (.trait .isNothrowInvocable) [cF, .named "int"]
   == .soft "is_invocable of a class callee is resolved above the environment"
 
--- The trait is the member-call requirement of `operator()`, on the program.
-#guard callable.traitAbove cbase .isInvocable [cF, .named "int"]
-  == callable.requirementHolds cbase (.memberCall cF "operator()" [.named "int"])
-#guard callable.traitAbove cone .isInvocable [.named "G", cA]
-  == callable.requirementHolds cone (.memberCall (.named "G") "operator()" [cA])
+-- The trait is the call on the object, on the program.
+#guard (callable.traitAbove cbase .isInvocable [cF, .named "int"] == .ok true)
+  == (callable.objectCallAt cbase callable.length "F" (Program.declval cF) [Program.declval (.named "int")]
+        matches .selected _)
+#guard (callable.traitAbove cone .isInvocable [.named "G", cA] == .ok true)
+  == (callable.objectCallAt cone callable.length "G" (Program.declval (.named "G")) [Program.declval cA]
+        matches .selected _)
+
+/-! ## Surrogate call functions -/
+
+private def fp : Ty := .ptr (.fn' [.named "int"] (.named "int"))
+private def fpNoexcept : Ty := .ptr (.fn' [.named "int"] (.named "int") true)
+/-- `S` converts to `int(*)(int)` through a `const` conversion function,
+`N` through a non-const one, `R` to `int(&)(int)`, `T` to a `noexcept`
+pointer through a `noexcept` conversion, `U` to a `noexcept` pointer
+through a conversion that may throw, `O` has a call operator beside its
+conversion, and `W` two conversions to the same pointer. -/
+private def surrogates : Program :=
+  [ .class "S", .converting (.named "S") (.function fp)
+  , .class "N", .converting (.named "N") (.function fp false false)
+  , .class "R", .converting (.named "R") (.function (.lref (.fn' [.named "int"] (.named "int"))))
+  , .class "T", .converting (.named "T") (.function fpNoexcept false true (some true))
+  , .class "U", .converting (.named "U") (.function fpNoexcept)
+  , .class "O", .function "operator()" [.named "int"] [.class "O"] .none none cA
+  , .converting (.named "O") (.function fp)
+  , .class "W", .converting (.named "W") (.function fp), .converting (.named "W") (.function (.lref fp))
+  , .class "X", .converting (.named "X") (.function fp true) ]
+private def senv : Env := Env.full surrogates
+
+#guard surrogates.surrogates "S" == [.function "call-function" [fp, .named "int"] [] .none none (.named "int")]
+#guard surrogates.surrogates "T" == [.function "call-function" [fpNoexcept, .named "int"] [] .none (some true) (.named "int")]
+#guard surrogates.surrogates "U" == [.function "call-function" [fpNoexcept, .named "int"] [] .none none (.named "int")]
+-- An explicit conversion function gives no surrogate.
+#guard surrogates.surrogates "X" == []
+#guard surrogates.objectCandidates surrogates.length "X" == .illFormed "X has no function call operator"
+
+#guard senv.atomic (.trait .isInvocable) [.named "S", .named "int"] == .ok true
+#guard senv.atomic (.trait .isInvocable) [.lref (.const (.named "S")), .named "int"] == .ok true
+#guard senv.atomic (.trait .isInvocable) [.named "S"] == .ok false
+#guard senv.atomic (.trait .isInvocable) [.named "S", cA] == .ok false
+-- A non-const conversion function: not on a const object, yes on an rvalue.
+#guard senv.atomic (.trait .isInvocable) [.lref (.const (.named "N")), .named "int"] == .ok false
+#guard senv.atomic (.trait .isInvocable) [.named "N", .named "int"] == .ok true
+#guard senv.atomic (.trait .isInvocable) [.lref (.named "N"), .named "int"] == .ok true
+#guard senv.atomic (.trait .isInvocable) [.named "R", .named "int"] == .ok true
+#guard senv.atomic (.trait .isInvocable) [.named "X", .named "int"] == .ok false
+-- Known not to throw: both the conversion and the function.
+#guard senv.atomic (.trait .isNothrowInvocable) [.named "T", .named "int"] == .ok true
+#guard senv.atomic (.trait .isNothrowInvocable) [.named "U", .named "int"] == .ok false
+#guard senv.atomic (.trait .isNothrowInvocable) [.named "S", .named "int"] == .ok false
+-- The call operator beats the surrogate; two surrogates are ambiguous.
+#guard (surrogates.objectCallAt senv surrogates.length "O" (Program.declval (.named "O"))
+  [Program.declval (.named "int")]).map (·.index) == .selected 0
+#guard surrogates.objectInvoke senv (Program.declval (.named "O")) "O" [.named "int"] == .ok (some { ty := cA, throwing := some true })
+#guard (surrogates.objectCallAt senv surrogates.length "W" (Program.declval (.named "W"))
+  [Program.declval (.named "int")]) matches .ambiguous _
+#guard senv.atomic (.trait .isInvocable) [.named "W", .named "int"] == .ok false

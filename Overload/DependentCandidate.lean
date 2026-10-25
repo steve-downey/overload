@@ -82,15 +82,15 @@ as a call's is. The name is looked up from where it appears in the
 template's definition. -/
 @[std rule "temp.res.general#1.sentence-1"]
 def Program.dependentCandidates (p : Program) (pos : Nat) (s : Scope) (callee : String)
-    (args : List CallArg) : Resolution (List Decl) :=
-  p.candidatesOf pos (p.dependentLookup pos s callee args) callee
+    (args : List CallArg) : Resolution (List Decl × List CallArg) :=
+  p.candidatesOf pos (p.dependentLookup pos s callee args) callee args
 
 /-- A dependent call, resolved over its candidates as `Program.call`
 does. -/
 def Program.dependentCallAt (p : Program) (env : Env) (pos : Nat) (s : Scope) (callee : String)
     (args : List CallArg) : Resolution Candidate :=
   match p.dependentCandidates pos s callee args with
-  | .selected fs => p.call env fs args
+  | .selected (fs, as) => p.call env fs as
   | .illFormed e => .illFormed e
   | .noMatch => .noMatch
   | .ambiguous _ => .illFormed s!"the lookup of {callee} is ambiguous"
@@ -106,8 +106,8 @@ def selectionOf (decls : List Decl) (r : Resolution Candidate) : Resolution Decl
 name: the declaration selected, or the failure. -/
 def Program.outcomeOver (p : Program) (env : Env) (pos : Nat) (found : List Decl) (callee : String)
     (args : List CallArg) : Resolution Decl :=
-  match p.candidatesOf pos found callee with
-  | .selected fs => selectionOf fs (p.call env fs args)
+  match p.candidatesOf pos found callee args with
+  | .selected (fs, as) => selectionOf fs (p.call env fs as)
   | .illFormed e => .illFormed e
   | .noMatch => .noMatch
   | .ambiguous _ => .illFormed s!"the lookup of {callee} is ambiguous"
@@ -293,7 +293,7 @@ point of instantiation, the unit's end. One unit, so no verdict. -/
 @[std example "temp.res.general#1"]
 theorem temp_res_general_1_example :
     resGeneral1Program.dependentCandidates 1 [] "f" [{ ty := .named "E" }] =
-        .selected [.function "f" [.named "char"], .function "f" [.named "E"]] ∧
+        .selected ([.function "f" [.named "char"], .function "f" [.named "E"]], [{ ty := .named "E" }]) ∧
       (resGeneral1Program.dependentCallAt (Env.ofProgram resGeneral1Program) 1 [] "f"
           [{ ty := .named "E" }]).map (·.index) = .selected 1 ∧
       (resGeneral1Program.dependentCallAt (Env.ofProgram resGeneral1Program) 1 [] "f"

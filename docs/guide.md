@@ -471,7 +471,13 @@ On top of that, the user-defined conversion sequences of phase 11.
 `Program.userConversions` lists the candidates of an initialization,
 the constructors of the target and the conversion functions of the
 source, an explicit one only for direct-initialization
-([over.match.copy]/1, [over.match.ctor]/1, [over.match.conv]/1).
+([over.match.copy]/1, [over.match.ctor]/1, [over.match.conv]/1), a
+conversion function yielding a reference to the target among them
+([over.match.ref]/1). `Program.conversionResult` is what a conversion
+function's call is as an argument, an lvalue for an lvalue reference
+return type, an xvalue for an rvalue reference, a prvalue otherwise
+([expr.call]/15), so that the second standard sequence binds or refuses
+a reference as the value category says.
 `Ics` is an implicit conversion sequence: standard, user-defined, with
 the two standard sequences around the conversion and the class that
 declares it ([over.ics.user]/1), or the ambiguous conversion sequence
@@ -706,17 +712,17 @@ one level down, and the base environment, `Env.ofProgram`, answers a
 requires-expression softly, so a requires-expression nested deeper than
 the program is long is `false`. `is_invocable` of a class callee is
 answered the same way: `Program.objectInvoke` is `INVOKE` for a class
-([func.require]/1), the call on the object over the call operators of
-its class ([over.call.object]/1), `callOperators` then
+([func.require]/1), the call on the object over the call operators and
+surrogates of its class with `declval<Fn>()` the implied object argument
+([over.call.object]/1 to /3), `objectCandidates` then
 `callExpression`; `Program.traitAbove` answers that trait and its
 nothrow form by it and every other trait by the environment below, and
 `Env.fullWithin` installs it one level up. `classCallee` names the
 class, a class template specialization staying with the residue.
-`invocable_class_eq_member_requirement` is the trait as the member-call
-requirement of `operator()`, `invocable_class_iff_call` the trait as
-the call being viable and well-formed, `nothrow_invocable_class_invocable`
-the nothrow form refining it, and `full_invocable_class` the
-environment's answer one level down. The emitters compute their cases in
+`invocable_class_iff_call` is the trait as the call on the object being
+viable and well-formed, `nothrow_invocable_class_invocable` the nothrow
+form refining it, and `full_invocable_class` the environment's answer
+one level down. The emitters compute their cases in
 `Env.full`, trait cases included.
 
 ### Models
@@ -1119,12 +1125,30 @@ result is the declaration set, or ill-formed when invalid (/6,
 relation, `lookupSet_iff` the agreement. A call on an object of class
 type resolves over the function call operators of its class, a search
 for `operator()` in its scope ([over.call.object]/1,
-`Program.callOperators`); every call operator the fragment has is a const
-member of one class, so the implicit object parameter is left out.
-`Program.callCandidates` and `Program.callAt` are the call from a point:
-the overload set lookup found, or the call operators of the object it
-found, resolved as `Program.call` does; `Program.memberCallAt` is a
-member call `obj.f(args)`.
+`Program.callOperators`), and over its surrogate call functions, one for
+each non-explicit conversion function to a pointer to function, a
+reference to pointer to function or a reference to function
+([over.call.object]/2, `Program.surrogates`). The argument list is the
+implied object argument followed by the call's arguments
+([over.call.object]/3, `impliedObject`, a `const` lvalue of the class
+since the fragment's objects are `constexpr`): a call operator carries
+its implicit object parameter, `const X&` for the fragment's const
+members (`Decl.withImplicitObject`, [over.match.funcs.general]/2, /4),
+and a surrogate's first parameter is the conversion's type, which the
+object reaches through that conversion function. `Program.objectCandidates`
+is the list, `Program.objectCallAt` the call on an object given its
+implied object argument. `Program.callCandidates` and `Program.callAt`
+are the call from a point: the overload set lookup found with the
+call's arguments, or the object's candidates with the object leading,
+resolved as `Program.call` does; `Program.memberCallAt` is a member call
+`obj.f(args)`, which leaves the object out, its members being const and
+surrogates not arising. Three examples by computation:
+`surrogate_example`, the draft's example with a class for its `float`,
+calls through the first conversion function; `operator_beats_surrogate`,
+a call operator wins on the implied object argument, which it binds by
+the identity where the surrogate needs the conversion;
+`surrogates_ambiguous`, two conversions to the same function type give
+two surrogates no call tells apart, the footnote's case.
 
 - `derived_member_hides_base`: a class that declares the name is the
   whole result, whatever every base declares and whatever the

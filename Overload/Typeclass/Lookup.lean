@@ -48,24 +48,29 @@ def opClass (tc : String) (cls : String := "fmap_fn") (scope : Scope := []) : Pr
 /-! ## The candidates -/
 
 /-- With `fmap` bound to the object by unqualified lookup and its class
-having the call operators `ms`, a call `fmap(args)` resolves over those
-operators, one per entity, whatever else the program declares under the
-name `fmap`: argument-dependent lookup is suppressed by the object, and
-no function named `fmap` anywhere is a candidate. -/
+having the call candidates `cs`, its call operators with their implicit
+object parameter and its surrogates, a call `fmap(args)` resolves over
+those, with the object as the first argument, whatever else the program
+declares under the name `fmap`: argument-dependent lookup is suppressed
+by the object, and no function named `fmap` anywhere is a candidate. -/
 theorem object_design_candidates (p : Program) (pos : Nat) (s : Scope) (cls : String) (sc : Scope)
-    (ms : List Decl) (args : List CallArg)
+    (cs : List Decl) (args : List CallArg)
     (hobj : unqualifiedLookup p pos s "fmap" = [.object "fmap" cls sc])
     (hcls : (p.classScope? cls).isSome = true)
-    (hops : p.callOperators pos cls = .selected ms) :
-    p.callCandidates pos s "fmap" args = .selected (entities ms) := by
+    (hops : p.objectCandidates pos cls = .selected cs) :
+    p.callCandidates pos s "fmap" args = .selected (cs, impliedObject cls :: args) := by
   rw [object_call_candidates p pos s "fmap" cls sc args hobj hcls, hops]
+  rfl
 
 /-- The object as declared, alone: the candidates of `fmap(f, x)` from
-the point after it are its one `operator()`, for any arguments. -/
+the point after it are its one `operator()` with its implicit object
+parameter, and the object leads the arguments, for any arguments. -/
 theorem opClass_candidates (args : List CallArg) :
     (opClass "functor").callCandidates 3 [] "fmap" args =
-      .selected [.functionTemplate (operatorMember "functor")] := by
-  refine object_design_candidates _ 3 [] "fmap_fn" [] [.functionTemplate (operatorMember "functor")]
+      .selected ([(Decl.functionTemplate (operatorMember "functor")).withImplicitObject],
+                 impliedObject "fmap_fn" :: args) := by
+  refine object_design_candidates _ 3 [] "fmap_fn" []
+    [(Decl.functionTemplate (operatorMember "functor")).withImplicitObject]
     args (by decide) (by decide) (by decide)
 
 /-! ## Stability through the object -/

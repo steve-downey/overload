@@ -94,7 +94,7 @@ compound-requirement and a nested-requirement are not expressions. -/
 def expression (p : Program) (env : Env) : Constraint.Requirement → Subst (Option Expression)
   | .simple callee args =>
     match p.callCandidates p.length [] callee (args.map declval) with
-    | .selected fs => p.callExpression env fs (args.map declval)
+    | .selected (fs, as) => p.callExpression env fs as
     | .illFormed _ | .noMatch | .ambiguous _ => .ok none
   | .memberCall cls callee args =>
     match cls.referred.stripConst with
@@ -215,19 +215,17 @@ def classCallee (f : Ty) : Option String :=
 
 /-- `INVOKE(declval<Fn>(), declval<Args>()...)` for a class `Fn`: `Fn`
 is no pointer to member, so the invocation is the call `f(t1, ..., tN)`,
-and a call on an object of class type resolves over the function call
-operators of its class. Every call operator of the fragment is a
-`const` member, so the implied object argument binds for a `declval` of
-any cv-qualification and value category, and the candidates are
-resolved over the arguments. Surrogate call functions are out of the
-fragment. The result is the call's expression, `none` when the class
-has no call operator, its call operators are found ambiguously, or the
-call is not viable or ill-formed. -/
-@[std rule "func.require#1" "over.call.object#1.sentence-1"]
-def objectInvoke (p : Program) (env : Env) (cls : String) (args : List Ty) :
+a call on an object of class type, which resolves over the function
+call operators of its class and its surrogate call functions, with
+`declval<Fn>()` the implied object argument. The result is the call's
+expression, `none` when the class has neither, its call operators are
+found ambiguously, or the call is not viable or ill-formed. -/
+@[std rule "func.require#1" "over.call.object#1.sentence-1" "over.call.object#2"
+  "over.call.object#3.sentence-1"]
+def objectInvoke (p : Program) (env : Env) (obj : CallArg) (cls : String) (args : List Ty) :
     Subst (Option Expression) :=
-  match p.callOperators p.length cls with
-  | .selected ms => p.callExpression env (entities ms) (args.map declval)
+  match p.objectCandidates p.length cls with
+  | .selected cs => p.callExpression env cs (obj :: args.map declval)
   | _ => .ok none
 
 /-- A trait as the environment one level above the program answers it:
@@ -240,11 +238,11 @@ def traitAbove (p : Program) (env : Env) (q : Trait) (args : List Ty) : Subst Bo
   match q, args with
   | .isInvocable, f :: as =>
     match classCallee f with
-    | some c => (p.objectInvoke env c as).map (·.isSome)
+    | some c => (p.objectInvoke env (declval f) c as).map (·.isSome)
     | none => env.atomic (.trait q) args
   | .isNothrowInvocable, f :: as =>
     match classCallee f with
-    | some c => (p.objectInvoke env c as).map fun
+    | some c => (p.objectInvoke env (declval f) c as).map fun
       | some x => x.throwing == some false
       | none => false
     | none => env.atomic (.trait q) args
@@ -397,56 +395,57 @@ theorem compound_noexcept_throwing (p : Program) (env : Env) (E : Constraint.Req
     p.requirementHolds env (.compound E tc true) = .ok false := by
   simp [Program.requirementHolds, hE, ht]
 
-/-! ## A class callee is its call operator -/
+/-! ## A class callee is the call on the object -/
 
-/-- `is_invocable` of a class callee is the member-call requirement of
-its `operator()`: the call on the object and the call of the member are
-one search and one resolution, since the fragment has no surrogate call
-functions. -/
+/-- `is_invocable` of a class callee holds exactly where the call on the
+object, `declval<Fn>()` over the class's call operators and surrogates,
+is viable and well-formed, when generating the candidates is no hard
+error. -/
 @[std theorem "meta.rel#3"]
-theorem invocable_class_eq_member_requirement (p : Program) (env : Env) (c : String) (as : List Ty)
-    (hc : (Ty.named c).isClass = true) :
-    p.traitAbove env .isInvocable (.named c :: as) =
-      p.requirementHolds env (.memberCall (.named c) "operator()" as) := by
-  simp only [Program.traitAbove, Program.classCallee, Ty.referred, Ty.stripConst, hc, ↓reduceIte,
-    Program.requirementHolds, Program.expression, Program.objectInvoke, Program.callOperators]
-
-/-- `is_invocable` of a class callee holds exactly where the call of its
-`operator()` on the object is viable and well-formed, when generating
-the candidates is no hard error. -/
-@[std theorem "meta.rel#3"]
-theorem invocable_class_iff_call (p : Program) (env : Env) (c : String) (as : List Ty)
-    (hc : (Ty.named c).isClass = true)
-    (hgen : ∀ ms, p.memberSearch p.length c "operator()" = .selected ms →
-      ∀ r, generate .text env ((entities ms).map p.normalizeDecl) (as.map Program.declval) [] ≠ .hard r) :
-    p.traitAbove env .isInvocable (.named c :: as) = .ok true ↔
-      ∃ cand, p.memberCallAt env p.length c "operator()" (as.map Program.declval) = .selected cand := by
-  rw [invocable_class_eq_member_requirement p env c as hc]
-  exact member_requirement_iff_call p env c "operator()" as hgen
+theorem invocable_class_iff_call (p : Program) (env : Env) (f : Ty) (c : String) (as : List Ty)
+    (hc : Program.classCallee f = some c)
+    (hgen : ∀ cs, p.objectCandidates p.length c = .selected cs →
+      ∀ r, generate .text env (cs.map p.normalizeDecl) (Program.declval f :: as.map Program.declval) [] ≠ .hard r) :
+    p.traitAbove env .isInvocable (f :: as) = .ok true ↔
+      ∃ cand, p.objectCallAt env p.length c (Program.declval f) (as.map Program.declval) = .selected cand := by
+  simp only [Program.traitAbove, hc, Program.objectInvoke, Program.objectCallAt]
+  cases hs : p.objectCandidates p.length c with
+  | selected cs =>
+    simp only [Program.callExpression]
+    cases hg : generate .text env (cs.map p.normalizeDecl) (Program.declval f :: as.map Program.declval) [] with
+    | hard r => exact absurd hg (hgen cs hs r)
+    | ok _ | soft _ =>
+      cases p.call env cs (Program.declval f :: as.map Program.declval) with
+      | selected cand =>
+        cases hsp : cand.specialization with
+        | some sp => simp [hsp, Subst.map]
+        | none => cases hd : cs[cand.index]? <;> simp [hsp, hd, Subst.map]
+      | _ => simp [Subst.map]
+  | illFormed _ | noMatch | ambiguous _ => simp [Subst.map]
 
 /-- `is_nothrow_invocable` of a class callee implies `is_invocable` of
 it: the trait is the base trait and the call known not to throw. -/
 @[std theorem "meta.rel#3"]
-theorem nothrow_invocable_class_invocable (p : Program) (env : Env) (c : String) (as : List Ty)
-    (hc : (Ty.named c).isClass = true)
-    (h : p.traitAbove env .isNothrowInvocable (.named c :: as) = .ok true) :
-    p.traitAbove env .isInvocable (.named c :: as) = .ok true := by
-  simp only [Program.traitAbove, Program.classCallee, Ty.referred, Ty.stripConst, hc, ↓reduceIte] at h ⊢
-  cases hx : p.objectInvoke env c as with
+theorem nothrow_invocable_class_invocable (p : Program) (env : Env) (f : Ty) (c : String) (as : List Ty)
+    (hc : Program.classCallee f = some c)
+    (h : p.traitAbove env .isNothrowInvocable (f :: as) = .ok true) :
+    p.traitAbove env .isInvocable (f :: as) = .ok true := by
+  simp only [Program.traitAbove, hc] at h ⊢
+  cases hx : p.objectInvoke env (Program.declval f) c as with
   | ok o => cases o <;> simp_all [Subst.map]
   | soft r => simp_all [Subst.map]
   | hard r => simp_all [Subst.map]
 
 /-- The environment one level above the program answers `is_invocable`
-of a class callee by the member-call requirement of its `operator()` in
-the environment below, as it answers a requires-expression there. -/
+of a class callee by the call on the object in the environment below,
+as it answers a requires-expression there. -/
 @[std theorem "meta.rel#3"]
 theorem full_invocable_class (p : Program) (atomics : List (String × List Ty × Bool))
     (extra : Constraint.ExprOracle) (traits : Trait → List Ty → Subst Bool) (depth : Nat)
-    (c : String) (as : List Ty) (hc : (Ty.named c).isClass = true) :
-    (Env.fullWithin p atomics extra traits (depth + 1)).atomic (.trait .isInvocable) (.named c :: as) =
-      p.requirementHolds (Env.fullWithin p atomics extra traits depth)
-        (.memberCall (.named c) "operator()" as) :=
-  invocable_class_eq_member_requirement p _ c as hc
+    (f : Ty) (c : String) (as : List Ty) (hc : Program.classCallee f = some c) :
+    (Env.fullWithin p atomics extra traits (depth + 1)).atomic (.trait .isInvocable) (f :: as) =
+      (p.objectInvoke (Env.fullWithin p atomics extra traits depth) (Program.declval f) c as).map (·.isSome) := by
+  show p.traitAbove _ .isInvocable (f :: as) = _
+  simp [Program.traitAbove, hc]
 
 end Overload
