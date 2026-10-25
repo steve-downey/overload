@@ -36,9 +36,13 @@ inductive Constraint.Requirement where
   | simple (callee : String) (args : List Ty)
   | memberCall (cls : Ty) (callee : String) (args : List Ty)
   | type (t : Ty)
+  /-- A simple requirement whose expression is a braced initialization,
+  `T{args...}`. -/
+  | braceInit (t : Ty) (args : List Ty)
   deriving Repr, DecidableEq, Inhabited
 
 attribute [std rule "expr.prim.req.simple#1"] Constraint.Requirement.simple Constraint.Requirement.memberCall
+  Constraint.Requirement.braceInit
 attribute [std rule "expr.prim.req.type#1"] Constraint.Requirement.type
 
 /-- Substitute bindings into a requirement's types. -/
@@ -46,6 +50,7 @@ def Constraint.Requirement.subst (σ : Bindings) : Constraint.Requirement → Co
   | .simple f as => .simple f (as.map (Ty.subst σ))
   | .memberCall c f as => .memberCall (Ty.subst σ c) f (as.map (Ty.subst σ))
   | .type t => .type (Ty.subst σ t)
+  | .braceInit t as => .braceInit (Ty.subst σ t) (as.map (Ty.subst σ))
 
 /-- A constraint: atomic constraints joined by conjunction and
 disjunction, and the forms normalization expands or keeps. An atomic

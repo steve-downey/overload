@@ -39,10 +39,11 @@ def Decl.virt : Decl → Virt
   | .function _ _ _ v _ => v
   | _ => .none
 
-/-- Is a function declaration potentially throwing: its noexcept-specifier
-says so, or it has none and the function, user-provided, is potentially
-throwing. Nothing but a function declaration is asked. -/
-@[std rule "except.spec#4"]
+/-- Is a function declaration potentially throwing, the predicate that is
+its exception specification: its noexcept-specifier says so, or it has
+none and the function, user-provided, is potentially throwing. Nothing
+but a function declaration is asked. -/
+@[std rule "except.spec#1" "except.spec#4"]
 def Decl.throwing : Decl → Bool
   | .function _ _ _ _ ne => ne != some true
   | _ => true

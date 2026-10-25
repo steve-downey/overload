@@ -40,7 +40,10 @@ inductive Val where
   | int : Int → Val
   /-- A value of type `bool`. -/
   | bool : Bool → Val
-  /-- A value of class type, named, with its direct subobjects. -/
+  /-- A value of class type, named, with its direct subobjects: the
+  class's elements, its direct bases in declaration order then its direct
+  non-static data members in declaration order ([dcl.init.aggr]/2),
+  which is what template-argument equivalence compares ([temp.type]/2). -/
   | obj : String → Val → Val
   /-- The end of a subobject list. -/
   | nil : Val

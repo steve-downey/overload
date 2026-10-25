@@ -18,6 +18,7 @@ import Overload.Resolution
 import Overload.Ranking
 import Overload.Virtual
 import Overload.Special
+import Overload.Aggregate
 import Overload.Traits
 import Overload.Requires
 import Overload.Models
@@ -94,6 +95,14 @@ is the map.
 #audit Overload.nothrow_propagates
 #audit Overload.override_keeps_noexcept
 #audit Overload.copyMoveForm_kind
+#audit Overload.dtor_without_specifier_implicit
+
+-- Aggregates.
+#audit Overload.aggregate_iff_declarations
+#audit Overload.aggregate_elements_are_value
+#audit Overload.brace_init_differs_from_default_init
+#audit Overload.paren_aggregate_constructible
+#audit Overload.conversion_identifies
 
 -- What satisfies and what models.
 #audit Overload.models_satisfies
@@ -292,6 +301,7 @@ consults an oracle rests on what the environment says. -/
 #rests_on Overload.Program.triviallyCopyableClass
 #rests_on Overload.Program.abstract
 #rests_on Overload.Program.nothrowSwappable
+#rests_on Overload.Program.braceInit
 #rests_on Overload.Ty.isScalar
 #rests_on Overload.Program.normalize
 #rests_on Overload.Program.requirementsHold
@@ -361,6 +371,7 @@ consults an oracle rests on what the environment says. -/
 #audit Overload.Typeclass.abstract_instance_by_reference
 #audit Overload.Typeclass.instance_nothrow
 #audit Overload.Typeclass.nothrow_copy_constraint
+#audit Overload.Typeclass.instance_is_aggregate
 
 -- The typeclass laws as semantic requirements.
 #audit Overload.Typeclass.monad_laws

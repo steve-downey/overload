@@ -357,8 +357,8 @@ specialization, since the derived value is sliced to its base subobject.
 never are, since the parameter denotes the object ([temp.type]/2).
 `conversion_identifies`: two values of other classes that each
 copy-initialize a class-typed parameter through a user-defined
-conversion sequence are one specialization, since the candidate
-initializer is the class's one value either way.
+conversion sequence are one specialization when the class has one value,
+since the candidate initializer is that value either way.
 `Program.structural` is [temp.param]/12, and
 `placeholderArgumentsPermitted` the check of [temp.arg.nontype]/1 that a
 class value a placeholder parameter takes has a structural type, at the
@@ -495,9 +495,13 @@ a class value supplied to a class-typed constant parameter
 ([temp.arg.nontype]/3): the base subobject when the standard sequence
 forms, the class's one value, `Program.uniqueValue`, when the
 copy-initialization goes through a user-defined sequence, and none
-when no sequence forms or the sequence is ambiguous. A class value in
-the fragment lists its base subobjects and nothing else, so a class has
-one value whichever constructor made it (`candidateInitializer_user`).
+when no sequence forms or the sequence is ambiguous. A class value lists
+the class's elements, its direct bases then its members
+(`Program.elements`, [dcl.init.aggr]/2), so a class whose elements are
+all classes with one value has one value whichever constructor made it
+(`candidateInitializer_user`, `aggregate_elements_are_value`), and a
+class with a scalar element has none the model can name: `uniqueValue`
+is `none` and the environment is the oracle (`decisions.md#value-typing`).
 
 ### Virtual
 
@@ -569,6 +573,26 @@ without bases, class-typed members, initializers or declared specials,
 member is a reference or `const`, and `pointer_member_keeps_value_nature`
 that a pointer member deletes nothing.
 
+### Aggregate
+
+`Overload/Aggregate.lean`: aggregates, phase 14. `Program.aggregate` is
+[dcl.init.aggr]/1 on the declarations: no user-declared constructor, no
+protected base, no virtual function (`aggregate_iff_declarations`);
+`elementsWith` is the elements with their default member initializers.
+`braceInit c inits` is `T{inits...}`: for an aggregate, the first
+elements copy-initialized from the initializers (`elementInit`), the rest
+from their default member initializers or from `{}`, which for a
+reference is ill-formed ([dcl.init.aggr]/4, /6); for a non-aggregate,
+value-initialization or its constructors ([dcl.init.list]/3); for an
+abstract class, nothing. `parenAggregateInit` is the branch of
+[dcl.init.general]/15 that `Program.constructible` reaches when no
+constructor is viable, the elements left out value-initialized
+(`valueInit`, [dcl.init.general]/8). `implicitLifetimeClass` is
+[class.prop]/8. `brace_init_differs_from_default_init` and
+`paren_aggregate_constructible` in `Traits` are the two corrections the
+phase makes: `X{}` holds and `X x;` fails for `struct X { const int c; }`,
+and `is_constructible<A, int>` holds for `struct A { int x; }`.
+
 ### Traits
 
 `Overload/Traits.lean`: `Program.trait q args`, the program's answer to
@@ -581,9 +605,12 @@ constructor it selects usable (`is_convertible_eq_ics`).
 `is_constructible` is the variable definition of [meta.unary.prop]/9:
 resolution over a class's constructors for direct-initialization with
 the usable-candidate check (`trait_is_resolution`), a reference binding
-one argument, a scalar taking none or one of its own type, and no
-object of an abstract class at all ([basic.def]/5,
-`abstract_not_constructible`); `is_convertible` to an abstract class by
+one argument, a scalar taking none or one of its own type, no object of
+an abstract class at all ([basic.def]/5, `abstract_not_constructible`),
+and an aggregate initialized from the parenthesized list when no
+constructor is viable ([dcl.init.general]/15,
+`paren_aggregate_constructible`); `is_aggregate` and
+`is_implicit_lifetime` read `Overload/Aggregate.lean`; `is_convertible` to an abstract class by
 value is likewise false, since the test function is a definition
 ([dcl.fct.def.general]/2).
 `is_assignable` is resolution over the assignment operators, a `const`
@@ -623,7 +650,9 @@ and anything else viable or not; a member call likewise through
 `memberSearch`; a type-requirement is `validType`, a template-id whose
 arguments match its template's head and whose defaults form, by
 `explicitStep` and `defaultsStep`, a declared or fundamental class name,
-or any other concrete type. `Program.requirementsHold` checks a
+or any other concrete type; the simple requirement `T{args};` is
+`Program.braceInit` for a class and the one conversion for a scalar or a
+reference. `Program.requirementsHold` checks a
 requires-expression's requirements in lexical order and stops at the
 first that decides, an invalid one making it `false`
 ([expr.prim.req.general]/5): `requires_soft_is_false`,
@@ -667,7 +696,10 @@ its body, with the equality-preservation laws of [concepts.equality]/4 on
 every library requires-expression that does not say otherwise.
 `destructible` is `is_nothrow_destructible`, which since phase 14 is the
 real rule, so a class with `~X() noexcept(false)` satisfies none of the
-object concepts. `same_as_symmetric` ([concept.same]/1), `regular_refines`, the chain from
+object concepts; `default_initializable` has its three conjuncts,
+`destructible`, `requires { T{}; }` and `T t;`, so an aggregate with a
+`const` member, for which `T{}` is well-formed and `T t;` is not, does
+not satisfy it. `same_as_symmetric` ([concept.same]/1), `regular_refines`, the chain from
 `regular` down to `move_constructible` by normalization
 ([concepts.object]/1), `regular_invocable_semantic_only`, one normal form
 and one law of difference ([concept.regularinvocable]/3), and
@@ -1421,7 +1453,10 @@ non-throwing special members and satisfies `destructible` and the
 `is_nothrow_` traits the value route relies on; `nothrow_copy_constraint`,
 the noexcept-correct callable-copying rule, `is_nothrow_copy_constructible`
 in the constraint making the algorithm not viable at a callable whose
-copy may throw, where `is_copy_constructible` alone admits it.
+copy may throw, where `is_copy_constructible` alone admits it;
+`instance_is_aggregate`, an instance type with no data members is an
+aggregate and an implicit-lifetime class with one value, the empty one,
+so `X{}` in the value route is aggregate initialization of nothing.
 
 ### Laws
 

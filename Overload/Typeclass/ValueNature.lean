@@ -151,6 +151,21 @@ theorem nothrow_copy_constraint :
         (·.index) = .selected 0 := by
   refine ⟨by decide, by decide⟩
 
+/-! ## An instance type is an aggregate -/
+
+/-- An instance type with no data members and no declared constructor is
+an aggregate and an implicit-lifetime class, so `X{}` in the value route
+is aggregate initialization of an empty element list, and the class has
+one value, the empty one, which is what phase 11's "one value per class"
+meant. -/
+theorem instance_is_aggregate :
+    [Ty.named "functor_i", .named "applicative_i", .named "monad_i"].all (fun t =>
+      instanceShapes.aggregate t && instanceShapes.braceInit t [] &&
+      instanceShapes.trait .isAggregate [t] == .ok true &&
+      instanceShapes.trait .isImplicitLifetime [t] == .ok true &&
+      (instanceShapes.uniqueValue t).isSome) = true := by
+  decide
+
 /-! ## The callable-copying rule -/
 
 /-- A callable whose copy constructor is deleted, and the two ways an

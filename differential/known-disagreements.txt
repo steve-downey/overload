@@ -141,3 +141,8 @@ routes_value_sliced.cpp g++-13
 routes_value_sliced.cpp g++-14
 routes_value_sliced.cpp g++-15
 routes_value_sliced.cpp g++-16
+trait_implicit_lifetime_aggregate.cpp g++
+trait_implicit_lifetime_reference.cpp g++
+trait_implicit_lifetime_scalar.cpp g++
+trait_implicit_lifetime_user_ctor.cpp g++
+trait_implicit_lifetime_user_dtor.cpp g++

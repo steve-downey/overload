@@ -119,20 +119,22 @@ theorem converted_instance_temporary (env : Env) (tc name : String) (c : Ty) (v 
   simp [explicitStep, explicitStep.go, pinTemplate, kindMatches, hc, hv, hr]
 
 /-- Under the typed value route, two instance values of other classes
-that each convert to the parameter's class name one specialization: the
-candidate initializer is the class's one value whichever constructor
-made it. A conversion between instance types identifies the instances it
-converts, as slicing does. -/
+that each convert to the parameter's class name one specialization when
+the class has one value, as the library's member-less instance types do:
+the candidate initializer is that value whichever constructor made it. A
+conversion between instance types identifies the instances it converts,
+as slicing does. -/
 @[std theorem "temp.type#1"]
-theorem value_route_identifies_converted (p : Program) (env : Env) (b d₁ d₂ : String) (vs₁ vs₂ : Val)
+theorem value_route_identifies_converted (p : Program) (env : Env) (b d₁ d₂ : String) (vs₁ vs₂ w : Val)
     (args : List CallArg) (he : env.initializer = p.candidateInitializer)
+    (hu : p.uniqueValue (.named b) = some w)
     (hp : (Ty.named b).hasPlaceholder = false) (hb : isInteger b = false)
     (hne₁ : b ≠ d₁) (hne₂ : b ≠ d₂)
     (h₁ : ∃ f v s, p.ics .copy { ty := .named d₁ } (.named b) = some (.userDefined f v s))
     (h₂ : ∃ f v s, p.ics .copy { ty := .named d₂ } (.named b) = some (.userDefined f v s)) :
     deduceTemplate env (valueRouteAt b) [.value (.obj d₁ vs₁)] args =
       deduceTemplate env (valueRouteAt b) [.value (.obj d₂ vs₂)] args := by
-  have h := conversion_identifies p env b d₁ d₂ vs₁ vs₂ valueRoute.head.tail [] he hp hb hne₁ hne₂ h₁ h₂
+  have h := conversion_identifies p env b d₁ d₂ vs₁ vs₂ w valueRoute.head.tail [] he hu hp hb hne₁ hne₂ h₁ h₂
   unfold sameSpecialization at h
   unfold deduceTemplate
   rw [show (valueRouteAt b).head = { kind := .const (.named b) } :: valueRoute.head.tail from rfl, h]

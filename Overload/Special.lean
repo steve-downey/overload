@@ -519,6 +519,16 @@ theorem copyMoveForm_kind (c : Ty) (conv : UserConv) (s : SmfDecl)
   all_goals
     split at h <;> (try split at h) <;> simp only [Option.some.injEq, reduceCtorEq] at h <;> subst h <;> simp
 
+/-- A destructor declared without a noexcept-specifier has the exception
+specification it would have had implicitly declared: potentially throwing
+exactly when a potentially constructed subobject's destructor is. -/
+@[std note "class.dtor#6"]
+theorem dtor_without_specifier_implicit (p : Program) (fuel : Nat) (c : Ty) (d : SmfDecl)
+    (hud : p.userDeclared c .dtor = some d) (hne : d.noexcept = none) :
+    p.throwingWithin (fuel + 1) c .dtor =
+      (p.classSubobjects c).any fun m => p.throwingWithin fuel m .dtor := by
+  simp [Program.throwingWithin, hud, hne]
+
 /-- No non-class type of the fragment is const-default-constructible. -/
 theorem constDefaultConstructibleWithin_nonclass (p : Program) (n : Nat) (t : Ty)
     (h : t.stripConst.isClass = false) : p.constDefaultConstructibleWithin n t = false := by
