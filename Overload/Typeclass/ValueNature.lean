@@ -14,7 +14,9 @@ trivially copyable, empty and standard-layout, and the value route's
 copy of it costs nothing (`instance_shape_regular`). An instance type
 that holds a reference, a stateful instance capturing by reference, is
 structural for the value route and still not assignable: the two
-notions do not coincide (`reference_member_instance`).
+notions do not coincide (`reference_member_instance`), and the reference
+nature reaches an instance through any depth of class-typed state
+(`nested_reference_instance`, by `value_nature_iff`).
 
 The `callable-copying` obligation says an instance that copies its
 callable says so in its constraint. With `is_copy_constructible` a
@@ -72,6 +74,27 @@ theorem reference_member_instance :
     referenceInstance.trait .isDefaultConstructible [.named "ref_i"] = .ok false ∧
     referenceInstance.trait .isCopyAssignable [.named "ref_i"] = .ok false ∧
     referenceInstance.valueNature (.named "ref_i") = false := by
+  decide
+
+/-- An instance type that captures by reference two levels down:
+`struct ref_i { int& r; }; struct wrap_i { ref_i inner; }; struct outer_i { wrap_i w; };`. -/
+def nestedReferenceInstance : Program :=
+  [ .class "ref_i", .member (.named "ref_i") { name := "r", ty := .lref (.named "int") }
+  , .class "wrap_i", .member (.named "wrap_i") { name := "inner", ty := .named "ref_i" }
+  , .class "outer_i", .member (.named "outer_i") { name := "w", ty := .named "wrap_i" } ]
+
+/-- The reference nature reaches the outermost instance through two
+class-typed members. `outer_i` declares nothing, so its value nature is
+what `value_nature_iff` says, and it fails because a reference is held
+below: it still copies, and it does not assign. What a stateful instance
+captures by reference anywhere in its state decides what an algorithm
+may do with the instance. -/
+theorem nested_reference_instance :
+    nestedReferenceInstance.valueNature (.named "outer_i") = false ∧
+    nestedReferenceInstance.trait .isCopyConstructible [.named "outer_i"] = .ok true ∧
+    nestedReferenceInstance.trait .isCopyAssignable [.named "outer_i"] = .ok false := by
+  refine ⟨?_, by decide, by decide⟩
+  rw [value_nature_iff _ _ (by decide)]
   decide
 
 /-! ## A polymorphic or abstract instance type -/
