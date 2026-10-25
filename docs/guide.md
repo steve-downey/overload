@@ -657,7 +657,7 @@ type or a pointer to one checks each argument's conversion sequence.
 The residue (`decisions.md#trait-residue`) answers `soft`: a conversion
 between two different non-class types, which the fragment's sequences
 do not form, and `is_invocable` of a class callee, whose call is
-resolved above the environment.
+resolved above the environment, in `Overload/Requires.lean`.
 
 ### Requires
 
@@ -704,8 +704,20 @@ constraints, so a requires-expression nested in those, through a
 nested-requirement's concept or a candidate's constraint, is answered
 one level down, and the base environment, `Env.ofProgram`, answers a
 requires-expression softly, so a requires-expression nested deeper than
-the program is long is `false`. The emitters compute their cases in
-`Env.full`.
+the program is long is `false`. `is_invocable` of a class callee is
+answered the same way: `Program.objectInvoke` is `INVOKE` for a class
+([func.require]/1), the call on the object over the call operators of
+its class ([over.call.object]/1), `callOperators` then
+`callExpression`; `Program.traitAbove` answers that trait and its
+nothrow form by it and every other trait by the environment below, and
+`Env.fullWithin` installs it one level up. `classCallee` names the
+class, a class template specialization staying with the residue.
+`invocable_class_eq_member_requirement` is the trait as the member-call
+requirement of `operator()`, `invocable_class_iff_call` the trait as
+the call being viable and well-formed, `nothrow_invocable_class_invocable`
+the nothrow form refining it, and `full_invocable_class` the
+environment's answer one level down. The emitters compute their cases in
+`Env.full`, trait cases included.
 
 ### Models
 

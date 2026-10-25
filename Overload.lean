@@ -89,6 +89,10 @@ is the map.
 #audit Overload.compound_eq_simple
 #audit Overload.compound_invalid_eq_simple
 #audit Overload.compound_noexcept_throwing
+#audit Overload.invocable_class_eq_member_requirement
+#audit Overload.invocable_class_iff_call
+#audit Overload.nothrow_invocable_class_invocable
+#audit Overload.full_invocable_class
 
 -- Virtual functions, polymorphic and abstract classes.
 #audit Overload.virtual_destructor_inherited

@@ -22,7 +22,7 @@ compilers' own trait.
 What stays with the oracle is the residue of `decisions.md#trait-residue`:
 a conversion between two different non-class types, which the fragment's
 sequences do not form, and `is_invocable` of a class callee, whose call
-is resolved above the environment.
+is resolved above the environment, in `Overload/Requires.lean`.
 -/
 
 namespace Overload
@@ -238,7 +238,7 @@ def fnType (f : Ty) : Option (List Ty × Ty × Bool) :=
 /-- `is_invocable<Fn, Args...>` for a function type or a pointer to one:
 each argument has an implicit conversion sequence to the parameter, and
 the arities agree. A class callee is a call on an object, resolved
-above the environment, and is left to the oracle. -/
+above the environment, and is left to it (`Program.traitAbove`). -/
 @[std rule "meta.rel#3"]
 def invocable (p : Program) (f : Ty) (args : List Ty) : Subst Bool :=
   match fnType f with

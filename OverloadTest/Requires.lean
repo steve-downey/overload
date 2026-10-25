@@ -141,3 +141,61 @@ private def tbase : Env := Env.ofProgram typed
   == .compound (.simple "g" [cA]) (some ("same_as", [cB]))
 #guard (Constraint.Requirement.nested (.conj (.conceptId "C" [.param 0]) (.trait .isClass [.param 0]))).subst [(0, cA)]
   == .nested (.conj (.conceptId "C" [cA]) (.trait .isClass [cA]))
+
+/-! ## A class callee -/
+
+private def cF : Ty := .named "F"
+/-- `struct F { int operator()(int) const noexcept; }`, `struct G` whose
+`operator()` is a template constrained on `is_invocable_v<F, T>`,
+`struct H {}`, and `struct D : F {}`. -/
+private def callable : Program :=
+  [ .class "A", .class "F"
+  , .function "operator()" [.named "int"] [.class "F"] .none (some true) (.named "int")
+  , .class "G"
+  , .functionTemplate { name := "operator()", head := [tparam], params := [.param 0], ret := cA
+                        scope := [.class "G"], constraint := some (.trait .isInvocable [cF, .param 0]) }
+  , .class "H", .class "D" [cF] ]
+private def cenv : Env := Env.full callable
+private def cbase : Env := Env.ofProgram callable
+private def cone : Env := Env.fullWithin callable [] (fun e _ => .soft e) callable.trait 1
+
+-- The base environment leaves a class callee to the residue; the one
+-- above answers it by the call on the object.
+#guard cbase.atomic (.trait .isInvocable) [cF, .named "int"]
+  == .soft "is_invocable of a class callee is resolved above the environment"
+#guard cone.atomic (.trait .isInvocable) [cF, .named "int"] == .ok true
+#guard cenv.atomic (.trait .isInvocable) [cF, .named "int"] == .ok true
+#guard cenv.atomic (.trait .isInvocable) [.lref (.const cF), .named "int"] == .ok true
+#guard cenv.atomic (.trait .isInvocable) [.rref cF, .named "int"] == .ok true
+#guard cenv.atomic (.trait .isInvocable) [cF, cA] == .ok false
+#guard cenv.atomic (.trait .isInvocable) [cF, .named "int", .named "int"] == .ok false
+#guard cenv.atomic (.trait .isInvocable) [cF] == .ok false
+#guard cenv.atomic (.trait .isInvocable) [.named "H", .named "int"] == .ok false
+#guard cenv.atomic (.trait .isInvocable) [.named "D", .named "int"] == .ok true
+-- A callee that is not a class is what the base answers.
+#guard cenv.atomic (.trait .isInvocable) [.named "int", .named "int"] == .ok false
+#guard cenv.atomic (.trait .isInvocable) [Ty.fn' [.named "int"] cA, .named "int"] == .ok true
+
+-- The call's expression: the return type and whether it throws.
+#guard callable.objectInvoke cbase "F" [.named "int"] == .ok (some { ty := .named "int", throwing := some false })
+#guard callable.objectInvoke cbase "H" [.named "int"] == .ok none
+#guard callable.objectInvoke cone "G" [.named "int"] == .ok (some { ty := cA, throwing := some true })
+
+-- Depth: `G`'s call operator is constrained on `is_invocable_v<F, T>`,
+-- which the environment below must answer, so one level is not enough.
+#guard cone.atomic (.trait .isInvocable) [.named "G", .named "int"] == .ok false
+#guard cenv.atomic (.trait .isInvocable) [.named "G", .named "int"] == .ok true
+#guard cenv.atomic (.trait .isInvocable) [.named "G", cA] == .ok false
+
+-- Known not to throw.
+#guard cenv.atomic (.trait .isNothrowInvocable) [cF, .named "int"] == .ok true
+#guard cenv.atomic (.trait .isNothrowInvocable) [.named "G", .named "int"] == .ok false
+#guard cenv.atomic (.trait .isNothrowInvocable) [.named "H", .named "int"] == .ok false
+#guard cbase.atomic (.trait .isNothrowInvocable) [cF, .named "int"]
+  == .soft "is_invocable of a class callee is resolved above the environment"
+
+-- The trait is the member-call requirement of `operator()`, on the program.
+#guard callable.traitAbove cbase .isInvocable [cF, .named "int"]
+  == callable.requirementHolds cbase (.memberCall cF "operator()" [.named "int"])
+#guard callable.traitAbove cone .isInvocable [.named "G", cA]
+  == callable.requirementHolds cone (.memberCall (.named "G") "operator()" [cA])

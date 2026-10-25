@@ -306,14 +306,20 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1) | rule | `Overload.Constraint.Requirement.type` | `Overload.Constraint` |
 | [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1) | rule | `Overload.Program.requirementHolds` | `Overload.Requires` |
 | [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1) | rule | `Overload.Program.validType` | `Overload.Requires` |
+| [[func.require]/1](https://eel.is/c++draft/func.require#1) | rule | `Overload.Program.objectInvoke` | `Overload.Requires` |
 | [[lex.icon]/3 sentence 1](https://eel.is/c++draft/lex.icon#3.sentence-1) | rule | `Overload.literalType` | `Overload.Arguments` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Program.invocable` | `Overload.Traits` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Program.nothrowInvocable` | `Overload.Traits` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Program.trait` | `Overload.Traits` |
+| [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Program.traitAbove` | `Overload.Requires` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Trait.isBaseOf` | `Overload.Types` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Trait.isInvocable` | `Overload.Types` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Trait.isNothrowInvocable` | `Overload.Types` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Trait.isSame` | `Overload.Types` |
+| [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | theorem | `Overload.full_invocable_class` | `Overload.Requires` |
+| [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | theorem | `Overload.invocable_class_eq_member_requirement` | `Overload.Requires` |
+| [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | theorem | `Overload.invocable_class_iff_call` | `Overload.Requires` |
+| [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | theorem | `Overload.nothrow_invocable_class_invocable` | `Overload.Requires` |
 | [[meta.rel]/6](https://eel.is/c++draft/meta.rel#6) | rule | `Overload.Program.convertible` | `Overload.Traits` |
 | [[meta.rel]/6](https://eel.is/c++draft/meta.rel#6) | rule | `Overload.Program.nothrowConvertible` | `Overload.Traits` |
 | [[meta.rel]/6](https://eel.is/c++draft/meta.rel#6) | rule | `Overload.Trait.isConvertible` | `Overload.Types` |
@@ -394,6 +400,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[over.best.ics.general]/12](https://eel.is/c++draft/over.best.ics.general#12) | rule | `Overload.Program.ambiguousConversion` | `Overload.Access` |
 | [[over.best.ics.general]/12](https://eel.is/c++draft/over.best.ics.general#12) | rule | `Overload.Program.bestSequence` | `Overload.Ranking` |
 | [[over.call.func]/3 sentence 2](https://eel.is/c++draft/over.call.func#3.sentence-2) | rule | `Overload.Program.callAt` | `Overload.Members` |
+| [[over.call.object]/1 sentence 1](https://eel.is/c++draft/over.call.object#1.sentence-1) | rule | `Overload.Program.objectInvoke` | `Overload.Requires` |
 | [[over.call.object]/1 sentence 2](https://eel.is/c++draft/over.call.object#1.sentence-2) | rule | `Overload.Program.callOperators` | `Overload.Members` |
 | [[over.ics.rank]/1 sentence 1](https://eel.is/c++draft/over.ics.rank#1.sentence-1) | theorem | `Overload.betterIcs_asymm` | `Overload.Ranking` |
 | [[over.ics.rank]/1 sentence 1](https://eel.is/c++draft/over.ics.rank#1.sentence-1) | theorem | `Overload.better_asymm` | `Overload.Ranking` |
