@@ -2041,11 +2041,13 @@ def convertedValue : Case :=
 
 /-! ### Type categories and the structural traits -/
 
-/-- A trait case: the model's answer, asserted against the `std::` trait. -/
+/-- A trait case: the model's answer in the program's environment,
+asserted against the `std::` trait. -/
 private def traitCase (name : String) (c : String) (program : Program) (q : Trait) (as : List Ty) :
     Case :=
-  { name, cite := cite c, program, query := .trait q as (program.trait q as == .ok true)
-    source := "computed by Program.trait" }
+  { name, cite := cite c, program
+    query := .trait q as ((Env.full program).atomic (.trait q) as == .ok true)
+    source := "computed by Program.trait in Env.full" }
 
 /-- `struct A { int x; int& r; };`: a class with a scalar member and a
 reference member, for the trait cases. -/
@@ -2756,6 +2758,94 @@ def traitInvocableArity : Case :=
   traitCase "trait_invocable_arity" "meta.rel#3" classA .isInvocable
     [Ty.fn' [.named "int", .lref (.const (.named "A"))] (.named "int"), .named "int"]
 
+/-- A class callee: `struct F { int operator()(int) const; };`, and `A`
+beside it with no call operator. `is_invocable_v<F, int>`, through a
+`const F&` and an `F&&`, with a missing argument, an extra one, an
+argument that does not convert, and of the class without a call
+operator. -/
+private def cF : Ty := .named "F"
+private def callObject : Program :=
+  [ .class "A", .class "F", .function "operator()" [.named "int"] (inClass "F") .none none (.named "int") ]
+def traitInvocableObject : Case :=
+  traitCase "trait_invocable_object" "func.require#1" callObject .isInvocable [cF, .named "int"]
+def traitInvocableObjectConstRef : Case :=
+  traitCase "trait_invocable_object_const_ref" "over.call.object#1" callObject .isInvocable
+    [.lref (.const cF), .named "int"]
+def traitInvocableObjectRvalue : Case :=
+  traitCase "trait_invocable_object_rvalue" "over.call.object#1" callObject .isInvocable [.rref cF, .named "int"]
+def traitInvocableObjectArity : Case :=
+  traitCase "trait_invocable_object_arity" "func.require#1" callObject .isInvocable [cF]
+def traitInvocableObjectExtra : Case :=
+  traitCase "trait_invocable_object_extra" "func.require#1" callObject .isInvocable [cF, .named "int", .named "int"]
+def traitInvocableObjectNoConversion : Case :=
+  traitCase "trait_invocable_object_no_conversion" "meta.rel#3" callObject .isInvocable [cF, .named "A"]
+def traitInvocableObjectNone : Case :=
+  traitCase "trait_invocable_object_none" "over.call.object#1" callObject .isInvocable [.named "A", .named "int"]
+
+/-- Two call operators, `(int, long)` and `(long, int)`, each better on
+one argument of `(int, int)`: the call is ambiguous, so the trait is
+`false`. -/
+private def callObjectAmbiguous : Program :=
+  [ .class "G", .function "operator()" [.named "int", .named "long"] (inClass "G") .none none (.named "int")
+  , .function "operator()" [.named "long", .named "int"] (inClass "G") .none none (.named "int") ]
+def traitInvocableObjectAmbiguous : Case :=
+  traitCase "trait_invocable_object_ambiguous" "meta.rel#3" callObjectAmbiguous .isInvocable
+    [.named "G", .named "int", .named "int"]
+
+/-- The call operators are a member search: `struct B { int operator()(int) const; };`
+`struct D : B { int operator()(A) const; };` hides the base's for
+`D`, whatever the arguments, and `struct E : B {}` inherits it. -/
+private def callObjectBases : Program :=
+  [ .class "A", .class "B", .function "operator()" [.named "int"] (inClass "B") .none none (.named "int")
+  , .class "D" [.named "B"], .function "operator()" [.named "A"] (inClass "D") .none none (.named "int")
+  , .class "E" [.named "B"] ]
+def traitInvocableObjectHidden : Case :=
+  traitCase "trait_invocable_object_hidden" "class.member.lookup#3" callObjectBases .isInvocable
+    [.named "D", .named "int"]
+def traitInvocableObjectOwn : Case :=
+  traitCase "trait_invocable_object_own" "class.member.lookup#3" callObjectBases .isInvocable
+    [.named "D", .named "A"]
+def traitInvocableObjectInherited : Case :=
+  traitCase "trait_invocable_object_inherited" "class.member.lookup#4" callObjectBases .isInvocable
+    [.named "E", .named "int"]
+
+/-- A constrained call operator, `template <class T> requires Same<T, int>
+int operator()(T) const;`, and one constrained on the trait itself,
+`requires std::is_invocable_v<F, T>`, which the environment answers one
+level down. -/
+private def callObjectConstrained : Program :=
+  [ .class "A", .conceptDef "Same" 2 (.trait .isSame [.param 0, .param 1])
+  , .class "F"
+  , .functionTemplate { name := "operator()", head := [{ kind := .type }], params := [.param 0], ret := .named "int"
+                        scope := inClass "F", constraint := some (.conceptId "Same" [.param 0, .named "int"]) }
+  , .class "G"
+  , .functionTemplate { name := "operator()", head := [{ kind := .type }], params := [.param 0], ret := .named "int"
+                        scope := inClass "G", constraint := some (.trait .isInvocable [cF, .param 0]) } ]
+def traitInvocableObjectConstrained : Case :=
+  traitCase "trait_invocable_object_constrained" "meta.rel#3" callObjectConstrained .isInvocable [cF, .named "int"]
+def traitInvocableObjectConstrainedFails : Case :=
+  traitCase "trait_invocable_object_constrained_fails" "meta.rel#3" callObjectConstrained .isInvocable [cF, .named "A"]
+def traitInvocableObjectNested : Case :=
+  traitCase "trait_invocable_object_nested" "meta.rel#3" callObjectConstrained .isInvocable [.named "G", .named "int"]
+def traitInvocableObjectNestedFails : Case :=
+  traitCase "trait_invocable_object_nested_fails" "meta.rel#3" callObjectConstrained .isInvocable [.named "G", .named "A"]
+
+/-- `is_nothrow_invocable_v` of a class callee: `noexcept` on the call
+operator; not; `noexcept` but a by-value parameter whose copy may
+throw. -/
+private def callObjectNothrow : Program :=
+  [ .class "F", .function "operator()" [.named "int"] (inClass "F") .none (some true) (.named "int")
+  , .class "P", .function "operator()" [.named "int"] (inClass "P") .none none (.named "int") ]
+def traitNothrowInvocableObject : Case :=
+  traitCase "trait_nothrow_invocable_object" "meta.rel#3" callObjectNothrow .isNothrowInvocable [cF, .named "int"]
+def traitNothrowInvocableObjectPlain : Case :=
+  traitCase "trait_nothrow_invocable_object_plain" "meta.rel#3" callObjectNothrow .isNothrowInvocable
+    [.named "P", .named "int"]
+def traitNothrowInvocableObjectThrowingParameter : Case :=
+  traitCase "trait_nothrow_invocable_object_throwing_parameter" "except.spec#6"
+    (throwingCopy ++ [.class "F", .function "operator()" [cM] (inClass "F") .none (some true) (.named "int")])
+    .isNothrowInvocable [cF, .lref cM]
+
 /-- A trait the program answers, in a requires-clause:
 `template <class T> requires std::is_copy_constructible_v<T> void f(T);`
 at a class with a deleted copy constructor. -/
@@ -3033,6 +3123,13 @@ def cases : List Case :=
   , traitTriviallyDefaultConstructibleInit, traitTriviallyCopyConstructibleUserProvided
   , traitTriviallyDestructibleUserProvided, traitTriviallyDestructibleFlat
   , traitTriviallyMoveAssignableFlat, traitInvocableFunction, traitInvocableArity
+  , traitInvocableObject, traitInvocableObjectConstRef, traitInvocableObjectRvalue
+  , traitInvocableObjectArity, traitInvocableObjectExtra, traitInvocableObjectNoConversion
+  , traitInvocableObjectNone, traitInvocableObjectAmbiguous, traitInvocableObjectHidden
+  , traitInvocableObjectOwn, traitInvocableObjectInherited, traitInvocableObjectConstrained
+  , traitInvocableObjectConstrainedFails, traitInvocableObjectNested, traitInvocableObjectNestedFails
+  , traitNothrowInvocableObject, traitNothrowInvocableObjectPlain
+  , traitNothrowInvocableObjectThrowingParameter
   , traitConstraintCopyConstructible
   , traitPolymorphic, traitPolymorphicInherited, traitPolymorphicVirtualDestructor, traitAbstract
   , traitAbstractOverridden, traitAbstractHidden, traitAbstractHiddenOverride, traitAbstractPureDestructor
@@ -3117,11 +3214,12 @@ def computed (c : Case) : Option (Option (List (ParamIdx × Ty))) :=
 def computedCall (c : Case) : Option (Resolution Nat) :=
   computedCallWith (fun p a => Env.full p a) c
 
-/-- For a trait case, what the model computes: the trait's answer, which
-is never a hard error, read as a constraint reads it. -/
+/-- For a trait case, what the model computes: the trait's answer in the
+program's environment, which is never a hard error, read as a
+constraint reads it. -/
 def computedTrait (c : Case) : Option Bool :=
   match c.query with
-  | .trait tr as _ => some (c.program.trait tr as == .ok true)
+  | .trait tr as _ => some ((Env.full c.program c.atomics).atomic (.trait tr) as == .ok true)
   | _ => none
 
 /-- For a lookup case, what the model computes. -/

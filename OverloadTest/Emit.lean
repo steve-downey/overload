@@ -39,7 +39,8 @@ private def lookupsAgree (cs : List Case) : Bool :=
     | .lookup .., none => false
     | _, _ => true
 
-/-- Every trait case's stated expectation is what `Trait.answer` computes. -/
+/-- Every trait case's stated expectation is what the program's
+environment computes. -/
 private def traitsAgree (cs : List Case) : Bool :=
   cs.all fun c =>
     match c.query, computedTrait c with

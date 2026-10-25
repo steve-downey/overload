@@ -900,6 +900,17 @@ named so that a constraint written with it is visibly an assumption.
   initializations ([except.spec]/6); for a braced initialization the
   model answers softly, so `{ T{} } noexcept;` makes the
   requires-expression `false`.
+- 2026-10-25 — The class-callee residue of 2026-10-24 is closed.
+  `Env.fullWithin` answers `is_invocable` and `is_nothrow_invocable` of
+  a class callee one level down, as it answers a requires-expression:
+  the call on the object over the class's call operators
+  (`Program.objectInvoke`, [func.require]/1, [over.call.object]/1),
+  in the environment below (`Program.traitAbove`). The base
+  environment, `Env.ofProgram`, still answers it softly, so a trait of
+  a class callee nested deeper than the program is long is not
+  satisfied. Still residue: a class template specialization as callee,
+  whose members the fragment's search does not see, and surrogate call
+  functions ([over.call.object]/2).
 
 ---
 

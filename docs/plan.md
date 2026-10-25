@@ -536,8 +536,10 @@ Status, 15 October 2026:
   requires-expressions as judgements over those, with concept-ids
   normalized; the plan, the cross-reference against N5054 and the stages
   are [below](#phase-12-the-type-system-special-member-functions-and-traits).
-  `is_invocable` of a class callee waits on a later phase; its paragraph
-  is out of scope until then. The general value-nature theorem landed 25
+  `is_invocable` of a class callee landed 25 October 2026, answered by
+  the environment one level up as a requires-expression is
+  (`full_invocable_class`; the stage 4 status below), with
+  [func.require]/1 in scope. The general value-nature theorem landed 25
   October 2026 (`value_nature_iff`, `deletion_propagates`; the stage 3
   status below), and compound and nested requirements the same day
   (`compound_eq_simple_nested`; the stage 5 status below). Settles function-types, special-member-fragment,
@@ -591,9 +593,20 @@ Status, 15 October 2026:
   trait, so the environment a program defines answers traits from the
   program and `inheritance_erasure` takes the trait oracle as a
   parameter, the same on both sides, since `is_base_of` sees erasure.
-  `is_invocable` of a class callee is residue for now: the call on an
+  `is_invocable` of a class callee was residue for a day: the call on an
   object is resolved above the environment, and the trait would need the
-  environment that answers it. Stage 5, requires-expressions, landed the
+  environment that answers it. On 25 October 2026 `Env.fullWithin` took
+  it on as it takes a requires-expression, one level down
+  (`Program.traitAbove`, `objectInvoke` in `Overload/Requires.lean`):
+  `invocable_class_eq_member_requirement` is the trait as the
+  member-call requirement of `operator()`, `invocable_class_iff_call`
+  the trait as the call, `nothrow_invocable_class_invocable` the nothrow
+  form refining it, and `full_invocable_class` the environment's answer.
+  Eighteen emitted cases, a hidden and an inherited call operator, an
+  ambiguous call, a constrained call operator and one constrained on
+  the trait itself among them, agree with GCC 15 and Clang 24. What
+  stays with the residue is a class template specialization as callee
+  and surrogate call functions. Stage 5, requires-expressions, landed the
   same day: `Constraint.conceptId` and `Constraint.requires`,
   `Decl.conceptDef`, `Program.normalize` and `normalizeDecl` applied by
   `Program.call` to its candidates, `Overload/Requires.lean` with
@@ -825,6 +838,7 @@ its counterexample and is a finding, not a setback.
 | value-nature | For a class that declares no special member function, every defaulted special member is non-deleted exactly when no member, through class-typed members likewise, is of reference type or `const` type; a pointer member deletes nothing. Added 24 October 2026; proved for flat classes the same day (`value_nature_flat`), and in general on 25 October 2026 for every class whose special members are the rules' own through its subobjects (`value_nature_iff`). | 12 | 12 |
 | deletion-propagates | A member or base whose class has a deleted or inaccessible corresponding special member deletes the enclosing class's defaulted one, through any depth ([class.default.ctor]/2, [class.copy.ctor]/10, [class.copy.assign]/7, [class.dtor]/7). Added 24 October 2026; proved 25 October 2026 (`deletion_propagates`) for a subobject whose class's special members are the rules' own, the move kinds through the copy member's deletion since a deleted defaulted move member is not a candidate. | 12 |
 | compound-is-simple-nested | A compound-requirement with a return-type-requirement is the simple-requirement followed by the nested-requirement of the immediately-declared constraint for `decltype((E))`, and one without is the simple-requirement ([expr.prim.req.compound]/1, [temp.param]/9). Added 24 October 2026; proved 25 October 2026 (`compound_eq_simple_nested`, `compound_eq_simple`, `compound_invalid_eq_simple`). | 12 |
+| class-callee-invocable | `is_invocable` of a class callee is the member-call requirement of its `operator()`, and holds exactly where the call on the object is viable and well-formed ([meta.rel]/3, [func.require]/1, [over.call.object]/1); the environment one level above the program answers it, as it answers a requires-expression. Added and proved 25 October 2026 (`invocable_class_eq_member_requirement`, `invocable_class_iff_call`, `full_invocable_class`). | 12 |
 | trait-is-resolution | `is_constructible`, `is_assignable` and `is_convertible` are overload resolution over the class's constructors, assignment operators and conversions with the usable-candidate check, so a trait's answer is the call's ([meta.unary.prop]/9, [meta.rel]/6, [over.match.general]/4). Added 24 October 2026; proved the same day (`trait_is_resolution`, `is_convertible_eq_ics`). | 12 |
 | requires-soft-is-false | A requirement that fails in the immediate context makes the requires-expression `false`, checked in lexical order and stopping at the first decider; a failure outside it is a hard error ([expr.prim.req.general]/5). Added 24 October 2026; proved the same day (`requires_soft_is_false`, `requires_false_stops`, `requires_hard_stops`). | 12 |
 | copy-constraint-shields | A member constrained by copy-constructibility of its callable fails softly at a callable whose copy constructor is deleted, where the body's copy would be a hard error: the callable-copying rule as a theorem. Added 24 October 2026; proved the same day (`copy_constraint_shields`). | 12 |
@@ -1755,6 +1769,7 @@ name in N5054, with [class.mem.special] gone.
 | [meta.unary.prop]/5, the table | `is_const`; `is_trivially_copyable` and `is_standard_layout` by [basic.types.general]/7; `is_empty`: a non-union class with no non-static data members, no virtual members or bases, and every base empty; `is_default_constructible` and the copy and move forms as `is_constructible` with `const T&` and `T&&`; `is_assignable<T, U>`: `declval<T>() = declval<U>()` well-formed in the immediate context; `is_copy_assignable` and `is_move_assignable` from it; `is_destructible`; the `is_trivially_` forms: the trait holds and the operation is known to call nothing non-trivial. | `Program.trait` cases. `is_assignable` is `resolve` over `Program.assignments` of the class of `T` with the one argument, then `usable`; non-class assignment is an expression and stays with the residue. |
 | [meta.unary.prop]/9 | `is_constructible<T, Args...>` holds iff `T t(declval<Args>()...);` would be well-formed, access checked as from an unrelated context, only the immediate context considered. | `Program.constructible t args`: direct-initialization ([dcl.init.general]/14, `.direct`) resolved over `Program.constructors`, then `usable`. The model's access check is from an unrelated context already. |
 | [meta.rel]/3, the table | `is_same`: the same type with the same cv-qualification. `is_base_of`: a base class, private, protected or ambiguous included, or the same non-union class. `is_invocable<Fn, Args...>`: `INVOKE(declval<Fn>(), declval<Args>()...)` well-formed. | `is_same`: equality on `Ty`. `is_base_of`: `derives` or the same class, access ignored as the note says. `is_invocable`: the call on an object (`Overload/Members.lean`) for a class `Fn`, a direct call for a `Ty.fn`. |
+| [func.require]/1 | `INVOKE(f, t1, ..., tN)` is `f(t1, ..., tN)` when `f` is not a pointer to member. | `Program.objectInvoke`: for a class callee, the call on the object, over its call operators ([over.call.object]/1); answered by `Env.fullWithin` one level down, like a requires-expression. |
 | [meta.rel]/6 | `is_convertible<From, To>` holds iff `To test() { return declval<From>(); }` would be well-formed, access as from an unrelated context, the immediate context only. | `Program.convertible from to`: `p.ics .copy` from the argument `declval<From>()` yields, to `To`, a sequence that is not ambiguous and whose conversion is usable. A return is copy-initialization. |
 | [temp.constr.normal]/1 | The normal form of a concept-id `C<A...>` substitutes the arguments into `C`'s constraint-expression, then into the parameter mappings of the atoms; any other expression is an atomic constraint with the identity mapping. | `Constraint.conceptId name args`; `Program.normalize`, with `Decl.concept`'s body a `Constraint`. Concept-dependent constraints and folds are out. |
 | [temp.constr.atomic]/2, /3 | Identity of atomic constraints; satisfaction, with an invalid substitution in the immediate context as not satisfied. | In scope already. Identity of `.trait q m` and `.requires` is structural equality; `Program.satisfied` on them, soft to false. |
