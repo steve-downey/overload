@@ -101,7 +101,7 @@ $(document).ready(function(){initNavTree('md_docs_probes.html',''); initResizabl
 <div class="contents">
 <div class="textblock"><p>Three hand-written C++ probes, run on GCC 13.3 and Clang 18.1 with <code>-std=c++23</code>, before any Lean existed. Two produced compiler disagreements and one produced the counterexample the step-order suspect predicted. The sources are in <code>probes/</code>, and <code>make probes</code> (or <code>probes/run.sh g++-13 clang++-18</code>) reruns them and prints the table.</p>
 <p>The sources here are reconstructions from the plan's descriptions; the originals did not come with the plan. A reconstruction is accepted when it reproduces the plan's results table on the same compiler versions. Two cells did not reproduce at first and one still does not; both are recorded below.</p>
-<h1><a class="anchor" id="autotoc_md157"></a>
+<h1><a class="anchor" id="autotoc_md179"></a>
 Step-order probe</h1>
 <p>A candidate with a defaulted constant template parameter whose default performs an instance lookup, where the lookup fails with a <code>static_assert</code> for the argument type, alongside a second candidate that should win.</p>
 <table class="markdownTable">
@@ -133,7 +133,7 @@ Step-order probe</h1>
 <li><b>Two further soft routes.</b> An undefined primary template (B) is treated as a substitution failure by both, and a default function argument (E) is not instantiated unless the candidate is selected. E is relevant to the by-value explicit-instance route.</li>
 <li><b>The soft route of B depends on the spelling of the lookup</b> (reconstruction finding, 15 October 2026). B reproduces when the default names the class template's static member directly, <code>functor_instance&lt;T&gt;::value</code>: an undefined primary used there is an invalid expression in the immediate context. Routed through a variable template, <code>functor&lt;T&gt;</code> whose initializer is <code>functor_instance&lt;T&gt;::value</code>, the same undefined primary is a hard error on Clang, because the variable template specialization is a separate instantiation and its failure is outside the immediate context ([temp.deduct.general]/8 sentence 4). <code>probes/step_order_variable.cpp</code> keeps that variant. The modelled library looks up through a variable template, so for it only D and E are soft routes.</li>
 </ul>
-<h1><a class="anchor" id="autotoc_md158"></a>
+<h1><a class="anchor" id="autotoc_md180"></a>
 Tie-break probe</h1>
 <p>Two overloads where the second is more constrained, varying how the instance bound is written.</p>
 <table class="markdownTable">
@@ -155,7 +155,7 @@ Tie-break probe</h1>
 <li><b>B and D confirm the suspect.</b> A difference in parameter list length or in constant parameter type switches the tie-break off, and the more constrained overload loses to ambiguity.</li>
 <li><b>C is a compiler disagreement.</b> [temp.over.link]/6 says equivalence of constant parameters ignores type-constraints on placeholder types, which makes the parameters equivalent and the tie-break apply, so Clang matches the working draft. GCC 13 does not implement it either way.</li>
 </ul>
-<h1><a class="anchor" id="autotoc_md159"></a>
+<h1><a class="anchor" id="autotoc_md181"></a>
 Constant-argument conversion probe</h1>
 <p>A derived-class value supplied for a base-typed class-type constant template parameter.</p>
 <table class="markdownTable">
@@ -173,7 +173,7 @@ Constant-argument conversion probe</h1>
 <li><b>If Clang is right</b>, leak 4 under instance inheritance is live: a derived instance passed as a literal template argument silently becomes its base.</li>
 </ul>
 <p>The disagreements are what the test-oracle decision anticipated: each is filed against a sentence, not settled by majority, and MSVC and EDG should be consulted through Compiler Explorer on all three.</p>
-<h1><a class="anchor" id="autotoc_md160"></a>
+<h1><a class="anchor" id="autotoc_md182"></a>
 Who is right, 15 October 2026</h1>
 <p>Checked against the C++26 text at eel.is and the draft repository's history.</p>
 <table class="markdownTable">
@@ -187,7 +187,7 @@ Who is right, 15 October 2026</h1>
 <td class="markdownTableBodyNone">3. Derived value for a base-typed class constant parameter   </td><td class="markdownTableBodyNone">[temp.arg.nontype]/1 and /3 as rewritten by P2308R1 in November 2023: for class type T the argument must make <code>constexpr T v = A;</code> valid, and the paper states that no restrictions are imposed on the conversion to the constructor parameter. The converted-constant-expression rule now applies only to non-class types   </td><td class="markdownTableBodyNone">Clang is correct under C++26. GCC's diagnostic applies the pre-P2308 rule, which was the C++20 and C++23 text   </td><td class="markdownTableBodyNone">GCC bug report, after checking trunk. Whether P2308R1 applies as a defect report to earlier modes is a question for the report   </td></tr>
 </table>
 <p>Consequence for the model: leak 4 under instance inheritance is live under C++26. A derived instance supplied as a literal template argument for a base-typed constant parameter is sliced and identified with the base value. The obligation that instances are taken at their deduced exact type now covers constant parameters as well as function parameters.</p>
-<h1><a class="anchor" id="autotoc_md161"></a>
+<h1><a class="anchor" id="autotoc_md183"></a>
 Library probes</h1>
 <p>The probes in <code>probes/library/</code> check beman.transpose itself, not the model's reductions. Each line of <code>probes.txt</code> asks whether one call into the library is a valid expression. It is compiled as its own translation unit and classified as soft (not a valid expression, the clean answer), valid, or hard (checking the call is itself an error). <code>make probes-library BEMAN_TRANSPOSE_INCLUDE=dir</code> reruns them. The library needs deducing this: GCC 14 and Clang 19 are the oldest that compile it here, and Clang 18 crashes on it.</p>
 <p>They test two obligations from <a href="obligations.md#harvested">obligations</a>: that every member an instance exposes is accurate, and that an instance is visible wherever its lookup is used. The findings are in <a href="findings.md#about-the-library">findings</a>.</p>
@@ -232,7 +232,7 @@ Library probes</h1>
 <p>Both are conforming. The program is ill-formed with no diagnostic required ([temp.spec.partial.general]/1). GCC diagnoses it, and Clang keeps the first answer.</p>
 <p>Reported upstream as steve-downey/typeclass#6, #7, #10 to #14.</p>
 <p>Rerun at beman.transpose <code>5d248b9</code>, GCC 16 and Clang 23, on 22 October 2026, after the fixes for #10 to #14 and #17 to #20 and the header moves of #28 and #29. Every row of the table above answers soft, as required, except <code>kleisli&lt;optional&gt;(not_callable, not_callable)</code> and its member call, which still answer valid: the constraint still ends <code>|| true</code>. The optional and vector Functor instances, the <code>std::array</code> Applicative instance and the optional Monad's <code>bind</code> are constrained on the callable, and Foldable's and Monad's derived members on the caller's. The placement rows are unchanged. The library decided that an instance for a standard type is declared with the type, in <code>array.hpp</code>, <code>expected.hpp</code>, <code>sequence.hpp</code> and <code>simd.hpp</code> standing in for the standard headers, and that including the right one is the program's obligation; the umbrella header <code>beman/transpose.hpp</code>, now one level up, includes them all. <code>late_array.cpp</code> answers as before.</p>
-<h1><a class="anchor" id="autotoc_md162"></a>
+<h1><a class="anchor" id="autotoc_md184"></a>
 Algorithm probes</h1>
 <p>These ask what an algorithm written against a typeclass can rely on when it is handed an instance. <code>parametricity.txt</code> asks whether each member that accepts the concept's witness accepts the callables a user would pass. <code>algorithms.txt</code> asks which objects satisfy which concepts. Three runtime probes print what the library does with a second instance for one context (<code>coherence.cpp</code>), with instance state (<code>state.cpp</code>) and with a stateful callable (<code>callable_state.cpp</code>). <code>make probes-library</code> runs them all.</p>
 <p>Recorded at beman.transpose <code>30a707d</code>, GCC 16 and Clang 23, on 18 October</p><ol type="1">
