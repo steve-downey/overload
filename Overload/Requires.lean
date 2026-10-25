@@ -45,43 +45,110 @@ def validType (p : Program) (env : Env) : Ty → Subst Bool
   | .const t | .ptr t | .lref t | .rref t => p.validType env t
   | t => .ok t.concrete
 
-/-- Does a call over candidates hold as a requirement: generation that
-fails hard is a hard error, outside the immediate context; otherwise the
-call is viable and well-formed, or it is not. -/
-def callHolds (p : Program) (env : Env) (decls : List Decl) (args : List CallArg) : Subst Bool :=
+/-- What an expression requirement's expression is, once it is valid:
+`decltype((E))`, and whether `E` is potentially throwing, `none` where
+the fragment does not say. -/
+structure Expression where
+  ty : Ty
+  throwing : Option Bool := none
+  deriving Repr, DecidableEq, Inhabited
+
+/-- The expression a call over candidates is, as a requirement sees it:
+generation that fails hard is a hard error, outside the immediate
+context; a call that is viable and well-formed is an expression whose
+type is the selected function's return type, since a function call is
+an lvalue, an xvalue or a prvalue as its result type is a reference or
+not, so `decltype((E))` is that type; it is potentially throwing when
+the selected function is or the initialization of one of its parameters
+is. A call that is not viable or ill-formed is no expression. -/
+@[std rule "expr.call#15" "dcl.type.decltype#1" "except.spec#6"]
+def callExpression (p : Program) (env : Env) (decls : List Decl) (args : List CallArg) :
+    Subst (Option Expression) :=
   match generate .text env (decls.map p.normalizeDecl) args [] with
   | .hard r => .hard r
   | _ =>
     match p.call env decls args with
-    | .selected _ => .ok true
-    | _ => .ok false
+    | .selected c =>
+      let argsThrowing := (args.zip c.params).any fun (a, t) => p.initThrowing a t
+      match c.specialization with
+      | some sp => .ok (some { ty := sp.ret, throwing := some (sp.template.noexcept != some true || argsThrowing) })
+      | none =>
+        match decls[c.index]? with
+        | some d => .ok (some { ty := (d.ret?).getD (.named "void"), throwing := some (d.throwing || argsThrowing) })
+        | none => .ok (some { ty := .named "void" })
+    | _ => .ok none
 
-/-- Does one requirement hold, with its types already substituted? A
-simple-requirement is the call `callee(declval<args>()...)` at the end of
-the program, in the global scope; a member call is `declval<cls>()`'s
-call of a member; a type-requirement is a valid type. -/
-@[std rule "expr.prim.req.simple#1" "expr.prim.req.type#1"]
-def requirementHolds (p : Program) (env : Env) : Constraint.Requirement → Subst Bool
+/-- Does a call over candidates hold as a requirement: it is an
+expression. -/
+def callHolds (p : Program) (env : Env) (decls : List Decl) (args : List CallArg) : Subst Bool :=
+  (p.callExpression env decls args).map (·.isSome)
+
+/-- The expression an expression requirement is, with its types already
+substituted, if it is valid: a simple-requirement is the call
+`callee(declval<args>()...)` at the end of the program, in the global
+scope; a member call is `declval<cls>()`'s call of a member; `T{args}`
+is a prvalue of `T` when the braced initialization is well-formed,
+whether it is potentially throwing left unsaid. A type-requirement, a
+compound-requirement and a nested-requirement are not expressions. -/
+@[std rule "expr.prim.req.simple#1"]
+def expression (p : Program) (env : Env) : Constraint.Requirement → Subst (Option Expression)
   | .simple callee args =>
     match p.callCandidates p.length [] callee (args.map declval) with
-    | .selected fs => p.callHolds env fs (args.map declval)
-    | .illFormed _ | .noMatch | .ambiguous _ => .ok false
+    | .selected fs => p.callExpression env fs (args.map declval)
+    | .illFormed _ | .noMatch | .ambiguous _ => .ok none
   | .memberCall cls callee args =>
     match cls.referred.stripConst with
     | .named c =>
       match p.memberSearch p.length c callee with
-      | .selected ms => p.callHolds env (entities ms) (args.map declval)
-      | _ => .ok false
-    | _ => .ok false
-  | .type t => p.validType env t
+      | .selected ms => p.callExpression env (entities ms) (args.map declval)
+      | _ => .ok none
+    | _ => .ok none
   | .braceInit t as =>
-    if !(t :: as).all Ty.concrete then .soft "a braced initialization of a dependent type"
-    else if t.stripConst.isClass && !t.isRef then .ok (p.braceInit t.stripConst (as.map declval))
-    else
-      match as with
-      | [] => .ok (!t.isRef && !t.isVoid && !t.isFunction)
-      | [a] => .ok (match p.ics .copy (declval a) t with | none | some .ambiguous => false | some _ => true)
-      | _ => .ok false
+    let formed : Subst Bool :=
+      if !(t :: as).all Ty.concrete then .soft "a braced initialization of a dependent type"
+      else if t.stripConst.isClass && !t.isRef then .ok (p.braceInit t.stripConst (as.map declval))
+      else
+        match as with
+        | [] => .ok (!t.isRef && !t.isVoid && !t.isFunction)
+        | [a] => .ok (match p.ics .copy (declval a) t with | none | some .ambiguous => false | some _ => true)
+        | _ => .ok false
+    formed.map fun b => if b then some { ty := t } else none
+  | _ => .soft "the requirement is not an expression"
+
+/-- Does a nested-requirement hold: its constraint-expression, with the
+concept-ids expanded, is satisfied in the environment; not satisfied
+when a substitution into it fails. -/
+@[std rule "expr.prim.req.nested#1"]
+def nestedHolds (p : Program) (env : Env) (c : Constraint.NestedExpr) : Subst Bool :=
+  match Constraint.satisfied env.atomic [] (p.normalize c.toConstraint) with
+  | .soft _ => .ok false
+  | r => r
+
+/-- Does one requirement hold, with its types already substituted? An
+expression requirement holds when it is an expression; a
+type-requirement when its type is valid; a compound-requirement when its
+expression is one, is not potentially throwing if the noexcept-specifier
+is present, and the immediately-declared constraint of the
+type-constraint for `decltype((E))`, the concept applied to that type
+and then the trailing arguments, is satisfied, in that order; a
+nested-requirement when its constraint-expression is satisfied. -/
+@[std rule "expr.prim.req.simple#1" "expr.prim.req.type#1" "expr.prim.req.compound#1"
+  "expr.prim.req.nested#1" "temp.param#9"]
+def requirementHolds (p : Program) (env : Env) : Constraint.Requirement → Subst Bool
+  | .type t => p.validType env t
+  | .compound e tc ne =>
+    match p.expression env e with
+    | .hard r => .hard r
+    | .soft _ | .ok none => .ok false
+    | .ok (some x) =>
+      if ne && x.throwing != some false then
+        if x.throwing.isNone then .soft "whether the expression throws is outside the fragment" else .ok false
+      else
+        match tc with
+        | none => .ok true
+        | some (c, as) => p.nestedHolds env (.conceptId c (x.ty :: as))
+  | .nested c => p.nestedHolds env c
+  | e => (p.expression env e).map (·.isSome)
 
 /-- A requires-expression holds when each requirement does, checked in
 lexical order and stopping at the first that decides: an invalid one is
@@ -107,29 +174,47 @@ theorem member_requirement_iff_call (p : Program) (env : Env) (c f : String) (ar
       ∀ r, generate .text env ((entities ms).map p.normalizeDecl) (args.map Program.declval) [] ≠ .hard r) :
     p.requirementHolds env (.memberCall (.named c) f args) = .ok true ↔
       ∃ cand, p.memberCallAt env p.length c f (args.map Program.declval) = .selected cand := by
-  simp only [Program.requirementHolds, Ty.referred, Ty.stripConst, Program.memberCallAt]
+  simp only [Program.requirementHolds, Program.expression, Ty.referred, Ty.stripConst, Program.memberCallAt]
   cases hs : p.memberSearch p.length c f with
   | selected ms =>
-    simp only [Program.callHolds]
+    simp only [Program.callExpression]
     cases hg : generate .text env ((entities ms).map p.normalizeDecl) (args.map Program.declval) [] with
     | hard r => exact absurd hg (hgen ms hs r)
     | ok _ | soft _ =>
-      cases p.call env (entities ms) (args.map Program.declval) <;> simp
-  | illFormed _ | noMatch | ambiguous _ => simp
+      cases p.call env (entities ms) (args.map Program.declval) with
+      | selected cand =>
+        cases hsp : cand.specialization with
+        | some sp => simp [hsp, Subst.map]
+        | none => cases hd : (entities ms)[cand.index]? <;> simp [hsp, hd, Subst.map]
+      | _ => simp [Subst.map]
+  | illFormed _ | noMatch | ambiguous _ => simp [Subst.map]
 
 /-- The environment a program defines, with requires-expressions
-answered: the base environment, `Env.ofProgram`, decides the calls a
-requirement makes and the constraints of their candidates, so a
-requires-expression nested in those is answered softly, one level down. -/
+answered to a depth: at depth zero the base environment,
+`Env.ofProgram`, which answers a requires-expression softly; at each
+depth above, the environment below decides the calls a requirement
+makes and the constraints of their candidates, so a requires-expression
+nested in those, through a nested-requirement's concept or a
+candidate's constraint, is answered one level down. -/
+def Env.fullWithin (p : Program) (atomics : List (String × List Ty × Bool) := [])
+    (extra : Constraint.ExprOracle := fun e _ => .soft s!"unknown atomic constraint {e}")
+    (traits : Trait → List Ty → Subst Bool := p.trait) : Nat → Env
+  | 0 => Env.ofProgram p atomics extra traits
+  | depth + 1 =>
+    let below := Env.fullWithin p atomics extra traits depth
+    { below with
+      atomic := fun atom args =>
+        match atom with
+        | .requires reqs => p.requirementsHold below reqs
+        | _ => below.atomic atom args }
+
+/-- The environment a program defines, with requires-expressions
+answered as deep as the program can nest them: a concept names only
+concepts declared before it, so the program's length bounds the depth. -/
 def Env.full (p : Program) (atomics : List (String × List Ty × Bool) := [])
     (extra : Constraint.ExprOracle := fun e _ => .soft s!"unknown atomic constraint {e}")
     (traits : Trait → List Ty → Subst Bool := p.trait) : Env :=
-  let base := Env.ofProgram p atomics extra traits
-  { base with
-    atomic := fun atom args =>
-      match atom with
-      | .requires reqs => p.requirementsHold base reqs
-      | _ => base.atomic atom args }
+  Env.fullWithin p atomics extra traits p.length
 
 /-- A requires-expression is never a substitution failure of its own: an
 invalid requirement is `false`. -/
@@ -173,5 +258,78 @@ theorem requires_hard_stops (p : Program) (env : Env) (pre post : List Constrain
     have hr := hpre r (List.mem_cons_self ..)
     simp only [List.cons_append, Program.requirementsHold, hr]
     exact ih fun x hx => hpre x (List.mem_cons_of_mem _ hx)
+
+/-! ## Compound requirements as simple and nested ones -/
+
+/-- An expression requirement holds exactly when it is an expression. -/
+theorem requirementHolds_expression (p : Program) (env : Env) (E : Constraint.Requirement)
+    (hE : E.isExpression = true) :
+    p.requirementHolds env E = (p.expression env E).map (·.isSome) := by
+  cases E <;> simp_all [Program.requirementHolds, Constraint.Requirement.isExpression]
+
+/-- A requirement that is an expression is an expression requirement. -/
+theorem isExpression_of_expression (p : Program) (env : Env) (E : Constraint.Requirement) (x : Program.Expression)
+    (hE : p.expression env E = .ok (some x)) : E.isExpression = true := by
+  cases E <;> simp_all [Program.expression, Constraint.Requirement.isExpression]
+
+/-- A compound-requirement with a return-type-requirement, whose
+expression is one, is the simple-requirement followed by the
+nested-requirement of the immediately-declared constraint of the
+type-constraint for `decltype((E))`: `{ E } -> C<As...>;` is
+`E; requires C<decltype((E)), As...>;`, the paragraph's own
+equivalence. -/
+@[std theorem "expr.prim.req.compound#1"]
+theorem compound_eq_simple_nested (p : Program) (env : Env) (E : Constraint.Requirement) (x : Program.Expression)
+    (hE : p.expression env E = .ok (some x)) (C : String) (as : List Ty) (rest : List Constraint.Requirement) :
+    p.requirementsHold env (.compound E (some (C, as)) :: rest) =
+      p.requirementsHold env (E :: .nested (.conceptId C (x.ty :: as)) :: rest) := by
+  have hE' : p.requirementHolds env E = .ok true := by
+    rw [requirementHolds_expression p env E (isExpression_of_expression p env E x hE), hE]; rfl
+  simp only [Program.requirementsHold]
+  rw [hE']
+  simp only [Program.requirementHolds, hE, Bool.false_and, Bool.false_eq_true, ↓reduceIte]
+
+/-- A compound-requirement without a return-type-requirement or
+noexcept-specifier, `{ E };`, is the simple-requirement `E;`. -/
+@[std theorem "expr.prim.req.compound#1"]
+theorem compound_eq_simple (p : Program) (env : Env) (E : Constraint.Requirement)
+    (hE : E.isExpression = true) (rest : List Constraint.Requirement) :
+    p.requirementsHold env (.compound E :: rest) = p.requirementsHold env (E :: rest) := by
+  simp only [Program.requirementsHold]
+  rw [requirementHolds_expression p env E hE]
+  simp only [Program.requirementHolds]
+  cases p.expression env E with
+  | ok o => cases o <;> simp [Subst.map]
+  | soft r => simp [Subst.map]
+  | hard r => simp [Subst.map]
+
+/-- When the expression of a compound-requirement is not an expression,
+the compound-requirement decides as the simple-requirement does,
+whatever its noexcept-specifier and return-type-requirement: `false`
+for an invalid expression, the hard error for one outside the immediate
+context. -/
+@[std theorem "expr.prim.req.compound#1" "expr.prim.req.general#5"]
+theorem compound_invalid_eq_simple (p : Program) (env : Env) (E : Constraint.Requirement)
+    (hE : E.isExpression = true) (hx : ∀ x, p.expression env E ≠ .ok (some x))
+    (tc : Option (String × List Ty)) (ne : Bool) (rest : List Constraint.Requirement) :
+    p.requirementsHold env (.compound E tc ne :: rest) = p.requirementsHold env (E :: rest) := by
+  simp only [Program.requirementsHold]
+  rw [requirementHolds_expression p env E hE]
+  simp only [Program.requirementHolds]
+  cases h : p.expression env E with
+  | ok o =>
+    cases o with
+    | none => simp [Subst.map]
+    | some x => exact absurd h (hx x)
+  | soft r => simp [Subst.map]
+  | hard r => simp [Subst.map]
+
+/-- A compound-requirement with a noexcept-specifier does not hold when
+its expression is potentially throwing. -/
+@[std theorem "expr.prim.req.compound#1"]
+theorem compound_noexcept_throwing (p : Program) (env : Env) (E : Constraint.Requirement) (x : Program.Expression)
+    (hE : p.expression env E = .ok (some x)) (ht : x.throwing = some true) (tc : Option (String × List Ty)) :
+    p.requirementHolds env (.compound E tc true) = .ok false := by
+  simp [Program.requirementHolds, hE, ht]
 
 end Overload

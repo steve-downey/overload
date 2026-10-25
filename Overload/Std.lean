@@ -321,6 +321,8 @@ def inScope : List (String × Nat) :=
   , ("meta.rel", 3), ("meta.rel", 6)
   , ("temp.constr.normal", 1)
   , ("expr.prim.req.general", 5), ("expr.prim.req.simple", 1), ("expr.prim.req.type", 1)
+  , ("expr.prim.req.compound", 1), ("expr.prim.req.nested", 1), ("expr.call", 15)
+  , ("dcl.type.decltype", 1), ("temp.param", 9)
   -- Phase 13: semantic requirements, what satisfies and what models.
   , ("res.on.requirements", 1), ("res.on.requirements", 2), ("res.on.requirements", 3)
   , ("structure.requirements", 8)

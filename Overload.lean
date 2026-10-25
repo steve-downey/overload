@@ -85,6 +85,10 @@ is the map.
 #audit Overload.requires_false_stops
 #audit Overload.requires_hard_stops
 #audit Overload.member_requirement_iff_call
+#audit Overload.compound_eq_simple_nested
+#audit Overload.compound_eq_simple
+#audit Overload.compound_invalid_eq_simple
+#audit Overload.compound_noexcept_throwing
 
 -- Virtual functions, polymorphic and abstract classes.
 #audit Overload.virtual_destructor_inherited

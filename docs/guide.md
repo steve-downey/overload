@@ -202,9 +202,15 @@ traits structurally, and the environment a program defines answers them
 from the program. A `requires` constraint is a
 requires-expression, an atomic constraint of its own
 ([temp.constr.normal]/1): its requirements (`Requirement`: a call by
-callee and argument types, a call on an object of a class, or a type),
-with the bindings substituted into their types, go to the oracle as one
-`Atom`. A `conceptId` is what normalization expands; one left unexpanded
+callee and argument types, a call on an object of a class, a braced
+initialization, a type, a compound-requirement wrapping an expression
+requirement with an optional noexcept-specifier and
+return-type-requirement, or a nested-requirement), with the bindings
+substituted into their types, go to the oracle as one `Atom`. A
+nested-requirement's constraint-expression is a `Constraint.NestedExpr`,
+the forms of `Constraint` other than a requires-expression written in
+place, embedded by `toConstraint`: the two types would otherwise be
+mutually inductive. A `conceptId` is what normalization expands; one left unexpanded
 names no concept the program declares, and the environment answers it
 with a hard error. A clause element, `Atomic`, is an `Atom` with its
 mapping, and `Constraint.answer` reads one, substituting into the head
@@ -243,8 +249,9 @@ default` or `= delete`, and whether the parameter is a reference to
 `const`), class templates, a concept with a constraint for its body
 (`conceptDef`: name, arity, body over `Ty.param i`; the string-bodied
 `concept` stays for the emitted C++ the model reads as one atom),
-functions, function templates (`FunctionTemplate`: head, parameter types,
-default arguments, return type, associated constraint, Mandates), a
+functions (name, parameter types, scope, virtuality, noexcept-specifier
+and return type), function templates (`FunctionTemplate`: head, parameter
+types, default arguments, return type, associated constraint, Mandates), a
 variable template as `lookup` or `lookupHard` (a primary with a value, or
 one whose instantiation fails), its partial specializations as `instance`,
 a use of it, an object, a concept, and a user-defined conversion of a
@@ -655,27 +662,49 @@ resolved above the environment.
 ### Requires
 
 `Overload/Requires.lean`: requires-expressions, above the member call.
-`Program.requirementHolds` decides one requirement with its types
-substituted: a simple-requirement is the call `callee(declval<args>()...)`
-at the end of the program in the global scope, found by `callCandidates`
-and resolved by `Program.call`, a hard error in generation staying hard
-and anything else viable or not; a member call likewise through
-`memberSearch`; a type-requirement is `validType`, a template-id whose
-arguments match its template's head and whose defaults form, by
-`explicitStep` and `defaultsStep`, a declared or fundamental class name,
-or any other concrete type; the simple requirement `T{args};` is
-`Program.braceInit` for a class and the one conversion for a scalar or a
-reference. `Program.requirementsHold` checks a
+`Program.expression` is what an expression requirement's expression is,
+once valid: for the call `callee(declval<args>()...)` at the end of the
+program in the global scope, found by `callCandidates` and resolved by
+`Program.call` (`callExpression`), a hard error in generation staying
+hard, the expression whose type is the selected function's return type,
+`decltype((E))` by [expr.call]/15 and [dcl.type.decltype]/1, potentially
+throwing when the function is or a parameter's initialization is
+([except.spec]/6); a member call likewise through `memberSearch`; the
+braced initialization `T{args}`, `Program.braceInit` for a class and the
+one conversion for a scalar or a reference, a prvalue of `T` whose
+throwing is left unsaid. `Program.requirementHolds` decides one
+requirement with its types substituted: an expression requirement holds
+when it is an expression; a type-requirement is `validType`, a
+template-id whose arguments match its template's head and whose
+defaults form, by `explicitStep` and `defaultsStep`, a declared or
+fundamental class name, or any other concrete type; a
+compound-requirement holds when its expression is one, is not
+potentially throwing if the noexcept-specifier is present, and the
+immediately-declared constraint of its type-constraint for
+`decltype((E))` ([temp.param]/9), the concept applied to that type and
+the trailing arguments, is satisfied (`nestedHolds`); a
+nested-requirement when its constraint-expression, normalized, is
+satisfied in the environment. `compound_eq_simple_nested` is the
+paragraph's equivalence, `{ E } -> C<As...>;` as
+`E; requires C<decltype((E)), As...>;`, `compound_eq_simple` the form
+without a return-type-requirement, `compound_invalid_eq_simple` an
+invalid expression deciding as the simple-requirement would, and
+`compound_noexcept_throwing` the noexcept-specifier refusing a throwing
+expression. `Program.requirementsHold` checks a
 requires-expression's requirements in lexical order and stops at the
 first that decides, an invalid one making it `false`
 ([expr.prim.req.general]/5): `requires_soft_is_false`,
 `requires_false_stops`, `requires_hard_stops`; and a requirement calling
 a member holds exactly where the member call is viable and well-formed
 (`member_requirement_iff_call`). `Env.full` is the
-program's environment with requires-expressions answered; the base
-environment, `Env.ofProgram`, decides the calls a requirement makes and
-their candidates' constraints, so a requires-expression nested in those
-is answered softly, one level down. The emitters compute their cases in
+program's environment with requires-expressions answered to the
+program's depth (`Env.fullWithin`): at each depth the environment below
+decides the calls a requirement makes and their candidates'
+constraints, so a requires-expression nested in those, through a
+nested-requirement's concept or a candidate's constraint, is answered
+one level down, and the base environment, `Env.ofProgram`, answers a
+requires-expression softly, so a requires-expression nested deeper than
+the program is long is `false`. The emitters compute their cases in
 `Env.full`.
 
 ### Models
@@ -1118,7 +1147,9 @@ declared in a namespace is named by
 its qualified name wherever a type mentions it, a call case carries the
 scope it is written in, and the functions the call resolves over are
 numbered by entity in the lookup's order; a declaration of the callee's
-name lookup does not find gets a `hidden<j>` return type. A
+name lookup does not find gets a `hidden<j>` return type, and any other
+function its declared return type, so a compound requirement on it sees
+the type the model gives it. A
 `memberCall` query is `obj.f(args)` on an object of a class, and a
 `dependentCall` query instantiates the dependent call declared at a
 position, rendered as a template whose trailing return type names the

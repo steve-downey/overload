@@ -196,6 +196,38 @@ def head (h : Head) : String :=
     | none => decl
   s!"template <{String.intercalate ", " ps}>"
 
+/-- A nested constraint-expression, spelled as a constraint is. -/
+def nestedExpr : Constraint.NestedExpr → String
+  | .trait q m => s!"{q.spelling}<{String.intercalate ", " (m.map ty)}>"
+  | .conceptId n as => s!"{n}<{String.intercalate ", " (as.map ty)}>"
+  | .atomic e m =>
+    if e.startsWith "!" then s!"(!{e.drop 1}<{String.intercalate ", " (m.map ty)}>)"
+    else s!"{e}<{String.intercalate ", " (m.map ty)}>"
+  | .conj l r => s!"({nestedExpr l} && {nestedExpr r})"
+  | .disj l r => s!"({nestedExpr l} || {nestedExpr r})"
+
+/-- The expression of an expression requirement, without its `;`. -/
+def expression : Constraint.Requirement → String
+  | .simple f as => s!"{f}({declvals as})"
+  | .memberCall c f as => s!"std::declval<{ty c}>().{f}({declvals as})"
+  | .braceInit t as => s!"{ty t}\{{declvals as}}"
+  | _ => "/* not an expression */"
+where
+  declvals (as : List Ty) : String := String.intercalate ", " (as.map fun a => s!"std::declval<{ty a}>()")
+
+/-- A requirement of a requires-expression. -/
+def requirement : Constraint.Requirement → String
+  | .type t => s!"typename {ty t};"
+  | .compound e tc ne =>
+    let noexceptText := if ne then " noexcept" else ""
+    let returnText := match tc with
+      | some (c, []) => s!" -> {c}"
+      | some (c, as) => s!" -> {c}<{String.intercalate ", " (as.map ty)}>"
+      | none => ""
+    s!"\{ {expression e} }{noexceptText}{returnText};"
+  | .nested c => s!"requires {nestedExpr c};"
+  | e => s!"{expression e};"
+
 /-- A constraint as a requires-clause. `has_instance` and `lookup_formed`
 are spelled out as conditions on the lookup variable; any other atomic
 constraint is a concept-id, which the case's prelude or program must
@@ -206,14 +238,7 @@ def constraint : Constraint → String
   | .atomic "lookup_formed" [.named c, a] => s!"(sizeof(decltype({c}<{ty a}>)) > 0)"
   | .trait q m => s!"{q.spelling}<{String.intercalate ", " (m.map ty)}>"
   | .conceptId n as => s!"{n}<{String.intercalate ", " (as.map ty)}>"
-  | .requires reqs _ =>
-    let declvals (as : List Ty) := String.intercalate ", " (as.map fun a => s!"std::declval<{ty a}>()")
-    let reqText : Constraint.Requirement → String
-      | .simple f as => s!"{f}({declvals as});"
-      | .memberCall c f as => s!"std::declval<{ty c}>().{f}({declvals as});"
-      | .type t => s!"typename {ty t};"
-      | .braceInit t as => s!"{ty t}\{{declvals as}};"
-    s!"requires \{ {String.intercalate " " (reqs.map reqText)} }"
+  | .requires reqs _ => s!"requires \{ {String.intercalate " " (reqs.map requirement)} }"
   | .atomic e m =>
     if e.startsWith "!" then s!"(!{e.drop 1}<{String.intercalate ", " (m.map ty)}>)"
     else s!"{e}<{String.intercalate ", " (m.map ty)}>"
@@ -337,16 +362,19 @@ def inScope (s : Scope) (text : String) : String :=
 `ret k` when `index` gives it `k`, the position of its entity among the
 declarations the call's lookup finds; `hidden<j>` for a function of the
 callee's name lookup does not find, so that hidden overloads keep
-distinct types; `void` otherwise. -/
+distinct types; the declared return type otherwise, `void` when none
+was declared, so that a compound requirement on another function sees
+the type the model gives it. -/
 def returnTypes (p : Program) (callee : String) (ret : Nat → Head → String)
     (index : Decl → Option Nat) : Array String := Id.run do
   let mut rs := #[]
   let mut hidden := 0
   for d in p do
-    let (name, h) := match d with
-      | .function n _ _ _ _ => (some n, [])
-      | .functionTemplate ft => (some ft.name, ft.head)
-      | _ => (none, [])
+    let (name, h, declared) := match d with
+      | .function n _ _ _ _ r => (some n, [], ty r)
+      | .functionTemplate ft => (some ft.name, ft.head,
+          match ft.ret with | .enableIf _ _ inner => ty inner | r => ty r)
+      | _ => (none, [], "")
     match name with
     | none => rs := rs.push ""
     | some n =>
@@ -356,7 +384,7 @@ def returnTypes (p : Program) (callee : String) (ret : Nat → Head → String)
         if n = callee then
           rs := rs.push s!"hidden<{hidden}>"
           hidden := hidden + 1
-        else rs := rs.push "void"
+        else rs := rs.push declared
   return rs
 
 /-- The spelling of a function's virtuality: `virtual` before the
@@ -372,7 +400,7 @@ def virtText : Virt → String × String
 type `r`, a member when `cv` is ` const`, with its virtuality spelled. -/
 def functionText (d : Decl) (r : String) (cv : String := "") : String :=
   match d with
-  | .function n ps _ v ne =>
+  | .function n ps _ v ne _ =>
     let (pre, post) := virtText v
     s!"{pre}{r} {n}({params ps}){cv}{noexceptText ne}{post};\n"
   | .functionTemplate ft =>
@@ -582,17 +610,30 @@ def qualifyParam (q : List (String × String)) (tp : TemplateParam) : TemplatePa
       | .const t => .const (qualifyTy q t)
     default := tp.default.map (qualifyTy q) }
 
+/-- Qualify the types a nested constraint-expression maps. -/
+def qualifyNested (q : List (String × String)) : Constraint.NestedExpr → Constraint.NestedExpr
+  | .atomic e ts => .atomic e (ts.map (qualifyTy q))
+  | .trait tr ts => .trait tr (ts.map (qualifyTy q))
+  | .conceptId n ts => .conceptId n (ts.map (qualifyTy q))
+  | .conj a b => .conj (qualifyNested q a) (qualifyNested q b)
+  | .disj a b => .disj (qualifyNested q a) (qualifyNested q b)
+
+/-- Qualify the types of a requirement. -/
+def qualifyRequirement (q : List (String × String)) : Constraint.Requirement → Constraint.Requirement
+  | .simple f as => .simple f (as.map (qualifyTy q))
+  | .memberCall c f as => .memberCall (qualifyTy q c) f (as.map (qualifyTy q))
+  | .type t => .type (qualifyTy q t)
+  | .braceInit t as => .braceInit (qualifyTy q t) (as.map (qualifyTy q))
+  | .compound e tc ne =>
+    .compound (qualifyRequirement q e) (tc.map fun (c, as) => (c, as.map (qualifyTy q))) ne
+  | .nested c => .nested (qualifyNested q c)
+
 /-- Qualify the types a constraint maps. -/
 def qualifyConstraint (q : List (String × String)) : Constraint → Constraint
   | .atomic e ts => .atomic e (ts.map (qualifyTy q))
   | .trait tr ts => .trait tr (ts.map (qualifyTy q))
   | .conceptId n ts => .conceptId n (ts.map (qualifyTy q))
-  | .requires reqs ts =>
-    .requires (reqs.map fun
-      | .simple f as => .simple f (as.map (qualifyTy q))
-      | .memberCall c f as => .memberCall (qualifyTy q c) f (as.map (qualifyTy q))
-      | .type t => .type (qualifyTy q t)
-      | .braceInit t as => .braceInit (qualifyTy q t) (as.map (qualifyTy q))) (ts.map (qualifyTy q))
+  | .requires reqs ts => .requires (reqs.map (qualifyRequirement q)) (ts.map (qualifyTy q))
   | .conj a b => .conj (qualifyConstraint q a) (qualifyConstraint q b)
   | .disj a b => .disj (qualifyConstraint q a) (qualifyConstraint q b)
 
@@ -600,7 +641,7 @@ def qualifyConstraint (q : List (String × String)) : Constraint → Constraint
 def qualifyDecl (q : List (String × String)) : Decl → Decl
   | .class n bs ps s => .class n (bs.map (qualifyTy q)) (ps.map (qualifyTy q)) s
   | .classTemplate n h s => .classTemplate n (h.map (qualifyParam q)) s
-  | .function n ps s v ne => .function n (ps.map (qualifyTy q)) s v ne
+  | .function n ps s v ne r => .function n (ps.map (qualifyTy q)) s v ne (qualifyTy q r)
   | .functionTemplate ft =>
     .functionTemplate { ft with head := ft.head.map (qualifyParam q), params := ft.params.map (qualifyTy q)
                                 ret := qualifyTy q ft.ret, constraint := ft.constraint.map (qualifyConstraint q)
@@ -2826,6 +2867,52 @@ def requiresTypeHolds : Case :=
     atomics := nonclassTable
     source := "computed by Program.call" }
 
+/-- `int g(A); B k(A) noexcept;` with the concept `Same` and the concepts
+`ReturnsInt = requires { { g(declval<T>()) } -> Same<int>; }`,
+`ReturnsA = requires { { g(declval<T>()) } -> Same<A>; }`,
+`NothrowK = requires { { k(declval<T>()) } noexcept; }`,
+`NothrowG = requires { { g(declval<T>()) } noexcept; }`,
+`IsA = requires { requires Same<T, A>; }`,
+`HasG = requires { g(declval<T>()); }` and
+`Wraps = requires { requires HasG<T>; }`, each constraining an `f`. -/
+private def compoundRequirements (c : Constraint) : Program :=
+  [ .class "A", .class "B"
+  , .function "g" [.named "A"] [] .none none (.named "int")
+  , .function "k" [.named "A"] [] .none (some true) (.named "B")
+  , .conceptDef "Same" 2 (.trait .isSame [.param 0, .param 1])
+  , .conceptDef "ReturnsInt" 1
+      (.requires [.compound (.simple "g" [.param 0]) (some ("Same", [.named "int"]))] [.param 0])
+  , .conceptDef "ReturnsA" 1
+      (.requires [.compound (.simple "g" [.param 0]) (some ("Same", [.named "A"]))] [.param 0])
+  , .conceptDef "NothrowK" 1 (.requires [.compound (.simple "k" [.param 0]) none true] [.param 0])
+  , .conceptDef "NothrowG" 1 (.requires [.compound (.simple "g" [.param 0]) none true] [.param 0])
+  , .conceptDef "IsA" 1 (.requires [.nested (.conceptId "Same" [.param 0, .named "A"])] [.param 0])
+  , .conceptDef "HasG" 1 (.requires [.simple "g" [.param 0]] [.param 0])
+  , .conceptDef "Wraps" 1 (.requires [.nested (.conceptId "HasG" [.param 0])] [.param 0])
+  , constrainedBy c ]
+private def compoundCase (name : String) (c : String) (concept : String) (arg : String)
+    (expected : Resolution Nat) : Case :=
+  { name, cite := cite c, program := compoundRequirements (.conceptId concept [.param 0])
+    query := .call "f" [{ ty := .named arg }] expected, source := "computed by Program.call" }
+def requiresCompoundReturnHolds : Case :=
+  compoundCase "requires_compound_return_holds" "expr.prim.req.compound#1" "ReturnsInt" "A" (.selected 0)
+def requiresCompoundReturnFails : Case :=
+  compoundCase "requires_compound_return_fails" "expr.prim.req.compound#1" "ReturnsA" "A" .noMatch
+def requiresCompoundInvalid : Case :=
+  compoundCase "requires_compound_invalid" "expr.prim.req.general#5" "ReturnsInt" "B" .noMatch
+def requiresCompoundNoexceptHolds : Case :=
+  compoundCase "requires_compound_noexcept_holds" "expr.prim.req.compound#1" "NothrowK" "A" (.selected 0)
+def requiresCompoundNoexceptFails : Case :=
+  compoundCase "requires_compound_noexcept_fails" "expr.prim.req.compound#1" "NothrowG" "A" .noMatch
+def requiresNestedHolds : Case :=
+  compoundCase "requires_nested_holds" "expr.prim.req.nested#1" "IsA" "A" (.selected 0)
+def requiresNestedFails : Case :=
+  compoundCase "requires_nested_fails" "expr.prim.req.nested#1" "IsA" "B" .noMatch
+def requiresNestedConceptHolds : Case :=
+  compoundCase "requires_nested_concept_holds" "expr.prim.req.nested#1" "Wraps" "A" (.selected 0)
+def requiresNestedConceptFails : Case :=
+  compoundCase "requires_nested_concept_fails" "expr.prim.req.nested#1" "Wraps" "B" .noMatch
+
 /-- Lexical order: `requires { g(declval<T>()); typename S<T>; }` at `A`
 holds at the call and is `false` at the type, which is checked second;
 neither makes the program ill-formed. -/
@@ -2973,6 +3060,9 @@ def cases : List Case :=
   , conceptDefaultInitializableAggregate
   , conceptRefinementSubsumes, conceptRefinementUnsatisfied, requiresCallHolds, requiresCallFails
   , requiresMemberHolds, requiresMemberFails, requiresTypeFails, requiresTypeHolds, requiresOrder
+  , requiresCompoundReturnHolds, requiresCompoundReturnFails, requiresCompoundInvalid
+  , requiresCompoundNoexceptHolds, requiresCompoundNoexceptFails, requiresNestedHolds, requiresNestedFails
+  , requiresNestedConceptHolds, requiresNestedConceptFails
   , conceptCopyConstructibleRefines, conceptMoveOnly ]
 
 /-- Bindings in head order, for comparison. -/
