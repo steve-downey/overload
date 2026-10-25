@@ -95,7 +95,8 @@ def commonPrelude : String :=
   "template <auto V> struct value_of {};\n" ++
   "template <class T> struct instance_of {};\n" ++
   "template <const auto &R> struct ref_of {};\n" ++
-  "template <int J> struct hidden {};\n"
+  "template <int J> struct hidden {};\n" ++
+  "template <class T> T may_throw();\n"
 
 /-- The default fixture of a case: `selected<K>` with no members. -/
 def defaultPrelude : String := "template <int K> struct selected {};\n"
@@ -177,7 +178,7 @@ partial def ty : Ty → String
   | .removeCvref t => s!"std::remove_cvref_t<{ty t}>"
   | .typeOf t => s!"std::remove_cvref_t<decltype({ty t})>"
   | .enableIf c as t => s!"std::enable_if_t<{c}<{argList as}>, {ty t}>"
-  | .fn ps r => s!"{ty r}({argList ps})"
+  | .fn ps r ne => s!"{ty r}({argList ps}){if ne then " noexcept" else ""}"
 where
   argList (as : Ty) : String :=
     match as.toList with
@@ -277,6 +278,12 @@ def expectedDeduced (h : Head) (σ : Bindings) : String :=
     | none => "void"
   s!"deduced<{String.intercalate ", " parts}>"
 
+/-- The spelling of a noexcept-specifier: nothing for none. -/
+def noexceptText : Option Bool → String
+  | none => ""
+  | some true => " noexcept"
+  | some false => " noexcept(false)"
+
 /-- A function template's body: a declaration only, or, with Mandates, a
 definition whose `static_assert` checks them when it is instantiated. -/
 def body (ft : FunctionTemplate) (ret : String) : String :=
@@ -292,9 +299,10 @@ and is spelled as a trailing return type: the model substitutes the
 return type after the parameters, which is the lexical order
 ([temp.deduct.general]/7) of a trailing return type. -/
 def declarator (ft : FunctionTemplate) (r : String) (ps : String) (cv : String := "") : String :=
+  let ne := noexceptText ft.noexcept
   match ft.ret with
-  | .enableIf c as _ => s!"auto {ft.name}({ps}){cv} -> {ty (.enableIf c as (.named r))}"
-  | _ => s!"{r} {ft.name}({ps}){cv}"
+  | .enableIf c as _ => s!"auto {ft.name}({ps}){cv}{ne} -> {ty (.enableIf c as (.named r))}"
+  | _ => s!"{r} {ft.name}({ps}){cv}{ne}"
 
 /-- Does any function template of the program have Mandates? -/
 def hasMandates (p : Program) : Bool :=
@@ -332,7 +340,7 @@ def returnTypes (p : Program) (callee : String) (ret : Nat → Head → String)
   let mut hidden := 0
   for d in p do
     let (name, h) := match d with
-      | .function n _ _ _ => (some n, [])
+      | .function n _ _ _ _ => (some n, [])
       | .functionTemplate ft => (some ft.name, ft.head)
       | _ => (none, [])
     match name with
@@ -360,9 +368,9 @@ def virtText : Virt → String × String
 type `r`, a member when `cv` is ` const`, with its virtuality spelled. -/
 def functionText (d : Decl) (r : String) (cv : String := "") : String :=
   match d with
-  | .function n ps _ v =>
+  | .function n ps _ v ne =>
     let (pre, post) := virtText v
-    s!"{pre}{r} {n}({params ps}){cv}{post};\n"
+    s!"{pre}{r} {n}({params ps}){cv}{noexceptText ne}{post};\n"
   | .functionTemplate ft =>
     let req := match ft.constraint with
       | some c => s!"\n    requires {constraint c}"
@@ -404,7 +412,7 @@ def specialsText (n : String) (ss : List SmfDecl) : String :=
         | .deleted, _ => " = delete;"
         | .userProvided, .copyAssign | .userProvided, .moveAssign => " { return *this; }"
         | .userProvided, _ => " {}"
-    s!"    {head}{body}\n")
+    s!"    {head}{noexceptText s.noexcept}{body}\n")
 
 /-- The user-defined conversions of a class, as member declarations in its
 body. A converting constructor is defined, with an empty body, so that it
@@ -417,12 +425,12 @@ the implicit one ([class.default.ctor]/1). -/
 def conversionsText (p : Program) (i : Nat) (n : String) (convs : List UserConv) : String :=
   let keyword (e : Bool) := if e then "explicit " else ""
   String.join (convs.map fun
-    | .constructor param e =>
-      if completeBefore p i param then s!"    {keyword e}constexpr {n}({ty param}) \{}\n"
-      else s!"    {keyword e}constexpr {n}({ty param});\n"
-    | .function t e c =>
+    | .constructor param e ne =>
+      if completeBefore p i param then s!"    {keyword e}constexpr {n}({ty param}){noexceptText ne} \{}\n"
+      else s!"    {keyword e}constexpr {n}({ty param}){noexceptText ne};\n"
+    | .function t e c ne =>
       let body := if completeBefore p i t then " { return {}; }" else ";"
-      s!"    {keyword e}constexpr operator {ty t}(){if c then " const" else ""}{body}\n")
+      s!"    {keyword e}constexpr operator {ty t}(){if c then " const" else ""}{noexceptText ne}{body}\n")
 
 /-- The declarations of a program, as C++, each in its namespaces, with
 the members of a class in its body. -/
@@ -460,7 +468,7 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
         text := s!"struct {n}{inherit} \{};\n"
       else
         let fields := String.join (data.map fun m =>
-          let init := if m.init then " {}" else ""
+          let init := if !m.init then "" else if m.throwingInit then s!" = may_throw<{ty m.ty}>()" else " {}"
           s!"    {ty m.ty} {m.name}{init};\n")
         let body := String.join (members.map fun (m, j) =>
           "    " ++ (functionText m (rs.getD j "void") " const").replace "\n    " "\n        ")
@@ -560,7 +568,7 @@ partial def qualifyTy (q : List (String × String)) : Ty → Ty
   | .removeCvref t => .removeCvref (qualifyTy q t)
   | .typeOf t => .typeOf (qualifyTy q t)
   | .enableIf c as t => .enableIf c (qualifyTy q as) (qualifyTy q t)
-  | .fn ps r => .fn (qualifyTy q ps) (qualifyTy q r)
+  | .fn ps r ne => .fn (qualifyTy q ps) (qualifyTy q r) ne
   | t => t
 
 /-- Qualify the types of a template parameter. -/
@@ -587,7 +595,7 @@ def qualifyConstraint (q : List (String × String)) : Constraint → Constraint
 def qualifyDecl (q : List (String × String)) : Decl → Decl
   | .class n bs ps s => .class n (bs.map (qualifyTy q)) (ps.map (qualifyTy q)) s
   | .classTemplate n h s => .classTemplate n (h.map (qualifyParam q)) s
-  | .function n ps s v => .function n (ps.map (qualifyTy q)) s v
+  | .function n ps s v ne => .function n (ps.map (qualifyTy q)) s v ne
   | .functionTemplate ft =>
     .functionTemplate { ft with head := ft.head.map (qualifyParam q), params := ft.params.map (qualifyTy q)
                                 ret := qualifyTy q ft.ret, constraint := ft.constraint.map (qualifyConstraint q)
@@ -601,8 +609,8 @@ def qualifyDecl (q : List (String × String)) : Decl → Decl
   | .semantic c law => .semantic c law
   | .converting c conv =>
     .converting (qualifyTy q c) (match conv with
-      | .constructor param e => .constructor (qualifyTy q param) e
-      | .function t e c => .function (qualifyTy q t) e c)
+      | .constructor param e ne => .constructor (qualifyTy q param) e ne
+      | .function t e c ne => .function (qualifyTy q t) e c ne)
   | d => d
 
 /-- Qualify the types of a case, program and query alike. -/
@@ -2420,6 +2428,126 @@ def traitConvertibleToAbstractReference : Case :=
   traitCase "trait_convertible_to_abstract_reference" "class.abstract#3" overridden .isConvertible
     [cD, .lref (.const cB)]
 
+/-! ### Exception specifications -/
+
+/-- `struct M { ~M() noexcept(false) {} };` and `struct X { M m; };`. -/
+private def throwingDtor : Program := [.class "M", .special cM { kind := .dtor, noexcept := some false }]
+private def throwingDtorMember : Program := throwingDtor ++ [.class "X", .member cX { name := "m", ty := cM }]
+/-- `struct X { int x; };` -/
+private def intMember : Program := [.class "X", .member cX { name := "x", ty := .named "int" }]
+/-- `struct M { M(const M&) {} };` and `struct X { M m; };`: a user-provided
+copy constructor without a specifier. -/
+private def throwingCopy : Program := [.class "M", .special cM { kind := .copyCtor }]
+private def throwingCopyMember : Program := throwingCopy ++ [.class "X", .member cX { name := "m", ty := cM }]
+
+/-- `is_nothrow_destructible_v`: `noexcept(false)` on the destructor; the
+member's destructor propagates; a flat class is non-throwing; a declared
+`noexcept` overrides what the member would propagate; and `M` is still
+destructible. -/
+def traitNothrowDestructibleThrowing : Case :=
+  traitCase "trait_nothrow_destructible_throwing" "except.spec#4" throwingDtor .isNothrowDestructible [cM]
+def traitNothrowDestructibleMember : Case :=
+  traitCase "trait_nothrow_destructible_member" "except.spec#8" throwingDtorMember .isNothrowDestructible [cX]
+def traitNothrowDestructibleFlat : Case :=
+  traitCase "trait_nothrow_destructible_flat" "except.spec#8" classA .isNothrowDestructible [.named "A"]
+def traitNothrowDestructibleDeclared : Case :=
+  traitCase "trait_nothrow_destructible_declared" "except.spec#4"
+    (throwingDtorMember ++ [.special cX { kind := .dtor, noexcept := some true }]) .isNothrowDestructible [cX]
+def traitDestructibleThrowing : Case :=
+  traitCase "trait_destructible_throwing" "meta.unary.prop#5" throwingDtor .isDestructible [cM]
+
+/-- `is_nothrow_default_constructible_v`: a user-provided constructor
+without a specifier is potentially throwing; a flat class is not; a
+default member initializer that may throw is; a member whose default
+constructor may throw is. -/
+def traitNothrowDefaultConstructibleUserProvided : Case :=
+  traitCase "trait_nothrow_default_constructible_user_provided" "except.spec#4"
+    [.class "X", .special cX { kind := .defaultCtor }] .isNothrowDefaultConstructible [cX]
+def traitNothrowDefaultConstructibleFlat : Case :=
+  traitCase "trait_nothrow_default_constructible_flat" "except.spec#7" intMember .isNothrowDefaultConstructible [cX]
+def traitNothrowDefaultConstructibleThrowingInit : Case :=
+  traitCase "trait_nothrow_default_constructible_throwing_init" "except.spec#7"
+    [.class "X", .member cX { name := "x", ty := .named "int", init := true, throwingInit := true }]
+    .isNothrowDefaultConstructible [cX]
+def traitNothrowDefaultConstructibleMember : Case :=
+  traitCase "trait_nothrow_default_constructible_member" "except.spec#7"
+    [ .class "M", .special cM { kind := .defaultCtor }, .class "X", .member cX { name := "m", ty := cM } ]
+    .isNothrowDefaultConstructible [cX]
+
+/-- `is_nothrow_copy_constructible_v` and the move form: a member's
+user-provided copy constructor propagates; with `noexcept` on it the
+enclosing class is non-throwing; the move constructor of the enclosing
+class selects the member's copy constructor, since the member declares
+no move, and is potentially throwing. -/
+def traitNothrowCopyConstructibleMember : Case :=
+  traitCase "trait_nothrow_copy_constructible_member" "except.spec#7" throwingCopyMember
+    .isNothrowCopyConstructible [cX]
+def traitNothrowCopyConstructibleDeclared : Case :=
+  traitCase "trait_nothrow_copy_constructible_declared" "except.spec#7"
+    [ .class "M", .special cM { kind := .copyCtor, noexcept := some true }
+    , .class "X", .member cX { name := "m", ty := cM } ] .isNothrowCopyConstructible [cX]
+def traitNothrowMoveConstructibleThroughCopy : Case :=
+  traitCase "trait_nothrow_move_constructible_through_copy" "except.spec#7" throwingCopyMember
+    .isNothrowMoveConstructible [cX]
+
+/-- `is_nothrow_copy_assignable_v` and `is_nothrow_move_assignable_v`: a
+member's user-provided assignment propagates; a flat class is
+non-throwing. -/
+def traitNothrowCopyAssignableMember : Case :=
+  traitCase "trait_nothrow_copy_assignable_member" "except.spec#9"
+    [ .class "M", .special cM { kind := .copyAssign }, .class "X", .member cX { name := "m", ty := cM } ]
+    .isNothrowCopyAssignable [cX]
+def traitNothrowMoveAssignableFlat : Case :=
+  traitCase "trait_nothrow_move_assignable_flat" "except.spec#9" intMember .isNothrowMoveAssignable [cX]
+
+/-- `is_nothrow_constructible_v<X, S>` through a converting constructor,
+with and without `noexcept`. -/
+def traitNothrowConstructibleConverting : Case :=
+  traitCase "trait_nothrow_constructible_converting" "except.spec#4"
+    [.class "S", .class "X", .converting cX (.constructor (.named "S") false (some true))]
+    .isNothrowConstructible [cX, .named "S"]
+def traitNothrowConstructibleConvertingThrowing : Case :=
+  traitCase "trait_nothrow_constructible_converting_throwing" "except.spec#4"
+    [.class "S", .class "X", .converting cX (.constructor (.named "S"))] .isNothrowConstructible [cX, .named "S"]
+
+/-- `is_nothrow_convertible_v`: a conversion function with and without
+`noexcept`; the copy of a class whose copy constructor may throw; a flat
+class. -/
+def traitNothrowConvertibleFunction : Case :=
+  traitCase "trait_nothrow_convertible_function" "meta.rel#6"
+    [.class "S", .converting (.named "S") (.function (.named "int") false true (some true))]
+    .isNothrowConvertible [.named "S", .named "int"]
+def traitNothrowConvertibleFunctionThrowing : Case :=
+  traitCase "trait_nothrow_convertible_function_throwing" "meta.rel#6"
+    [.class "S", .converting (.named "S") (.function (.named "int"))] .isNothrowConvertible [.named "S", .named "int"]
+def traitNothrowConvertibleCopy : Case :=
+  traitCase "trait_nothrow_convertible_copy" "except.spec#6" throwingCopy .isNothrowConvertible [cM, cM]
+def traitNothrowConvertibleFlat : Case :=
+  traitCase "trait_nothrow_convertible_flat" "except.spec#6" intMember .isNothrowConvertible [cX, cX]
+
+/-- `is_nothrow_invocable_v` of a function type: `noexcept` in the type;
+not in the type; in the type but with a by-value parameter whose copy
+may throw. -/
+def traitNothrowInvocableNoexcept : Case :=
+  traitCase "trait_nothrow_invocable_noexcept" "except.spec#3" []
+    .isNothrowInvocable [Ty.fn' [.named "int"] (.named "int") true, .named "int"]
+def traitNothrowInvocablePlain : Case :=
+  traitCase "trait_nothrow_invocable_plain" "except.spec#3" []
+    .isNothrowInvocable [Ty.fn' [.named "int"] (.named "int"), .named "int"]
+def traitNothrowInvocableThrowingParameter : Case :=
+  traitCase "trait_nothrow_invocable_throwing_parameter" "except.spec#6" throwingCopy
+    .isNothrowInvocable [Ty.fn' [cM] (.named "int") true, .lref cM]
+
+/-- `is_nothrow_swappable_v`: a flat class through `std::swap`; a class
+whose move constructor may throw is swappable but not without throwing. -/
+def traitNothrowSwappableFlat : Case :=
+  traitCase "trait_nothrow_swappable_flat" "utility.swap#4" intMember .isNothrowSwappable [cX]
+def traitNothrowSwappableThrowingMove : Case :=
+  traitCase "trait_nothrow_swappable_throwing_move" "utility.swap#4"
+    [ .class "M", .special cM { kind := .moveCtor, constParam := false }
+    , .special cM { kind := .moveAssign, constParam := false, noexcept := some true } ]
+    .isNothrowSwappable [cM]
+
 /-- `void g(B);` with `B` abstract: the call `g(d)` is ill-formed, whatever
 the argument; `void g(const B&)` is fine. -/
 def abstractByValue : Case :=
@@ -2608,6 +2736,18 @@ def conceptMoveOnly : Case :=
     atomics := castable cM
     source := "computed by Program.call" }
 
+/-- `destructible<M>` for `struct M { ~M() noexcept(false) {} };`: the
+concept forbids a potentially-throwing destructor, so neither overload
+of `g`, both of which refine `destructible`, is viable; a flat class
+selects the `copy_constructible` overload. -/
+def conceptDestructibleThrowing : Case :=
+  { name := "concept_destructible_throwing"
+    cite := cite "concept.destructible#1"
+    program := conceptOverloads throwingDtor
+    query := .call "g" [{ ty := cM }] .noMatch
+    atomics := castable cM
+    source := "computed by Program.call" }
+
 /-- Every case of the Standard side. -/
 def cases : List Case :=
   [ draftDeductCall3_rvalue, draftDeductCall3_lvalue, forwardingLvalue, forwardingRvalue
@@ -2666,6 +2806,16 @@ def cases : List Case :=
   , traitTriviallyDestructibleVirtual, traitTriviallyDefaultConstructiblePolymorphic
   , traitConstructibleAbstract, traitCopyConstructibleAbstract, traitDefaultConstructibleOverridden
   , traitConvertibleToAbstract, traitConvertibleToAbstractReference, abstractByValue, abstractByReference
+  , traitNothrowDestructibleThrowing, traitNothrowDestructibleMember, traitNothrowDestructibleFlat
+  , traitNothrowDestructibleDeclared, traitDestructibleThrowing, traitNothrowDefaultConstructibleUserProvided
+  , traitNothrowDefaultConstructibleFlat, traitNothrowDefaultConstructibleThrowingInit
+  , traitNothrowDefaultConstructibleMember, traitNothrowCopyConstructibleMember
+  , traitNothrowCopyConstructibleDeclared, traitNothrowMoveConstructibleThroughCopy
+  , traitNothrowCopyAssignableMember, traitNothrowMoveAssignableFlat, traitNothrowConstructibleConverting
+  , traitNothrowConstructibleConvertingThrowing, traitNothrowConvertibleFunction
+  , traitNothrowConvertibleFunctionThrowing, traitNothrowConvertibleCopy, traitNothrowConvertibleFlat
+  , traitNothrowInvocableNoexcept, traitNothrowInvocablePlain, traitNothrowInvocableThrowingParameter
+  , traitNothrowSwappableFlat, traitNothrowSwappableThrowingMove, conceptDestructibleThrowing
   , conceptRefinementSubsumes, conceptRefinementUnsatisfied, requiresCallHolds, requiresCallFails
   , requiresMemberHolds, requiresMemberFails, requiresTypeFails, requiresTypeHolds, requiresOrder
   , conceptCopyConstructibleRefines, conceptMoveOnly ]

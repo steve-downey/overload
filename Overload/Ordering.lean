@@ -115,7 +115,8 @@ def usedParams : Ty → List ParamIdx
   | .param i => [i]
   | .const t | .ptr t | .lref t | .rref t | .nondeduced t | .lookup _ t | .spec _ t | .ref t
   | .removeCvref t | .typeOf t => usedParams t
-  | .cons a as | .enableIf _ a as | .fn a as => usedParams a ++ usedParams as
+  | .cons a as | .enableIf _ a as => usedParams a ++ usedParams as
+  | .fn a as _ => usedParams a ++ usedParams as
   | .value v => usedVal v
 where
   usedVal : Val → List ParamIdx

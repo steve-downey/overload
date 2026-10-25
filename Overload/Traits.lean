@@ -221,32 +221,127 @@ def emptyClass (p : Program) (c : Ty) : Bool := p.emptyWithin p.length c
 
 /-! ## Invocable -/
 
+/-- The function type a callee denotes, if any: the type itself or the
+pointee of a pointer to function, as parameter list, return type and
+exception specification. -/
+def fnType (f : Ty) : Option (List Ty × Ty × Bool) :=
+  match f.referred.stripConst with
+  | .fn ps r ne => ps.toList.map fun params => (params, r, ne)
+  | .ptr (.fn ps r ne) => ps.toList.map fun params => (params, r, ne)
+  | _ => none
+
 /-- `is_invocable<Fn, Args...>` for a function type or a pointer to one:
 each argument has an implicit conversion sequence to the parameter, and
 the arities agree. A class callee is a call on an object, resolved
 above the environment, and is left to the oracle. -/
 @[std rule "meta.rel#3"]
 def invocable (p : Program) (f : Ty) (args : List Ty) : Subst Bool :=
-  let callee := f.referred.stripConst
-  let fnType := match callee with
-    | .fn ps r => some (ps, r)
-    | .ptr (.fn ps r) => some (ps, r)
-    | _ => none
-  match fnType with
-  | some (ps, _) =>
-    match ps.toList with
-    | none => .ok false
-    | some params =>
-      if params.length != args.length then .ok false
-      else
-        match conversions p.ranking (args.map declval) params with
-        | .ok (some cs) => .ok (cs.all (· != .ambiguous))
-        | .ok none => .ok false
-        | .soft r => .soft r
-        | .hard r => .hard r
+  match fnType f with
+  | some (params, _, _) =>
+    if params.length != args.length then .ok false
+    else
+      match conversions p.ranking (args.map declval) params with
+      | .ok (some cs) => .ok (cs.all (· != .ambiguous))
+      | .ok none => .ok false
+      | .soft r => .soft r
+      | .hard r => .hard r
   | none =>
-    if callee.isClass then .soft s!"is_invocable of a class callee is resolved above the environment"
+    if f.referred.stripConst.isClass then
+      .soft s!"is_invocable of a class callee is resolved above the environment"
     else .ok false
+
+/-! ## Known not to throw -/
+
+/-- Does the user-defined conversion of an implicit conversion sequence
+throw? A standard sequence invokes no function. -/
+@[std rule "except.spec#6"]
+def icsThrowing : Option Ics → Bool
+  | some (.userDefined _ (_, conv) _) => conv.throwing
+  | _ => false
+
+/-- `is_nothrow_constructible<T, Args...>`: constructible, and the
+variable definition is known not to throw: for a class, the constructor
+resolution selects is non-throwing and so is the initialization of each
+of its parameters from the arguments; for a reference or a scalar, the
+one conversion invoked, if user-defined, is non-throwing. -/
+@[std rule "meta.unary.prop#5" "except.spec#6"]
+def nothrowConstructible (p : Program) (t : Ty) (args : List Ty) : Subst Bool := do
+  if !(← p.constructible t args) then return false
+  let as := args.map declval
+  if t.isRef then
+    match as with
+    | [a] => return !icsThrowing (p.ics .direct a t)
+    | _ => return false
+  else if t.stripConst.isClass then
+    let c := t.stripConst
+    match resolveCtor p.facts p .direct c as with
+    | .selected (cand, k) =>
+      return !p.selectedCtorThrowing p.throwing c (.selected (cand, k)) &&
+        !(as.zip cand.params).any fun (a, pt) => p.initThrowing a pt
+    | _ => return false
+  else
+    match as with
+    | [a] => return !icsThrowing (p.ics .direct a t)
+    | _ => return true
+
+/-- `is_nothrow_assignable<T, U>`: assignable, and the assignment is
+known not to throw: the operator resolution selects is non-throwing and
+so is its parameter's initialization; a scalar's assignment invokes at
+most a conversion function. -/
+@[std rule "meta.unary.prop#5" "except.spec#6"]
+def nothrowAssignable (p : Program) (t u : Ty) : Subst Bool := do
+  if !(← p.assignable t u) then return false
+  let c := t.referred.stripConst
+  let a := declval u
+  if c.isClass then
+    match resolveAssign p.facts p c a with
+    | .selected (cand, some k) =>
+      return !p.throwing c k && !([a].zip cand.params).any fun (a, pt) => p.initThrowing a pt
+    | _ => return false
+  else return !icsThrowing (p.ics .copy a c)
+
+/-- `is_nothrow_destructible<T>`: destructible, and the destructor is
+non-throwing. -/
+@[std rule "meta.unary.prop#5"]
+def nothrowDestructible (p : Program) (t : Ty) : Bool :=
+  p.destructible t && (t.isRef || !t.stripConst.isClass || !p.throwing t.stripConst .dtor)
+
+/-- `is_nothrow_convertible<From, To>`: convertible, and the conversion,
+the return statement of [meta.rel]/6, is known not to throw. -/
+@[std rule "meta.rel#6" "except.spec#6"]
+def nothrowConvertible (p : Program) (from_ to : Ty) : Subst Bool := do
+  if !(← p.convertible from_ to) then return false
+  if to.isVoid then return true
+  return !p.initThrowing (declval from_) to
+
+/-- `is_nothrow_invocable<Fn, Args...>` for a function type or a pointer
+to one: invocable, the type's exception specification non-throwing, and
+each parameter's initialization known not to throw. -/
+@[std rule "meta.rel#3" "except.spec#6"]
+def nothrowInvocable (p : Program) (f : Ty) (args : List Ty) : Subst Bool := do
+  if !(← p.invocable f args) then return false
+  match fnType f with
+  | some (params, _, ne) =>
+    return ne && !((args.map declval).zip params).any fun (a, pt) => p.initThrowing a pt
+  | none => return false
+
+/-- `is_nothrow_swappable<T>`: `swap(declval<T&>(), declval<T&>())` is
+well-formed and known not to throw. With no `swap` the program declares,
+the call selects `std::swap`, whose exception specification is
+`is_nothrow_move_constructible_v<T> && is_nothrow_move_assignable_v<T>`
+and whose constraints are the two base traits; a program that declares a
+`swap` of its own is resolved above the environment and is left to the
+oracle. -/
+@[std rule "meta.unary.prop#5" "utility.swap#4" "concept.swappable#2"]
+def nothrowSwappable (p : Program) (t : Ty) : Subst Bool := do
+  let obj := t.referred
+  if obj.isVoid || obj.isFunction then return false
+  if !(p.candidates "swap").isEmpty then
+    Subst.soft "is_nothrow_swappable with a user swap is resolved above the environment"
+  else
+    let mc ← p.nothrowConstructible obj [rref obj]
+    let ma ← p.nothrowAssignable (Ty.collapse (.lref obj)) (rref obj)
+    return mc && ma
 
 /-! ## The program's answer -/
 
@@ -290,23 +385,117 @@ def trait (p : Program) (q : Trait) (args : List Ty) : Subst Bool :=
     | .isTriviallyMoveAssignable, [t] =>
       if referenceable t then p.triviallyAssignable (Ty.collapse (.lref t)) (rref t) else .ok false
     | .isTriviallyDestructible, [t] => .ok (p.triviallyDestructible t)
-    | .isNothrowDestructible, [t] => .ok (p.destructible t)
+    | .isNothrowDestructible, [t] => .ok (p.nothrowDestructible t)
     | .isPolymorphic, [t] => onClass t p.polymorphic false
     | .isAbstract, [t] => onClass t p.abstract false
     | .hasVirtualDestructor, [t] => onClass t p.virtualDtor false
+    | .isNothrowConstructible, t :: as => p.nothrowConstructible t as
+    | .isNothrowDefaultConstructible, [t] => p.nothrowConstructible t []
+    | .isNothrowCopyConstructible, [t] =>
+      if referenceable t then p.nothrowConstructible t [constLref t] else .ok false
+    | .isNothrowMoveConstructible, [t] =>
+      if referenceable t then p.nothrowConstructible t [rref t] else .ok false
+    | .isNothrowAssignable, [t, u] => p.nothrowAssignable t u
+    | .isNothrowCopyAssignable, [t] =>
+      if referenceable t then p.nothrowAssignable (Ty.collapse (.lref t)) (constLref t) else .ok false
+    | .isNothrowMoveAssignable, [t] =>
+      if referenceable t then p.nothrowAssignable (Ty.collapse (.lref t)) (rref t) else .ok false
+    | .isNothrowSwappable, [t] => p.nothrowSwappable t
+    | .isNothrowConvertible, [f, t] => p.nothrowConvertible f t
     | .isInvocable, f :: as => p.invocable f as
+    | .isNothrowInvocable, f :: as => p.nothrowInvocable f as
     | q, _ => .soft s!"{q.spelling}: wrong number of arguments"
 
 end Program
 
-/-- `is_nothrow_destructible` is `is_destructible` on the fragment: no
-declaration carries a noexcept-specifier, so every destructor has the
-exception specification of an implicitly declared one, which does not
-throw. -/
-@[std theorem "class.dtor#6" "concept.destructible#1"]
-theorem nothrow_destructible_eq (p : Program) (t : Ty) (ht : t.concrete = true) :
+/-- A flat class, one with no declared special member, conversion, base,
+class-typed member or default member initializer, has non-throwing
+special members: each is implicitly declared and invokes nothing. -/
+@[std theorem "except.spec#7" "except.spec#8" "except.spec#9"]
+theorem implicit_noexcept_from_subobjects (p : Program) (c : Ty) (hc : p.flatClass c = true)
+    (hl : 0 < p.length) (k : SmfKind) : p.throwing c k = false := by
+  simp only [Program.flatClass, Bool.and_eq_true, List.isEmpty_iff] at hc
+  obtain ⟨⟨⟨hs, hconv⟩, hb⟩, hm⟩ := hc
+  simp only [List.all_eq_true, Bool.and_eq_true, Bool.not_eq_true'] at hm
+  have hud : p.userDeclared c k = none := by simp [Program.userDeclared, hs, hconv]
+  have hcs : p.classSubobjects c = [] := by
+    simp only [Program.classSubobjects, Program.subobjectsOf, hb, List.append_nil, List.filterMap_map]
+    rw [List.filterMap_eq_nil_iff]
+    intro m hmem
+    simp [Function.comp, (hm m hmem).2]
+  have hsubs : ∀ g : Ty → Bool, ((p.subobjectsOf c).any fun t => t.stripConst.isClass && g t) = false := by
+    intro g
+    apply List.any_eq_false.mpr
+    intro t ht
+    simp only [Program.subobjectsOf, hb, List.append_nil, List.mem_map] at ht
+    obtain ⟨m, hmem, rfl⟩ := ht
+    simp [(hm m hmem).2]
+  have hmems : ∀ g : Member → Bool,
+      ((p.membersOf c).any fun m => (m.init && m.throwingInit) || (m.ty.stripConst.isClass && g m)) = false := by
+    intro g
+    apply List.any_eq_false.mpr
+    intro m hmem
+    simp [(hm m hmem).1, (hm m hmem).2]
+  unfold Program.throwing
+  obtain ⟨n, hn⟩ : ∃ n, p.length = n + 1 := ⟨p.length - 1, by omega⟩
+  rw [hn]
+  cases k <;> simp [Program.throwingWithin, hud, hcs, hb, hsubs, hmems]
+
+/-- A potentially-throwing destructor propagates: a class with a
+potentially constructed subobject of class type whose destructor is
+potentially throwing, and whose own destructor has no noexcept-specifier,
+has a potentially-throwing destructor. Stated within fuel, as the
+judgement is: the class's destructor is decided one step above its
+subobjects'. -/
+@[std theorem "except.spec#8"]
+theorem nothrow_propagates (p : Program) (fuel : Nat) (c m : Ty) (hm : m ∈ p.classSubobjects c)
+    (hud : p.userDeclared c .dtor = none ∨ ∃ d, p.userDeclared c .dtor = some d ∧ d.noexcept = none)
+    (ht : p.throwingWithin fuel m .dtor = true) : p.throwingWithin (fuel + 1) c .dtor = true := by
+  have himpl : ((p.classSubobjects c).any fun m => p.throwingWithin fuel m .dtor) = true :=
+    List.any_eq_true.mpr ⟨m, hm, ht⟩
+  rcases hud with hud | ⟨d, hud, hne⟩
+  · simp [Program.throwingWithin, hud, himpl]
+  · simp [Program.throwingWithin, hud, hne, himpl]
+
+/-- `is_nothrow_destructible` is `is_destructible` for a class whose
+destructors, its own and its subobjects', carry no `noexcept(false)`:
+a destructor without a specifier has the implicit exception
+specification, which is potentially throwing only through a subobject's,
+so no destructor of such a program throws. -/
+@[std theorem "except.spec#8" "concept.destructible#1"]
+theorem nothrow_destructible_eq (p : Program) (t : Ty) (ht : t.concrete = true)
+    (hno : ∀ c s, s ∈ p.specialDecls c → s.kind = .dtor → s.noexcept ≠ some false) :
     p.trait .isNothrowDestructible [t] = p.trait .isDestructible [t] := by
-  simp [Program.trait, Trait.structural, ht]
+  have hthrow : ∀ fuel c, p.throwingWithin fuel c .dtor = false := by
+    intro fuel
+    induction fuel with
+    | zero => intro c; rfl
+    | succ n ih =>
+      intro c
+      have himpl : ((p.classSubobjects c).any fun m => p.throwingWithin n m .dtor) = false :=
+        List.any_eq_false.mpr fun m _ => by simp [ih m]
+      cases hud : p.userDeclared c .dtor with
+      | none => simp [Program.throwingWithin, hud, himpl]
+      | some d =>
+        have hd : d ∈ p.specialDecls c ∧ d.kind = .dtor := by
+          unfold Program.userDeclared at hud
+          have hmem := List.mem_of_find?_eq_some hud
+          have hk := List.find?_some hud
+          simp only [beq_iff_eq] at hk
+          refine ⟨?_, hk⟩
+          rcases List.mem_append.mp hmem with h | h
+          · exact h
+          · exfalso
+            obtain ⟨conv, -, hc⟩ := List.mem_filterMap.mp h
+            rcases copyMoveForm_kind c conv d hc with h' | h' <;> rw [h'] at hk <;> cases hk
+        cases hne : d.noexcept with
+        | none => simp [Program.throwingWithin, hud, hne, himpl]
+        | some b =>
+          cases b with
+          | true => simp [Program.throwingWithin, hud, hne]
+          | false => exact absurd hne (hno c d hd.1 hd.2)
+  have hth : p.throwing t.stripConst .dtor = false := hthrow _ _
+  simp [Program.trait, Trait.structural, ht, Program.nothrowDestructible, hth]
 
 /-- `is_constructible` of a class is overload resolution over its
 constructors for direct-initialization, with the usable-candidate check:

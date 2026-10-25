@@ -36,8 +36,16 @@ namespace Overload
 /-- The virtuality a declaration carries: a function's, `.none` for
 anything else. -/
 def Decl.virt : Decl → Virt
-  | .function _ _ _ v => v
+  | .function _ _ _ v _ => v
   | _ => .none
+
+/-- Is a function declaration potentially throwing: its noexcept-specifier
+says so, or it has none and the function, user-provided, is potentially
+throwing. Nothing but a function declaration is asked. -/
+@[std rule "except.spec#4"]
+def Decl.throwing : Decl → Bool
+  | .function _ _ _ _ ne => ne != some true
+  | _ => true
 
 namespace Program
 
@@ -45,7 +53,7 @@ namespace Program
 scope ends in the class's step. -/
 def memberFunctions (p : Program) : Ty → List Decl
   | .named n => p.filter fun
-      | .function _ _ s _ => s.getLast? == some (.class n)
+      | .function _ _ s _ _ => s.getLast? == some (.class n)
       | _ => false
   | _ => []
 
@@ -55,7 +63,7 @@ member functions, which have no object parameters, ref-qualifiers or
 trailing requires-clauses to compare. -/
 @[std rule "class.virtual#2"]
 def sameSignature : Decl → Decl → Bool
-  | .function n ps _ _, .function m qs _ _ => n == m && ps == qs
+  | .function n ps _ _ _, .function m qs _ _ _ => n == m && ps == qs
   | _, _ => false
 
 /-- The virtual member functions a class's objects have, within `fuel`
@@ -132,20 +140,25 @@ def abstract (p : Program) (c : Ty) : Bool :=
 
 /-- The virt-specifiers of the program are well-formed: no member
 function overrides a `final` one; a member function declared `override`
-overrides something; no class derives from one whose destructor is
-`final`, since its own destructor, declared or implicit, would override
-it; and a destructor declared `override` has a virtual one to override.
-A program-level check, like `scopesWellFormed`. -/
-@[std rule "class.virtual#4" "class.virtual#5"]
+overrides something; no member function with a potentially-throwing
+exception specification overrides a non-throwing virtual function; no
+class derives from one whose destructor is `final`, since its own
+destructor, declared or implicit, would override it; and a destructor
+declared `override` has a virtual one to override. A program-level
+check, like `scopesWellFormed`. The destructor's case of the exception
+rule is decided above this module, with the implicit specifications, and
+is not checked here. -/
+@[std rule "class.virtual#4" "class.virtual#5" "except.spec#5"]
 def virtualsWellFormed (p : Program) : Bool :=
   let finalDtor (c : Ty) : Bool := (p.specialDecls c).any fun s => s.kind == .dtor && s.virt == .final
   p.all fun
-    | g@(.function _ _ s v) =>
+    | g@(.function _ _ s v _) =>
       match s.getLast? with
       | some (.class n) =>
         let overridden :=
           ((p.directBases (.named n)).flatMap (p.virtualFunctions ·)).filter (sameSignature · g)
-        !overridden.any (·.virt == .final) && (v != .override || !overridden.isEmpty)
+        !overridden.any (·.virt == .final) && (v != .override || !overridden.isEmpty) &&
+        !(g.throwing && overridden.any (!·.throwing))
       | _ => true
     | .class n _ _ _ => !(p.directBases (.named n)).any finalDtor
     | .special c s =>
@@ -190,13 +203,13 @@ theorem virtual_destructor_inherited (p : Program) (d b : Ty) (hd : p.derives d 
 /-- Every virtual function a class's objects have is a function
 declaration. -/
 theorem virtualFunctionsWithin_function (p : Program) : ∀ (n : Nat) (c : Ty) (f : Decl),
-    f ∈ p.virtualFunctionsWithin n c → ∃ a ps s v, f = .function a ps s v := by
-  have hmem : ∀ c f, f ∈ p.memberFunctions c → ∃ a ps s v, f = .function a ps s v := by
+    f ∈ p.virtualFunctionsWithin n c → ∃ a ps s v ne, f = .function a ps s v ne := by
+  have hmem : ∀ c f, f ∈ p.memberFunctions c → ∃ a ps s v ne, f = .function a ps s v ne := by
     intro c f hf
     cases c <;> simp only [Program.memberFunctions, List.mem_filter, List.not_mem_nil] at hf
     · obtain ⟨-, hf⟩ := hf
       cases f <;> simp at hf
-      exact ⟨_, _, _, _, rfl⟩
+      exact ⟨_, _, _, _, _, rfl⟩
     all_goals exact hf.elim
   intro n
   induction n with
@@ -225,6 +238,25 @@ theorem abstract_polymorphic (p : Program) (c : Ty) (h : p.abstract c = true) :
     obtain ⟨s, hs, hk, hv⟩ := h
     simp only [Program.declaredVirtualDtor, List.any_eq_true, Bool.and_eq_true, beq_iff_eq]
     exact ⟨s, hs, hk, by rw [hv]; rfl⟩
+
+/-! ## The draft's example on overriding a non-throwing function -/
+
+/-- `struct B { virtual void f() noexcept; virtual void g(); }; struct D : B
+{ void f(); void g() noexcept; };`, the example of [except.spec]/5, and the
+same with `D::f() noexcept`. -/
+def overrideNoexceptProgram (fixed : Bool) : Program :=
+  [ .class "B", .function "f" [] [.class "B"] .virtual (some true), .function "g" [] [.class "B"] .virtual
+  , .class "D" [.named "B"], .function "f" [] [.class "D"] .none (if fixed then some true else none)
+  , .function "g" [] [.class "D"] .none (some true) ]
+
+/-- `D::f` is ill-formed: it overrides the non-throwing `B::f` with a
+potentially-throwing exception specification; `D::g` may tighten `B::g`;
+with `D::f` non-throwing the program is well-formed. -/
+@[std example "except.spec#5"]
+theorem override_keeps_noexcept :
+    (overrideNoexceptProgram false).virtualsWellFormed = false ∧
+    (overrideNoexceptProgram true).virtualsWellFormed = true := by
+  decide
 
 /-! ## The draft's note on visibility -/
 

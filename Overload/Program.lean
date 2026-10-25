@@ -73,6 +73,9 @@ structure FunctionTemplate where
   mandate : Option Constraint := none
   /-- The scope the template inhabits. -/
   scope : Scope := []
+  /-- The noexcept-specifier, `none` for no specifier: a declaration
+  without one is potentially throwing ([except.spec]/4). -/
+  noexcept : Option Bool := none
   deriving Repr, DecidableEq, Inhabited
 
 /-- The context an initialization runs in: argument passing, a function
@@ -100,11 +103,12 @@ and to, and whether it is explicit
 inductive UserConv where
   /-- A constructor `cls(param)`, which specifies a conversion from
   `param` to `cls` when not explicit. -/
-  | constructor (param : Ty) (explicit : Bool := false)
+  | constructor (param : Ty) (explicit : Bool := false) (noexcept : Option Bool := none)
   /-- A conversion function `operator target()`, which specifies a
   conversion from its class to `target`; `const` when its implicit
   object parameter is a reference to const. -/
   | function (target : Ty) (explicit : Bool := false) (const : Bool := true)
+      (noexcept : Option Bool := none)
   deriving Repr, DecidableEq, Inhabited
 
 attribute [std rule "class.conv.ctor#1"] UserConv.constructor
@@ -112,16 +116,23 @@ attribute [std rule "class.conv.fct#2"] UserConv.function
 
 /-- Is the conversion explicit? -/
 def UserConv.explicit : UserConv → Bool
-  | .constructor _ e | .function _ e _ => e
+  | .constructor _ e _ | .function _ e _ _ => e
 
-/-- A non-static data member of a class: its name, its type, and whether
-it has a default member initializer. The initializer is an expression,
-so the model keeps only that there is one. -/
-@[std rule "class.mem.general#5" "class.mem.general#15"]
+/-- The conversion's noexcept-specifier, `none` for no specifier. -/
+def UserConv.noexcept : UserConv → Option Bool
+  | .constructor _ _ ne | .function _ _ _ ne => ne
+
+/-- A non-static data member of a class: its name, its type, whether it
+has a default member initializer, and whether that initializer is a
+potentially-throwing expression. The initializer is an expression, so
+the model keeps only that there is one and whether it can throw
+([except.spec]/7). -/
+@[std rule "class.mem.general#5" "class.mem.general#15" "except.spec#7"]
 structure Member where
   name : String
   ty : Ty
   init : Bool := false
+  throwingInit : Bool := false
   deriving Repr, DecidableEq, Inhabited
 
 /-- The kinds of special member function: default constructor, copy and
@@ -179,15 +190,18 @@ def Virt.declared : Virt → Bool
 whether its parameter is a reference to `const` ([class.copy.ctor]/1,
 [class.copy.assign]/1), which a default constructor and a destructor
 ignore; a destructor may be declared virtual, pure, `override` or `final`
-([class.dtor]/11), which the other kinds ignore. Every special member of
-the fragment is public, unconstrained, and without an exception
-specification. -/
-@[std rule "class.dtor#11"]
+([class.dtor]/11), which the other kinds ignore; and its
+noexcept-specifier, `none` for no specifier, in which case a destructor
+or a defaulted member has the implicit exception specification of
+[except.spec]/7 to /9 and a user-provided one is potentially throwing.
+Every special member of the fragment is public and unconstrained. -/
+@[std rule "class.dtor#11" "except.spec#4"]
 structure SmfDecl where
   kind : SmfKind
   body : SmfBody := .userProvided
   constParam : Bool := true
   virt : Virt := .none
+  noexcept : Option Bool := none
   deriving Repr, DecidableEq, Inhabited
 
 /-- A semantic requirement: what the arguments of a concept must do,
@@ -216,8 +230,10 @@ inductive Decl where
   | classTemplate (name : String) (head : Head) (scope : Scope := [])
   /-- A non-template function, by name and parameter types; a member
   function when its scope ends in a class step, and then with its
-  virtuality ([class.virtual]/1). -/
+  virtuality ([class.virtual]/1); and its noexcept-specifier, `none` for
+  no specifier ([except.spec]/1). -/
   | function (name : String) (params : List Ty) (scope : Scope := []) (virt : Virt := .none)
+      (noexcept : Option Bool := none)
   /-- A function template. -/
   | functionTemplate (ft : FunctionTemplate)
   /-- The primary of a lookup variable template, `trait<T>`, with a value
@@ -293,7 +309,7 @@ namespace Program
 /-- The declarations with a name, in order: the candidate set of a call. -/
 def candidates (p : Program) (name : String) : List Decl :=
   p.filter fun
-    | .function n _ _ _ => n = name
+    | .function n _ _ _ _ => n = name
     | .functionTemplate ft => ft.name = name
     | _ => false
 

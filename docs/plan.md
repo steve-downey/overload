@@ -693,6 +693,32 @@ Status, 15 October 2026:
   (`findings.md`). One departure from the plan: `Virt` has an `override`
   value the plan did not list, since without it [class.virtual]/5 has
   nothing to check.
+  Stage 2, exception-specifications, landed 24 October 2026: `noexcept :
+  Option Bool` on `Decl.function`, `FunctionTemplate`, `UserConv` and
+  `SmfDecl`, `noexcept : Bool` on `Ty.fn`, which deduction compares
+  ([except.spec]/3), and `throwingInit` on a member for a default member
+  initializer that may throw. `Program.throwingWithin` is the implicit
+  exception specification of [except.spec]/7 to /9 through the operation
+  resolution selects for each subobject, beside `trivialWithin` and
+  shaped like it; `Program.throwing` of a user-declared member is its
+  specifier, the implicit rule for a destructor or a defaulted member
+  without one, and potentially throwing otherwise. Ten traits join, the
+  whole `is_nothrow_` family with `is_nothrow_convertible`,
+  `is_nothrow_invocable` of a function type and `is_nothrow_swappable`
+  through `std::swap`'s specification ([utility.swap]/4), each the base
+  trait and the operations invoked known not to throw ([except.spec]/6);
+  `is_nothrow_destructible` is now the real rule and `destructible`
+  refuses `~X() noexcept(false)`. `virtualsWellFormed` checks
+  [except.spec]/5 for member functions. The theorems nothrow-propagates
+  and implicit-noexcept-from-subobjects are proved,
+  `nothrow_destructible_eq` is restated for programs whose destructors
+  carry no `noexcept(false)`, and the draft's example of [except.spec]/5
+  is reproduced; on the encoding, `instance_nothrow` and
+  `nothrow_copy_constraint`. Twenty-six emitted cases agree with GCC 15
+  and Clang 24. Two departures from the plan: the implicit rule is a
+  judgement beside `trivialWithin`, not a field of `Facts`, since
+  deletion never consults it; and `nothrow_destructible_eq` is restated
+  rather than retired, as the theorem it always was.
 
 ## Target theorems
 
@@ -2056,9 +2082,10 @@ overrides it ([class.virtual]/2), which is where the rule now lives.
 | [except.spec]/5 | An override of a non-throwing virtual function shall be non-throwing unless deleted. | `Program.virtualsWellFormed` gains the check, joining the two stages. | 2 |
 | [except.spec]/6 | An expression is potentially-throwing if it calls a function with a potentially-throwing exception specification, implicitly invokes one, or has a potentially-throwing immediate subexpression. | The fragment's expressions are calls: a call is potentially-throwing when the selected function is; `is_nothrow_invocable` for a function type reads the type. | 2 |
 | [except.spec]/7 | An implicitly-declared or defaulted constructor is potentially-throwing iff a constructor selected to initialize a potentially constructed subobject is, or a default member initializer is. | `Program.throwingWithin c k` for the constructor kinds, through `resolveCtor` on each subobject, as `deletedWithin` is; a default member initializer is an expression, so `Member` gains `throwingInit : Bool`. | 2 |
-| [except.spec]/8 | An implicitly-declared destructor, or one without a specifier, is potentially-throwing iff a potentially constructed subobject's destructor is. | `Program.throwingWithin c .dtor`; `nothrow_destructible_eq` of phase 13 is retired for the real rule, and `destructible` distinguishes `~X() noexcept(false)`. | 2 |
+| [except.spec]/8 | An implicitly-declared destructor, or one without a specifier, is potentially-throwing iff a potentially constructed subobject's destructor is. | `Program.throwingWithin c .dtor`; `nothrow_destructible_eq` of phase 13 is restated for programs whose destructors carry no `noexcept(false)`, and `destructible` distinguishes `~X() noexcept(false)`. | 2 |
 | [except.spec]/9 | An implicitly-declared or defaulted assignment operator is potentially-throwing iff an assignment it invokes is. | `Program.throwingWithin c k` for the assignment kinds, through `resolveAssign`. | 2 |
 | [meta.unary.prop]/5, the `is_nothrow_` rows; [meta.rel]/3, `is_nothrow_convertible`, `is_nothrow_invocable` | Each is the base trait and the operation known not to throw. | `Trait.isNothrow*` answered by the base judgement and `!throwing` of the function resolution selects; `is_nothrow_swappable` by the move operations when no `swap` is declared ([concept.swappable]/2). | 2 |
+| [utility.swap]/4 | `std::swap`'s exception specification is `is_nothrow_move_constructible_v<T> && is_nothrow_move_assignable_v<T>`. | `Program.nothrowSwappable`, with a program that declares a `swap` of its own left to the oracle. | 2 |
 | [dcl.init.aggr]/1 | An aggregate: a class with no user-declared or inherited constructors, no private or protected direct members, no private or protected direct bases, and no virtual functions or virtual bases. | `Program.aggregate c`: no special constructor declaration, no converting constructor, no protected base, not polymorphic; members are public. | 3 |
 | [dcl.init.aggr]/2 | The elements of a class aggregate: the direct bases in declaration order, then the direct non-static data members in declaration order. | `Program.elements c`; `Val.obj c subs` lists them, bases then members, and `candidateInitializer` and `uniqueValue` are restated for classes with members (`decisions.md#value-typing`). | 3 |
 | [dcl.init.aggr]/4 | The elements an initializer list explicitly initializes; `{}` explicitly initializes none. | `Program.braceInit c inits`: the first `k` elements from the list. | 3 |
@@ -2110,9 +2137,10 @@ and `decisions.md#aggregate-fragment`.
   function-like declaration, `none` for no specifier, and
   `noexcept : Bool` on `Ty.fn`. `Program.throwingWithin fuel c k` is
   the implicit rule for a defaulted special member, through the
-  function resolution selects for each subobject, in the `Facts`
-  record beside `special` and `deleted`; `Program.throwing` of any
-  function is its specifier, the implicit rule, or potentially throwing.
+  function resolution selects for each subobject, beside `trivialWithin`
+  and like it, with the facts at the fuel below and its own recursion
+  for the subobjects' members; `Program.throwing` of any function is its
+  specifier, the implicit rule, or potentially throwing.
   The `is_nothrow_` traits are the base trait and `!throwing` of the
   selected operation; `is_nothrow_invocable` reads the function type;
   `is_nothrow_swappable` is the move constructor and move assignment

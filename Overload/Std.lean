@@ -342,7 +342,7 @@ def inScope : List (String × Nat) :=
   , ("class.abstract", 2), ("class.abstract", 3), ("class.abstract", 4)
   , ("class.dtor", 11), ("basic.def", 5), ("expr.call", 7), ("dcl.fct.def.general", 2)
   , ("except.spec", 1), ("except.spec", 2), ("except.spec", 3), ("except.spec", 4), ("except.spec", 5)
-  , ("except.spec", 6), ("except.spec", 7), ("except.spec", 8), ("except.spec", 9)
+  , ("except.spec", 6), ("except.spec", 7), ("except.spec", 8), ("except.spec", 9), ("utility.swap", 4)
   , ("dcl.init.aggr", 1), ("dcl.init.aggr", 2), ("dcl.init.aggr", 4), ("dcl.init.aggr", 6)
   , ("class.prop", 8) ]
 

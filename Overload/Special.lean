@@ -64,6 +64,13 @@ def SmfBody.prov : SmfBody → Provenance
   | .defaulted => .defaulted
   | .deleted => .deleted
 
+/-- Is a user-defined conversion potentially throwing: its specifier says
+so, or it has none, since a converting constructor or conversion function
+is user-provided and a declaration without a noexcept-specifier is
+potentially throwing. -/
+@[std rule "except.spec#4"]
+def UserConv.throwing (c : UserConv) : Bool := c.noexcept != some true
+
 namespace Program
 
 /-- A converting constructor whose parameter makes it a copy or move
@@ -71,10 +78,10 @@ constructor of its class: `X&` or `const X&`, `X&&` or `const X&&`. It is
 user-declared and user-provided. -/
 @[std rule "class.copy.ctor#1" "class.copy.ctor#2"]
 def copyMoveForm (c : Ty) : UserConv → Option SmfDecl
-  | .constructor (.lref t) _ =>
+  | .constructor (.lref t) _ _ =>
     if t == c then some { kind := .copyCtor, constParam := false }
     else if t == .const c then some { kind := .copyCtor } else none
-  | .constructor (.rref t) _ =>
+  | .constructor (.rref t) _ _ =>
     if t == c then some { kind := .moveCtor, constParam := false }
     else if t == .const c then some { kind := .moveCtor } else none
   | _ => none
@@ -176,7 +183,7 @@ def ctorCandidates (f : Facts) (p : Program) (init : Init) (c : Ty) : List (Cand
       if k == .moveCtor && s.prov == .defaulted && f.deleted c k then none
       else some (s.params c, some k)
   let convs := (p.conversionsOf c).filterMap fun
-    | conv@(.constructor param _) =>
+    | conv@(.constructor param _ _) =>
       if (copyMoveForm c conv).isSome || !conv.candidate init then none else some ([param], none)
     | _ => none
   (specials ++ convs).zipIdx.map fun ((ps, k), i) => ({ index := i, params := ps }, k)
@@ -354,6 +361,71 @@ def trivialWithin (p : Program) : Nat → Ty → SmfKind → Bool
 /-- Is the class's special member of a kind trivial? -/
 def trivial (p : Program) (c : Ty) (k : SmfKind) : Bool := p.trivialWithin p.length c k
 
+/-! ## Exception specifications -/
+
+/-- Is the converting constructor of class `c` with these parameters
+potentially throwing? Resolution names a converting constructor by its
+parameter list; one the class does not declare is taken as potentially
+throwing. -/
+@[std rule "except.spec#4"]
+def convThrowing (p : Program) (c : Ty) (params : List Ty) : Bool :=
+  match (p.conversionsOf c).find? fun | .constructor param _ _ => [param] == params | _ => false with
+  | some conv => conv.throwing
+  | none => true
+
+/-- Is the constructor a resolution selected potentially throwing: a
+special member by `throwing`, a converting constructor by its specifier;
+a resolution that selects nothing invokes nothing. -/
+@[std rule "except.spec#6"]
+def selectedCtorThrowing (p : Program) (throwing : Ty → SmfKind → Bool) (c : Ty) :
+    Resolution (Candidate × Option SmfKind) → Bool
+  | .selected (_, some k) => throwing c k
+  | .selected (cand, none) => p.convThrowing c cand.params
+  | _ => false
+
+/-- Is the special member of class `c` of kind `k` potentially throwing,
+within `fuel`: a user-declared member's specifier decides; a
+user-provided one without a specifier is potentially throwing, unless it
+is a destructor; a destructor or a defaulted member without a specifier
+has the implicit exception specification, potentially throwing exactly
+when a constructor, assignment or destructor the implicit definition
+invokes on a potentially constructed subobject is, or, for a default
+constructor, a default member initializer is. The subobjects' members
+are found by the same resolution as their deletion. -/
+@[std rule "except.spec#4" "except.spec#7" "except.spec#8" "except.spec#9"]
+def throwingWithin (p : Program) : Nat → Ty → SmfKind → Bool
+  | 0, _, _ => false
+  | fuel + 1, c, k =>
+    let implicit : Bool :=
+      let f := p.factsWithin fuel
+      let sub (m : Ty) (k' : SmfKind) : Bool := p.throwingWithin fuel m k'
+      let constParam := ((p.specialWithin (fuel + 1) c k).map (·.constParam)).getD true
+      let classSub (t : Ty) : Bool := t.stripConst.isClass
+      let ctorThrows (t : Ty) (args : List CallArg) : Bool :=
+        p.selectedCtorThrowing sub t.stripConst (resolveCtor f p .direct t.stripConst args)
+      match k with
+      | .defaultCtor =>
+        ((p.membersOf c).any fun m => (m.init && m.throwingInit) || (classSub m.ty && ctorThrows m.ty [])) ||
+        ((p.directBases c).any fun b => ctorThrows b [])
+      | .copyCtor | .moveCtor =>
+        (p.subobjectsOf c).any fun t => classSub t &&
+          ctorThrows t [subobjectArg t constParam (k == .moveCtor)]
+      | .copyAssign | .moveAssign =>
+        (p.subobjectsOf c).any fun t => classSub t &&
+          match resolveAssign f p t.stripConst (subobjectArg t constParam (k == .moveAssign)) with
+          | .selected (_, some k') => sub t.stripConst k'
+          | _ => false
+      | .dtor => (p.classSubobjects c).any fun m => sub m .dtor
+    match p.userDeclared c k with
+    | some d =>
+      match d.noexcept with
+      | some b => !b
+      | none => if d.body == .userProvided && k != .dtor then true else implicit
+    | none => implicit
+
+/-- Is the class's special member of a kind potentially throwing? -/
+def throwing (p : Program) (c : Ty) (k : SmfKind) : Bool := p.throwingWithin p.length c k
+
 /-! ## The call's copy-initialization of a parameter -/
 
 /-- Resolution to find the constructor that copy-initializes an object of
@@ -371,6 +443,21 @@ makes the call ill-formed ([dcl.fct.def.delete]/2). -/
 def copyInitUsable (p : Program) (a : CallArg) (t : Ty) : Bool :=
   if t.isRef || !t.stripConst.isClass || !p.related a t then true
   else usable p.facts t.stripConst (p.copyInit t.stripConst a)
+
+/-- Is the initialization of a parameter of type `t` from the argument
+potentially throwing: a user-defined conversion that is, or, for a
+by-value class parameter initialized by a standard conversion sequence,
+the constructor its copy-initialization selects. A standard sequence
+to a scalar or a reference invokes no function. -/
+@[std rule "except.spec#6"]
+def initThrowing (p : Program) (a : CallArg) (t : Ty) : Bool :=
+  match p.ics .copy a t with
+  | some (.userDefined _ (_, conv) _) => conv.throwing
+  | some (.standard _) =>
+    if !t.isRef && t.stripConst.isClass then
+      p.selectedCtorThrowing p.throwing t.stripConst (p.copyInit t.stripConst a)
+    else false
+  | _ => false
 
 /-! ## Value and reference nature -/
 
@@ -422,6 +509,15 @@ theorem special_flat (p : Program) (c : Ty) (hc : p.flatClass c = true) (hl : 0 
   obtain ⟨n, hn⟩ : ∃ n, p.length = n + 1 := ⟨p.length - 1, by omega⟩
   rw [hn]
   cases k <;> simp [Program.specialWithin, hud, hudc, hcs, SmfKind.isCtor]
+
+/-- A converting constructor of copy or move form is a copy or move
+constructor, never a special member of another kind. -/
+theorem copyMoveForm_kind (c : Ty) (conv : UserConv) (s : SmfDecl)
+    (h : Program.copyMoveForm c conv = some s) : s.kind = .copyCtor ∨ s.kind = .moveCtor := by
+  unfold Program.copyMoveForm at h
+  split at h <;> (try simp only [reduceCtorEq] at h)
+  all_goals
+    split at h <;> (try split at h) <;> simp only [Option.some.injEq, reduceCtorEq] at h <;> subst h <;> simp
 
 /-- No non-class type of the fragment is const-default-constructible. -/
 theorem constDefaultConstructibleWithin_nonclass (p : Program) (n : Nat) (t : Ty)

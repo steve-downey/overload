@@ -53,7 +53,7 @@ def deduceTy : Ty → Ty → Bindings → Option Bindings
   | .spec c ps, .spec d as, σ => if c = d then deduceTy ps as σ else none
   | .nil, .nil, σ => some σ
   | .cons p ps, .cons a as, σ => deduceTy p a σ >>= deduceTy ps as
-  | .fn ps r, .fn as s, σ => deduceTy ps as σ >>= deduceTy r s
+  | .fn ps r ne, .fn as s ne', σ => if ne = ne' then deduceTy ps as σ >>= deduceTy r s else none
   | .nondeduced _, _, σ => some σ
   | .lookup _ _, _, σ => some σ
   | .ref _, _, σ => some σ
@@ -103,10 +103,12 @@ inductive DeduceTy : Ty → Ty → Bindings → Bindings → Prop where
   deduced values are combined. -/
   | cons (p ps a as : Ty) (σ σ₁ σ' : Bindings) :
       DeduceTy p a σ σ₁ → DeduceTy ps as σ₁ σ' → DeduceTy (.cons p ps) (.cons a as) σ σ'
-  /-- The form `T(T)`: a function type's parameter-type-list and return
-  type are compared, and the deduced values combined. -/
-  | fn (ps r as s : Ty) (σ σ₁ σ' : Bindings) :
-      DeduceTy ps as σ σ₁ → DeduceTy r s σ₁ σ' → DeduceTy (.fn ps r) (.fn as s) σ σ'
+  /-- The form `T(T) noexcept(i)`: a function type's parameter-type-list
+  and return type are compared, and the deduced values combined; the
+  exception specification is part of the type, and with no dependent
+  `noexcept` in the fragment the two must agree. -/
+  | fn (ps r as s : Ty) (ne : Bool) (σ σ₁ σ' : Bindings) :
+      DeduceTy ps as σ σ₁ → DeduceTy r s σ₁ σ' → DeduceTy (.fn ps r ne) (.fn as s ne) σ σ'
   /-- A non-deduced context: the value does not participate in deduction,
   and takes what was deduced elsewhere or explicitly specified. -/
   | nondeduced (p a : Ty) (σ : Bindings) :
@@ -144,7 +146,7 @@ attribute [std rule "temp.deduct.type#8.sentence-1"] DeduceTy.rref
 attribute [std rule "temp.deduct.type#9.sentence-1"] DeduceTy.spec
 attribute [std rule "temp.deduct.type#9.sentence-1"] DeduceTy.nil
 attribute [std rule "temp.deduct.type#9.sentence-1"] DeduceTy.cons
-attribute [std rule "temp.deduct.type#8.sentence-1"] DeduceTy.fn
+attribute [std rule "temp.deduct.type#8.sentence-1" "except.spec#3"] DeduceTy.fn
 attribute [std rule "temp.deduct.type#4.sentence-3"] DeduceTy.nondeduced
 attribute [std rule "temp.deduct.type#5"] DeduceTy.lookup
 attribute [std rule "temp.deduct.type#5"] DeduceTy.ref
@@ -211,15 +213,19 @@ theorem deduceTy_sound (p : Ty) : ∀ (a : Ty) (σ σ' : Bindings),
       | none => rw [hd] at h; cases h
       | some σ₁ => rw [hd] at h; exact ⟨σ₁, rfl, h⟩
     exact .cons _ _ _ _ _ _ _ (ihp _ _ _ h₁) (ihps _ _ _ h₂)
-  | fn ps r ihp ihr =>
+  | fn ps r ne ihp ihr =>
     intro a σ σ' h
     cases a <;> simp only [deduceTy, reduceCtorEq] at h
-    rename_i as s
-    obtain ⟨σ₁, h₁, h₂⟩ : ∃ σ₁, deduceTy ps as σ = some σ₁ ∧ deduceTy r s σ₁ = some σ' := by
-      cases hd : deduceTy ps as σ with
-      | none => rw [hd] at h; cases h
-      | some σ₁ => rw [hd] at h; exact ⟨σ₁, rfl, h⟩
-    exact .fn _ _ _ _ _ _ _ (ihp _ _ _ h₁) (ihr _ _ _ h₂)
+    rename_i as s ne'
+    split at h
+    · rename_i hne
+      subst hne
+      obtain ⟨σ₁, h₁, h₂⟩ : ∃ σ₁, deduceTy ps as σ = some σ₁ ∧ deduceTy r s σ₁ = some σ' := by
+        cases hd : deduceTy ps as σ with
+        | none => rw [hd] at h; cases h
+        | some σ₁ => rw [hd] at h; exact ⟨σ₁, rfl, h⟩
+      exact .fn _ _ _ _ _ _ _ _ (ihp _ _ _ h₁) (ihr _ _ _ h₂)
+    · exact absurd h (by simp)
   | nondeduced p _ =>
     intro a σ σ' h
     simp only [deduceTy, Option.some.injEq] at h
@@ -265,7 +271,7 @@ theorem deduceTy_complete {p a : Ty} {σ σ' : Bindings}
   | spec c ps as σ σ' _ ih => simp [deduceTy, ih]
   | nil σ => simp [deduceTy]
   | cons p ps a as σ σ₁ σ' _ _ ih₁ ih₂ => simp [deduceTy, ih₁, ih₂]
-  | fn ps r as s σ σ₁ σ' _ _ ih₁ ih₂ => simp [deduceTy, ih₁, ih₂]
+  | fn ps r as s ne σ σ₁ σ' _ _ ih₁ ih₂ => simp [deduceTy, ih₁, ih₂]
   | nondeduced p a σ => simp [deduceTy]
   | lookup n p a σ => simp [deduceTy]
   | ref p a σ => simp [deduceTy]
@@ -351,15 +357,17 @@ theorem deduceTy_extends (p : Ty) : ∀ (a : Ty) (σ σ' : Bindings),
       | none => rw [hd] at h; cases h
       | some σ₁ => rw [hd] at h; exact ⟨σ₁, rfl, h⟩
     exact ihps _ _ _ h₂ b (ihp _ _ _ h₁ b hb)
-  | fn ps r ihp ihr =>
+  | fn ps r ne ihp ihr =>
     intro a σ σ' h b hb
     cases a <;> simp only [deduceTy, reduceCtorEq] at h
-    rename_i as s
-    obtain ⟨σ₁, h₁, h₂⟩ : ∃ σ₁, deduceTy ps as σ = some σ₁ ∧ deduceTy r s σ₁ = some σ' := by
-      cases hd : deduceTy ps as σ with
-      | none => rw [hd] at h; cases h
-      | some σ₁ => rw [hd] at h; exact ⟨σ₁, rfl, h⟩
-    exact ihr _ _ _ h₂ b (ihp _ _ _ h₁ b hb)
+    rename_i as s ne'
+    split at h
+    · obtain ⟨σ₁, h₁, h₂⟩ : ∃ σ₁, deduceTy ps as σ = some σ₁ ∧ deduceTy r s σ₁ = some σ' := by
+        cases hd : deduceTy ps as σ with
+        | none => rw [hd] at h; cases h
+        | some σ₁ => rw [hd] at h; exact ⟨σ₁, rfl, h⟩
+      exact ihr _ _ _ h₂ b (ihp _ _ _ h₁ b hb)
+    · exact absurd h (by simp)
   | nondeduced p _ =>
     intro a σ σ' h b hb
     simp only [deduceTy, Option.some.injEq] at h

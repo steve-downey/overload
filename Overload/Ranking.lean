@@ -128,7 +128,7 @@ def userConversions (p : Program) (init : Init) (tgt src : Ty) : List (Ty × Use
     | c@(.constructor ..) => if c.candidate init then some (tgt, c) else none
     | _ => none
   let fns := (p.conversionsOf src).filterMap fun
-    | c@(.function t _ _) =>
+    | c@(.function t _ _ _) =>
       if c.candidate init && (t == tgt || p.derives t tgt) then some (src, c) else none
     | _ => none
   ctors ++ fns
@@ -397,11 +397,11 @@ a temporary, so an lvalue reference to non-const forms no sequence
   "over.match.funcs.general#5"]
 def userSequence (p : Program) (a : CallArg) (t : Ty) (cls : Ty) (conv : UserConv) : Option Ics :=
   match conv with
-  | .constructor param _ => do
+  | .constructor param _ _ => do
     let first ← p.standardIcs a param
     let second ← p.standardIcs { ty := cls } t
     some (.userDefined first (cls, conv) second)
-  | .function target _ const => do
+  | .function target _ const _ => do
     let first ← p.standardIcs { a with lvalue := true } (.lref (if const then .const cls else cls))
     let second ← p.standardIcs { ty := target } t
     some (.userDefined first (cls, conv) second)
