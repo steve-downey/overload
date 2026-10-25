@@ -571,7 +571,20 @@ members delete which defaulted special members of a flat class, one
 without bases, class-typed members, initializers or declared specials,
 `value_nature_flat` that such a class has value nature exactly when no
 member is a reference or `const`, and `pointer_member_keeps_value_nature`
-that a pointer member deletes nothing.
+that a pointer member deletes nothing. `implicitClass` is a class whose
+special members are the rules' own through every class-typed subobject:
+no declared special member or conversion, well-formed declarations
+(`subobjectsWellFormed`), and the same of each subobject's class.
+`value_nature_iff` says such a class has value nature exactly when it
+has no reference member at any depth, `copy_assignment_deleted_iff` that
+the copy assignment is the member every reference or `const` member
+deletes, and `deletion_propagates` that a subobject's deleted member
+deletes the enclosing one of the same kind, the move kinds through the
+copy member since a deleted defaulted move member is not a candidate.
+Beneath them, `implicit_deleted` is the induction over fuel, and seven
+lemmas from `resolveCtor_nullary` to `resolveAssign_rvalue_copy` say
+which implicit member overload resolution selects for each argument a
+subobject supplies.
 
 ### Aggregate
 
@@ -1239,8 +1252,8 @@ types the full environment decides in lexical order
 (`requires_soft_is_false`, `requires_false_stops`, `requires_hard_stops`,
 `member_requirement_iff_call`). The value nature of a class, data and
 codata, is a definition and a theorem of the deletion rules
-(`deleted_flat`, `value_nature_flat`, `pointer_member_keeps_value_nature`),
-not a rule.
+(`deleted_flat`, `value_nature_flat`, `pointer_member_keeps_value_nature`,
+and in general `value_nature_iff` and `deletion_propagates`), not a rule.
 
 Phase 13 added the half of a concept that is not a constraint. A semantic
 requirement is a named, cited statement nothing decides; modelling a
@@ -1430,7 +1443,9 @@ default, copy and move constructible, so the value route's copy of it
 costs nothing. `reference_member_instance`: an instance type holding a
 reference is structural, so the value route admits it, and is neither
 default constructible nor assignable; structural and value nature are
-different properties. `copy_constraint_shields`: the callable-copying
+different properties. `nested_reference_instance`: the reference nature
+reaches an instance through two class-typed members, by
+`value_nature_iff`, so it copies and does not assign. `copy_constraint_shields`: the callable-copying
 rule as a theorem, the trait `is_copy_constructible` as a constraint
 making the algorithm not viable at a callable whose copy constructor is
 deleted, where the same trait as a Mandate, the body's copy, makes the

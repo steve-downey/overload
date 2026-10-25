@@ -902,12 +902,14 @@ as properties of a type, when the Standard has no term for them?
 **Status:** DECIDED 24 October 2026.
 **Decision:** As definitions and theorems, never rules. `Program.valueNature
 c` holds when every special member of `c` is defaulted and non-deleted;
-`Program.referenceMember c` when some member, through class-typed
-members likewise, is of reference type or `const` non-class type.
-`value_nature_flat` connects them for flat classes, those without bases,
-class-typed members, initializers or declared specials, and the
-propagation through class-typed members is computed by `deletedWithin`
-and tested; its general theorem is open. The author's names for the two natures, data and codata, appear
+`Program.referenceMember c` when some subobject, through class-typed
+members and bases likewise, is of reference type or `const` type, a
+`const` member of class type included. `value_nature_iff` connects them
+for every class whose special members are the rules' own
+(`Program.implicitClass`): one that declares no special member and no
+conversion, whose class-typed subobjects are such classes to any depth;
+`value_nature_flat` is the case without class-typed subobjects. The
+author's names for the two natures, data and codata, appear
 in the docs; the Lean names are `valueNature` and `referenceMember`,
 and no `@[std rule]` cites a sentence for either, since none exists.
 A pointer is data: a scalar, trivially copyable, deleting nothing. Its
@@ -935,6 +937,31 @@ cannot check.
   a reference is structural for the value route and not assignable
   (`reference_member_instance`): structural and value nature are
   different properties.
+- 2026-10-25 — The general theorem landed. `implicit_deleted` is the
+  induction over fuel: for a class whose special members are the rules'
+  own, the copy assignment is deleted exactly when the class has a
+  reference member, the destructor never, and with no reference member
+  nothing is. It rests on seven lemmas, `resolveCtor_nullary`,
+  `resolveCtor_lvalue`, `resolveCtor_rvalue_move`,
+  `resolveCtor_rvalue_copy`, `resolveAssign_lvalue`,
+  `resolveAssign_rvalue_move` and `resolveAssign_rvalue_copy`, which
+  say what overload resolution over a class's implicit members selects
+  for each argument a subobject supplies: the move member for an rvalue
+  of the class, by [over.ics.rank]/3, and the copy member for an rvalue
+  of the `const` class or when the defaulted move member is defined as
+  deleted and so is not a candidate. `value_nature_iff` and
+  `copy_assignment_deleted_iff` state the result at the program's fuel;
+  `deletion_propagates` is the one-step form per kind. Two corrections
+  to the definition on the way. A `const` member of class type counts
+  as a reference member, since [class.copy.assign]/7 deletes the
+  assignment through it as through a `const` scalar. The definition
+  reads the potentially constructed subobjects rather than the members,
+  so a base falls under the same clause. The theorem needs the
+  declarations well-formed (`subobjectsWellFormed`: a base is a class
+  type, a member's type has one `const` at most), which is a property
+  of the program's shape and not a rule. Eleven emitted trait cases
+  observe the propagation, the `const` class-typed member and the
+  fallback to the copy constructor; GCC 15 and Clang 24 agree on all.
 
 ---
 

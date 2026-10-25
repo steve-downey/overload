@@ -2271,6 +2271,59 @@ def traitCopyAssignableReference : Case :=
   traitCase "trait_copy_assignable_reference" "meta.unary.prop#5" refMember .isCopyAssignable [cX]
 def traitMoveAssignableConst : Case :=
   traitCase "trait_move_assignable_const" "meta.unary.prop#5" constMember .isMoveAssignable [cX]
+/-- `struct R { int& r; }; struct W { R inner; }; struct O { W w; };`: the
+reference nature through two class-typed members. -/
+private def nestedReference : Program :=
+  [ .class "R", .member (.named "R") { name := "r", ty := .lref (.named "int") }
+  , .class "W", .member (.named "W") { name := "inner", ty := .named "R" }
+  , .class "O", .member (.named "O") { name := "w", ty := .named "W" } ]
+def traitCopyAssignableNested : Case :=
+  traitCase "trait_copy_assignable_nested" "meta.unary.prop#5" nestedReference .isCopyAssignable [.named "O"]
+def traitDefaultConstructibleNested : Case :=
+  traitCase "trait_default_constructible_nested" "meta.unary.prop#5" nestedReference
+    .isDefaultConstructible [.named "O"]
+def traitCopyConstructibleNested : Case :=
+  traitCase "trait_copy_constructible_nested" "meta.unary.prop#5" nestedReference
+    .isCopyConstructible [.named "O"]
+/-- `struct M { int x; }; struct X { const M m; };`: a `const` member of
+class type. -/
+private def constClassMember : Program :=
+  [ .class "M", .member cM { name := "x", ty := .named "int" }
+  , .class "X", .member cX { name := "m", ty := .const cM } ]
+def traitCopyAssignableConstClass : Case :=
+  traitCase "trait_copy_assignable_const_class" "meta.unary.prop#5" constClassMember .isCopyAssignable [cX]
+def traitDefaultConstructibleConstClass : Case :=
+  traitCase "trait_default_constructible_const_class" "meta.unary.prop#5" constClassMember
+    .isDefaultConstructible [cX]
+def traitCopyConstructibleConstClass : Case :=
+  traitCase "trait_copy_constructible_const_class" "meta.unary.prop#5" constClassMember
+    .isCopyConstructible [cX]
+/-- `struct E {}; struct X { const E e; };`: an empty class is
+const-default-constructible ([dcl.init.general]/7). -/
+private def constEmptyMember : Program :=
+  [ .class "E", .class "X", .member cX { name := "e", ty := .const (.named "E") } ]
+def traitDefaultConstructibleConstEmpty : Case :=
+  traitCase "trait_default_constructible_const_empty" "dcl.init.general#7" constEmptyMember
+    .isDefaultConstructible [cX]
+def traitCopyAssignableConstEmpty : Case :=
+  traitCase "trait_copy_assignable_const_empty" "meta.unary.prop#5" constEmptyMember .isCopyAssignable [cX]
+/-- `struct N { int&& r; }; struct X { const N n; }; struct Y { N n; };`: a
+defaulted move constructor resolves to the member's copy constructor
+when the member is `const`, and `N`'s is deleted by its rvalue reference
+member. -/
+private def rvalueMember : Program :=
+  [ .class "N", .member (.named "N") { name := "r", ty := .rref (.named "int") }
+  , .class "X", .member cX { name := "n", ty := .const (.named "N") }
+  , .class "Y", .member (.named "Y") { name := "n", ty := .named "N" } ]
+def traitMoveConstructibleConstRvalueMember : Case :=
+  traitCase "trait_move_constructible_const_rvalue_member" "class.copy.ctor#10" rvalueMember
+    .isMoveConstructible [cX]
+def traitMoveConstructibleRvalueMember : Case :=
+  traitCase "trait_move_constructible_rvalue_member" "class.copy.ctor#10" rvalueMember
+    .isMoveConstructible [.named "Y"]
+def traitCopyConstructibleRvalueMember : Case :=
+  traitCase "trait_copy_constructible_rvalue_member" "class.copy.ctor#10" rvalueMember
+    .isCopyConstructible [.named "Y"]
 def traitCopyAssignablePlain : Case :=
   traitCase "trait_copy_assignable_plain" "meta.unary.prop#5" classA .isCopyAssignable [.named "A"]
 /-- `is_assignable_v<X&, const X&>` and `<const X&, X>`. -/
@@ -2880,6 +2933,11 @@ def cases : List Case :=
   , traitConvertibleDeletedCopy, traitCopyConstructibleDeleted, traitMoveConstructibleDeleted
   , traitDefaultConstructibleReference, traitDefaultConstructibleConst, traitConstructibleCopy
   , traitConstructibleConverting, traitCopyAssignableReference, traitMoveAssignableConst
+  , traitCopyAssignableNested, traitDefaultConstructibleNested, traitCopyConstructibleNested
+  , traitCopyAssignableConstClass, traitDefaultConstructibleConstClass, traitCopyConstructibleConstClass
+  , traitDefaultConstructibleConstEmpty, traitCopyAssignableConstEmpty
+  , traitMoveConstructibleConstRvalueMember, traitMoveConstructibleRvalueMember
+  , traitCopyConstructibleRvalueMember
   , traitCopyAssignablePlain, traitAssignableConstObject, traitDestructibleDeleted
   , traitDestructibleMember, traitTriviallyCopyableFlat, traitTriviallyCopyableUserProvided
   , traitTriviallyCopyableDeletedCopy, traitTriviallyCopyableScalar, traitStandardLayoutReference

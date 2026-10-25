@@ -536,10 +536,11 @@ Status, 15 October 2026:
   requires-expressions as judgements over those, with concept-ids
   normalized; the plan, the cross-reference against N5054 and the stages
   are [below](#phase-12-the-type-system-special-member-functions-and-traits).
-  Compound and nested requirements, `compound_eq_simple_nested`,
-  `is_invocable` of a class callee and the general propagation theorem
-  of value nature wait on a later phase; their paragraphs are out of
-  scope until then. Settles function-types, special-member-fragment,
+  Compound and nested requirements, `compound_eq_simple_nested` and
+  `is_invocable` of a class callee wait on a later phase; their
+  paragraphs are out of scope until then. The general value-nature
+  theorem landed 25 October 2026 (`value_nature_iff`,
+  `deletion_propagates`; the stage 3 status below). Settles function-types, special-member-fragment,
   trait-residue and value-nature. Stage 2, type-categories, landed 24 October 2026:
   `Ty.fn`, `Overload/Types.lean` with the categories, the
   transformations, `primary_category_unique` and the structural
@@ -561,9 +562,22 @@ Status, 15 October 2026:
   holds it. The value-nature theorems are stated for flat classes,
   `deleted_flat`, `value_nature_flat` and
   `pointer_member_keeps_value_nature`, where the deletion rules reduce
-  to the members' types; the propagation through class-typed members is
-  computed and tested, and its general theorem waits on lemmas about
-  resolution over a class's implicit constructors. One correction to the
+  to the members' types; the propagation through class-typed members
+  was computed and tested, and its general theorem waited on lemmas
+  about resolution over a class's implicit constructors. Those landed
+  25 October 2026: seven lemmas say which implicit member resolution
+  selects for the argument a subobject supplies, `implicit_deleted` is
+  the induction over fuel on them, `value_nature_iff` states the result
+  for every class whose special members are the rules' own
+  (`implicitClass`), and `deletion_propagates` is the one-step form per
+  kind, the move kinds through the copy member since a deleted
+  defaulted move member is not a candidate. The definition of a
+  reference member changed on the way: a `const` member of class type
+  counts, since it deletes the assignment too, and the definition reads
+  the subobjects so that a base falls under the same clause. The
+  theorem assumes the declarations well-formed (`subobjectsWellFormed`),
+  a property of the program's shape. Eleven emitted trait cases observe
+  the propagation and the fallback, and the compilers agree. One correction to the
   plan's own statement: a `const` member without an initializer deletes
   the default constructor too ([class.default.ctor]/2, through
   [dcl.init.general]/7), so value nature fails for a reference or a
@@ -788,8 +802,8 @@ its counterexample and is a finding, not a setback.
 | converted-argument-temporary | A user-defined conversion yields a prvalue: an lvalue reference parameter to non-const is not viable for it, a reference constant parameter refuses it, and a class-typed value parameter identifies every source that converts to one value. Added 23 October 2026. | 11 |
 | explicit-never-implicit | An explicit constructor or conversion function is no candidate for copy-initialization, so it forms no implicit conversion sequence at a call argument or a candidate initializer. Added 23 October 2026. | 11 |
 | instantiation-points | A dependent call referenced before a later overload of its name means different things at its two points of instantiation, which is ill-formed, no diagnostic required; a callee bound to an object has one meaning at every point. Added 22 October 2026. | 9 |
-| value-nature | For a class that declares no special member function, every defaulted special member is non-deleted exactly when no member, through class-typed members likewise, is of reference type or `const` type; a pointer member deletes nothing. Added 24 October 2026; proved for flat classes the same day (`value_nature_flat`), the propagation through class-typed members computed and tested. | 12 |
-| deletion-propagates | A member or base whose class has a deleted or inaccessible corresponding special member deletes the enclosing class's defaulted one, through any depth ([class.default.ctor]/2, [class.copy.ctor]/10, [class.copy.assign]/7, [class.dtor]/7). Added 24 October 2026. | 12 |
+| value-nature | For a class that declares no special member function, every defaulted special member is non-deleted exactly when no member, through class-typed members likewise, is of reference type or `const` type; a pointer member deletes nothing. Added 24 October 2026; proved for flat classes the same day (`value_nature_flat`), and in general on 25 October 2026 for every class whose special members are the rules' own through its subobjects (`value_nature_iff`). | 12 | 12 |
+| deletion-propagates | A member or base whose class has a deleted or inaccessible corresponding special member deletes the enclosing class's defaulted one, through any depth ([class.default.ctor]/2, [class.copy.ctor]/10, [class.copy.assign]/7, [class.dtor]/7). Added 24 October 2026; proved 25 October 2026 (`deletion_propagates`) for a subobject whose class's special members are the rules' own, the move kinds through the copy member's deletion since a deleted defaulted move member is not a candidate. | 12 |
 | trait-is-resolution | `is_constructible`, `is_assignable` and `is_convertible` are overload resolution over the class's constructors, assignment operators and conversions with the usable-candidate check, so a trait's answer is the call's ([meta.unary.prop]/9, [meta.rel]/6, [over.match.general]/4). Added 24 October 2026; proved the same day (`trait_is_resolution`, `is_convertible_eq_ics`). | 12 |
 | requires-soft-is-false | A requirement that fails in the immediate context makes the requires-expression `false`, checked in lexical order and stopping at the first decider; a failure outside it is a hard error ([expr.prim.req.general]/5). Added 24 October 2026; proved the same day (`requires_soft_is_false`, `requires_false_stops`, `requires_hard_stops`). | 12 |
 | copy-constraint-shields | A member constrained by copy-constructibility of its callable fails softly at a callable whose copy constructor is deleted, where the body's copy would be a hard error: the callable-copying rule as a theorem. Added 24 October 2026; proved the same day (`copy_constraint_shields`). | 12 |
@@ -1801,10 +1815,11 @@ and `decisions.md#trait-residue`.
   check then refuses, as [dcl.fct.def.delete]/2 says.
 - **Value nature.** `Program.valueNature c`: every special member of
   `c` is defaulted and non-deleted. `Program.referenceMember c`: some
-  member of `c`, or of a class-typed member's class likewise, is of
-  reference type or `const` non-class type. `value_nature_iff`: for a
-  class that declares no special member, and whose class-typed members
-  declare none, `valueNature` holds iff `referenceMember` fails.
+  subobject of `c`, or of a class-typed subobject's class likewise, is
+  of reference type or `const` type. `value_nature_iff`: for a class
+  whose special members are the rules' own, through its class-typed
+  subobjects to any depth (`implicitClass`), `valueNature` holds iff
+  `referenceMember` fails.
   `pointer_member_keeps_value_nature`: a pointer member deletes nothing.
   `deletion_propagates`: a member or base of class `M` with a deleted
   corresponding special member deletes the enclosing defaulted one,
@@ -1855,6 +1870,8 @@ and `decisions.md#trait-residue`.
   theorem; `reference_member_instance`, an instance type that holds a
   reference is structural for the value route ([temp.param]/12) and
   not assignable, so the two notions do not coincide;
+  `nested_reference_instance`, the reference nature reaches an instance
+  through two class-typed members, by `value_nature_iff`;
   `refinement_normalizes`, the refined concept's normal form contains
   the superclass's atoms with the identity mapping, so the refinement
   subsumes with no hand-written identity, the

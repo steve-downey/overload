@@ -73,6 +73,12 @@ is the map.
 #audit Overload.deleted_flat
 #audit Overload.value_nature_flat
 #audit Overload.pointer_member_keeps_value_nature
+#audit Overload.specialWithin_implicit
+#audit Overload.implicit_deleted
+#audit Overload.value_nature_iff
+#audit Overload.copy_assignment_deleted_iff
+#audit Overload.deletion_propagates
+#audit Overload.flat_implicit
 #audit Overload.trait_is_resolution
 #audit Overload.is_convertible_eq_ics
 #audit Overload.requires_soft_is_false
@@ -363,6 +369,7 @@ consults an oracle rests on what the environment says. -/
 -- The value nature of an instance type, and what a constraint owes.
 #audit Overload.Typeclass.instance_shape_regular
 #audit Overload.Typeclass.reference_member_instance
+#audit Overload.Typeclass.nested_reference_instance
 #audit Overload.Typeclass.copy_constraint_shields
 #audit Overload.Typeclass.refinement_normalizes
 #audit Overload.Typeclass.refinement_selects

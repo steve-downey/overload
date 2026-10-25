@@ -22,7 +22,9 @@ facts they consult, `Facts`, so that nothing here is mutually recursive:
 
 The value and reference nature of a type, the author's data and codata,
 are definitions and theorems here, never rules
-(`decisions.md#value-nature`).
+(`decisions.md#value-nature`): `value_nature_iff` for every class whose
+special members are the rules' own, on seven lemmas about what overload
+resolution over a class's implicit members selects.
 -/
 
 namespace Overload
@@ -46,6 +48,12 @@ structure Smf where
   prov : Provenance
   constParam : Bool := true
   deriving Repr, DecidableEq, Inhabited
+
+/-- The special member function of kind `k` the rules declare for a class
+that declares none: defaulted, its parameter a reference to `const`
+except for the move members. -/
+def Smf.implicit (k : SmfKind) : Smf :=
+  { kind := k, prov := .defaulted, constParam := k != .moveCtor && k != .moveAssign }
 
 /-- The parameter types of a special member of class `c`: none for a
 default constructor or destructor, `X&` or `const X&` for a copy
@@ -471,15 +479,39 @@ def valueNature (p : Program) (c : Ty) : Bool :=
     | none => false
 
 /-- A class has a reference member, through class-typed members and
-bases likewise: a member of reference type or of `const` non-class type.
-The author's name for the nature it gives the class is codata. -/
+bases likewise: a potentially constructed subobject of reference type or
+of `const` type. A `const` member of class type counts, since it deletes
+the assignment operators as a `const` scalar does; a base is never a
+reference or `const`, so the subobjects serve for the members. The
+author's name for the nature it gives the class is codata. -/
 def referenceMemberWithin (p : Program) : Nat → Ty → Bool
   | 0, _ => false
   | fuel + 1, c =>
-    (p.membersOf c).any (fun m => m.ty.isReference || (m.ty.isConst && !m.ty.stripConst.isClass)) ||
+    (p.subobjectsOf c).any (fun t => t.isReference || t.isConst) ||
     (p.classSubobjects c).any (p.referenceMemberWithin fuel)
 
 def referenceMember (p : Program) (c : Ty) : Bool := p.referenceMemberWithin p.length c
+
+/-- The declarations of a class are well-formed as far as the special
+member rules read them: each direct base is a class type, not `const`,
+and each member's type carries one top-level `const` at most. -/
+def subobjectsWellFormed (p : Program) (c : Ty) : Bool :=
+  (p.directBases c).all (fun b => b.isClass && !b.isConst) &&
+    (p.membersOf c).all fun m => !m.ty.stripConst.isConst
+
+/-- A class whose special member functions are all the rules' own, within
+`fuel` steps of subobject nesting: it declares no special member and no
+conversion, its declarations are well-formed, and the class of each of
+its class-typed subobjects is such a class likewise. -/
+def implicitWithin (p : Program) : Nat → Ty → Bool
+  | 0, _ => false
+  | fuel + 1, c =>
+    (p.specialDecls c).isEmpty && (p.conversionsOf c).isEmpty && p.subobjectsWellFormed c &&
+      (p.classSubobjects c).all (p.implicitWithin fuel)
+
+/-- A class whose special member functions, and those of every class
+reachable through its subobjects, are implicitly declared. -/
+def implicitClass (p : Program) (c : Ty) : Bool := p.implicitWithin p.length c
 
 /-- A class that declares no special member, no conversion, no default
 member initializer and no base: a flat class, whose special members are
@@ -641,5 +673,598 @@ theorem pointer_member_keeps_value_nature (p : Program) (c : Ty) (hc : p.flatCla
   intro m hmem
   have := hptr m hmem
   cases hm : m.ty <;> simp_all [Ty.isReference, Ty.isLvalueReference, Ty.isRvalueReference, Ty.isConst]
+
+/-! ## A class whose special members are the rules' own -/
+
+/-- A type that is not `const` is its own `stripConst`. -/
+theorem stripConst_of_not_const (t : Ty) (h : t.isConst = false) : t.stripConst = t := by
+  cases t <;> simp_all [Ty.isConst, Ty.stripConst]
+
+/-- A class type is not a reference, so it is its own `referred`. -/
+theorem referred_of_class (t : Ty) (h : t.isClass = true) : t.referred = t := by
+  cases t <;> simp_all [Ty.isClass, Ty.stripConst, Ty.referred]
+
+/-- A class type is not a reference. -/
+theorem not_reference_of_class (t : Ty) (h : t.isClass = true) : t.isReference = false := by
+  cases t <;> simp_all [Ty.isClass, Ty.stripConst, Ty.isReference, Ty.isLvalueReference,
+    Ty.isRvalueReference]
+
+/-- The conjuncts of `implicitWithin` at a positive fuel. -/
+theorem implicitWithin_succ (p : Program) (fuel : Nat) (c : Ty)
+    (h : p.implicitWithin (fuel + 1) c = true) :
+    p.specialDecls c = [] ∧ p.conversionsOf c = [] ∧ p.subobjectsWellFormed c = true ∧
+      ∀ m ∈ p.classSubobjects c, p.implicitWithin fuel m = true := by
+  simp only [Program.implicitWithin, Bool.and_eq_true, List.isEmpty_iff, List.all_eq_true] at h
+  exact ⟨h.1.1.1, h.1.1.2, h.1.2, h.2⟩
+
+/-- A class that is implicit at any fuel declares no conversion. -/
+theorem implicitWithin_conversions (p : Program) (fuel : Nat) (c : Ty)
+    (h : p.implicitWithin fuel c = true) : p.conversionsOf c = [] := by
+  cases fuel with
+  | zero => simp [Program.implicitWithin] at h
+  | succ n => exact (implicitWithin_succ p n c h).2.1
+
+/-- The special members of a class whose special members are the rules'
+own: all six, defaulted, the copy members with a reference to `const`
+since every subobject's are. -/
+theorem specialWithin_implicit (p : Program) :
+    ∀ fuel c, p.implicitWithin fuel c = true → ∀ k, p.specialWithin fuel c k = some (Smf.implicit k) := by
+  intro fuel
+  induction fuel with
+  | zero => intro c h; simp [Program.implicitWithin] at h
+  | succ n ih =>
+    intro c h k
+    obtain ⟨hs, hconv, -, hsub⟩ := implicitWithin_succ p n c h
+    have hud : ∀ k', p.userDeclared c k' = none := by
+      intro k'; simp [Program.userDeclared, hs, hconv]
+    have hudc : p.userDeclaredCtor c = false := by simp [Program.userDeclaredCtor, hs, hconv]
+    have hcc : ((p.classSubobjects c).all fun m =>
+        ((p.specialWithin n m .copyCtor).map (·.constParam)).getD true) = true :=
+      List.all_eq_true.mpr fun m hm => by simp [ih m (hsub m hm) .copyCtor, Smf.implicit]
+    have hca : ((p.classSubobjects c).all fun m =>
+        ((p.specialWithin n m .copyAssign).map (·.constParam)).getD true) = true :=
+      List.all_eq_true.mpr fun m hm => by simp [ih m (hsub m hm) .copyAssign, Smf.implicit]
+    cases k <;> simp [Program.specialWithin, hud, hudc, hcc, hca, Smf.implicit]
+
+/-! ### Resolution over the implicit members of a class
+
+The lemmas take the facts of a class `M` whose special members are the
+rules' own, and say which member overload resolution selects for each
+argument a subobject supplies: the default constructor for no argument;
+the copy member for an lvalue; the move member for an rvalue of the class,
+since binding an rvalue reference to an rvalue is the better conversion
+([over.ics.rank]/3); and the copy member for an rvalue of `const` class,
+or when the defaulted move member is defined as deleted and so is not a
+candidate ([class.copy.ctor]/10, [class.copy.assign]/7). -/
+
+/-- The facts of a class whose special members are the rules' own. -/
+def Program.Facts.implicitFor (f : Program.Facts) (M : Ty) : Prop := ∀ k, f.special M k = some (Smf.implicit k)
+
+section ResolutionLemmas
+
+attribute [local simp] Program.resolveAmong viable viable.go conversions arityOk bestViable
+  betterFunction Program.ranking Program.ics Program.standardIcs Program.canBind
+  Program.referenceCompatible Program.baseConv Program.related Program.betterIcs Program.better
+  lexBetter Program.tiers Program.byRank Program.byRvalueBinding Program.byQualification
+  ConvRank.better Ty.referred Ty.stripConst Ty.isClass Smf.implicit Smf.params
+
+variable (f : Program.Facts) (p : Program) (M : Ty) (hM : M.isClass = true) (hMc : M.isConst = false)
+  (hconv : p.conversionsOf M = []) (hf : f.implicitFor M)
+include hconv hf
+
+omit hconv in
+/-- The three constructors the facts give the class. -/
+theorem Facts.ctors : f.special M .defaultCtor = some (Smf.implicit .defaultCtor) ∧
+    f.special M .copyCtor = some (Smf.implicit .copyCtor) ∧
+    f.special M .moveCtor = some (Smf.implicit .moveCtor) := ⟨hf _, hf _, hf _⟩
+
+omit hconv in
+/-- The two assignment operators the facts give the class. -/
+theorem Facts.assigns : f.special M .copyAssign = some (Smf.implicit .copyAssign) ∧
+    f.special M .moveAssign = some (Smf.implicit .moveAssign) := ⟨hf _, hf _⟩
+
+/-- With no argument, the default constructor. -/
+theorem resolveCtor_nullary :
+    p.resolveCtor f .direct M [] = .selected ({ index := 0, params := [] }, some .defaultCtor) := by
+  obtain ⟨h0, h1, h2⟩ := Facts.ctors f M hf
+  unfold Program.resolveCtor Program.ctorCandidates
+  cases hd : f.deleted M .moveCtor <;> simp [h0, h1, h2, hconv, hd]
+
+include hM hMc
+
+/-- With an lvalue of the class, `const` or not, the copy constructor:
+the move constructor binds no lvalue. -/
+theorem resolveCtor_lvalue (t : Ty) (ht : t = M ∨ t = .const M) :
+    p.resolveCtor f .direct M [{ ty := t, lvalue := true }] =
+      .selected ({ index := 1, params := [.lref (.const M)] }, some .copyCtor) := by
+  obtain ⟨h0, h1, h2⟩ := Facts.ctors f M hf
+  unfold Program.resolveCtor Program.ctorCandidates
+  cases hd : f.deleted M .moveCtor <;> cases M <;> simp [Ty.isConst] at hM hMc <;>
+    rcases ht with rfl | rfl <;> simp [h0, h1, h2, hconv, hd]
+
+/-- With an rvalue of the class, the move constructor when it is a
+candidate: it binds an rvalue reference to an rvalue, which is the better
+conversion. -/
+theorem resolveCtor_rvalue_move (hd : f.deleted M .moveCtor = false) :
+    p.resolveCtor f .direct M [{ ty := M, lvalue := false }] =
+      .selected ({ index := 2, params := [.rref M] }, some .moveCtor) := by
+  obtain ⟨h0, h1, h2⟩ := Facts.ctors f M hf
+  unfold Program.resolveCtor Program.ctorCandidates
+  cases M <;> simp [Ty.isConst] at hM hMc <;> simp [h0, h1, h2, hconv, hd]
+
+/-- With an rvalue of the `const` class, or when the defaulted move
+constructor is defined as deleted and so is not a candidate, the copy
+constructor. -/
+theorem resolveCtor_rvalue_copy (t : Ty)
+    (ht : t = M ∧ f.deleted M .moveCtor = true ∨ t = .const M) :
+    p.resolveCtor f .direct M [{ ty := t, lvalue := false }] =
+      .selected ({ index := 1, params := [.lref (.const M)] }, some .copyCtor) := by
+  obtain ⟨h0, h1, h2⟩ := Facts.ctors f M hf
+  unfold Program.resolveCtor Program.ctorCandidates
+  rcases ht with ⟨rfl, hd⟩ | rfl
+  · cases t <;> simp [Ty.isConst] at hM hMc <;> simp [h0, h1, h2, hconv, hd]
+  · cases hd : f.deleted M .moveCtor <;> cases M <;> simp [Ty.isConst] at hM hMc <;>
+      simp [h0, h1, h2, hconv, hd]
+
+omit hconv in
+/-- With an lvalue of the class, `const` or not, the copy assignment. -/
+theorem resolveAssign_lvalue (t : Ty) (ht : t = M ∨ t = .const M) :
+    p.resolveAssign f M { ty := t, lvalue := true } =
+      .selected ({ index := 0, params := [.lref (.const M)] }, some .copyAssign) := by
+  obtain ⟨h3, h4⟩ := Facts.assigns f M hf
+  unfold Program.resolveAssign Program.assignCandidates
+  cases hd : f.deleted M .moveAssign <;> cases M <;> simp [Ty.isConst] at hM hMc <;>
+    rcases ht with rfl | rfl <;> simp [h3, h4, hd]
+
+omit hconv in
+/-- With an rvalue of the class, the move assignment when it is a
+candidate. -/
+theorem resolveAssign_rvalue_move (hd : f.deleted M .moveAssign = false) :
+    p.resolveAssign f M { ty := M, lvalue := false } =
+      .selected ({ index := 1, params := [.rref M] }, some .moveAssign) := by
+  obtain ⟨h3, h4⟩ := Facts.assigns f M hf
+  unfold Program.resolveAssign Program.assignCandidates
+  cases M <;> simp [Ty.isConst] at hM hMc <;> simp [h3, h4, hd]
+
+omit hconv in
+/-- With an rvalue of the `const` class, or when the defaulted move
+assignment is defined as deleted, the copy assignment. -/
+theorem resolveAssign_rvalue_copy (t : Ty)
+    (ht : t = M ∧ f.deleted M .moveAssign = true ∨ t = .const M) :
+    p.resolveAssign f M { ty := t, lvalue := false } =
+      .selected ({ index := 0, params := [.lref (.const M)] }, some .copyAssign) := by
+  obtain ⟨h3, h4⟩ := Facts.assigns f M hf
+  unfold Program.resolveAssign Program.assignCandidates
+  rcases ht with ⟨rfl, hd⟩ | rfl
+  · cases t <;> simp [Ty.isConst] at hM hMc <;> simp [h3, h4, hd]
+  · cases hd : f.deleted M .moveAssign <;> cases M <;> simp [Ty.isConst] at hM hMc <;>
+      simp [h3, h4, hd]
+
+end ResolutionLemmas
+
+/-! ### The deletion rules at a positive fuel, one kind at a time -/
+
+namespace Program
+
+/-- [class.dtor]/7 at a fuel: a subobject's deleted destructor. -/
+theorem deletedWithin_dtor (p : Program) (n : Nat) (c : Ty) :
+    p.deletedWithin (n + 1) c .dtor =
+      (p.classSubobjects c).any fun m => (p.factsWithin n).isDeleted m .dtor := rfl
+
+/-- [class.default.ctor]/2 at a fuel. -/
+theorem deletedWithin_defaultCtor (p : Program) (n : Nat) (c : Ty) :
+    p.deletedWithin (n + 1) c .defaultCtor =
+      ((p.membersOf c).any (fun m => m.ty.isReference && !m.init) ||
+       (p.membersOf c).any (fun m => m.ty.isConst && !m.init && !p.constDefaultConstructibleWithin n m.ty) ||
+       ((p.membersOf c).any fun m => m.ty.stripConst.isClass && !m.init &&
+         !usable (p.factsWithin n) m.ty.stripConst (resolveCtor (p.factsWithin n) p .direct m.ty.stripConst [])) ||
+       ((p.directBases c).any fun b => !usable (p.factsWithin n) b (resolveCtor (p.factsWithin n) p .direct b [])) ||
+       (p.classSubobjects c).any fun m => (p.factsWithin n).isDeleted m .dtor) := rfl
+
+/-- [class.copy.ctor]/10 at a fuel, for the copy constructor. -/
+theorem deletedWithin_copyCtor (p : Program) (n : Nat) (c : Ty) :
+    p.deletedWithin (n + 1) c .copyCtor =
+      (((p.subobjectsOf c).any fun t => t.stripConst.isClass &&
+         !usable (p.factsWithin n) t.stripConst (resolveCtor (p.factsWithin n) p .direct t.stripConst
+           [subobjectArg t (((p.specialWithin (n + 1) c .copyCtor).map (·.constParam)).getD true) false])) ||
+       ((p.classSubobjects c).any fun m => (p.factsWithin n).isDeleted m .dtor) ||
+       (p.membersOf c).any (·.ty.isRvalueReference)) := rfl
+
+/-- [class.copy.ctor]/10 at a fuel, for the move constructor. -/
+theorem deletedWithin_moveCtor (p : Program) (n : Nat) (c : Ty) :
+    p.deletedWithin (n + 1) c .moveCtor =
+      (((p.subobjectsOf c).any fun t => t.stripConst.isClass &&
+         !usable (p.factsWithin n) t.stripConst (resolveCtor (p.factsWithin n) p .direct t.stripConst
+           [subobjectArg t (((p.specialWithin (n + 1) c .moveCtor).map (·.constParam)).getD true) true])) ||
+       (p.classSubobjects c).any fun m => (p.factsWithin n).isDeleted m .dtor) := by
+  simp [Program.deletedWithin, Program.factsWithin]
+
+/-- [class.copy.assign]/7 at a fuel, for the copy assignment. -/
+theorem deletedWithin_copyAssign (p : Program) (n : Nat) (c : Ty) :
+    p.deletedWithin (n + 1) c .copyAssign =
+      ((p.membersOf c).any (fun m => m.ty.isConst && !m.ty.stripConst.isClass) ||
+       (p.membersOf c).any (·.ty.isReference) ||
+       (p.subobjectsOf c).any fun t => t.stripConst.isClass &&
+         (t.isConst || !usable (p.factsWithin n) t.stripConst (resolveAssign (p.factsWithin n) p t.stripConst
+           (subobjectArg t (((p.specialWithin (n + 1) c .copyAssign).map (·.constParam)).getD true) false)))) := rfl
+
+/-- [class.copy.assign]/7 at a fuel, for the move assignment. -/
+theorem deletedWithin_moveAssign (p : Program) (n : Nat) (c : Ty) :
+    p.deletedWithin (n + 1) c .moveAssign =
+      ((p.membersOf c).any (fun m => m.ty.isConst && !m.ty.stripConst.isClass) ||
+       (p.membersOf c).any (·.ty.isReference) ||
+       (p.subobjectsOf c).any fun t => t.stripConst.isClass &&
+         (t.isConst || !usable (p.factsWithin n) t.stripConst (resolveAssign (p.factsWithin n) p t.stripConst
+           (subobjectArg t (((p.specialWithin (n + 1) c .moveAssign).map (·.constParam)).getD true) true)))) := rfl
+
+/-- The argument a copy supplies: an lvalue of the subobject's class,
+`const` or not. -/
+theorem subobjectArg_copy (t : Ty) (cp : Bool) :
+    subobjectArg t cp false = { ty := t.stripConst, lvalue := true } ∨
+    subobjectArg t cp false = { ty := .const t.stripConst, lvalue := true } := by
+  unfold subobjectArg; cases cp <;> cases t <;> simp
+
+/-- The argument a move supplies for a subobject that is not `const`: an
+xvalue of its class. -/
+theorem subobjectArg_move (t : Ty) (cp : Bool) (hc : t.isConst = false) :
+    subobjectArg t cp true = { ty := t.stripConst, lvalue := false } := by
+  unfold subobjectArg; cases t <;> simp_all [Ty.isConst]
+
+/-- The argument a move supplies for a `const` subobject: an xvalue of
+the `const` class. -/
+theorem subobjectArg_move_const (t : Ty) (cp : Bool) (hc : t.isConst = true) :
+    subobjectArg t cp true = { ty := .const t.stripConst, lvalue := false } := by
+  unfold subobjectArg; cases t <;> simp_all [Ty.isConst]
+
+/-- A member's type is a potentially constructed subobject. -/
+theorem mem_subobjectsOf_of_member (p : Program) (c : Ty) (m : Member) (hm : m ∈ p.membersOf c) :
+    m.ty ∈ p.subobjectsOf c := by
+  simp only [subobjectsOf, List.mem_append, List.mem_map]; exact Or.inl ⟨m, hm, rfl⟩
+
+/-- A direct base is a potentially constructed subobject. -/
+theorem mem_subobjectsOf_of_base (p : Program) (c b : Ty) (hb : b ∈ p.directBases c) :
+    b ∈ p.subobjectsOf c := by
+  simp only [subobjectsOf, List.mem_append]; exact Or.inr hb
+
+/-- A subobject of class type gives its class to `classSubobjects`. -/
+theorem mem_classSubobjects (p : Program) (c t : Ty) (ht : t ∈ p.subobjectsOf c)
+    (hc : t.stripConst.isClass = true) : t.stripConst ∈ p.classSubobjects c := by
+  simp only [classSubobjects, List.mem_filterMap]
+  exact ⟨t, ht, by simp [hc]⟩
+
+/-- Some class subobject satisfies `g` exactly when some subobject of
+class type has a class satisfying it. -/
+theorem any_classSubobjects_iff (p : Program) (c : Ty) (g : Ty → Bool) :
+    (p.classSubobjects c).any g = true ↔
+      ∃ t ∈ p.subobjectsOf c, t.stripConst.isClass = true ∧ g t.stripConst = true := by
+  simp only [List.any_eq_true, classSubobjects, List.mem_filterMap]
+  constructor
+  · rintro ⟨m, ⟨t, ht, hm⟩, hg⟩
+    by_cases hc : t.stripConst.isClass = true
+    · simp only [hc, ↓reduceIte, Option.some.injEq] at hm
+      subst hm; exact ⟨t, ht, hc, hg⟩
+    · simp [hc] at hm
+  · rintro ⟨t, ht, hc, hg⟩
+    exact ⟨t.stripConst, ⟨t, ht, by simp [hc]⟩, hg⟩
+
+/-- Under `subobjectsWellFormed`, a subobject's class is not `const`. -/
+theorem wellFormed_subobject (p : Program) (c t : Ty) (hw : p.subobjectsWellFormed c = true)
+    (ht : t ∈ p.subobjectsOf c) : t.stripConst.isConst = false := by
+  simp only [subobjectsWellFormed, Bool.and_eq_true, List.all_eq_true] at hw
+  simp only [subobjectsOf, List.mem_append, List.mem_map] at ht
+  rcases ht with ⟨m, hm, rfl⟩ | hb
+  · simpa using hw.2 m hm
+  · have := hw.1 t hb
+    simp only [Bool.not_eq_true'] at this
+    rw [stripConst_of_not_const t this.2]; exact this.2
+
+/-- Under `subobjectsWellFormed`, a direct base is a class type that is
+neither `const` nor a reference. -/
+theorem wellFormed_base (p : Program) (c b : Ty) (hw : p.subobjectsWellFormed c = true)
+    (hb : b ∈ p.directBases c) : b.isClass = true ∧ b.isConst = false ∧ b.isReference = false := by
+  simp only [subobjectsWellFormed, Bool.and_eq_true, List.all_eq_true] at hw
+  have := hw.1 b hb
+  simp only [Bool.not_eq_true'] at this
+  exact ⟨this.1, this.2, not_reference_of_class b this.1⟩
+
+/-- Resolution results in a usable candidate exactly when the special
+member it selects is not deleted. -/
+theorem usable_selected (f : Facts) (c : Ty) (x : Candidate) (k : SmfKind) :
+    usable f c (.selected (x, some k)) = !f.isDeleted c k := rfl
+
+end Program
+
+/-! ### The value nature of a class in general -/
+
+/-- The deletion facts of a class whose special members are the rules'
+own, at every fuel: the copy assignment is deleted exactly when the class
+has a reference member, through its class-typed subobjects likewise; the
+destructor is never deleted; and with no reference member no special
+member is deleted. The resolution for each subobject's corresponding
+member selects the implicit member of the same form, by the lemmas above,
+so a deletion below is a deletion above. -/
+theorem implicit_deleted (p : Program) : ∀ fuel c, p.implicitWithin fuel c = true →
+    (p.deletedWithin fuel c .copyAssign = p.referenceMemberWithin fuel c) ∧
+    (p.deletedWithin fuel c .dtor = false) ∧
+    (p.referenceMemberWithin fuel c = false → ∀ k, p.deletedWithin fuel c k = false) := by
+  intro fuel
+  induction fuel with
+  | zero => intro c h; simp [Program.implicitWithin] at h
+  | succ n ih =>
+    intro c h
+    obtain ⟨-, -, hw, hsub⟩ := implicitWithin_succ p n c h
+    -- The facts at fuel `n` about each subobject of class type.
+    have hfor : ∀ m ∈ p.classSubobjects c, (p.factsWithin n).implicitFor m :=
+      fun m hm k => specialWithin_implicit p n m (hsub m hm) k
+    have hisDel : ∀ m ∈ p.classSubobjects c, ∀ k, (p.factsWithin n).isDeleted m k = p.deletedWithin n m k := by
+      intro m hm k
+      have hk := hfor m hm k
+      simp only [Program.factsWithin] at hk
+      simp [Program.Facts.isDeleted, Program.factsWithin, hk, Smf.implicit]
+    have hdtor : ((p.classSubobjects c).any fun m => (p.factsWithin n).isDeleted m .dtor) = false :=
+      List.any_eq_false.mpr fun m hm => by simp [hisDel m hm, (ih m (hsub m hm)).2.1]
+    -- For a subobject `t` of class type `M`, what each resolution selects.
+    have hsubFacts : ∀ t ∈ p.subobjectsOf c, t.stripConst.isClass = true →
+        t.stripConst ∈ p.classSubobjects c ∧ t.stripConst.isConst = false ∧
+        p.conversionsOf t.stripConst = [] ∧ (p.factsWithin n).implicitFor t.stripConst := by
+      intro t ht hc
+      have hm := Program.mem_classSubobjects p c t ht hc
+      exact ⟨hm, Program.wellFormed_subobject p c t hw ht,
+        implicitWithin_conversions p n _ (hsub _ hm), hfor _ hm⟩
+    have hctor0 : ∀ t ∈ p.subobjectsOf c, t.stripConst.isClass = true →
+        Program.usable (p.factsWithin n) t.stripConst
+          (Program.resolveCtor (p.factsWithin n) p .direct t.stripConst []) =
+          !p.deletedWithin n t.stripConst .defaultCtor := by
+      intro t ht hc
+      obtain ⟨hm, -, hconv, hf⟩ := hsubFacts t ht hc
+      rw [resolveCtor_nullary _ p _ hconv hf, Program.usable_selected, hisDel _ hm]
+    have hctorL : ∀ t ∈ p.subobjectsOf c, t.stripConst.isClass = true → ∀ cp,
+        Program.usable (p.factsWithin n) t.stripConst
+          (Program.resolveCtor (p.factsWithin n) p .direct t.stripConst [Program.subobjectArg t cp false]) =
+          !p.deletedWithin n t.stripConst .copyCtor := by
+      intro t ht hc cp
+      obtain ⟨hm, hMc, hconv, hf⟩ := hsubFacts t ht hc
+      rcases Program.subobjectArg_copy t cp with ha | ha <;> rw [ha]
+      · rw [resolveCtor_lvalue _ p _ hc hMc hconv hf _ (Or.inl rfl), Program.usable_selected, hisDel _ hm]
+      · rw [resolveCtor_lvalue _ p _ hc hMc hconv hf _ (Or.inr rfl), Program.usable_selected, hisDel _ hm]
+    have hassignL : ∀ t ∈ p.subobjectsOf c, t.stripConst.isClass = true → ∀ cp,
+        Program.usable (p.factsWithin n) t.stripConst
+          (Program.resolveAssign (p.factsWithin n) p t.stripConst (Program.subobjectArg t cp false)) =
+          !p.deletedWithin n t.stripConst .copyAssign := by
+      intro t ht hc cp
+      obtain ⟨hm, hMc, -, hf⟩ := hsubFacts t ht hc
+      rcases Program.subobjectArg_copy t cp with ha | ha <;> rw [ha]
+      · rw [resolveAssign_lvalue _ p _ hc hMc hf _ (Or.inl rfl), Program.usable_selected, hisDel _ hm]
+      · rw [resolveAssign_lvalue _ p _ hc hMc hf _ (Or.inr rfl), Program.usable_selected, hisDel _ hm]
+    -- The copy assignment is deleted exactly by a reference member.
+    have hca : p.deletedWithin (n + 1) c .copyAssign = p.referenceMemberWithin (n + 1) c := by
+      rw [Program.deletedWithin_copyAssign, Program.referenceMemberWithin,
+        Bool.eq_iff_iff]
+      simp only [Bool.or_eq_true]
+      rw [Program.any_classSubobjects_iff]
+      simp only [List.any_eq_true, Bool.and_eq_true, Bool.not_eq_true', Bool.or_eq_true]
+      constructor
+      · rintro ((⟨m, hm, hconst, -⟩ | ⟨m, hm, href⟩) | ⟨t, ht, hcls, hc⟩)
+        · exact Or.inl ⟨m.ty, Program.mem_subobjectsOf_of_member p c m hm, Or.inr hconst⟩
+        · exact Or.inl ⟨m.ty, Program.mem_subobjectsOf_of_member p c m hm, Or.inl href⟩
+        · rcases hc with hc | hu
+          · exact Or.inl ⟨t, ht, Or.inr hc⟩
+          · refine Or.inr ⟨t, ht, hcls, ?_⟩
+            rw [hassignL t ht hcls, Bool.not_eq_false', (ih _ (hsub _ (hsubFacts t ht hcls).1)).1] at hu
+            exact hu
+      · rintro (⟨t, ht, h⟩ | ⟨t, ht, hcls, hr⟩)
+        · have ht' := ht
+          simp only [Program.subobjectsOf, List.mem_append, List.mem_map] at ht'
+          rcases ht' with ⟨m, hm, rfl⟩ | hb
+          · rcases h with href | hconst
+            · exact Or.inl (Or.inr ⟨m, hm, href⟩)
+            · by_cases hcls : m.ty.stripConst.isClass = true
+              · exact Or.inr ⟨m.ty, ht, hcls, Or.inl hconst⟩
+              · exact Or.inl (Or.inl ⟨m, hm, hconst, Bool.eq_false_iff.mpr hcls⟩)
+          · obtain ⟨-, hbc, hbr⟩ := Program.wellFormed_base p c t hw hb
+            rcases h with h | h
+            · rw [hbr] at h; cases h
+            · rw [hbc] at h; cases h
+        · refine Or.inr ⟨t, ht, hcls, Or.inr ?_⟩
+          rw [hassignL t ht hcls, (ih _ (hsub _ (hsubFacts t ht hcls).1)).1, hr]; rfl
+    refine ⟨hca, by rw [Program.deletedWithin_dtor]; exact hdtor, ?_⟩
+    -- With no reference member, nothing is deleted.
+    intro hR k
+    have hR' := hR
+    simp only [Program.referenceMemberWithin, Bool.or_eq_false_iff, List.any_eq_false] at hR'
+    obtain ⟨hplain, hcsR⟩ := hR'
+    have hplain' : ∀ t ∈ p.subobjectsOf c, t.isReference = false ∧ t.isConst = false :=
+      fun t ht => by simpa using hplain t ht
+    have hnone : ∀ t ∈ p.subobjectsOf c, t.stripConst.isClass = true →
+        ∀ k, p.deletedWithin n t.stripConst k = false := by
+      intro t ht hc k
+      have hm := (hsubFacts t ht hc).1
+      exact (ih _ (hsub _ hm)).2.2 (by simpa using hcsR _ hm) k
+    have hnoRef : ∀ m ∈ p.membersOf c, m.ty.isReference = false ∧ m.ty.isConst = false :=
+      fun m hm => hplain' m.ty (Program.mem_subobjectsOf_of_member p c m hm)
+    cases k with
+    | defaultCtor =>
+      rw [Program.deletedWithin_defaultCtor]
+      simp only [Bool.or_eq_false_iff]
+      refine ⟨⟨⟨⟨List.any_eq_false.mpr fun m hm => by simp [(hnoRef m hm).1],
+        List.any_eq_false.mpr fun m hm => by simp [(hnoRef m hm).2]⟩,
+        List.any_eq_false.mpr fun m hm => ?_⟩, List.any_eq_false.mpr fun b hb => ?_⟩, hdtor⟩
+      · by_cases hc : m.ty.stripConst.isClass = true
+        · simp [hctor0 _ (Program.mem_subobjectsOf_of_member p c m hm) hc,
+            hnone _ (Program.mem_subobjectsOf_of_member p c m hm) hc]
+        · simp [hc]
+      · obtain ⟨hbcl, hbc, -⟩ := Program.wellFormed_base p c b hw hb
+        have hbs := stripConst_of_not_const b hbc
+        have hc' : b.stripConst.isClass = true := by rw [hbs]; exact hbcl
+        have h1 := hctor0 b (Program.mem_subobjectsOf_of_base p c b hb) hc'
+        have h2 := hnone b (Program.mem_subobjectsOf_of_base p c b hb) hc' .defaultCtor
+        rw [hbs] at h1 h2
+        simp [h1, h2]
+    | copyCtor =>
+      rw [Program.deletedWithin_copyCtor]
+      simp only [Bool.or_eq_false_iff]
+      refine ⟨⟨List.any_eq_false.mpr fun t ht => ?_, hdtor⟩, ?_⟩
+      · by_cases hc : t.stripConst.isClass = true
+        · simp [hctorL t ht hc, hnone t ht hc]
+        · simp [hc]
+      · exact List.any_eq_false.mpr fun m hm => by
+          have := (hnoRef m hm).1
+          simp only [Ty.isReference, Bool.or_eq_false_iff] at this
+          simp [this.2]
+    | moveCtor =>
+      rw [Program.deletedWithin_moveCtor]
+      simp only [Bool.or_eq_false_iff]
+      refine ⟨List.any_eq_false.mpr fun t ht => ?_, hdtor⟩
+      by_cases hc : t.stripConst.isClass = true
+      · obtain ⟨hm, hMc, hconv, hf⟩ := hsubFacts t ht hc
+        have hd : (p.factsWithin n).deleted t.stripConst .moveCtor = false := hnone t ht hc .moveCtor
+        have ha : ∀ cp, Program.subobjectArg t cp true = { ty := t.stripConst, lvalue := false } :=
+          fun cp => Program.subobjectArg_move t cp (hplain' t ht).2
+        simp [ha, resolveCtor_rvalue_move _ p _ hc hMc hconv hf hd, Program.usable_selected,
+          hisDel _ hm, hnone t ht hc]
+      · simp [hc]
+    | copyAssign => rw [hca]; exact hR
+    | moveAssign =>
+      rw [Program.deletedWithin_moveAssign]
+      simp only [Bool.or_eq_false_iff]
+      refine ⟨⟨List.any_eq_false.mpr fun m hm => by simp [(hnoRef m hm).2],
+        List.any_eq_false.mpr fun m hm => by simp [(hnoRef m hm).1]⟩,
+        List.any_eq_false.mpr fun t ht => ?_⟩
+      by_cases hc : t.stripConst.isClass = true
+      · obtain ⟨hm, hMc, -, hf⟩ := hsubFacts t ht hc
+        have hd : (p.factsWithin n).deleted t.stripConst .moveAssign = false := hnone t ht hc .moveAssign
+        have ha : ∀ cp, Program.subobjectArg t cp true = { ty := t.stripConst, lvalue := false } :=
+          fun cp => Program.subobjectArg_move t cp (hplain' t ht).2
+        simp [ha, (hplain' t ht).2, resolveAssign_rvalue_move _ p _ hc hMc hf hd, Program.usable_selected,
+          hisDel _ hm, hnone t ht hc]
+      · simp [hc]
+    | dtor => rw [Program.deletedWithin_dtor]; exact hdtor
+
+/-- A class whose special members are the rules' own has value nature
+exactly when it has no reference member: no subobject of reference or
+`const` type, through class-typed members and bases to any depth. The
+author's data and codata, for every class the rules alone construct;
+`value_nature_flat` is the case without class-typed subobjects. -/
+theorem value_nature_iff (p : Program) (c : Ty) (hc : p.implicitClass c = true) :
+    p.valueNature c = !p.referenceMember c := by
+  have hsp := specialWithin_implicit p p.length c hc
+  obtain ⟨hca, -, hnone⟩ := implicit_deleted p p.length c hc
+  unfold Program.valueNature Program.referenceMember
+  simp only [Program.special, Program.deleted, hsp, Smf.implicit, List.all_cons, List.all_nil,
+    beq_self_eq_true, Bool.true_and, Bool.and_true]
+  cases hR : p.referenceMemberWithin p.length c
+  · simp [hnone hR]
+  · simp [hca, hR]
+
+/-- The copy assignment of a class whose special members are the rules'
+own is deleted exactly when the class has a reference member: the one
+special member that every reference or `const` member, at any depth,
+deletes. -/
+theorem copy_assignment_deleted_iff (p : Program) (c : Ty) (hc : p.implicitClass c = true) :
+    p.deleted c .copyAssign = p.referenceMember c :=
+  (implicit_deleted p p.length c hc).1
+
+/-- A flat class with well-formed declarations is a class whose special
+members are the rules' own. -/
+theorem flat_implicit (p : Program) (c : Ty) (hc : p.flatClass c = true)
+    (hw : p.subobjectsWellFormed c = true) (hl : 0 < p.length) : p.implicitClass c = true := by
+  simp only [Program.flatClass, Bool.and_eq_true, List.isEmpty_iff] at hc
+  obtain ⟨⟨⟨hs, hconv⟩, hb⟩, hm⟩ := hc
+  have hcs : p.classSubobjects c = [] := by
+    simp only [Program.classSubobjects, Program.subobjectsOf, hb, List.append_nil, List.filterMap_map]
+    simp only [List.all_eq_true, Bool.and_eq_true, Bool.not_eq_true'] at hm
+    rw [List.filterMap_eq_nil_iff]
+    intro m hmem
+    simp [Function.comp, (hm m hmem).2]
+  unfold Program.implicitClass
+  obtain ⟨n, hn⟩ : ∃ n, p.length = n + 1 := ⟨p.length - 1, by omega⟩
+  rw [hn]
+  simp [Program.implicitWithin, hs, hconv, hw, hcs]
+
+/-- A subobject whose class has a deleted special member deletes the
+enclosing class's defaulted member of the same kind at the next fuel,
+when the subobject's class is one whose special members are the rules'
+own, since the resolution for the subobject then selects that member.
+The default constructor is deleted through a base or through a member
+without a default member initializer, which the rule exempts. A
+defaulted move member that is defined as deleted is not a candidate
+([class.copy.ctor]/10, [class.copy.assign]/7), so for the move kinds
+the resolution falls back to the copy member, and the deletion
+propagates when that member is deleted too. -/
+theorem deletion_propagates (p : Program) (fuel : Nat) (c t : Ty) (k : SmfKind)
+    (ht : t ∈ p.subobjectsOf c) (hcls : t.stripConst.isClass = true)
+    (hw : p.subobjectsWellFormed c = true)
+    (hM : p.implicitWithin fuel t.stripConst = true)
+    (hdel : p.deletedWithin fuel t.stripConst k = true)
+    (hinit : k = .defaultCtor → t ∈ p.directBases c ∨ ∃ d ∈ p.membersOf c, d.ty = t ∧ d.init = false)
+    (hmove : k = .moveCtor → p.deletedWithin fuel t.stripConst .copyCtor = true)
+    (hmoveA : k = .moveAssign → p.deletedWithin fuel t.stripConst .copyAssign = true) :
+    p.deletedWithin (fuel + 1) c k = true := by
+  have hMc := Program.wellFormed_subobject p c t hw ht
+  have hconv := implicitWithin_conversions p fuel _ hM
+  have hf : (p.factsWithin fuel).implicitFor t.stripConst := specialWithin_implicit p fuel _ hM
+  have hm := Program.mem_classSubobjects p c t ht hcls
+  have hisDel : ∀ k, (p.factsWithin fuel).isDeleted t.stripConst k = p.deletedWithin fuel t.stripConst k := by
+    intro k
+    have hk := hf k
+    simp only [Program.factsWithin] at hk
+    simp [Program.Facts.isDeleted, Program.factsWithin, hk, Smf.implicit]
+  cases k with
+  | defaultCtor =>
+    rw [Program.deletedWithin_defaultCtor]
+    simp only [Bool.or_eq_true]
+    rcases hinit rfl with hb | ⟨d, hd, rfl, hdi⟩
+    · refine Or.inl (Or.inr (List.any_eq_true.mpr ⟨t, hb, ?_⟩))
+      have hbs := stripConst_of_not_const t (Program.wellFormed_base p c t hw hb).2.1
+      have h1 := resolveCtor_nullary (p.factsWithin fuel) p t.stripConst hconv hf
+      have h2 := hisDel .defaultCtor
+      rw [hbs] at h1 h2
+      simp [h1, Program.usable_selected, h2, hbs ▸ hdel]
+    · refine Or.inl (Or.inl (Or.inr (List.any_eq_true.mpr ⟨d, hd, ?_⟩)))
+      simp [hcls, hdi, resolveCtor_nullary (p.factsWithin fuel) p _ hconv hf, Program.usable_selected,
+        hisDel, hdel]
+  | copyCtor =>
+    rw [Program.deletedWithin_copyCtor]
+    simp only [Bool.or_eq_true]
+    refine Or.inl (Or.inl (List.any_eq_true.mpr ⟨t, ht, ?_⟩))
+    rcases Program.subobjectArg_copy t (((p.specialWithin (fuel + 1) c .copyCtor).map (·.constParam)).getD true)
+      with ha | ha <;> rw [ha]
+    · simp [hcls, resolveCtor_lvalue _ p _ hcls hMc hconv hf _ (Or.inl rfl), Program.usable_selected, hisDel, hdel]
+    · simp [hcls, resolveCtor_lvalue _ p _ hcls hMc hconv hf _ (Or.inr rfl), Program.usable_selected, hisDel, hdel]
+  | moveCtor =>
+    rw [Program.deletedWithin_moveCtor]
+    simp only [Bool.or_eq_true]
+    refine Or.inl (List.any_eq_true.mpr ⟨t, ht, ?_⟩)
+    have hcopy := hmove rfl
+    cases htc : t.isConst
+    · rw [Program.subobjectArg_move t _ htc]
+      have hd : (p.factsWithin fuel).deleted t.stripConst .moveCtor = true := hdel
+      simp [hcls, resolveCtor_rvalue_copy _ p _ hcls hMc hconv hf _ (Or.inl ⟨rfl, hd⟩),
+        Program.usable_selected, hisDel, hcopy]
+    · rw [Program.subobjectArg_move_const t _ htc]
+      simp [hcls, resolveCtor_rvalue_copy _ p _ hcls hMc hconv hf _ (Or.inr rfl),
+        Program.usable_selected, hisDel, hcopy]
+  | copyAssign =>
+    rw [Program.deletedWithin_copyAssign]
+    simp only [Bool.or_eq_true]
+    refine Or.inr (List.any_eq_true.mpr ⟨t, ht, ?_⟩)
+    rcases Program.subobjectArg_copy t (((p.specialWithin (fuel + 1) c .copyAssign).map (·.constParam)).getD true)
+      with ha | ha <;> rw [ha]
+    · simp [hcls, resolveAssign_lvalue _ p _ hcls hMc hf _ (Or.inl rfl), Program.usable_selected, hisDel, hdel]
+    · simp [hcls, resolveAssign_lvalue _ p _ hcls hMc hf _ (Or.inr rfl), Program.usable_selected, hisDel, hdel]
+  | moveAssign =>
+    rw [Program.deletedWithin_moveAssign]
+    simp only [Bool.or_eq_true]
+    refine Or.inr (List.any_eq_true.mpr ⟨t, ht, ?_⟩)
+    have hcopy := hmoveA rfl
+    cases htc : t.isConst
+    · rw [Program.subobjectArg_move t _ htc]
+      have hd : (p.factsWithin fuel).deleted t.stripConst .moveAssign = true := hdel
+      simp [hcls, resolveAssign_rvalue_copy _ p _ hcls hMc hf _ (Or.inl ⟨rfl, hd⟩),
+        Program.usable_selected, hisDel, hcopy]
+    · simp [hcls]
+  | dtor =>
+    rw [Program.deletedWithin_dtor]
+    exact List.any_eq_true.mpr ⟨t.stripConst, hm, by rw [hisDel]; exact hdel⟩
 
 end Overload
