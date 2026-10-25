@@ -325,6 +325,7 @@ trait-residue</h1>
 <ul>
 <li>2026-10-24 — Decided.</li>
 <li>2026-10-24 — Stage 4 landed, <code>Overload/Traits.lean</code>. One more residue: <code>is_invocable</code> of a class callee, since the call on an object is resolved above the environment that answers traits; a function type or a pointer to one is computed. The environment answers a trait atom from the program (<code>Env.ofProgram</code>'s <code>traits</code>, default <code>Program.trait</code>), and <code>inheritance_erasure</code> takes the trait oracle as a parameter.</li>
+<li>2026-10-25 — Compound and nested requirements landed. One residue of the same kind: whether a braced initialization <code>T{args}</code> is potentially throwing, which a compound requirement's noexcept-specifier asks. For a call the answer is the selected function's exception specification and its parameters' initializations ([except.spec]/6); for a braced initialization the model answers softly, so <code>{ T{} } noexcept;</code> makes the requires-expression <code>false</code>.</li>
 </ul>
 <hr  />
 <h1><a class="anchor" id="autotoc_md52"></a>
