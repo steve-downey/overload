@@ -741,7 +741,7 @@ Status, 15 October 2026:
   aggregate-elements-are-value, brace-init-differs-from-default-init and
   paren-aggregate-constructible are proved, with `aggregate_iff_declarations`;
   on the encoding, `instance_is_aggregate`. Twenty emitted cases agree
-  with Clang 24, and fifteen with GCC 15: libstdc++ 15 has no
+  with Clang 24 and GCC 16, and fifteen with GCC 15: libstdc++ 15 has no
   `is_implicit_lifetime`, a library gap recorded in `findings.md` and
   `differential/known-disagreements.txt`. Every in-scope paragraph of
   the phase is covered, [class.dtor]/6 by the note's own theorem, and
