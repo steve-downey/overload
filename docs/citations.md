@@ -106,7 +106,6 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[class.default.ctor]/3](https://eel.is/c++draft/class.default.ctor#3) | theorem | `Overload.polymorphic_not_trivial` | `Overload.Traits` |
 | [[class.derived.general]/2](https://eel.is/c++draft/class.derived.general#2) | rule | `Overload.Program.derives` | `Overload.Ranking` |
 | [[class.dtor]/2](https://eel.is/c++draft/class.dtor#2) | rule | `Overload.Program.specialWithin` | `Overload.Special` |
-| [[class.dtor]/6](https://eel.is/c++draft/class.dtor#6) | theorem | `Overload.nothrow_destructible_eq` | `Overload.Traits` |
 | [[class.dtor]/7](https://eel.is/c++draft/class.dtor#7) | rule | `Overload.Program.deletedWithin` | `Overload.Special` |
 | [[class.dtor]/8](https://eel.is/c++draft/class.dtor#8) | rule | `Overload.Program.trivialWithin` | `Overload.Special` |
 | [[class.dtor]/8](https://eel.is/c++draft/class.dtor#8) | theorem | `Overload.polymorphic_not_trivial` | `Overload.Traits` |
@@ -186,6 +185,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[concept.same]/1](https://eel.is/c++draft/concept.same#1) | theorem | `Overload.same_as_symmetric` | `Overload.Concepts` |
 | [[concept.swappable]/1](https://eel.is/c++draft/concept.swappable#1) | rule | `Overload.Concepts.swapExchanges` | `Overload.Concepts` |
 | [[concept.swappable]/2](https://eel.is/c++draft/concept.swappable#2) | rule | `Overload.Concepts.swapExchanges` | `Overload.Concepts` |
+| [[concept.swappable]/2](https://eel.is/c++draft/concept.swappable#2) | rule | `Overload.Program.nothrowSwappable` | `Overload.Traits` |
 | [[concept.swappable]/3](https://eel.is/c++draft/concept.swappable#3) | rule | `Overload.Concepts.swapExchanges` | `Overload.Concepts` |
 | [[concept.swappable]/3](https://eel.is/c++draft/concept.swappable#3) | rule | `Overload.Concepts.swappable` | `Overload.Concepts` |
 | [[concept.swappable]/4](https://eel.is/c++draft/concept.swappable#4) | rule | `Overload.Concepts.swapExchanges` | `Overload.Concepts` |
@@ -223,6 +223,30 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[dcl.init.ref]/5](https://eel.is/c++draft/dcl.init.ref#5) | rule | `Overload.Program.ics` | `Overload.Ranking` |
 | [[dcl.ref]/1 sentence 3](https://eel.is/c++draft/dcl.ref#1.sentence-3) | rule | `Overload.formConst` | `Overload.Steps` |
 | [[dcl.ref]/5 sentence 1](https://eel.is/c++draft/dcl.ref#5.sentence-1) | rule | `Overload.formPtr` | `Overload.Steps` |
+| [[except.spec]/3](https://eel.is/c++draft/except.spec#3) | rule | `Overload.DeduceTy.fn` | `Overload.Deduction` |
+| [[except.spec]/4](https://eel.is/c++draft/except.spec#4) | rule | `Overload.Decl.throwing` | `Overload.Virtual` |
+| [[except.spec]/4](https://eel.is/c++draft/except.spec#4) | rule | `Overload.Program.convThrowing` | `Overload.Special` |
+| [[except.spec]/4](https://eel.is/c++draft/except.spec#4) | rule | `Overload.Program.throwingWithin` | `Overload.Special` |
+| [[except.spec]/4](https://eel.is/c++draft/except.spec#4) | rule | `Overload.SmfDecl` | `Overload.Program` |
+| [[except.spec]/4](https://eel.is/c++draft/except.spec#4) | rule | `Overload.UserConv.throwing` | `Overload.Special` |
+| [[except.spec]/5](https://eel.is/c++draft/except.spec#5) | example | `Overload.override_keeps_noexcept` | `Overload.Virtual` |
+| [[except.spec]/5](https://eel.is/c++draft/except.spec#5) | rule | `Overload.Program.virtualsWellFormed` | `Overload.Virtual` |
+| [[except.spec]/6](https://eel.is/c++draft/except.spec#6) | rule | `Overload.Program.icsThrowing` | `Overload.Traits` |
+| [[except.spec]/6](https://eel.is/c++draft/except.spec#6) | rule | `Overload.Program.initThrowing` | `Overload.Special` |
+| [[except.spec]/6](https://eel.is/c++draft/except.spec#6) | rule | `Overload.Program.nothrowAssignable` | `Overload.Traits` |
+| [[except.spec]/6](https://eel.is/c++draft/except.spec#6) | rule | `Overload.Program.nothrowConstructible` | `Overload.Traits` |
+| [[except.spec]/6](https://eel.is/c++draft/except.spec#6) | rule | `Overload.Program.nothrowConvertible` | `Overload.Traits` |
+| [[except.spec]/6](https://eel.is/c++draft/except.spec#6) | rule | `Overload.Program.nothrowInvocable` | `Overload.Traits` |
+| [[except.spec]/6](https://eel.is/c++draft/except.spec#6) | rule | `Overload.Program.selectedCtorThrowing` | `Overload.Special` |
+| [[except.spec]/7](https://eel.is/c++draft/except.spec#7) | rule | `Overload.Member` | `Overload.Program` |
+| [[except.spec]/7](https://eel.is/c++draft/except.spec#7) | rule | `Overload.Program.throwingWithin` | `Overload.Special` |
+| [[except.spec]/7](https://eel.is/c++draft/except.spec#7) | theorem | `Overload.implicit_noexcept_from_subobjects` | `Overload.Traits` |
+| [[except.spec]/8](https://eel.is/c++draft/except.spec#8) | rule | `Overload.Program.throwingWithin` | `Overload.Special` |
+| [[except.spec]/8](https://eel.is/c++draft/except.spec#8) | theorem | `Overload.implicit_noexcept_from_subobjects` | `Overload.Traits` |
+| [[except.spec]/8](https://eel.is/c++draft/except.spec#8) | theorem | `Overload.nothrow_destructible_eq` | `Overload.Traits` |
+| [[except.spec]/8](https://eel.is/c++draft/except.spec#8) | theorem | `Overload.nothrow_propagates` | `Overload.Traits` |
+| [[except.spec]/9](https://eel.is/c++draft/except.spec#9) | rule | `Overload.Program.throwingWithin` | `Overload.Special` |
+| [[except.spec]/9](https://eel.is/c++draft/except.spec#9) | theorem | `Overload.implicit_noexcept_from_subobjects` | `Overload.Traits` |
 | [[expr.call]/7](https://eel.is/c++draft/expr.call#7) | rule | `Overload.Program.abstractParameter` | `Overload.Access` |
 | [[expr.call]/7](https://eel.is/c++draft/expr.call#7) | rule | `Overload.Program.call` | `Overload.Access` |
 | [[expr.call]/7](https://eel.is/c++draft/expr.call#7) | theorem | `Overload.abstract_by_value_ill_formed` | `Overload.Access` |
@@ -241,12 +265,16 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1) | rule | `Overload.Program.validType` | `Overload.Requires` |
 | [[lex.icon]/3 sentence 1](https://eel.is/c++draft/lex.icon#3.sentence-1) | rule | `Overload.literalType` | `Overload.Arguments` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Program.invocable` | `Overload.Traits` |
+| [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Program.nothrowInvocable` | `Overload.Traits` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Program.trait` | `Overload.Traits` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Trait.isBaseOf` | `Overload.Types` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Trait.isInvocable` | `Overload.Types` |
+| [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Trait.isNothrowInvocable` | `Overload.Types` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Trait.isSame` | `Overload.Types` |
 | [[meta.rel]/6](https://eel.is/c++draft/meta.rel#6) | rule | `Overload.Program.convertible` | `Overload.Traits` |
+| [[meta.rel]/6](https://eel.is/c++draft/meta.rel#6) | rule | `Overload.Program.nothrowConvertible` | `Overload.Traits` |
 | [[meta.rel]/6](https://eel.is/c++draft/meta.rel#6) | rule | `Overload.Trait.isConvertible` | `Overload.Types` |
+| [[meta.rel]/6](https://eel.is/c++draft/meta.rel#6) | rule | `Overload.Trait.isNothrowConvertible` | `Overload.Types` |
 | [[meta.rel]/6](https://eel.is/c++draft/meta.rel#6) | theorem | `Overload.is_convertible_eq_ics` | `Overload.Traits` |
 | [[meta.unary.cat]/3](https://eel.is/c++draft/meta.unary.cat#3) | rule | `Overload.Program.trait` | `Overload.Traits` |
 | [[meta.unary.cat]/3](https://eel.is/c++draft/meta.unary.cat#3) | rule | `Overload.Trait.isClass` | `Overload.Types` |
@@ -267,6 +295,10 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Program.assignable` | `Overload.Traits` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Program.destructible` | `Overload.Traits` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Program.emptyWithin` | `Overload.Traits` |
+| [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Program.nothrowAssignable` | `Overload.Traits` |
+| [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Program.nothrowConstructible` | `Overload.Traits` |
+| [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Program.nothrowDestructible` | `Overload.Traits` |
+| [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Program.nothrowSwappable` | `Overload.Traits` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Program.trait` | `Overload.Traits` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Program.triviallyAssignable` | `Overload.Traits` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Program.triviallyConstructible` | `Overload.Traits` |
@@ -282,7 +314,15 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isEmpty` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isMoveAssignable` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isMoveConstructible` | `Overload.Types` |
+| [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isNothrowAssignable` | `Overload.Types` |
+| [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isNothrowConstructible` | `Overload.Types` |
+| [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isNothrowCopyAssignable` | `Overload.Types` |
+| [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isNothrowCopyConstructible` | `Overload.Types` |
+| [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isNothrowDefaultConstructible` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isNothrowDestructible` | `Overload.Types` |
+| [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isNothrowMoveAssignable` | `Overload.Types` |
+| [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isNothrowMoveConstructible` | `Overload.Types` |
+| [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isNothrowSwappable` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isPolymorphic` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isStandardLayout` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isTriviallyAssignable` | `Overload.Types` |
@@ -518,18 +558,13 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.type]/2](https://eel.is/c++draft/temp.type#2) | rule | `Overload.Val.Equivalent.obj` | `Overload.Syntax` |
 | [[temp.type]/2](https://eel.is/c++draft/temp.type#2) | rule | `Overload.Val.Equivalent.param` | `Overload.Syntax` |
 | [[temp.type]/2](https://eel.is/c++draft/temp.type#2) | theorem | `Overload.reference_keeps_identity` | `Overload.Identity` |
+| [[utility.swap]/4](https://eel.is/c++draft/utility.swap#4) | rule | `Overload.Program.nothrowSwappable` | `Overload.Traits` |
 
 ## In scope, no counterpart yet
 
+- [[class.dtor]/6](https://eel.is/c++draft/class.dtor#6)
 - [[except.spec]/1](https://eel.is/c++draft/except.spec#1)
 - [[except.spec]/2](https://eel.is/c++draft/except.spec#2)
-- [[except.spec]/3](https://eel.is/c++draft/except.spec#3)
-- [[except.spec]/4](https://eel.is/c++draft/except.spec#4)
-- [[except.spec]/5](https://eel.is/c++draft/except.spec#5)
-- [[except.spec]/6](https://eel.is/c++draft/except.spec#6)
-- [[except.spec]/7](https://eel.is/c++draft/except.spec#7)
-- [[except.spec]/8](https://eel.is/c++draft/except.spec#8)
-- [[except.spec]/9](https://eel.is/c++draft/except.spec#9)
 - [[dcl.init.aggr]/1](https://eel.is/c++draft/dcl.init.aggr#1)
 - [[dcl.init.aggr]/2](https://eel.is/c++draft/dcl.init.aggr#2)
 - [[dcl.init.aggr]/4](https://eel.is/c++draft/dcl.init.aggr#4)

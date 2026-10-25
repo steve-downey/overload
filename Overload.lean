@@ -89,6 +89,12 @@ is the map.
 #audit Overload.abstract_not_constructible
 #audit Overload.abstract_by_value_ill_formed
 
+-- Exception specifications.
+#audit Overload.implicit_noexcept_from_subobjects
+#audit Overload.nothrow_propagates
+#audit Overload.override_keeps_noexcept
+#audit Overload.copyMoveForm_kind
+
 -- What satisfies and what models.
 #audit Overload.models_satisfies
 #audit Overload.satisfied_not_modeled_example
@@ -285,6 +291,7 @@ consults an oracle rests on what the environment says. -/
 #rests_on Overload.Program.constructible
 #rests_on Overload.Program.triviallyCopyableClass
 #rests_on Overload.Program.abstract
+#rests_on Overload.Program.nothrowSwappable
 #rests_on Overload.Ty.isScalar
 #rests_on Overload.Program.normalize
 #rests_on Overload.Program.requirementsHold
@@ -352,6 +359,8 @@ consults an oracle rests on what the environment says. -/
 #audit Overload.Typeclass.member_probe_accurate
 #audit Overload.Typeclass.virtual_instance_costs
 #audit Overload.Typeclass.abstract_instance_by_reference
+#audit Overload.Typeclass.instance_nothrow
+#audit Overload.Typeclass.nothrow_copy_constraint
 
 -- The typeclass laws as semantic requirements.
 #audit Overload.Typeclass.monad_laws

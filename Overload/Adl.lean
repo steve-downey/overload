@@ -76,7 +76,7 @@ def Program.associatedEntities (p : Program) : Ty → List Ty
     | some _ => .spec c as :: p.argEntities as
     | none => []
   | .const t | .ptr t | .lref t | .rref t => p.associatedEntities t
-  | .fn ps r => p.argEntities ps ++ p.associatedEntities r
+  | .fn ps r _ => p.argEntities ps ++ p.associatedEntities r
   | _ => []
 
 /-- The entities associated with the type template arguments of a chain. -/
@@ -119,9 +119,9 @@ inductive AssociatedEntity (p : Program) : Ty → Ty → Prop where
   | rvalueReference (t e : Ty) (h : AssociatedEntity p t e) : AssociatedEntity p (.rref t) e
   /-- A function type has the entities associated with its parameter
   types and with its return type. -/
-  | parameter (ps r a e : Ty) (ha : ArgOf a ps) (hty : a.isType = true)
-      (hae : AssociatedEntity p a e) : AssociatedEntity p (.fn ps r) e
-  | returnType (ps r e : Ty) (h : AssociatedEntity p r e) : AssociatedEntity p (.fn ps r) e
+  | parameter (ps r a e : Ty) (ne : Bool) (ha : ArgOf a ps) (hty : a.isType = true)
+      (hae : AssociatedEntity p a e) : AssociatedEntity p (.fn ps r ne) e
+  | returnType (ps r e : Ty) (ne : Bool) (h : AssociatedEntity p r e) : AssociatedEntity p (.fn ps r ne) e
 
 attribute [std rule "basic.lookup.argdep#3"] AssociatedEntity.self
 attribute [std rule "basic.lookup.argdep#3"] AssociatedEntity.base
@@ -214,18 +214,18 @@ theorem associatedEntities_spec (p : Program) (e : Ty) : ∀ t : Ty,
     constructor
     · intro h; exact .rvalueReference t e (ih.1.1 h)
     · intro h; cases h with | rvalueReference _ _ h => exact ih.1.2 h
-  | fn ps r ihp ihr =>
+  | fn ps r ne ihp ihr =>
     refine ⟨?_, by simp [Program.argEntities]; rintro a h; cases h⟩
     simp only [Program.associatedEntities, List.mem_append]
     constructor
     · rintro (h | h)
       · obtain ⟨a, ha, hty, hae⟩ := ihp.2.1 h
-        exact .parameter ps r a e ha hty hae
-      · exact .returnType ps r e (ihr.1.1 h)
+        exact .parameter ps r a e ne ha hty hae
+      · exact .returnType ps r e ne (ihr.1.1 h)
     · intro h
       cases h with
-      | parameter _ _ a _ ha hty hae => exact .inl (ihp.2.2 ⟨a, ha, hty, hae⟩)
-      | returnType _ _ _ h => exact .inr (ihr.1.2 h)
+      | parameter _ _ a _ _ ha hty hae => exact .inl (ihp.2.2 ⟨a, ha, hty, hae⟩)
+      | returnType _ _ _ _ h => exact .inr (ihr.1.2 h)
   | _ =>
     refine ⟨?_, by simp [Program.argEntities]; rintro a h; cases h⟩
     simp only [Program.associatedEntities, List.not_mem_nil, false_iff]

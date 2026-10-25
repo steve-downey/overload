@@ -70,7 +70,7 @@ inductive Ty.Category where
 namespace Ty
 
 /-- A function type from a parameter list. -/
-def fn' (ps : List Ty) (r : Ty) : Ty := .fn (args ps) r
+def fn' (ps : List Ty) (r : Ty) (noexcept : Bool := false) : Ty := .fn (args ps) r noexcept
 
 /-- A ground type the fragment can spell: names, `const` on an object
 type, pointers, references, specializations with concrete arguments,
@@ -79,10 +79,10 @@ construct that forming computes; no `const` on a reference, a function
 type or a `const` type, which forming never produces. -/
 def concrete : Ty → Bool
   | .named n => n != "auto"
-  | .const t => concrete t && !t.isRef && !(t matches .fn _ _) && !(t matches .const _)
+  | .const t => concrete t && !t.isRef && !(t matches .fn _ _ _) && !(t matches .const _)
   | .ptr t | .lref t | .rref t => concrete t
   | .spec c as => c != "auto" && concrete as
-  | .fn ps r => concrete ps && concrete r
+  | .fn ps r _ => concrete ps && concrete r
   | .nil => true
   | .cons a as => concrete a && concrete as
   | .value v => !v.dependent
@@ -121,7 +121,7 @@ def isClass (t : Ty) : Bool :=
 
 /-- A function type ([basic.compound]/1). -/
 @[std rule "basic.compound#1"]
-def isFunction (t : Ty) : Bool := t matches .fn _ _
+def isFunction (t : Ty) : Bool := t matches .fn _ _ _
 
 theorem isClass_not_void (t : Ty) (h : t.stripConst.isClass = true) : t.isVoid = false := by
   unfold Ty.isVoid
@@ -213,7 +213,7 @@ def primaryCategory (t : Ty) : Option Ty.Category :=
   | .lref _ => some .lvalueReference
   | .rref _ => some .rvalueReference
   | .spec c _ => if c == "auto" then none else some .class
-  | .fn _ _ => some .function
+  | .fn _ _ _ => some .function
   | _ => none
 
 end Ty
@@ -288,7 +288,10 @@ inductive Trait where
   | isTriviallyAssignable | isTriviallyCopyAssignable | isTriviallyMoveAssignable
   | isTriviallyDestructible | isNothrowDestructible
   | isPolymorphic | isAbstract | hasVirtualDestructor
-  | isInvocable
+  | isNothrowConstructible | isNothrowDefaultConstructible | isNothrowCopyConstructible
+  | isNothrowMoveConstructible | isNothrowAssignable | isNothrowCopyAssignable
+  | isNothrowMoveAssignable | isNothrowSwappable | isNothrowConvertible
+  | isInvocable | isNothrowInvocable
   deriving Repr, DecidableEq, Inhabited
 
 attribute [std rule "meta.unary.cat#3"] Trait.isVoid Trait.isIntegral Trait.isPointer
@@ -302,9 +305,12 @@ attribute [std rule "meta.unary.prop#5"] Trait.isConst Trait.isDefaultConstructi
   Trait.isTriviallyMoveConstructible Trait.isTriviallyAssignable Trait.isTriviallyCopyAssignable
   Trait.isTriviallyMoveAssignable Trait.isTriviallyDestructible Trait.isNothrowDestructible
   Trait.isPolymorphic Trait.isAbstract Trait.hasVirtualDestructor
+  Trait.isNothrowConstructible Trait.isNothrowDefaultConstructible Trait.isNothrowCopyConstructible
+  Trait.isNothrowMoveConstructible Trait.isNothrowAssignable Trait.isNothrowCopyAssignable
+  Trait.isNothrowMoveAssignable Trait.isNothrowSwappable
 attribute [std rule "meta.unary.prop#9"] Trait.isConstructible
-attribute [std rule "meta.rel#3"] Trait.isSame Trait.isBaseOf Trait.isInvocable
-attribute [std rule "meta.rel#6"] Trait.isConvertible
+attribute [std rule "meta.rel#3"] Trait.isSame Trait.isBaseOf Trait.isInvocable Trait.isNothrowInvocable
+attribute [std rule "meta.rel#6"] Trait.isConvertible Trait.isNothrowConvertible
 
 namespace Trait
 
@@ -348,7 +354,17 @@ def spelling : Trait → String
   | .isPolymorphic => "std::is_polymorphic_v"
   | .isAbstract => "std::is_abstract_v"
   | .hasVirtualDestructor => "std::has_virtual_destructor_v"
+  | .isNothrowConstructible => "std::is_nothrow_constructible_v"
+  | .isNothrowDefaultConstructible => "std::is_nothrow_default_constructible_v"
+  | .isNothrowCopyConstructible => "std::is_nothrow_copy_constructible_v"
+  | .isNothrowMoveConstructible => "std::is_nothrow_move_constructible_v"
+  | .isNothrowAssignable => "std::is_nothrow_assignable_v"
+  | .isNothrowCopyAssignable => "std::is_nothrow_copy_assignable_v"
+  | .isNothrowMoveAssignable => "std::is_nothrow_move_assignable_v"
+  | .isNothrowSwappable => "std::is_nothrow_swappable_v"
+  | .isNothrowConvertible => "std::is_nothrow_convertible_v"
   | .isInvocable => "std::is_invocable_v"
+  | .isNothrowInvocable => "std::is_nothrow_invocable_v"
 
 /-- Is the trait answered from the types alone, with no program? -/
 def structural : Trait → Bool
@@ -360,7 +376,8 @@ def structural : Trait → Bool
 /-- How many types the trait takes; `is_constructible` and `is_invocable`
 take at least one. -/
 def arity : Trait → Nat
-  | .isSame | .isBaseOf | .isConvertible | .isAssignable | .isTriviallyAssignable => 2
+  | .isSame | .isBaseOf | .isConvertible | .isAssignable | .isTriviallyAssignable
+  | .isNothrowAssignable | .isNothrowConvertible => 2
   | _ => 1
 
 /-- The unary traits, on one type. -/

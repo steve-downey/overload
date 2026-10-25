@@ -113,6 +113,44 @@ theorem abstract_instance_by_reference :
         (·.index) = .selected 0 := by
   refine ⟨by decide, by decide, by decide⟩
 
+/-! ## What an instance type's special members throw -/
+
+/-- An instance type with no data members has non-throwing special
+members, every one implicitly declared and invoking nothing, so it
+satisfies `destructible` and the `is_nothrow_` forms of the traits the
+value route relies on, through a base as well as flat. -/
+theorem instance_nothrow :
+    [Ty.named "functor_i", .named "applicative_i", .named "monad_i"].all (fun t =>
+      [SmfKind.defaultCtor, .copyCtor, .moveCtor, .copyAssign, .moveAssign, .dtor].all
+        (fun k => !instanceShapes.throwing t k) &&
+      instanceShapes.trait .isNothrowDestructible [t] == .ok true &&
+      instanceShapes.trait .isNothrowCopyConstructible [t] == .ok true &&
+      instanceShapes.trait .isNothrowMoveAssignable [t] == .ok true &&
+      instanceShapes.trait .isNothrowSwappable [t] == .ok true) = true := by
+  decide
+
+/-- A callable whose user-provided copy constructor carries no
+noexcept-specifier, and an algorithm constrained on
+`is_nothrow_copy_constructible` or on `is_copy_constructible`. -/
+def nothrowCopyingAlgorithm (nothrow : Bool) : Program :=
+  [ .class "fn", .special (.named "fn") { kind := .copyCtor }
+  , .functionTemplate { name := "run", head := [{ kind := .type }], params := [.lref (.const (.param 0))]
+                        constraint := some (.trait (if nothrow then .isNothrowCopyConstructible
+                                                    else .isCopyConstructible) [.param 0]) } ]
+
+/-- The noexcept-correct form of the callable-copying rule: an algorithm
+that copies its callable and promises not to throw says so with
+`is_nothrow_copy_constructible` in its constraint, and is then not
+viable at a callable whose copy may throw, where `is_copy_constructible`
+alone admits it. -/
+theorem nothrow_copy_constraint :
+    (nothrowCopyingAlgorithm true).call (Env.full (nothrowCopyingAlgorithm true))
+        ((nothrowCopyingAlgorithm true).candidates "run") [{ ty := .named "fn", lvalue := true }] = .noMatch ∧
+    ((nothrowCopyingAlgorithm false).call (Env.full (nothrowCopyingAlgorithm false))
+        ((nothrowCopyingAlgorithm false).candidates "run") [{ ty := .named "fn", lvalue := true }]).map
+        (·.index) = .selected 0 := by
+  refine ⟨by decide, by decide⟩
+
 /-! ## The callable-copying rule -/
 
 /-- A callable whose copy constructor is deleted, and the two ways an

@@ -121,7 +121,9 @@ def convertibleTo : List Decl :=
   , .conceptDef "convertible_to" 2 (.conj (.trait .isConvertible [T, U]) (.atomic "static_castable" [T, U]))
   , .semantic "convertible_to" convertibleToEqual ] ++ expressionLaws "convertible_to"
 
-/-- `destructible<T> = is_nothrow_destructible_v<T>`. -/
+/-- `destructible<T> = is_nothrow_destructible_v<T>`: the concept forbids
+a potentially-throwing destructor, which `is_nothrow_destructible`
+decides through the implicit exception specifications. -/
 @[std rule "concept.destructible#1"]
 def destructible : List Decl :=
   [.conceptDef "destructible" 1 (.trait .isNothrowDestructible [T])]

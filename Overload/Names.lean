@@ -290,7 +290,7 @@ theorem singleSearch_global_eq_candidates (p : Program) (callee : String)
   have hg := hglobal d hd
   clear hglobal
   cases d with
-  | function n ps sc v =>
+  | function n ps sc v ne =>
     by_cases hn : n = callee
     · subst hn
       obtain ⟨-, hs⟩ := hg (by simp [Decl.name?])

@@ -92,13 +92,13 @@ private def sArg : CallArg := { ty := S }
   | some (.userDefined f (c, .constructor ..) s) => c == B && f.rank == .exactMatch && s.rank == .exactMatch
   | _ => false
 #guard match q.ics .copy sArg D with
-  | some (.userDefined _ (c, .function t _ _) _) => c == S && t == D
+  | some (.userDefined _ (c, .function t _ _ _) _) => c == S && t == D
   | _ => false
 #guard match q.ics .copy sArg A with
   | some (.userDefined _ (_, .function ..) s) => s.rank == .conversion
   | _ => false
 #guard match q.ics .direct sArg A with
-  | some (.userDefined _ (_, .constructor _ true) _) => true
+  | some (.userDefined _ (_, .constructor _ true _) _) => true
   | _ => false
 -- The converted temporary binds a const lvalue reference or an rvalue
 -- reference, never an lvalue reference to non-const.

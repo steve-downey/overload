@@ -1037,6 +1037,25 @@ fragment's declarations can carry; a dependent one is an expression.
 **Log:**
 
 - 2026-10-24 — Decided.
+- 2026-10-24 — Stage exception-specifications landed. The implicit rule
+  is `Program.throwingWithin`, beside `trivialWithin` and shaped like it,
+  with the facts at the fuel below for the resolution and its own
+  recursion for the subobjects' members; it is not a field of `Facts`,
+  since deletion and triviality never consult it. A default member
+  initializer is an expression the model does not have, so `Member`
+  carries `throwingInit`, whether the initializer may throw, and the
+  emitter spells one as a call to a potentially-throwing function. On
+  the function type the specification is a `Bool`, and deduction
+  requires the two to agree; the function pointer conversion of
+  [temp.deduct.call]/4, by which a pointer to a `noexcept` function
+  deduces against a parameter without one, is out of the fragment with
+  the rest of the conversions on deduced pointers. `is_nothrow_swappable`
+  with a `swap` the program declares is left to the oracle, since the
+  call's lookup is above the environment. The destructor's case of
+  [except.spec]/5, a `noexcept(false)` destructor overriding a virtual
+  one, is not checked: `virtualsWellFormed` sits below the implicit
+  specifications in the layering, and the fragment's destructors say
+  `noexcept(false)` only to be found by the traits.
 
 ---
 

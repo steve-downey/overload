@@ -122,10 +122,12 @@ assumes, with `owes` the same list as a value; `coherence` and
 
 `Overload/Syntax.lean`: `Ty`, `Val` for constant template argument
 values, substitution of bindings into a type (`Ty.subst`), and
-template-argument equivalence. `Ty.fn params ret` is a function type,
-with the parameter list a `nil`/`cons` chain like a template argument
-list (`decisions.md#function-types`); deduction compares it as it
-compares a specialization, part by part. `Val.Equivalent` transcribes [temp.type]/2
+template-argument equivalence. `Ty.fn params ret noexcept` is a
+function type, with the parameter list a `nil`/`cons` chain like a
+template argument list (`decisions.md#function-types`) and its exception
+specification part of the type ([except.spec]/3); deduction compares it
+as it compares a specialization, part by part, and the two
+specifications must agree. `Val.Equivalent` transcribes [temp.type]/2
 and `Val.equivalent_iff` says it is structural equality on the values the
 fragment has. Constant arguments are structural values, trees with
 decidable equality, and that equality is the model's notion of two
@@ -517,8 +519,10 @@ final overriders or a pure destructor ([class.abstract]/2, /4);
 prospective destructors correspond (`virtual_destructor_inherited`, a
 rule N5054 states nowhere in one sentence). `abstract_polymorphic`: an
 abstract class is polymorphic. `virtualsWellFormed` is the program-level
-check that nothing overrides a `final` function and every `override`
-overrides something.
+check that nothing overrides a `final` function, every `override`
+overrides something, and no potentially-throwing member function
+overrides a non-throwing virtual one ([except.spec]/5,
+`override_keeps_noexcept` on the draft's example).
 
 ### Special
 
@@ -535,7 +539,22 @@ over a subobject's class to find its corresponding constructor or
 assignment and whether that results in a usable candidate
 ([over.match.general]/4); `Program.trivial` and `Program.eligible`
 likewise, with the no-virtual-functions conjunct of every triviality
-rule read as `!polymorphic` (`polymorphic_not_trivial`). Every judgement is fuel-bounded through the program, as
+rule read as `!polymorphic` (`polymorphic_not_trivial`).
+`Program.throwing c k` is the exception specification of a special member
+([except.spec]/4, /7 to /9): a user-declared member's specifier; for a
+destructor or a defaulted member without one, the implicit rule,
+potentially throwing exactly when a constructor, assignment or
+destructor the implicit definition invokes on a potentially constructed
+subobject is, found by the same resolution as deletion, or when a default
+member initializer may throw (`Member.throwingInit`); a user-provided
+member without a specifier is potentially throwing. `throwingWithin` is
+shaped like `trivialWithin`, with the facts at the fuel below.
+`implicit_noexcept_from_subobjects`: a flat class's special members are
+all non-throwing. `nothrow_propagates`: a subobject's potentially-throwing
+destructor makes the enclosing destructor potentially throwing, stated
+within fuel. `initThrowing` is whether a parameter's initialization from
+an argument may throw: a user-defined conversion that does, or the
+constructor a by-value class parameter's copy-initialization selects. Every judgement is fuel-bounded through the program, as
 `derives` is, and the candidate lists and the resolution over them
 (`ctorCandidates`, `assignCandidates`, `resolveAmong`) are parametrized
 by `Facts`, the special members and their deletion at the fuel below, so
@@ -575,7 +594,18 @@ and trivial. `is_trivially_copyable` and `is_standard_layout` are
 `standardLayoutClass`, with `zeroOffsetWithin` the types at offset zero;
 `is_empty` is no members, no virtual functions and empty bases;
 `is_polymorphic`, `is_abstract` and `has_virtual_destructor` read
-`Overload/Virtual.lean`. `is_invocable` of a function
+`Overload/Virtual.lean`. The `is_nothrow_` family is the base trait and
+the operations the definition invokes known not to throw
+([except.spec]/6): the constructor or assignment resolution selects, by
+`Program.throwing`, and each parameter's initialization, by
+`initThrowing`; `is_nothrow_convertible` the conversion of
+[meta.rel]/6; `is_nothrow_invocable` the function type's own
+specification and its parameters' initializations; `is_nothrow_swappable`
+`std::swap`'s specification, the move constructor and move assignment
+non-throwing ([utility.swap]/4), with a program that declares a `swap`
+of its own left to the oracle. `nothrow_destructible_eq`:
+`is_nothrow_destructible` is `is_destructible` for a program whose
+destructors carry no `noexcept(false)`. `is_invocable` of a function
 type or a pointer to one checks each argument's conversion sequence.
 The residue (`decisions.md#trait-residue`) answers `soft`: a conversion
 between two different non-class types, which the fragment's sequences
@@ -635,7 +665,9 @@ phase 12 with a residue atom for each expression the fragment lacks, and
 a `semantic` for each requirement a concept's specification gives beyond
 its body, with the equality-preservation laws of [concepts.equality]/4 on
 every library requires-expression that does not say otherwise.
-`same_as_symmetric` ([concept.same]/1), `regular_refines`, the chain from
+`destructible` is `is_nothrow_destructible`, which since phase 14 is the
+real rule, so a class with `~X() noexcept(false)` satisfies none of the
+object concepts. `same_as_symmetric` ([concept.same]/1), `regular_refines`, the chain from
 `regular` down to `move_constructible` by normalization
 ([concepts.object]/1), `regular_invocable_semantic_only`, one normal form
 and one law of difference ([concept.regularinvocable]/3), and
@@ -1383,7 +1415,13 @@ admits it, but is neither trivially copyable nor standard-layout nor
 empty, so the route's copy of it is a real copy;
 `abstract_instance_by_reference`, an abstract instance type is not
 constructible and an algorithm taking it by value is ill-formed to call
-even with a concrete derived instance, so only a reference reaches it.
+even with a concrete derived instance, so only a reference reaches it;
+`instance_nothrow`, an instance type with no data members has
+non-throwing special members and satisfies `destructible` and the
+`is_nothrow_` traits the value route relies on; `nothrow_copy_constraint`,
+the noexcept-correct callable-copying rule, `is_nothrow_copy_constructible`
+in the constraint making the algorithm not viable at a callable whose
+copy may throw, where `is_copy_constructible` alone admits it.
 
 ### Laws
 
