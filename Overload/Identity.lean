@@ -61,13 +61,14 @@ theorem slicing_identifies (env : Env) (b d : String) (vs ws : Val) (ps : Head) 
 
 /-- A class-typed value parameter and two values of other classes that
 each copy-initialize it through a user-defined conversion sequence, a
-converting constructor or a conversion function: both name one
-specialization, since the candidate initializer is the class's one
-value either way. A conversion between instance types identifies the
-instances it converts, as slicing does. -/
+converting constructor or a conversion function: when the class has one
+value, both name one specialization, since the candidate initializer is
+that value either way. A conversion between instance types identifies
+the instances it converts, as slicing does. -/
 @[std theorem "temp.type#1"]
-theorem conversion_identifies (p : Program) (env : Env) (c d₁ d₂ : String) (vs₁ vs₂ : Val)
+theorem conversion_identifies (p : Program) (env : Env) (c d₁ d₂ : String) (vs₁ vs₂ w : Val)
     (ps : Head) (rest : List Ty) (he : env.initializer = p.candidateInitializer)
+    (hu : p.uniqueValue (.named c) = some w)
     (hp : (Ty.named c).hasPlaceholder = false) (hc : isInteger c = false)
     (hne₁ : c ≠ d₁) (hne₂ : c ≠ d₂)
     (h₁ : ∃ f v s, p.ics .copy { ty := .named d₁ } (.named c) = some (.userDefined f v s))
@@ -76,15 +77,13 @@ theorem conversion_identifies (p : Program) (env : Env) (c d₁ d₂ : String) (
       (.value (.obj d₁ vs₁) :: rest) (.value (.obj d₂ vs₂) :: rest) := by
   obtain ⟨f₁, v₁, s₁, h₁⟩ := h₁
   obtain ⟨f₂, v₂, s₂, h₂⟩ := h₂
-  have hi₁ : env.initializer (.named c) (.obj d₁ vs₁) = some (p.uniqueValue (.named c)) := by
-    rw [he]; exact candidateInitializer_user p _ d₁ vs₁ f₁ s₁ v₁ h₁
-  have hi₂ : env.initializer (.named c) (.obj d₂ vs₂) = some (p.uniqueValue (.named c)) := by
-    rw [he]; exact candidateInitializer_user p _ d₂ vs₂ f₂ s₂ v₂ h₂
-  have hd₁ : convertArg env.initializer [] (.const (.named c)) (.value (.obj d₁ vs₁)) =
-      .ok (.value (p.uniqueValue (.named c))) :=
+  have hi₁ : env.initializer (.named c) (.obj d₁ vs₁) = some w := by
+    rw [he, candidateInitializer_user p _ d₁ vs₁ f₁ s₁ v₁ h₁, hu]
+  have hi₂ : env.initializer (.named c) (.obj d₂ vs₂) = some w := by
+    rw [he, candidateInitializer_user p _ d₂ vs₂ f₂ s₂ v₂ h₂, hu]
+  have hd₁ : convertArg env.initializer [] (.const (.named c)) (.value (.obj d₁ vs₁)) = .ok (.value w) :=
     (convertArg_iff _ _ _ _ _).mp (.classBase (.named c) c d₁ vs₁ _ hp rfl rfl hc hne₁ hi₁)
-  have hd₂ : convertArg env.initializer [] (.const (.named c)) (.value (.obj d₂ vs₂)) =
-      .ok (.value (p.uniqueValue (.named c))) :=
+  have hd₂ : convertArg env.initializer [] (.const (.named c)) (.value (.obj d₂ vs₂)) = .ok (.value w) :=
     (convertArg_iff _ _ _ _ _).mp (.classBase (.named c) c d₂ vs₂ _ hp rfl rfl hc hne₂ hi₂)
   exact explicitStep_converted env _ ps _ _ rest rfl (hd₁.trans hd₂.symm)
 

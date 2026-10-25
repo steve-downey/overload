@@ -155,6 +155,14 @@ and described here as they arrive.
   for GCC. Every other conversion case, the draft's narrowing example
   included, agrees on both compilers.
 
+- **GCC 15's library has no `is_implicit_lifetime`** (24 October 2026).
+  The five `is_implicit_lifetime_v` cases of phase 14 fail to compile with
+  GCC 15: `is_implicit_lifetime_v` is not a member of `std`. The trait is
+  C++23 (P2674R1) and libstdc++ 15 does not provide it; Clang 24 with
+  libc++ agrees with the model on all five. A library gap, not a
+  disagreement about a rule; listed in `differential/known-disagreements.txt`
+  for GCC until libstdc++ has it.
+
 ## About the model
 
 - **A sixth cited paragraph differs on the draft's main, editorially**

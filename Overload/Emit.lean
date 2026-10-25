@@ -212,6 +212,7 @@ def constraint : Constraint → String
       | .simple f as => s!"{f}({declvals as});"
       | .memberCall c f as => s!"std::declval<{ty c}>().{f}({declvals as});"
       | .type t => s!"typename {ty t};"
+      | .braceInit t as => s!"{ty t}\{{declvals as}};"
     s!"requires \{ {String.intercalate " " (reqs.map reqText)} }"
   | .atomic e m =>
     if e.startsWith "!" then s!"(!{e.drop 1}<{String.intercalate ", " (m.map ty)}>)"
@@ -278,7 +279,10 @@ def expectedDeduced (h : Head) (σ : Bindings) : String :=
     | none => "void"
   s!"deduced<{String.intercalate ", " parts}>"
 
-/-- The spelling of a noexcept-specifier: nothing for none. -/
+/-- The spelling of a noexcept-specifier: nothing for none, and `noexcept`
+without a constant-expression for `noexcept(true)`, to which it is
+equivalent. -/
+@[std rule "except.spec#2"]
 def noexceptText : Option Bool → String
   | none => ""
   | some true => " noexcept"
@@ -587,7 +591,8 @@ def qualifyConstraint (q : List (String × String)) : Constraint → Constraint
     .requires (reqs.map fun
       | .simple f as => .simple f (as.map (qualifyTy q))
       | .memberCall c f as => .memberCall (qualifyTy q c) f (as.map (qualifyTy q))
-      | .type t => .type (qualifyTy q t)) (ts.map (qualifyTy q))
+      | .type t => .type (qualifyTy q t)
+      | .braceInit t as => .braceInit (qualifyTy q t) (as.map (qualifyTy q))) (ts.map (qualifyTy q))
   | .conj a b => .conj (qualifyConstraint q a) (qualifyConstraint q b)
   | .disj a b => .disj (qualifyConstraint q a) (qualifyConstraint q b)
 
@@ -2548,6 +2553,91 @@ def traitNothrowSwappableThrowingMove : Case :=
     , .special cM { kind := .moveAssign, constParam := false, noexcept := some true } ]
     .isNothrowSwappable [cM]
 
+/-! ### Aggregates -/
+
+/-- `struct X { const int c; };`, `struct A { int x; };`, `struct R { int& r; };`. -/
+private def constMemberX : Program := [.class "X", .member cX { name := "c", ty := .const (.named "int") }]
+private def aggA : Program := [.class "A", .member (.named "A") { name := "x", ty := .named "int" }]
+private def aggR : Program := [.class "R", .member (.named "R") { name := "r", ty := .lref (.named "int") }]
+
+/-- `is_aggregate_v`: a class with a public member; a user-declared
+constructor, even defaulted; a converting constructor; a protected base;
+a virtual function; and a class derived publicly from an aggregate. -/
+def traitAggregate : Case := traitCase "trait_aggregate" "dcl.init.aggr#1" intMember .isAggregate [cX]
+def traitAggregateUserCtor : Case :=
+  traitCase "trait_aggregate_user_ctor" "dcl.init.aggr#1"
+    [.class "X", .special cX { kind := .defaultCtor, body := .defaulted }] .isAggregate [cX]
+def traitAggregateConverting : Case :=
+  traitCase "trait_aggregate_converting" "dcl.init.aggr#1"
+    [.class "S", .class "X", .converting cX (.constructor (.named "S"))] .isAggregate [cX]
+def traitAggregateProtectedBase : Case :=
+  traitCase "trait_aggregate_protected_base" "dcl.init.aggr#1" [.class "B", .class "D" [] [cB]] .isAggregate [cD]
+def traitAggregatePolymorphic : Case :=
+  traitCase "trait_aggregate_polymorphic" "dcl.init.aggr#1" virtualB .isAggregate [cB]
+def traitAggregateDerived : Case :=
+  traitCase "trait_aggregate_derived" "dcl.init.aggr#1" derivation .isAggregate [cD]
+
+/-- `is_implicit_lifetime_v`: an aggregate; one with a user-provided
+destructor; a class with a user-provided constructor but a trivial copy
+constructor and destructor; a scalar; a reference. -/
+def traitImplicitLifetimeAggregate : Case :=
+  traitCase "trait_implicit_lifetime_aggregate" "class.prop#8" intMember .isImplicitLifetime [cX]
+def traitImplicitLifetimeUserDtor : Case :=
+  traitCase "trait_implicit_lifetime_user_dtor" "class.prop#8"
+    [.class "X", .special cX { kind := .dtor }] .isImplicitLifetime [cX]
+def traitImplicitLifetimeUserCtor : Case :=
+  traitCase "trait_implicit_lifetime_user_ctor" "class.prop#8"
+    [.class "X", .special cX { kind := .defaultCtor }] .isImplicitLifetime [cX]
+def traitImplicitLifetimeScalar : Case :=
+  traitCase "trait_implicit_lifetime_scalar" "basic.types.general#7" [] .isImplicitLifetime [.named "int"]
+def traitImplicitLifetimeReference : Case :=
+  traitCase "trait_implicit_lifetime_reference" "basic.types.general#7" [] .isImplicitLifetime
+    [.lref (.named "int")]
+
+/-- `is_constructible_v` through parenthesized aggregate initialization:
+`A(int)`; one argument too many; a derived aggregate from its base and a
+member; a reference element from an lvalue; `R()` with the reference
+element left to value-initialization. -/
+def traitConstructibleParenAggregate : Case :=
+  traitCase "trait_constructible_paren_aggregate" "dcl.init.general#15" aggA .isConstructible
+    [.named "A", .named "int"]
+def traitConstructibleParenAggregateTooMany : Case :=
+  traitCase "trait_constructible_paren_aggregate_too_many" "dcl.init.general#15" aggA .isConstructible
+    [.named "A", .named "int", .named "int"]
+def traitConstructibleParenAggregateBase : Case :=
+  traitCase "trait_constructible_paren_aggregate_base" "dcl.init.general#15"
+    [.class "B", .class "D" [cB], .member cD { name := "x", ty := .named "int" }] .isConstructible
+    [cD, cB, .named "int"]
+def traitConstructibleParenAggregateReference : Case :=
+  traitCase "trait_constructible_paren_aggregate_reference" "dcl.init.general#15" aggR .isConstructible
+    [.named "R", .lref (.named "int")]
+def traitConstructibleParenAggregateReferenceOmitted : Case :=
+  traitCase "trait_constructible_paren_aggregate_reference_omitted" "dcl.init.general#15" aggR
+    .isConstructible [.named "R"]
+
+/-- `template <std::default_initializable T> void g(T&&);` over the
+library's concepts, called with a class. -/
+private def defaultInitializableOverload (cls : Program) : Program :=
+  Concepts.libraryConcepts ++ cls ++
+  [ .functionTemplate { name := "g", head := [{ kind := .type }], params := [.rref (.param 0)]
+                        constraint := some (.conceptId "default_initializable" [.param 0]) } ]
+
+/-- `struct X { const int c; };`: `X{}` is well-formed and `X x;` is not,
+so `default_initializable<X>` fails on its third conjunct and `g` is not
+viable; `struct X { int x; };` satisfies all three. -/
+def conceptDefaultInitializableConst : Case :=
+  { name := "concept_default_initializable_const"
+    cite := cite "concept.default.init#1"
+    program := defaultInitializableOverload constMemberX
+    query := .call "g" [{ ty := cX }] .noMatch
+    source := "computed by Program.call" }
+def conceptDefaultInitializableAggregate : Case :=
+  { name := "concept_default_initializable_aggregate"
+    cite := cite "concept.default.init#1"
+    program := defaultInitializableOverload intMember
+    query := .call "g" [{ ty := cX }] (.selected 0)
+    source := "computed by Program.call" }
+
 /-- `void g(B);` with `B` abstract: the call `g(d)` is ill-formed, whatever
 the argument; `void g(const B&)` is fine. -/
 def abstractByValue : Case :=
@@ -2816,6 +2906,13 @@ def cases : List Case :=
   , traitNothrowConvertibleFunctionThrowing, traitNothrowConvertibleCopy, traitNothrowConvertibleFlat
   , traitNothrowInvocableNoexcept, traitNothrowInvocablePlain, traitNothrowInvocableThrowingParameter
   , traitNothrowSwappableFlat, traitNothrowSwappableThrowingMove, conceptDestructibleThrowing
+  , traitAggregate, traitAggregateUserCtor, traitAggregateConverting, traitAggregateProtectedBase
+  , traitAggregatePolymorphic, traitAggregateDerived, traitImplicitLifetimeAggregate
+  , traitImplicitLifetimeUserDtor, traitImplicitLifetimeUserCtor, traitImplicitLifetimeScalar
+  , traitImplicitLifetimeReference, traitConstructibleParenAggregate, traitConstructibleParenAggregateTooMany
+  , traitConstructibleParenAggregateBase, traitConstructibleParenAggregateReference
+  , traitConstructibleParenAggregateReferenceOmitted, conceptDefaultInitializableConst
+  , conceptDefaultInitializableAggregate
   , conceptRefinementSubsumes, conceptRefinementUnsatisfied, requiresCallHolds, requiresCallFails
   , requiresMemberHolds, requiresMemberFails, requiresTypeFails, requiresTypeHolds, requiresOrder
   , conceptCopyConstructibleRefines, conceptMoveOnly ]

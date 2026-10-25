@@ -721,6 +721,16 @@ parameters.
   `Overload/Arguments.lean`. `narrowing_constant` is the reason the
   typing is not missed: for a constant, the source type decides nothing
   the value does not (`findings.md`).
+- 2026-10-24 — Phase 14 restates the class value: a `Val.obj` lists the
+  class's elements, bases then members ([dcl.init.aggr]/2), and
+  `Program.uniqueValue` is `Option Val`, some only for a class whose
+  elements are all classes with one value. With a scalar or reference
+  element a class has as many values as the element, and the result a
+  converting constructor gives for one is a value the model cannot
+  compute: `candidateInitializer` answers none, which `convertArg` reports
+  as a soft failure, and `Env.initializer` is the oracle a layer above
+  supplies, as phase 11 first planned. The library's instance types have
+  no members and keep their one value (`instance_is_aggregate`).
 - 2026-10-23 — User-defined conversions and converting constructors
   leave the out-of-fragment list: phase 11 models them as declarations
   by type (`user-defined-conversions`), and the copy-initialization of
@@ -1086,3 +1096,14 @@ aggregate with a `const` member, which phase 13 had merged.
 **Log:**
 
 - 2026-10-24 — Decided.
+- 2026-10-24 — Stage aggregates landed, `Overload/Aggregate.lean`. One
+  more exclusion: narrowing in list-initialization, since the
+  initializers are types and narrowing is a property of a value. The
+  simple requirement `T{args};` is its own requirement form,
+  `Constraint.Requirement.braceInit`, since a requires-expression's
+  expression is otherwise a call. Value-initialization of the elements a
+  parenthesized aggregate initialization leaves out is `valueInit`
+  ([dcl.init.general]/8): a scalar is zero-initialized, a class
+  default-initialized by a usable default constructor, a reference
+  cannot be. GCC 15's library has no `is_implicit_lifetime`
+  (`findings.md`); Clang 24 agrees with the model on every case.

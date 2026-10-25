@@ -10,6 +10,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 |---|---|---|---|
 | [[basic.compound]/1](https://eel.is/c++draft/basic.compound#1) | rule | `Overload.Ty.isCompound` | `Overload.Types` |
 | [[basic.compound]/1](https://eel.is/c++draft/basic.compound#1) | rule | `Overload.Ty.isFunction` | `Overload.Types` |
+| [[basic.def]/5](https://eel.is/c++draft/basic.def#5) | rule | `Overload.Program.braceInitWithin` | `Overload.Aggregate` |
 | [[basic.def]/5](https://eel.is/c++draft/basic.def#5) | rule | `Overload.Program.constructible` | `Overload.Traits` |
 | [[basic.def]/5](https://eel.is/c++draft/basic.def#5) | theorem | `Overload.abstract_not_constructible` | `Overload.Traits` |
 | [[basic.def.odr]/16](https://eel.is/c++draft/basic.def.odr#16) | rule | `Overload.IllFormedNdr.odrMismatch` | `Overload.Units` |
@@ -65,6 +66,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[basic.scope.scope]/6 sentence 2](https://eel.is/c++draft/basic.scope.scope#6.sentence-2) | rule | `Overload.Program.conflicts` | `Overload.Scope` |
 | [[basic.types.general]/1](https://eel.is/c++draft/basic.types.general#1) | rule | `Overload.Ty.isReference` | `Overload.Types` |
 | [[basic.types.general]/6](https://eel.is/c++draft/basic.types.general#6) | rule | `Overload.Ty.isObject` | `Overload.Types` |
+| [[basic.types.general]/7](https://eel.is/c++draft/basic.types.general#7) | rule | `Overload.Trait.isImplicitLifetime` | `Overload.Types` |
 | [[basic.types.general]/7](https://eel.is/c++draft/basic.types.general#7) | rule | `Overload.Ty.isScalar` | `Overload.Types` |
 | [[class.abstract]/2](https://eel.is/c++draft/class.abstract#2) | rule | `Overload.Program.abstract` | `Overload.Virtual` |
 | [[class.abstract]/2](https://eel.is/c++draft/class.abstract#2) | rule | `Overload.Program.pureDtor` | `Overload.Virtual` |
@@ -102,10 +104,12 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[class.default.ctor]/1](https://eel.is/c++draft/class.default.ctor#1) | rule | `Overload.Program.specialWithin` | `Overload.Special` |
 | [[class.default.ctor]/1](https://eel.is/c++draft/class.default.ctor#1) | rule | `Overload.Program.userDeclaredCtor` | `Overload.Special` |
 | [[class.default.ctor]/2](https://eel.is/c++draft/class.default.ctor#2) | rule | `Overload.Program.deletedWithin` | `Overload.Special` |
+| [[class.default.ctor]/2](https://eel.is/c++draft/class.default.ctor#2) | theorem | `Overload.brace_init_differs_from_default_init` | `Overload.Traits` |
 | [[class.default.ctor]/3](https://eel.is/c++draft/class.default.ctor#3) | rule | `Overload.Program.trivialWithin` | `Overload.Special` |
 | [[class.default.ctor]/3](https://eel.is/c++draft/class.default.ctor#3) | theorem | `Overload.polymorphic_not_trivial` | `Overload.Traits` |
 | [[class.derived.general]/2](https://eel.is/c++draft/class.derived.general#2) | rule | `Overload.Program.derives` | `Overload.Ranking` |
 | [[class.dtor]/2](https://eel.is/c++draft/class.dtor#2) | rule | `Overload.Program.specialWithin` | `Overload.Special` |
+| [[class.dtor]/6](https://eel.is/c++draft/class.dtor#6) | note | `Overload.dtor_without_specifier_implicit` | `Overload.Special` |
 | [[class.dtor]/7](https://eel.is/c++draft/class.dtor#7) | rule | `Overload.Program.deletedWithin` | `Overload.Special` |
 | [[class.dtor]/8](https://eel.is/c++draft/class.dtor#8) | rule | `Overload.Program.trivialWithin` | `Overload.Special` |
 | [[class.dtor]/8](https://eel.is/c++draft/class.dtor#8) | theorem | `Overload.polymorphic_not_trivial` | `Overload.Traits` |
@@ -133,6 +137,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[class.prop]/2](https://eel.is/c++draft/class.prop#2) | rule | `Overload.Program.standardLayoutWithin` | `Overload.Traits` |
 | [[class.prop]/2](https://eel.is/c++draft/class.prop#2) | rule | `Overload.Program.zeroOffsetWithin` | `Overload.Traits` |
 | [[class.prop]/2](https://eel.is/c++draft/class.prop#2) | theorem | `Overload.polymorphic_not_trivial` | `Overload.Traits` |
+| [[class.prop]/8](https://eel.is/c++draft/class.prop#8) | rule | `Overload.Program.implicitLifetimeClass` | `Overload.Aggregate` |
 | [[class.virtual]/1](https://eel.is/c++draft/class.virtual#1) | rule | `Overload.Program.polymorphic` | `Overload.Virtual` |
 | [[class.virtual]/1](https://eel.is/c++draft/class.virtual#1) | rule | `Overload.Program.virtualFunctionsWithin` | `Overload.Virtual` |
 | [[class.virtual]/1](https://eel.is/c++draft/class.virtual#1) | rule | `Overload.Virt.none` | `Overload.Program` |
@@ -165,6 +170,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[concept.copyconstructible]/1](https://eel.is/c++draft/concept.copyconstructible#1) | rule | `Overload.Concepts.copyConstructible` | `Overload.Concepts` |
 | [[concept.copyconstructible]/1](https://eel.is/c++draft/concept.copyconstructible#1) | rule | `Overload.Concepts.copyConstructibleEqual` | `Overload.Concepts` |
 | [[concept.default.init]/1](https://eel.is/c++draft/concept.default.init#1) | rule | `Overload.Concepts.defaultInitializable` | `Overload.Concepts` |
+| [[concept.default.init]/1](https://eel.is/c++draft/concept.default.init#1) | theorem | `Overload.brace_init_differs_from_default_init` | `Overload.Traits` |
 | [[concept.derived]/1](https://eel.is/c++draft/concept.derived#1) | rule | `Overload.Concepts.derivedFrom` | `Overload.Concepts` |
 | [[concept.destructible]/1](https://eel.is/c++draft/concept.destructible#1) | rule | `Overload.Concepts.destructible` | `Overload.Concepts` |
 | [[concept.destructible]/1](https://eel.is/c++draft/concept.destructible#1) | theorem | `Overload.nothrow_destructible_eq` | `Overload.Traits` |
@@ -210,19 +216,36 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[dcl.fct.def.delete]/1](https://eel.is/c++draft/dcl.fct.def.delete#1) | rule | `Overload.SmfBody.deleted` | `Overload.Program` |
 | [[dcl.fct.def.delete]/2](https://eel.is/c++draft/dcl.fct.def.delete#2) | rule | `Overload.Program.copyInitUsable` | `Overload.Special` |
 | [[dcl.fct.def.general]/2](https://eel.is/c++draft/dcl.fct.def.general#2) | rule | `Overload.Program.convertible` | `Overload.Traits` |
+| [[dcl.init.aggr]/1](https://eel.is/c++draft/dcl.init.aggr#1) | rule | `Overload.Program.aggregate` | `Overload.Aggregate` |
+| [[dcl.init.aggr]/1](https://eel.is/c++draft/dcl.init.aggr#1) | theorem | `Overload.aggregate_iff_declarations` | `Overload.Aggregate` |
+| [[dcl.init.aggr]/2](https://eel.is/c++draft/dcl.init.aggr#2) | rule | `Overload.Program.elements` | `Overload.Ranking` |
+| [[dcl.init.aggr]/2](https://eel.is/c++draft/dcl.init.aggr#2) | rule | `Overload.Program.elementsWith` | `Overload.Aggregate` |
+| [[dcl.init.aggr]/2](https://eel.is/c++draft/dcl.init.aggr#2) | theorem | `Overload.aggregate_elements_are_value` | `Overload.Ranking` |
+| [[dcl.init.aggr]/4](https://eel.is/c++draft/dcl.init.aggr#4) | rule | `Overload.Program.braceInitWithin` | `Overload.Aggregate` |
+| [[dcl.init.aggr]/4](https://eel.is/c++draft/dcl.init.aggr#4) | rule | `Overload.Program.elementInit` | `Overload.Aggregate` |
+| [[dcl.init.aggr]/6](https://eel.is/c++draft/dcl.init.aggr#6) | rule | `Overload.Program.braceInitWithin` | `Overload.Aggregate` |
+| [[dcl.init.aggr]/6](https://eel.is/c++draft/dcl.init.aggr#6) | theorem | `Overload.brace_init_differs_from_default_init` | `Overload.Traits` |
 | [[dcl.init.general]/7](https://eel.is/c++draft/dcl.init.general#7) | rule | `Overload.Program.constDefaultConstructibleWithin` | `Overload.Special` |
+| [[dcl.init.general]/8](https://eel.is/c++draft/dcl.init.general#8) | rule | `Overload.Program.valueInit` | `Overload.Aggregate` |
 | [[dcl.init.general]/13](https://eel.is/c++draft/dcl.init.general#13) | rule | `Overload.Init.copy` | `Overload.Program` |
 | [[dcl.init.general]/13](https://eel.is/c++draft/dcl.init.general#13) | rule | `Overload.Program.ranking` | `Overload.Ranking` |
 | [[dcl.init.general]/14](https://eel.is/c++draft/dcl.init.general#14) | rule | `Overload.Init.direct` | `Overload.Program` |
 | [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15) | rule | `Overload.IcsForms.userDefined` | `Overload.Ranking` |
 | [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15) | rule | `Overload.Program.betterCandidate` | `Overload.Ranking` |
 | [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15) | rule | `Overload.Program.candidateInitializer` | `Overload.Ranking` |
+| [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15) | rule | `Overload.Program.constructible` | `Overload.Traits` |
+| [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15) | rule | `Overload.Program.elementInit` | `Overload.Aggregate` |
+| [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15) | rule | `Overload.Program.parenAggregateInit` | `Overload.Aggregate` |
+| [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15) | theorem | `Overload.paren_aggregate_constructible` | `Overload.Traits` |
+| [[dcl.init.list]/3](https://eel.is/c++draft/dcl.init.list#3) | rule | `Overload.Program.braceInitWithin` | `Overload.Aggregate` |
 | [[dcl.init.list]/7](https://eel.is/c++draft/dcl.init.list#7) | rule | `Overload.Narrowing.integer` | `Overload.Arguments` |
 | [[dcl.init.ref]/4 sentence 2](https://eel.is/c++draft/dcl.init.ref#4.sentence-2) | rule | `Overload.Program.referenceCompatible` | `Overload.Ranking` |
 | [[dcl.init.ref]/4 sentence 3](https://eel.is/c++draft/dcl.init.ref#4.sentence-3) | rule | `Overload.Program.call` | `Overload.Access` |
 | [[dcl.init.ref]/5](https://eel.is/c++draft/dcl.init.ref#5) | rule | `Overload.Program.ics` | `Overload.Ranking` |
 | [[dcl.ref]/1 sentence 3](https://eel.is/c++draft/dcl.ref#1.sentence-3) | rule | `Overload.formConst` | `Overload.Steps` |
 | [[dcl.ref]/5 sentence 1](https://eel.is/c++draft/dcl.ref#5.sentence-1) | rule | `Overload.formPtr` | `Overload.Steps` |
+| [[except.spec]/1](https://eel.is/c++draft/except.spec#1) | rule | `Overload.Decl.throwing` | `Overload.Virtual` |
+| [[except.spec]/2](https://eel.is/c++draft/except.spec#2) | rule | `Overload.Emit.noexceptText` | `Overload.Emit` |
 | [[except.spec]/3](https://eel.is/c++draft/except.spec#3) | rule | `Overload.DeduceTy.fn` | `Overload.Deduction` |
 | [[except.spec]/4](https://eel.is/c++draft/except.spec#4) | rule | `Overload.Decl.throwing` | `Overload.Virtual` |
 | [[except.spec]/4](https://eel.is/c++draft/except.spec#4) | rule | `Overload.Program.convThrowing` | `Overload.Special` |
@@ -256,6 +279,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[expr.prim.req.general]/5](https://eel.is/c++draft/expr.prim.req.general#5) | theorem | `Overload.requires_false_stops` | `Overload.Requires` |
 | [[expr.prim.req.general]/5](https://eel.is/c++draft/expr.prim.req.general#5) | theorem | `Overload.requires_hard_stops` | `Overload.Requires` |
 | [[expr.prim.req.general]/5](https://eel.is/c++draft/expr.prim.req.general#5) | theorem | `Overload.requires_soft_is_false` | `Overload.Requires` |
+| [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | rule | `Overload.Constraint.Requirement.braceInit` | `Overload.Constraint` |
 | [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | rule | `Overload.Constraint.Requirement.memberCall` | `Overload.Constraint` |
 | [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | rule | `Overload.Constraint.Requirement.simple` | `Overload.Constraint` |
 | [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | rule | `Overload.Program.requirementHolds` | `Overload.Requires` |
@@ -305,6 +329,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Program.triviallyDestructible` | `Overload.Traits` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.hasVirtualDestructor` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isAbstract` | `Overload.Types` |
+| [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isAggregate` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isAssignable` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isConst` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isCopyAssignable` | `Overload.Types` |
@@ -312,6 +337,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isDefaultConstructible` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isDestructible` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isEmpty` | `Overload.Types` |
+| [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isImplicitLifetime` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isMoveAssignable` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isMoveConstructible` | `Overload.Types` |
 | [[meta.unary.prop]/5](https://eel.is/c++draft/meta.unary.prop#5) | rule | `Overload.Trait.isNothrowAssignable` | `Overload.Types` |
@@ -557,19 +583,13 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.type]/2](https://eel.is/c++draft/temp.type#2) | rule | `Overload.Val.Equivalent.nil` | `Overload.Syntax` |
 | [[temp.type]/2](https://eel.is/c++draft/temp.type#2) | rule | `Overload.Val.Equivalent.obj` | `Overload.Syntax` |
 | [[temp.type]/2](https://eel.is/c++draft/temp.type#2) | rule | `Overload.Val.Equivalent.param` | `Overload.Syntax` |
+| [[temp.type]/2](https://eel.is/c++draft/temp.type#2) | theorem | `Overload.aggregate_elements_are_value` | `Overload.Ranking` |
 | [[temp.type]/2](https://eel.is/c++draft/temp.type#2) | theorem | `Overload.reference_keeps_identity` | `Overload.Identity` |
 | [[utility.swap]/4](https://eel.is/c++draft/utility.swap#4) | rule | `Overload.Program.nothrowSwappable` | `Overload.Traits` |
 
 ## In scope, no counterpart yet
 
-- [[class.dtor]/6](https://eel.is/c++draft/class.dtor#6)
-- [[except.spec]/1](https://eel.is/c++draft/except.spec#1)
-- [[except.spec]/2](https://eel.is/c++draft/except.spec#2)
-- [[dcl.init.aggr]/1](https://eel.is/c++draft/dcl.init.aggr#1)
-- [[dcl.init.aggr]/2](https://eel.is/c++draft/dcl.init.aggr#2)
-- [[dcl.init.aggr]/4](https://eel.is/c++draft/dcl.init.aggr#4)
-- [[dcl.init.aggr]/6](https://eel.is/c++draft/dcl.init.aggr#6)
-- [[class.prop]/8](https://eel.is/c++draft/class.prop#8)
+Every in-scope paragraph has a counterpart in the model.
 
 ## Assumptions
 

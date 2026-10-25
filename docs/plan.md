@@ -661,8 +661,9 @@ Status, 15 October 2026:
   `citations.md` with every in-scope paragraph covered, and `make
   drift-check-current`, which reports the five known editorial drifts
   and no other.
-- Phase 14 is open, planned 24 October 2026 in three stages: virtual
-  functions, exception specifications, aggregates. Each extends the
+- Phase 14 is closed, 24 October 2026, planned and landed the same day
+  in three stages: virtual functions, exception specifications,
+  aggregates. Each extends the
   special member judgements of phase 12 with one new fact about
   declarations and the traits that rest on it, and the third corrects
   the model's class value to the aggregate's element list and
@@ -719,6 +720,34 @@ Status, 15 October 2026:
   judgement beside `trivialWithin`, not a field of `Facts`, since
   deletion never consults it; and `nothrow_destructible_eq` is restated
   rather than retired, as the theorem it always was.
+  Stage 3, aggregates, closed the phase, 24 October 2026:
+  `Overload/Aggregate.lean`, with `aggregate` by [dcl.init.aggr]/1 on the
+  declarations, `elementsWith`, `braceInit` for `T{args}`, aggregate
+  initialization with `{}` for the elements left out and a reference
+  element without an initializer a failure, value-initialization for a
+  non-aggregate `T{}` ([dcl.init.list]/3), `parenAggregateInit` for
+  `T(args)` when no constructor is viable ([dcl.init.general]/15), which
+  `constructible` now reaches, and `implicitLifetimeClass`. The class
+  value is restated: `Program.elements`, bases then members, is what a
+  `Val.obj` lists, `uniqueValue` is `Option Val`, some only for a class
+  whose elements are all classes with one value, and
+  `conversion_identifies` and `value_route_identifies_converted` take
+  the class's one value as a hypothesis; a converting constructor's
+  result for a class with scalar elements is the environment's
+  (`decisions.md#value-typing`). `Constraint.Requirement.braceInit` is
+  the simple requirement `T{args};`, and `default_initializable` has its
+  three conjuncts, `destructible`, `requires { T{}; }` and `T t;`. Two
+  traits join, `is_aggregate` and `is_implicit_lifetime`. The theorems
+  aggregate-elements-are-value, brace-init-differs-from-default-init and
+  paren-aggregate-constructible are proved, with `aggregate_iff_declarations`;
+  on the encoding, `instance_is_aggregate`. Twenty emitted cases agree
+  with Clang 24, and fifteen with GCC 15: libstdc++ 15 has no
+  `is_implicit_lifetime`, a library gap recorded in `findings.md` and
+  `differential/known-disagreements.txt`. Every in-scope paragraph of
+  the phase is covered, [class.dtor]/6 by the note's own theorem, and
+  `make drift-check-current` reports the six known editorial drifts and
+  no other. Settles virtual-fragment, exception-specification-fragment
+  and aggregate-fragment.
 
 ## Target theorems
 
@@ -2090,6 +2119,8 @@ overrides it ([class.virtual]/2), which is where the rule now lives.
 | [dcl.init.aggr]/2 | The elements of a class aggregate: the direct bases in declaration order, then the direct non-static data members in declaration order. | `Program.elements c`; `Val.obj c subs` lists them, bases then members, and `candidateInitializer` and `uniqueValue` are restated for classes with members (`decisions.md#value-typing`). | 3 |
 | [dcl.init.aggr]/4 | The elements an initializer list explicitly initializes; `{}` explicitly initializes none. | `Program.braceInit c inits`: the first `k` elements from the list. | 3 |
 | [dcl.init.aggr]/6 | An element not explicitly initialized is initialized from its default member initializer, else copy-initialized from `{}` if not a reference, else the program is ill-formed. | The rest of `braceInit`: a reference element without an initializer fails; `T{}` for a class with a `const` member succeeds where `T t;` does not. | 3 |
+| [dcl.init.list]/3 | List-initialization of an aggregate is aggregate initialization; of a class with a default constructor from an empty list, value-initialization; otherwise its constructors are considered. | `braceInitWithin` at a non-aggregate class: `T{}` and `T{args}` through `resolveCtor`. | 3 |
+| [dcl.init.general]/8 | To value-initialize an object: a class by its default constructor, a scalar by zero-initialization; a reference is no object. | `Program.valueInit`, for the elements a parenthesized aggregate initialization leaves out. | 3 |
 | [dcl.init.general]/15, the aggregate bullet | If no constructor is viable, the destination is an aggregate class and the initializer is a parenthesized expression-list, each element is copy-initialized from the corresponding expression, more expressions than elements is ill-formed, and the rest from their default member initializers or value-initialized. | `Program.constructible` gains the branch: `is_constructible<Agg, Args...>` holds through the elements when no constructor is viable. | 3 |
 | [class.prop]/8 | An implicit-lifetime class: an aggregate whose destructor is not user-provided, or one with a trivial eligible constructor and a trivial non-deleted destructor. | `Program.implicitLifetimeClass`; `Trait.isImplicitLifetime`. | 3 |
 | [meta.unary.prop]/5, row `is_aggregate` | `T` is an aggregate type. | `Trait.isAggregate`. | 3 |

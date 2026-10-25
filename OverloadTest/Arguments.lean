@@ -157,7 +157,7 @@ private def convProgram : Program :=
 #guard convProgram.candidateInitializer (.named "B") dVal == some bVal
 #guard convProgram.candidateInitializer (.named "D") dVal == some dVal
 #guard convProgram.candidateInitializer (.named "B") xVal == none
-#guard convProgram.uniqueValue (.named "T") == .obj' "T" [bVal]
+#guard convProgram.uniqueValue (.named "T") == some (.obj' "T" [bVal])
 #guard convProgram.candidateInitializer (.named "T") (.obj' "S" []) == some (.obj' "T" [bVal])
 #guard convProgram.candidateInitializer (.named "X") (.obj' "S" []) == none
 #guard convProgram.candidateInitializer (.named "E") (.obj' "S" []) == none

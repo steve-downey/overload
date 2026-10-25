@@ -670,44 +670,65 @@ theorem explicit_never_implicit (p : Program) (a : CallArg) (t : Ty) (f s : StdC
 
 namespace Program
 
-/-- The one value of a class in the fragment, within `fuel` steps of
-derivation: a class value lists its base subobjects and nothing else,
-so every object of a class is template-argument-equivalent to this one,
-whichever constructor made it. -/
-def uniqueValueWithin (p : Program) : Nat → Ty → Val
-  | 0, .named n => .obj' n []
-  | fuel + 1, .named n => .obj' n ((p.directBases (.named n)).map (p.uniqueValueWithin fuel))
-  | _, _ => .obj' "" []
+/-- The elements of a class: its direct base classes in declaration
+order, then its direct non-static data members in declaration order.
+They are the direct subobjects a class value lists, and the elements of
+the class as an aggregate. -/
+@[std rule "dcl.init.aggr#2"]
+def elements (p : Program) (c : Ty) : List Ty := p.directBases c ++ (p.membersOf c).map (·.ty)
 
-/-- The one value of a class in the fragment. -/
-def uniqueValue (p : Program) (t : Ty) : Val := p.uniqueValueWithin p.length t
+/-- The one value of a class, within `fuel` steps of nesting, if the class
+has one: a class whose elements are all classes with one value has
+exactly one value up to template-argument equivalence, whichever
+constructor made it, and a class with a scalar or reference element has
+as many values as the element. -/
+def uniqueValueWithin (p : Program) : Nat → Ty → Option Val
+  | 0, _ => none
+  | fuel + 1, .named n =>
+    ((p.elements (.named n)).mapM fun (e : Ty) =>
+      if e.stripConst.isClass then p.uniqueValueWithin fuel e.stripConst else none).map (Val.obj' n)
+  | _, _ => none
+
+/-- The one value of a class, if it has one. -/
+def uniqueValue (p : Program) (t : Ty) : Option Val := p.uniqueValueWithin p.length t
 
 /-- The value of the candidate initializer `v` of `constexpr T v = A;`
 for a class value `A`: the value itself for its own class and its `T`
 base subobject for a derived class, when the standard sequence forms;
 the object a converting constructor or conversion function makes when
 the copy-initialization goes through a user-defined conversion
-sequence, which in the fragment is the class's one value; and none when
-no sequence forms or the sequence is ambiguous, which makes the
-template-id invalid. -/
+sequence, which is the class's one value when it has one, and the
+environment's to say otherwise, since the model has no expressions to
+evaluate (`decisions.md#value-typing`); and none when no sequence forms
+or the sequence is ambiguous, which makes the template-id invalid. -/
 @[std rule "temp.arg.nontype#3" "dcl.init.general#15"]
 def candidateInitializer (p : Program) (t : Ty) : Val → Option Val
   | .obj d subs =>
     match p.ics .copy { ty := .named d } t with
     | some (.standard _) => p.subobject t (.obj d subs)
-    | some (.userDefined ..) => some (p.uniqueValue t)
+    | some (.userDefined ..) => p.uniqueValue t
     | _ => none
   | _ => none
 
 end Program
 
 /-- Through a user-defined conversion sequence the candidate initializer
-is the class's one value, whatever the source. -/
+is the class's one value, whatever the source, when the class has one. -/
 theorem candidateInitializer_user (p : Program) (t : Ty) (d : String) (subs : Val)
     (f s : StdConv) (v : Ty × UserConv)
     (h : p.ics .copy { ty := .named d } t = some (.userDefined f v s)) :
-    p.candidateInitializer t (.obj d subs) = some (p.uniqueValue t) := by
+    p.candidateInitializer t (.obj d subs) = p.uniqueValue t := by
   simp [Program.candidateInitializer, h]
+
+/-- A class value's subobject list is the class's element list: the one
+value of a class, where it exists, is built over its elements, each the
+one value of an element of class type. -/
+@[std theorem "dcl.init.aggr#2" "temp.type#2"]
+theorem aggregate_elements_are_value (p : Program) (fuel : Nat) (n : String) :
+    p.uniqueValueWithin (fuel + 1) (.named n) =
+      ((p.elements (.named n)).mapM fun (e : Ty) =>
+        if e.stripConst.isClass then p.uniqueValueWithin fuel e.stripConst else none).map (Val.obj' n) :=
+  rfl
 
 /-- In a program without user-defined conversions the candidate
 initializer is the base subobject, when the derived-to-base conversion

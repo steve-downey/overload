@@ -344,6 +344,7 @@ def inScope : List (String × Nat) :=
   , ("except.spec", 1), ("except.spec", 2), ("except.spec", 3), ("except.spec", 4), ("except.spec", 5)
   , ("except.spec", 6), ("except.spec", 7), ("except.spec", 8), ("except.spec", 9), ("utility.swap", 4)
   , ("dcl.init.aggr", 1), ("dcl.init.aggr", 2), ("dcl.init.aggr", 4), ("dcl.init.aggr", 6)
+  , ("dcl.init.list", 3), ("dcl.init.general", 8)
   , ("class.prop", 8) ]
 
 end Overload.Std

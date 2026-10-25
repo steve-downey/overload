@@ -135,11 +135,15 @@ def constructibleFrom : List Decl :=
   [.conceptDef "constructible_from" 2 (.conj (.conceptId "destructible" [T]) (.trait .isConstructible [T, U]))]
 
 /-- `default_initializable<T> = constructible_from<T> && requires { T{}; } &&
-is-default-initializable<T>`: destructible, and `T t;` well-formed. -/
+is-default-initializable<T>`: destructible, `T{}` well-formed, and `T t;`
+well-formed, three judgements. `constructible_from<T>` with no argument
+is `destructible<T> && is_constructible_v<T>`, and the latter is
+`is_default_constructible_v<T>`, the third conjunct. -/
 @[std rule "concept.default.init#1"]
 def defaultInitializable : List Decl :=
   [.conceptDef "default_initializable" 1
-    (.conj (.conceptId "destructible" [T]) (.trait .isDefaultConstructible [T]))]
+    (.conj (.conj (.conceptId "destructible" [T]) (.requires [.braceInit T []] [T]))
+      (.trait .isDefaultConstructible [T]))]
 
 /-- `move_constructible<T> = constructible_from<T, T> && convertible_to<T, T>`. -/
 @[std rule "concept.moveconstructible#1"]

@@ -1,6 +1,6 @@
 -- Overload/Traits.lean                                               -*-lean-*-
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-import Overload.Special
+import Overload.Aggregate
 
 /-!
 # Type traits as judgements of a program
@@ -77,10 +77,12 @@ def convertible (p : Program) (from_ to : Ty) : Subst Bool :=
 `T t(declval<Args>()...);` is well-formed. A reference binds one
 argument; no object of an abstract class is defined ([basic.def]/5); a
 class resolves its constructors for direct-initialization and the
-candidate must be usable; a scalar is value-initialized by no
+candidate must be usable, or, when no constructor is viable, is an
+aggregate initialized from the parenthesized list ([dcl.init.general]/15);
+a scalar is value-initialized by no
 argument and initialized by one of its own type or of a class with a
 conversion function to it. No `void` or function type is constructible. -/
-@[std rule "meta.unary.prop#9" "over.match.general#4" "basic.def#5"]
+@[std rule "meta.unary.prop#9" "over.match.general#4" "basic.def#5" "dcl.init.general#15"]
 def constructible (p : Program) (t : Ty) (args : List Ty) : Subst Bool :=
   let as := args.map declval
   if t.isVoid || t.isFunction then .ok false
@@ -89,8 +91,11 @@ def constructible (p : Program) (t : Ty) (args : List Ty) : Subst Bool :=
     | [a] => .ok (match p.ics .direct a t with | some .ambiguous | none => false | some _ => true)
     | _ => .ok false
   else if t.stripConst.isClass then
-    .ok (!p.abstract t.stripConst &&
-      usable p.facts t.stripConst (resolveCtor p.facts p .direct t.stripConst as))
+    let c := t.stripConst
+    .ok (!p.abstract c &&
+      match resolveCtor p.facts p .direct c as with
+      | .noMatch => p.parenAggregateInit c as
+      | r => usable p.facts c r)
   else
     match as with
     | [] => .ok true
@@ -402,6 +407,8 @@ def trait (p : Program) (q : Trait) (args : List Ty) : Subst Bool :=
       if referenceable t then p.nothrowAssignable (Ty.collapse (.lref t)) (rref t) else .ok false
     | .isNothrowSwappable, [t] => p.nothrowSwappable t
     | .isNothrowConvertible, [f, t] => p.nothrowConvertible f t
+    | .isAggregate, [t] => onClass t p.aggregate false
+    | .isImplicitLifetime, [t] => onClass t p.implicitLifetimeClass t.isScalar
     | .isInvocable, f :: as => p.invocable f as
     | .isNothrowInvocable, f :: as => p.nothrowInvocable f as
     | q, _ => .soft s!"{q.spelling}: wrong number of arguments"
@@ -497,19 +504,54 @@ theorem nothrow_destructible_eq (p : Program) (t : Ty) (ht : t.concrete = true)
   have hth : p.throwing t.stripConst .dtor = false := hthrow _ _
   simp [Program.trait, Trait.structural, ht, Program.nothrowDestructible, hth]
 
-/-- `is_constructible` of a class is overload resolution over its
-constructors for direct-initialization, with the usable-candidate check:
-the trait's answer is the initialization's. -/
+/-- `is_constructible` of a class that is not an aggregate is overload
+resolution over its constructors for direct-initialization, with the
+usable-candidate check: the trait's answer is the initialization's. -/
 @[std theorem "meta.unary.prop#9"]
 theorem trait_is_resolution (p : Program) (c : Ty) (args : List Ty) (hc : c.stripConst.isClass = true)
     (hr : c.isRef = false) (habs : p.abstract c.stripConst = false)
-    (hall : (c :: args).all Ty.concrete = true) :
+    (hagg : p.aggregate c.stripConst = false) (hall : (c :: args).all Ty.concrete = true) :
     p.trait .isConstructible (c :: args) =
       .ok (Program.usable p.facts c.stripConst
         (Program.resolveCtor p.facts p .direct c.stripConst (args.map Program.declval))) := by
   have hv := Ty.isClass_not_void c hc
   have hf := Ty.isClass_not_function c hc
-  simp [Program.trait, Trait.structural, hall, Program.constructible, hv, hf, hr, hc, habs]
+  simp only [Program.trait, Trait.structural, hall, Program.constructible, hv, hf, hr, hc, habs,
+    Bool.or_self, Bool.false_eq_true, ↓reduceIte, Bool.not_false, Bool.true_and]
+  cases Program.resolveCtor p.facts p .direct c.stripConst (args.map Program.declval) <;>
+    simp [Program.parenAggregateInit, hagg, Program.usable]
+
+/-- `struct X { const int c; };`: `X{}` is well-formed, aggregate
+initialization copy-initializing the `const` member from `{}`, where
+`X x;` is not, the defaulted default constructor being defined as deleted
+by the `const` member without an initializer. The two conjuncts of
+`default_initializable` are two judgements. -/
+def constMemberProgram : Program :=
+  [.class "X", .member (.named "X") { name := "c", ty := .const (.named "int") }]
+
+@[std theorem "dcl.init.aggr#6" "class.default.ctor#2" "concept.default.init#1"]
+theorem brace_init_differs_from_default_init :
+    constMemberProgram.braceInit (.named "X") [] = true ∧
+    constMemberProgram.constructible (.named "X") [] = .ok false ∧
+    constMemberProgram.trait .isAggregate [.named "X"] = .ok true := by
+  decide
+
+/-- `struct A { int x; }; struct R { int& r; };`: `is_constructible<A, int>`
+holds through parenthesized aggregate initialization, where no
+constructor is viable; one argument too many does not; a reference
+element binds its argument, and without one cannot be value-initialized. -/
+def parenAggregateProgram : Program :=
+  [ .class "A", .member (.named "A") { name := "x", ty := .named "int" }
+  , .class "R", .member (.named "R") { name := "r", ty := .lref (.named "int") } ]
+
+@[std theorem "dcl.init.general#15"]
+theorem paren_aggregate_constructible :
+    parenAggregateProgram.trait .isConstructible [.named "A", .named "int"] = .ok true ∧
+    parenAggregateProgram.trait .isConstructible [.named "A", .named "int", .named "int"] = .ok false ∧
+    parenAggregateProgram.trait .isConstructible [.named "R", .lref (.named "int")] = .ok true ∧
+    parenAggregateProgram.trait .isConstructible [.named "R"] = .ok false ∧
+    parenAggregateProgram.trait .isDefaultConstructible [.named "A"] = .ok true := by
+  decide
 
 /-- No object of an abstract class is created: `is_constructible` of an
 abstract class is false for every argument list. -/

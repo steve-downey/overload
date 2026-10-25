@@ -291,6 +291,7 @@ inductive Trait where
   | isNothrowConstructible | isNothrowDefaultConstructible | isNothrowCopyConstructible
   | isNothrowMoveConstructible | isNothrowAssignable | isNothrowCopyAssignable
   | isNothrowMoveAssignable | isNothrowSwappable | isNothrowConvertible
+  | isAggregate | isImplicitLifetime
   | isInvocable | isNothrowInvocable
   deriving Repr, DecidableEq, Inhabited
 
@@ -307,7 +308,8 @@ attribute [std rule "meta.unary.prop#5"] Trait.isConst Trait.isDefaultConstructi
   Trait.isPolymorphic Trait.isAbstract Trait.hasVirtualDestructor
   Trait.isNothrowConstructible Trait.isNothrowDefaultConstructible Trait.isNothrowCopyConstructible
   Trait.isNothrowMoveConstructible Trait.isNothrowAssignable Trait.isNothrowCopyAssignable
-  Trait.isNothrowMoveAssignable Trait.isNothrowSwappable
+  Trait.isNothrowMoveAssignable Trait.isNothrowSwappable Trait.isAggregate
+attribute [std rule "meta.unary.prop#5" "basic.types.general#7"] Trait.isImplicitLifetime
 attribute [std rule "meta.unary.prop#9"] Trait.isConstructible
 attribute [std rule "meta.rel#3"] Trait.isSame Trait.isBaseOf Trait.isInvocable Trait.isNothrowInvocable
 attribute [std rule "meta.rel#6"] Trait.isConvertible Trait.isNothrowConvertible
@@ -363,6 +365,8 @@ def spelling : Trait → String
   | .isNothrowMoveAssignable => "std::is_nothrow_move_assignable_v"
   | .isNothrowSwappable => "std::is_nothrow_swappable_v"
   | .isNothrowConvertible => "std::is_nothrow_convertible_v"
+  | .isAggregate => "std::is_aggregate_v"
+  | .isImplicitLifetime => "std::is_implicit_lifetime_v"
   | .isInvocable => "std::is_invocable_v"
   | .isNothrowInvocable => "std::is_nothrow_invocable_v"
 

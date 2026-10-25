@@ -74,6 +74,14 @@ def requirementHolds (p : Program) (env : Env) : Constraint.Requirement → Subs
       | _ => .ok false
     | _ => .ok false
   | .type t => p.validType env t
+  | .braceInit t as =>
+    if !(t :: as).all Ty.concrete then .soft "a braced initialization of a dependent type"
+    else if t.stripConst.isClass && !t.isRef then .ok (p.braceInit t.stripConst (as.map declval))
+    else
+      match as with
+      | [] => .ok (!t.isRef && !t.isVoid && !t.isFunction)
+      | [a] => .ok (match p.ics .copy (declval a) t with | none | some .ambiguous => false | some _ => true)
+      | _ => .ok false
 
 /-- A requires-expression holds when each requirement does, checked in
 lexical order and stopping at the first that decides: an invalid one is
