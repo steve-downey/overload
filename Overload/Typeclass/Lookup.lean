@@ -57,8 +57,8 @@ theorem object_design_candidates (p : Program) (pos : Nat) (s : Scope) (cls : St
     (cs : List Decl) (args : List CallArg)
     (hobj : unqualifiedLookup p pos s "fmap" = [.object "fmap" cls sc])
     (hcls : (p.classScope? cls).isSome = true)
-    (hops : p.objectCandidates pos cls = .selected cs) :
-    p.callCandidates pos s "fmap" args = .selected (cs, impliedObject cls :: args) := by
+    (hops : p.objectCandidates pos (.named cls) = .selected cs) :
+    p.callCandidates pos s "fmap" args = .selected (cs, impliedObject (.named cls) :: args) := by
   rw [object_call_candidates p pos s "fmap" cls sc args hobj hcls, hops]
   rfl
 
@@ -67,10 +67,10 @@ the point after it are its one `operator()` with its implicit object
 parameter, and the object leads the arguments, for any arguments. -/
 theorem opClass_candidates (args : List CallArg) :
     (opClass "functor").callCandidates 3 [] "fmap" args =
-      .selected ([(Decl.functionTemplate (operatorMember "functor")).withImplicitObject],
-                 impliedObject "fmap_fn" :: args) := by
+      .selected ([(Decl.functionTemplate (operatorMember "functor")).withImplicitObject (.named "fmap_fn")],
+                 impliedObject (.named "fmap_fn") :: args) := by
   refine object_design_candidates _ 3 [] "fmap_fn" []
-    [(Decl.functionTemplate (operatorMember "functor")).withImplicitObject]
+    [(Decl.functionTemplate (operatorMember "functor")).withImplicitObject (.named "fmap_fn")]
     args (by decide) (by decide) (by decide)
 
 /-! ## Stability through the object -/
@@ -136,12 +136,12 @@ def hidingInstanceProgram : Program :=
 instance resolves over the unconstrained one, and the base's constraint
 is never consulted. -/
 theorem unconstrained_member_hides_constrained :
-    hidingInstanceProgram.memberSearch 4 "opt_impl" "fmap" =
+    hidingInstanceProgram.memberSearch 4 (.named "opt_impl") "fmap" =
       .selected [.functionTemplate { name := "fmap", head := [{ kind := .type }, { kind := .type }]
                                      params := [.rref (.param 0), .rref (.param 1)]
                                      scope := [.class "opt_impl"] }] ∧
       (hidingInstanceProgram.memberCallAt (Env.ofProgram hidingInstanceProgram [("fmap_shape", [.named "int"], false)])
-        4 "opt_impl" "fmap" [{ ty := .named "Fn" }, { ty := .named "int" }]).map (·.index) = .selected 0 := by
+        4 (.named "opt_impl") "fmap" [{ ty := .named "Fn" }, { ty := .named "int" }]).map (·.index) = .selected 0 := by
   refine ⟨by decide, rfl⟩
 
 end Overload.Typeclass

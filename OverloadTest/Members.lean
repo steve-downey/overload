@@ -22,39 +22,39 @@ private def p : Program :=
   , .class "F" [.named "D", .named "A"] ]
 
 -- The class's own declarations are the whole result.
-#guard p.declarationSet 7 "D" "f" == [.function "f" [int] (inClass "D")]
-#guard p.lookupSet 7 "D" "f" == { decls := some [.function "f" [int] (inClass "D")], subobjects := [["D"]] }
-#guard p.memberSearch 7 "D" "f" == .selected [.function "f" [int] (inClass "D")]
+#guard p.declarationSet 7 (.named "D") "f" == [.function "f" [int] (inClass "D")]
+#guard p.lookupSet 7 (.named "D") "f" == { decls := some [.function "f" [int] (inClass "D")], subobjects := [[.named "D"]] }
+#guard p.memberSearch 7 (.named "D") "f" == .selected [.function "f" [int] (inClass "D")]
 -- Found in a base, through one or two steps, with the subobject recorded.
-#guard p.lookupSet 7 "B" "f" == { decls := some [.function "f" [] (inClass "A")], subobjects := [["B", "A"]] }
-#guard p.memberSearch 7 "B" "f" == .selected [.function "f" [] (inClass "A")]
+#guard p.lookupSet 7 (.named "B") "f" == { decls := some [.function "f" [] (inClass "A")], subobjects := [[.named "B", .named "A"]] }
+#guard p.memberSearch 7 (.named "B") "f" == .selected [.function "f" [] (inClass "A")]
 -- The same declarations in two subobjects are shared, and the set stays valid.
-#guard p.lookupSet 7 "E" "f" ==
-  { decls := some [.function "f" [] (inClass "A")], subobjects := [["E", "A"], ["E", "B", "A"]] }
+#guard p.lookupSet 7 (.named "E") "f" ==
+  { decls := some [.function "f" [] (inClass "A")], subobjects := [[.named "E", .named "A"], [.named "E", .named "B", .named "A"]] }
 -- `F : D, A` has two `A` subobjects: the direct one is not a base of `D`'s, so `D::f` hides
 -- nothing there, and the declaration sets differ.
-#guard (p.lookupSet 7 "F" "f").decls == none
-#guard (p.lookupSet 7 "F" "f").subobjects == [["F", "D"], ["F", "A"]]
+#guard (p.lookupSet 7 (.named "F") "f").decls == none
+#guard (p.lookupSet 7 (.named "F") "f").subobjects == [[.named "F", .named "D"], [.named "F", .named "A"]]
 -- Nothing anywhere.
-#guard p.memberSearch 7 "D" "g" == .selected []
+#guard p.memberSearch 7 (.named "D") "g" == .selected []
 -- Before the members are declared, nothing is found.
-#guard p.memberSearch 1 "A" "f" == .selected []
+#guard p.memberSearch 1 (.named "A") "f" == .selected []
 -- Unrelated bases with different declarations: invalid.
-#guard (ambiguousBasesProgram.lookupSet 5 "C" "x").decls == none
-#guard ambiguousBasesProgram.memberSearch 5 "C" "x" matches .illFormed _
+#guard (ambiguousBasesProgram.lookupSet 5 (.named "C") "x").decls == none
+#guard ambiguousBasesProgram.memberSearch 5 (.named "C") "x" matches .illFormed _
 
 -- The merge rule on its own.
-private def SA : LookupSet := { decls := some [.function "x" [] (inClass "A")], subobjects := [["C", "A"]] }
-private def SB : LookupSet := { decls := some [.function "x" [int] (inClass "B")], subobjects := [["C", "B"]] }
-private def SAB : LookupSet := { decls := some [.function "x" [] (inClass "A")], subobjects := [["C", "B", "A"]] }
-private def SD : LookupSet := { decls := some [.function "x" [int] (inClass "D")], subobjects := [["F", "D"]] }
-private def SDA : LookupSet := { decls := some [.function "x" [] (inClass "A")], subobjects := [["F", "D", "A"]] }
+private def SA : LookupSet := { decls := some [.function "x" [] (inClass "A")], subobjects := [[.named "C", .named "A"]] }
+private def SB : LookupSet := { decls := some [.function "x" [int] (inClass "B")], subobjects := [[.named "C", .named "B"]] }
+private def SAB : LookupSet := { decls := some [.function "x" [] (inClass "A")], subobjects := [[.named "C", .named "B", .named "A"]] }
+private def SD : LookupSet := { decls := some [.function "x" [int] (inClass "D")], subobjects := [[.named "F", .named "D"]] }
+private def SDA : LookupSet := { decls := some [.function "x" [] (inClass "A")], subobjects := [[.named "F", .named "D", .named "A"]] }
 #guard LookupSet.empty.merge SA == SA
 #guard SA.merge LookupSet.empty == SA
 -- Unrelated subobjects, different declarations: invalid.
 #guard (SA.merge SB).decls == none
 -- Unrelated subobjects, the same declarations: shared.
-#guard SA.merge SAB == { decls := some [.function "x" [] (inClass "A")], subobjects := [["C", "A"], ["C", "B", "A"]] }
+#guard SA.merge SAB == { decls := some [.function "x" [] (inClass "A")], subobjects := [[.named "C", .named "A"], [.named "C", .named "B", .named "A"]] }
 -- A set found in a base subobject of one already found is hidden, whichever is merged into which.
 #guard SD.merge SDA == SD
 #guard SDA.merge SD == SD
@@ -63,18 +63,18 @@ private def SDA : LookupSet := { decls := some [.function "x" [] (inClass "A")],
 private def q : Program :=
   [ .class "fn", .function "operator()" [int] (inClass "fn"), .object "f" "fn"
   , .class "X", .function "f" [.named "X"] [.namespace "N"] ]
-#guard q.callOperators 5 "fn" == .selected [.function "operator()" [int] (inClass "fn")]
+#guard q.callOperators 5 (.named "fn") == .selected [.function "operator()" [int] (inClass "fn")]
 #guard q.callCandidates 5 [] "f" [{ ty := int }] ==
   .selected ([.function "operator()" [.lref (.const (.named "fn")), int] (inClass "fn")],
-             [impliedObject "fn", { ty := int }])
-#guard q.surrogates "fn" == []
+             [impliedObject (.named "fn"), { ty := int }])
+#guard q.surrogates (.named "fn") == []
 #guard (q.callAt (Env.ofProgram q) 5 [] "f" [{ ty := int }]).map (·.index) == .selected 0
 #guard (q.callAt (Env.ofProgram q) 5 [] "f" [{ ty := .named "X" }]).map (·.index) == .noMatch
 -- A member call.
-#guard (p.memberCallAt (Env.ofProgram p) 7 "D" "f" [{ ty := int }]).map (·.index) == .selected 0
-#guard (p.memberCallAt (Env.ofProgram p) 7 "D" "f" []).map (·.index) == .noMatch
-#guard (p.memberCallAt (Env.ofProgram p) 7 "B" "f" []).map (·.index) == .selected 0
-#guard (ambiguousBasesProgram.memberCallAt (Env.ofProgram ambiguousBasesProgram) 5 "C" "x" [])
+#guard (p.memberCallAt (Env.ofProgram p) 7 (.named "D") "f" [{ ty := int }]).map (·.index) == .selected 0
+#guard (p.memberCallAt (Env.ofProgram p) 7 (.named "D") "f" []).map (·.index) == .noMatch
+#guard (p.memberCallAt (Env.ofProgram p) 7 (.named "B") "f" []).map (·.index) == .selected 0
+#guard (ambiguousBasesProgram.memberCallAt (Env.ofProgram ambiguousBasesProgram) 5 (.named "C") "x" [])
   matches .illFormed _
 
 -- A template under another name deduces and resolves the same.

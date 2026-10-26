@@ -454,11 +454,10 @@ members. -/
 @[std rule "temp.mem.func#2" "temp.res.general#1.sentence-2"]
 def classKey? (p : Program) : Ty → Option (Ty × List Ty)
   | .named n => some (.named n, [])
-  | .spec n as => do
-    let (h, _, _) ← p.classTemplateDecl? n
-    let l ← as.toList
-    let args ← h.specializationArgs? l []
-    return (currentInstantiation n h, args)
+  | .spec n as =>
+    match p.classTemplateDecl? n, as.toList with
+    | some (h, _, _), some l => (h.specializationArgs? l []).map fun args => (currentInstantiation n h, args)
+    | _, _ => none
   | _ => none
 
 /-- The member, special member and conversion declarations of a class

@@ -71,10 +71,10 @@ inductive Query where
   specializations of it, in order, `noMatch` is the primary, and
   `ambiguous` is ill-formed. -/
   | lookup (name : String) (arg : Ty) (expected : Resolution Nat)
-  /-- Resolve a member call `obj.callee(args)` on an object of class
+  /-- Resolve a member call `obj.callee(args)` on an object of class type
   `cls`; `expected` names the candidate by its index among the members
   found. -/
-  | memberCall (cls callee : String) (args : List CallArg) (expected : Resolution Nat)
+  | memberCall (cls : Ty) (callee : String) (args : List CallArg) (expected : Resolution Nat)
       (explicit : List Ty := [])
   /-- Resolve the dependent call declared at position `pos` of the
   program, instantiated with the arguments it carries; `expected` names
@@ -696,7 +696,7 @@ def qualifyCase (c : Case) : Case :=
       | .raw cpp wf => .raw cpp wf
       | .lookup tc a expected => .lookup tc (qualifyTy q a) expected
       | .memberCall cls callee as expected explicit =>
-        .memberCall (((q.lookup cls).getD "") ++ cls) callee (as.map arg) expected
+        .memberCall (qualifyTy q cls) callee (as.map arg) expected
           (explicit.map (qualifyTy q))
       | .dependentCall pos expected => .dependentCall pos expected
       | .trait tr as expected => .trait tr (as.map (qualifyTy q)) expected }
@@ -729,8 +729,13 @@ def render (c₀ : Case) : String := Id.run do
     | none =>
       out := out ++ notViable callee explicit as
   | .call callee as expected explicit scope =>
+    -- A call on an object: its call operators carry the implicit object
+    -- parameter of its class.
+    let objCls : Ty := match unqualifiedLookup c₀.program c₀.program.length scope callee with
+      | [.object _ cls _] => qualifyTy q (.named cls)
+      | _ => .named ""
     out := out ++ program c.program callee (fun k _ => s!"selected<{k}>")
-      (fun d => found.findIdx? fun f => sameEntity f d || sameEntity f d.withImplicitObject) ++ "\n"
+      (fun d => found.findIdx? fun f => sameEntity f d || sameEntity f (d.withImplicitObject objCls)) ++ "\n"
     let mut q := ""
     match expected with
     | .selected k =>
@@ -752,9 +757,14 @@ def render (c₀ : Case) : String := Id.run do
     let args := String.intercalate ", " (as.map ty)
     out := out ++ s!"static_assert({tr.spelling}<{args}> == {expected});\n"
   | .memberCall cls callee as expected explicit =>
+    -- A member of a class template is found instantiated; the program's
+    -- declaration is matched through the arguments of the class searched
+    -- and of its bases.
+    let argLists := (cls :: c.program.allBases cls).filterMap fun t => (c.program.classKey? t).map (·.2)
     out := out ++ program c.program callee (fun k _ => s!"selected<{k}>")
-      (fun d => found.findIdx? (sameEntity · d)) ++ "\n"
-    let member := s!"std::declval<const {cls}&>().{callee}"
+      (fun d => found.findIdx? fun f =>
+        sameEntity f d || argLists.any fun as => sameEntity f (Decl.instantiate as d)) ++ "\n"
+    let member := s!"std::declval<const {ty cls}&>().{callee}"
     match expected with
     | .selected k =>
       out := out ++ s!"static_assert(std::is_same_v<decltype({callExpr member explicit as}), selected<{k}>>);\n"
@@ -1030,7 +1040,7 @@ def derivedHidesBase : Case :=
     cite := cite "class.member.lookup#3.sentence-2"
     program := [ .class "X", .class "A", .function "f" [int] (inClass "A")
                , .class "D" [.named "A"], .function "f" [xClass] (inClass "D") ]
-    query := .memberCall "D" "f" [{ ty := int }] .noMatch
+    query := .memberCall (.named "D") "f" [{ ty := int }] .noMatch
     source := "computed by resolve over the member lookup" }
 
 /-- `struct D : A {}` with no `f` of its own: the search continues into
@@ -1039,7 +1049,7 @@ def baseMemberFound : Case :=
   { name := "class_member_lookup_4_base_found"
     cite := cite "class.member.lookup#4.sentence-1"
     program := [ .class "A", .function "f" [int] (inClass "A"), .class "D" [.named "A"] ]
-    query := .memberCall "D" "f" [{ ty := int }] (.selected 0)
+    query := .memberCall (.named "D") "f" [{ ty := int }] (.selected 0)
     source := "computed by resolve over the member lookup" }
 
 /-- The example of [class.member.lookup]/6, with functions for members:
@@ -1048,7 +1058,7 @@ def ambiguousBases : Case :=
   { name := "class_member_lookup_6_ambiguous_bases"
     cite := cite "class.member.lookup#6.sentence-2"
     program := ambiguousBasesProgram
-    query := .memberCall "C" "x" [] (.illFormed "the lookup of x in C is ambiguous")
+    query := .memberCall (.named "C") "x" [] (.illFormed "the lookup of x in C is ambiguous")
     source := "computed by the member lookup" }
 
 /-- `struct fn { void operator()(int) const; }; inline constexpr fn f{};`
@@ -2917,6 +2927,109 @@ def surrogatesAmbiguous : Case :=
     query := .call "a" [{ ty := .named "int" }] (.ambiguous [0, 1])
     source := "computed by Program.call over the surrogates" }
 
+/-! ### Members of class templates
+
+A specialization's members are the template's with its arguments
+substituted. The traits read them through the key, so a reference
+argument deletes what a reference member deletes; a call operator or a
+conversion of the template makes `is_invocable` of the specialization
+true; a member call on a specialization resolves over the instantiated
+members. -/
+private def tp : TemplateParam := { kind := .type }
+private def cellT : Program :=
+  [ .classTemplate "cell" [tp], .member (currentInstantiation "cell" [tp]) { name := "m", ty := .param 0 } ]
+private def cellOf (t : Ty) : Ty := .spec' "cell" [t]
+def traitCopyAssignableSpecialization : Case :=
+  traitCase "trait_copy_assignable_specialization" "class.copy.assign#7" cellT .isCopyAssignable
+    [cellOf (.named "int")]
+def traitCopyAssignableSpecializationReference : Case :=
+  traitCase "trait_copy_assignable_specialization_reference" "class.copy.assign#7" cellT .isCopyAssignable
+    [cellOf (.lref (.named "int"))]
+def traitDefaultConstructibleSpecializationReference : Case :=
+  traitCase "trait_default_constructible_specialization_reference" "class.default.ctor#2" cellT
+    .isDefaultConstructible [cellOf (.lref (.named "int"))]
+def traitTriviallyCopyableSpecialization : Case :=
+  traitCase "trait_trivially_copyable_specialization" "class.prop#1" cellT .isTriviallyCopyable
+    [cellOf (.named "int")]
+def traitTriviallyCopyableSpecializationReference : Case :=
+  traitCase "trait_trivially_copyable_specialization_reference" "class.prop#1" cellT .isTriviallyCopyable
+    [cellOf (.lref (.named "int"))]
+
+/-- `template <class T> struct fn { T operator()(T) const; };` and
+`template <class T> struct gen { template <class U> U operator()(T, U) const; };`. -/
+private def fnT : Program :=
+  [ .class "A", .classTemplate "fn" [tp]
+  , .function "operator()" [.param 0] (inClass "fn") .none none (.param 0)
+  , .classTemplate "gen" [tp]
+  , .functionTemplate { name := "operator()", head := [tp], params := [.param 0, .param 1], ret := .param 1
+                        scope := inClass "gen" } ]
+def traitInvocableSpecialization : Case :=
+  traitCase "trait_invocable_specialization" "func.require#1" fnT .isInvocable [.spec' "fn" [.named "int"], .named "int"]
+def traitInvocableSpecializationClass : Case :=
+  traitCase "trait_invocable_specialization_class" "func.require#1" fnT .isInvocable [.spec' "fn" [.named "A"], .named "A"]
+def traitInvocableSpecializationMismatch : Case :=
+  traitCase "trait_invocable_specialization_mismatch" "func.require#1" fnT .isInvocable [.spec' "fn" [.named "int"], .named "A"]
+def traitInvocableSpecializationMemberTemplate : Case :=
+  traitCase "trait_invocable_specialization_member_template" "temp.mem.func#2" fnT .isInvocable
+    [.spec' "gen" [.named "int"], .named "int", .named "A"]
+def traitInvocableSpecializationMemberTemplateMismatch : Case :=
+  traitCase "trait_invocable_specialization_member_template_mismatch" "temp.mem.func#2" fnT .isInvocable
+    [.spec' "gen" [.named "int"], .named "A", .named "A"]
+
+/-- `template <class T> struct conv { operator int(*)(T)() const; };`: a
+surrogate of the specialization. -/
+private def convT : Program :=
+  [ .class "A", .classTemplate "conv" [tp]
+  , .converting (currentInstantiation "conv" [tp]) (.function (.ptr (.fn' [.param 0] (.named "int")))) ]
+def traitInvocableSpecializationSurrogate : Case :=
+  traitCase "trait_invocable_specialization_surrogate" "over.call.object#2" convT .isInvocable
+    [.spec' "conv" [.named "int"], .named "int"]
+def traitInvocableSpecializationSurrogateMismatch : Case :=
+  traitCase "trait_invocable_specialization_surrogate_mismatch" "over.call.object#2" convT .isInvocable
+    [.spec' "conv" [.named "int"], .named "A"]
+
+/-- `template <class B> struct derived : B {};` with `void f(const B&);
+void f(const O&);`: the base is dependent in the template and the
+specialization's base after substitution. -/
+private def derivedT : Program :=
+  [ .class "B", .class "O", .classTemplate "derived" [tp] [.param 0]
+  , .function "f" [.lref (.const (.named "B"))], .function "f" [.lref (.const (.named "O"))] ]
+def traitBaseOfDependentBase : Case :=
+  traitCase "trait_base_of_dependent_base" "temp.dep.type#3" derivedT .isBaseOf [.named "B", .spec' "derived" [.named "B"]]
+def traitBaseOfDependentBaseOther : Case :=
+  traitCase "trait_base_of_dependent_base_other" "temp.dep.type#3" derivedT .isBaseOf [.named "B", .spec' "derived" [.named "O"]]
+def callDependentBase : Case :=
+  { name := "temp_dep_type_3_dependent_base_call"
+    cite := cite "temp.dep.type#3"
+    program := derivedT
+    query := .call "f" [{ ty := .spec' "derived" [.named "B"], lvalue := true }] (.selected 0)
+    source := "computed by Program.call with the specialization's base after substitution" }
+
+/-- `template <class T> struct box { T get(T) const; T get(T, T) const; };`:
+a member call on `box<int>` resolves over the instantiated members. -/
+private def boxT : Program :=
+  [ .class "A", .classTemplate "box" [tp]
+  , .function "get" [.param 0] (inClass "box") .none none (.param 0)
+  , .function "get" [.param 0, .param 0] (inClass "box") .none none (.param 0) ]
+def memberCallSpecialization : Case :=
+  { name := "temp_inst_3_member_call_specialization"
+    cite := cite "temp.inst#3"
+    program := boxT
+    query := .memberCall (.spec' "box" [.named "int"]) "get" [{ ty := .named "int" }] (.selected 0)
+    source := "computed by Program.memberCallAt over the instantiated members" }
+def memberCallSpecializationSecond : Case :=
+  { name := "temp_inst_3_member_call_specialization_second"
+    cite := cite "temp.inst#3"
+    program := boxT
+    query := .memberCall (.spec' "box" [.named "int"]) "get" [{ ty := .named "int" }, { ty := .named "int" }] (.selected 1)
+    source := "computed by Program.memberCallAt over the instantiated members" }
+def memberCallSpecializationMismatch : Case :=
+  { name := "temp_inst_3_member_call_specialization_mismatch"
+    cite := cite "temp.inst#3"
+    program := boxT
+    query := .memberCall (.spec' "box" [.named "int"]) "get" [{ ty := .named "A" }] .noMatch
+    source := "computed by Program.memberCallAt over the instantiated members" }
+
 /-- `is_invocable_v` through a surrogate: a class whose only callable is
 a conversion to a pointer to function; a conversion function that is
 not `const`, on a `const` callee and on a non-const one; a conversion
@@ -3234,6 +3347,14 @@ def cases : List Case :=
   , traitNothrowInvocableObject, traitNothrowInvocableObjectPlain
   , traitNothrowInvocableObjectThrowingParameter
   , surrogateCall, surrogateCallSecond, surrogateLoses, surrogatesAmbiguous
+  , traitCopyAssignableSpecialization, traitCopyAssignableSpecializationReference
+  , traitDefaultConstructibleSpecializationReference, traitTriviallyCopyableSpecialization
+  , traitTriviallyCopyableSpecializationReference
+  , traitInvocableSpecialization, traitInvocableSpecializationClass, traitInvocableSpecializationMismatch
+  , traitInvocableSpecializationMemberTemplate, traitInvocableSpecializationMemberTemplateMismatch
+  , traitInvocableSpecializationSurrogate, traitInvocableSpecializationSurrogateMismatch
+  , traitBaseOfDependentBase, traitBaseOfDependentBaseOther, callDependentBase
+  , memberCallSpecialization, memberCallSpecializationSecond, memberCallSpecializationMismatch
   , traitInvocableSurrogate, traitInvocableSurrogateArity, traitInvocableSurrogateNonConst
   , traitInvocableSurrogateNonConstRvalue, traitInvocableSurrogateReference
   , traitNothrowInvocableSurrogate, traitNothrowInvocableSurrogateConversionThrows

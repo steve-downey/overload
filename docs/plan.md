@@ -842,7 +842,32 @@ Status, 15 October 2026:
   a specialization's bases are now its template's; the derivation
   bound stays the program's length, so a chain through specializations
   nested deeper than the program is cut off, which no program of the
-  fragment approaches.
+  fragment approaches. Stage 2, specialization-lookup, landed 26
+  October 2026: `Overload/Members.lean` keyed by type throughout,
+  `Program.declarationSet` instantiating what the search finds in the
+  template's scope, `Subobject` a path of types, the lookup set merging
+  every direct base after substitution, `Decl.withImplicitObject` taking
+  the class type the call is on, `Program.memberCallOn` with the implied
+  object argument and `memberCallAt` as its `const` lvalue form,
+  `classCallee` returning the type, `Program.publicBases` over a
+  specialization for the access check, `Query.memberCall` on a type,
+  and in `Overload/ClassTemplates.lean` `Ty.has`, `Decl.mentions`,
+  `Program.pointOfInstantiation`, `Program.templatesWellFormed`,
+  `specialization_members_fixed`, `specialization_callee_invocable` and
+  `argument_reference_deletes`. Eighteen emitted cases, traits of
+  specializations, `is_invocable` of a specialization through a call
+  operator, a member template and a surrogate, a call through a dependent
+  base and member calls on a specialization, agree with GCC 15 and
+  Clang 24; the class-callee residue is closed
+  (`decisions.md#trait-residue`). Two departures. A declaration refers
+  to a specialization, for the point of instantiation, only with ground
+  arguments: the current instantiation and every other dependent
+  specialization is a reference from a templated context, whose point
+  is the enclosing specialization's, out of the fragment; the theorem
+  carries that as a hypothesis. And an object of specialization type
+  cannot be declared, since `Decl.object` names its class, so the call
+  on such an object is observed through `is_invocable` and the member
+  call through `declval`, not through a named object.
 
 ## Target theorems
 
@@ -907,9 +932,9 @@ its counterexample and is a finding, not a setback.
 | brace-init-differs-from-default-init | For an aggregate with a `const` member and no initializer, `T{}` is well-formed and `T t;` is not, so `default_initializable` is false where `requires { T{}; }` holds ([dcl.init.aggr]/6, [dcl.init.general]/7, [concept.default.init]/1). Added 24 October 2026. | 14 |
 | paren-aggregate-constructible | An aggregate with no viable constructor is constructible from a parenthesized list of at most as many arguments as elements, each convertible to its element ([dcl.init.general]/15). Added 24 October 2026. | 14 |
 | member-template-arguments | Deduction for a member template of a class template specialization binds the member's own parameters only: it is deduction for the member with the class's arguments supplied as the leading explicit arguments ([temp.mem.func]/2, [temp.mem]/1). Added 25 October 2026; shown by computation on `holder<int>` 26 October 2026 (`member_template_arguments_example`), the general statement owed. | 15 |
-| specialization-members-fixed | The member search of a class template specialization gives the same declarations from every point at or after its point of instantiation, which precedes the first declaration that refers to it, in a program whose class templates' members precede that point ([temp.point]/4, /7, [temp.inst]/3). Added 25 October 2026. | 15 |
-| specialization-callee-invocable | `is_invocable` of a class template specialization callee is the call on the object over the specialization's call operators and surrogates, so the class-callee residue closes ([func.require]/1, [over.call.object]/1 to /3). Added 25 October 2026. | 15 |
-| argument-reference-deletes | A class template with a member of its parameter's type has deleted copy and move assignment at a reference argument and non-deleted at an object type: value nature is a property of the specialization, decided by the argument ([class.copy.assign]/7, through value-nature-iff). Added 25 October 2026. | 15 |
+| specialization-members-fixed | The declaration set of a class template specialization gives the same declarations from every point at or after its point of instantiation, which precedes the first declaration that refers to it, in a program whose class templates' members precede that point ([temp.point]/4, /7, [temp.inst]/3). Added 25 October 2026; proved 26 October 2026 (`specialization_members_fixed`), for the specialization's own declaration set, with ground arguments. | 15 |
+| specialization-callee-invocable | `is_invocable` of a class template specialization callee is the call on the object over the specialization's call operators and surrogates, so the class-callee residue closes ([func.require]/1, [over.call.object]/1 to /3). Added 25 October 2026; `invocable_class_iff_call` holds for the type since 26 October 2026, and `specialization_callee_invocable` computes the trait through a call operator and a surrogate. | 15 |
+| argument-reference-deletes | A class template with a member of its parameter's type has deleted copy and move assignment at a reference argument and non-deleted at an object type: value nature is a property of the specialization, decided by the argument ([class.copy.assign]/7, through value-nature-iff). Added 25 October 2026; shown by computation 26 October 2026 (`argument_reference_deletes`), with the emitted cases agreeing. | 15 |
 | operation-constraint-is-member-call | The operation object's constraint, `TC.fmap(declval<F>(), declval<T>())`, is the member call on the instance's value type with the lookup's object as the implied object argument: the environment computes what the typeclass side's oracle assumed, and the accurate-member hypothesis of `fmapObject_member` is discharged by computation ([expr.prim.req.compound]/1, [over.match.funcs.general]/3). Added 25 October 2026. | 15 |
 | derivation-base-accurate | The derivation base's `fmap` is constrained by the member call its body makes on `Impl`, so a probe of `fmap` through `derive_functor<Impl>` fails softly exactly where `Impl`'s `fmap` is not viable, and the accurate-members obligation holds by construction for the reduced encoding; an instance type that declares its own unconstrained `fmap` hides it ([class.member.lookup]/3). Added 25 October 2026. | 15 |
 

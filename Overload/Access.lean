@@ -30,12 +30,17 @@ namespace Overload
 
 namespace Program
 
-/-- The public direct bases a program declares for a class. -/
+/-- The public direct bases a program declares for a class; for a class
+template specialization, the template's with its arguments substituted. -/
 def publicBases (p : Program) : Ty → List Ty
   | .named n =>
     (p.findSome? fun
       | .class m bs _ _ => if m = n then some bs else none
       | _ => none).getD []
+  | .spec n as =>
+    match p.classKey? (.spec n as), p.classTemplateDecl? n with
+    | some (_, args), some (_, bs, _) => bs.map (Ty.subst (Bindings.ofArgs args))
+    | _, _ => []
   | _ => []
 
 /-- `b` is a base of `d` by public derivation at every step, within

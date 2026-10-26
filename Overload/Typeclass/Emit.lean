@@ -176,7 +176,7 @@ def hiddenConstrainedMember : Case :=
   { name := "class_member_lookup_3_hidden_constrained_member"
     cite := cite "class.member.lookup#3.sentence-2"
     program := [.class "Fn", .concept "fmap_shape" "false"] ++ hidingInstanceProgram
-    query := .memberCall "opt_impl" "fmap" [fn, { ty := int }] (.selected 0)
+    query := .memberCall (.named "opt_impl") "fmap" [fn, { ty := int }] (.selected 0)
     source := "computed by resolve over the member lookup"
     atomics := [("fmap_shape", [int], false)] }
 
