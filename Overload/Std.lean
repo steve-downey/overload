@@ -324,6 +324,13 @@ def inScope : List (String × Nat) :=
   , ("expr.prim.req.general", 5), ("expr.prim.req.simple", 1), ("expr.prim.req.type", 1)
   , ("expr.prim.req.compound", 1), ("expr.prim.req.nested", 1), ("expr.call", 15)
   , ("dcl.type.decltype", 1), ("temp.param", 9)
+  -- Phase 15: class templates and their members (docs/plan.md, phase 15).
+  , ("temp.class.general", 1), ("basic.scope.class", 1)
+  , ("temp.dep.type", 1), ("temp.dep.type", 3), ("temp.decls.general", 2), ("temp.local", 1)
+  , ("temp.mem", 1), ("temp.mem.func", 2)
+  , ("temp.inst", 2), ("temp.inst", 3), ("temp.inst", 10)
+  , ("temp.spec.general", 2), ("temp.spec.general", 4)
+  , ("temp.point", 4), ("temp.point", 7)
   -- Phase 13: semantic requirements, what satisfies and what models.
   , ("res.on.requirements", 1), ("res.on.requirements", 2), ("res.on.requirements", 3)
   , ("structure.requirements", 8)
