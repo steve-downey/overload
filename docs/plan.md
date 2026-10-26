@@ -85,6 +85,9 @@ Out of scope at the start:
   the residue.
 - Multiple translation units and points of instantiation.
 
+What stays open after phase 15, and the order to take it in, is listed
+under [Open areas](#open-areas-to-be-picked-up-next).
+
 Standing assumption: one translation unit, with every instance declared
 before any use that would instantiate its lookup. This axiom hides the real
 coherence hazards of C++, which are ill-formed with no diagnostic required.
@@ -2656,6 +2659,128 @@ this phase. `Ty.subst` leaves a constant argument's parameter alone
 when the binding is not a type, so a class template with a constant
 parameter whose members mention it needs the `.value` case checked in
 stage 1.
+
+## Open areas, to be picked up next
+
+Written 26 October 2026, after phase 15 closed, as the list to open the
+next planning session with. The target has moved: beman.transpose is
+now part of [beman.typeclass](https://github.com/bemanproject/typeclass),
+and the encoding under study there carries Applicative and Monad beside
+Functor, with sender/receiver of `std::execution` as an instance type
+and as a consumer. Each area below is recorded as the plan records a
+suspect: a slug named for the question, what the fragment lacks, what
+the Standard says about it, and what the encoding needs it for. The
+order is by how much of the Standard each holds and how much the
+encoding leans on it. None is a phase yet; a phase is planned from the
+draft when one is picked up.
+
+### expression-fragment
+
+The model has no expression language. Validity is an oracle, a concept
+body's comparison or `ranges::swap` is a residue atom, and a return
+type is declared, never computed. Every `auto` function in the encoding
+returns what its body returns, and the model cannot say what that is,
+so `invoke_result_t`, `decltype((E))` on anything but a declared call,
+and the result types of `fmap` and `replace` are all outside it. Every
+other area here bottoms out in this one. The fragment the encoding uses
+is small: calls, member calls, `std::forward` and `std::declval`, and
+bodies that are one `return` of a call. A typed fragment of those, with
+the return type of such a body computed by [dcl.type.auto.deduct]/2
+from [expr.call]/4 and [dcl.type.decltype]/1, covers it without taking
+on constant evaluation or the rest of [expr]. Sender/receiver adds
+`connect`, `start` and the completion signatures, which are the same
+shape: calls whose result types are what matters.
+
+### parameter-packs
+
+`Ty` has no pack. The finding on `invoke_fn` already says its trailing
+pack is outside the fragment. Applicative's `invoke(f, args...)` and
+Monad's `bind` through it, `std::execution`'s `completion_signatures`
+and `set_value(Vs...)`, and every variadic class template of the
+library need pack deduction ([temp.deduct.type]/9, /10, [temp.deduct.call]/1
+last sentence), pack expansion in template argument lists and function
+parameter lists ([temp.variadic]), `sizeof...`, and fold-expanded
+constraints ([temp.constr.fold]). This is the structural piece that
+gates the next typeclasses, and it is mechanical beside the expression
+fragment: `Ty` gains a pack parameter and an expansion, and every proof
+by `induction` on `Ty` gains a case.
+
+### closure-types
+
+The fragment's callables are named function objects. Callers pass
+lambdas, whose closure types have their own rules
+([expr.prim.lambda.closure]): a templated call operator for a generic
+lambda, conversion to a function pointer when captureless, copyability
+and triviality from the captures, `const` on the call operator unless
+`mutable`. The callable-copying theorem and the value-nature theorem
+are stated without them, and the sender probe's move-only callable is a
+closure.
+
+### type-computation
+
+`remove_cvref` is a constructor of `Ty`. There is no alias template, no
+`common_reference`, no general metafunction, so a trait the encoding
+spells through an alias is either hard-wired or out. Alias templates
+([temp.alias]) with their non-deducibility, and `decltype` over the
+expression fragment, would cover what the encoding writes;
+`completion_signatures` manipulation in `std::execution` is alias
+computation over packs.
+
+### template-definitions
+
+Explicit and partial specializations of class templates
+([temp.expl.spec], [temp.spec.partial]) with their own member sets and
+the partial ordering of partial specializations; and anything that
+happens inside a template definition: dependent names, the current
+instantiation as a lookup scope, two-phase lookup ([temp.res],
+[temp.dep]). Every use in the fragment is outside every class, so none
+of it runs. A derivation base whose `fmap` calls `Impl::fmap` is a
+dependent call inside a definition, which phase 15 declared and did not
+look into.
+
+### translation-units
+
+The single-translation-unit axiom (`decisions.md#single-tu`) hides the
+ill-formed-no-diagnostic coherence hazards that motivated the lookup
+theorems. Points of instantiation across units ([temp.point]), the
+one-definition rule ([basic.def.odr]) and modules are where instance
+coherence lives. Small as syntax, this is the largest open area for the
+typeclass question, and phase 8 of the table is its placeholder: it
+would change what the existing coherence and stability theorems mean
+rather than add new ones.
+
+### list-initialization
+
+Braced initialization is residue in the traits, deduction from a
+braced-init-list is out ([temp.deduct.call]/1), and `is_aggregate`'s
+use with it. [over.match.list] and [dcl.init.list] are the rules.
+`std::execution`'s `just(vs...)` and the tuple-shaped senders are
+where the encoding meets it.
+
+### type-breadth
+
+Enumerations, unions, arrays, pointers to members, floating-point
+types, `volatile`, virtual bases, `final`. Each is small except virtual
+bases, which touch lookup, dominance and every special member
+([class.mi]/4, [class.member.lookup]/6, [class.virtual]/2, [special]/7), and arrays,
+which touch deduction through decay ([temp.deduct.call]/2).
+
+### deduction-guides
+
+Class template argument deduction and deduction guides
+([over.match.class.deduct]). Out, and nothing in the encoding needs
+them; recorded so the omission is a decision.
+
+### Where to start
+
+Applicative and Monad need [parameter-packs](#parameter-packs) and the
+[expression-fragment](#expression-fragment) with computed return types,
+in that order: the pack is the syntax and the return type is the
+meaning. Sender/receiver needs those two and
+[type-computation](#type-computation) over the completion signatures.
+[translation-units](#translation-units) is the one that changes what is
+already proved, and should be planned once the typeclass side has the
+three typeclasses to state coherence over.
 
 ## Draft citations and prior art
 
