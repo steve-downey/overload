@@ -1225,3 +1225,15 @@ specializations other than the primary's have no consumer.
 **Log:**
 
 - 2026-10-25 — Decided.
+- 2026-10-26 — Stage template-members landed. The specialization key
+  (`Program.classKey?`) completes the argument list against the head
+  by kind and default, and neither forms a default nor converts a
+  constant argument: that is `validType`'s check, in the environment,
+  and the member search below the environment needs only the
+  arguments. A member of a class, with no arguments, is its declaration
+  unsubstituted (`instantiate_ground`). The derivation bound stays the
+  program's length, so a chain through specializations nested deeper
+  than the program is cut off; no program of the fragment approaches
+  it. `inheritance_erasure` assumes no class template declares a base
+  (`Program.templatesBaseFree`): erasure is not extended to
+  specializations, as the plan said.

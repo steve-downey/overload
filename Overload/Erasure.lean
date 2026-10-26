@@ -63,10 +63,25 @@ theorem eraseBases_conversionFree (p : Program) (I : List String) :
   funext d
   cases d <;> rfl
 
+/-- Erasure touches no class template, so a specialization's template is
+the same after it. -/
+theorem classTemplateDecl?_erase (p : Program) (I : List String) (n : String) :
+    (p.eraseBases I).classTemplateDecl? n = p.classTemplateDecl? n := by
+  unfold Program.classTemplateDecl? Program.eraseBases
+  rw [List.findSome?_map]
+  congr 1
+  funext d
+  cases d <;> rfl
+
+theorem classKey?_erase (p : Program) (I : List String) (t : Ty) :
+    (p.eraseBases I).classKey? t = p.classKey? t := by
+  cases t <;> simp [Program.classKey?, classTemplateDecl?_erase]
+
 theorem directBases_erase (p : Program) (I : List String) (d : Ty)
     (hd : erased I d = false) :
     (p.eraseBases I).directBases d = p.directBases d := by
   cases d with
+  | spec n as => simp only [Program.directBases, classKey?_erase, classTemplateDecl?_erase]
   | named d =>
     unfold Program.directBases Program.eraseBases
     dsimp only
@@ -220,9 +235,39 @@ theorem subobject_erase (p : Program) (I : List String) (b : Ty) (d : String) (v
   simp only [Program.subobject, eraseBases_length]
   exact subobjectWithin_erase p I p.length b (.named d) (.obj d vs) h₁ h₂
 
-theorem allBases_spec (p : Program) (s : Ty) (h : s.isSpec = true) : p.allBases s = [] := by
+/-- No class template of the program declares a base, so no
+specialization has one. -/
+def Program.templatesBaseFree (p : Program) : Bool :=
+  p.all fun
+    | .classTemplate _ _ bs ps _ => bs.isEmpty && ps.isEmpty
+    | _ => true
+
+theorem eraseBases_templatesBaseFree (p : Program) (I : List String) :
+    (p.eraseBases I).templatesBaseFree = p.templatesBaseFree := by
+  simp only [Program.templatesBaseFree, Program.eraseBases, List.all_map]
+  congr 1
+  funext d
+  cases d <;> rfl
+
+theorem directBases_spec_free (p : Program) (h : p.templatesBaseFree = true) (n : String) (as : Ty) :
+    p.directBases (.spec n as) = [] := by
+  simp only [Program.directBases]
+  split
+  · rename_i args hk hbs
+    obtain ⟨d, hd, hds⟩ := List.exists_of_findSome?_eq_some hbs
+    simp only [Program.templatesBaseFree, List.all_eq_true] at h
+    have := h d hd
+    cases d <;> simp_all
+  · rfl
+
+/-- A specialization has no bases when no class template declares one,
+whatever the derivation depth. -/
+theorem allBases_spec_free (p : Program) (h : p.templatesBaseFree = true) (s : Ty)
+    (hs : s.isSpec = true) : p.allBases s = [] := by
   cases s <;> simp_all [Ty.isSpec, Program.allBases]
-  all_goals (cases p.length <;> rfl)
+  cases p.length with
+  | zero => rfl
+  | succ k => simp [Program.allBasesWithin, directBases_spec_free p h]
 
 /-! ## Deduction depends on the environment's convertibility only at
 non-dependent parameters -/
@@ -799,6 +844,7 @@ exact-type obligation again, for conversion declarations
 theorem inheritance_erasure (mode : Mode) (p : Program) (I : List String)
     (atomics : List (String × List Ty × Bool)) (extra : Constraint.ExprOracle) (traits : Trait → List Ty → Subst Bool) (decls : List Decl)
     (args : List CallArg) (explicit : List Ty) (hfree : p.conversionFree = true)
+    (hfreeT : p.templatesBaseFree = true)
     (hderived : ∀ ft, .functionTemplate ft ∈ decls → NoDerivedDeduction p I ft args)
     (hdeduce : ∀ ft, .functionTemplate ft ∈ decls → ∀ x ∈ args.zip ft.params,
       x.2.dependent = false → ExactPair p I x.1 x.2)
@@ -816,7 +862,9 @@ theorem inheritance_erasure (mode : Mode) (p : Program) (I : List String)
     refine deduceTemplate_congr (instantiate_erase p I atomics extra traits) (atomic_erase p I atomics extra traits) ft
       explicit args (fun c hc => ?_) (fun σ x hx hd hsp => ?_) (fun x hx hd => ?_)
       (fun σ q hq a => ?_)
-    · simp only [Env.ofProgram, allBases_spec _ c hc]
+    · have hfreeT' : (p.eraseBases I).templatesBaseFree = true := by
+        rw [eraseBases_templatesBaseFree]; exact hfreeT
+      simp only [Env.ofProgram, allBases_spec_free _ hfreeT' c hc, allBases_spec_free _ hfreeT c hc]
     · simp only [Env.ofProgram, allBases_erase p I _ (hderived ft hm σ x hx hd hsp)]
     · have hfree' : (p.eraseBases I).conversionFree = true := by
         rw [eraseBases_conversionFree]; exact hfree

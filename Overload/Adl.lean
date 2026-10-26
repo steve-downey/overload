@@ -54,7 +54,7 @@ def Program.classScope? (p : Program) (n : String) : Option Scope :=
 any. -/
 def Program.classTemplateScope? (p : Program) (c : String) : Option Scope :=
   p.findSome? fun
-    | .classTemplate m _ s => if m = c then some s else none
+    | .classTemplate m _ _ _ s => if m = c then some s else none
     | _ => none
 
 mutual

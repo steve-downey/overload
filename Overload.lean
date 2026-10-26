@@ -37,6 +37,7 @@ import Overload.Scope
 import Overload.Names
 import Overload.Adl
 import Overload.Members
+import Overload.ClassTemplates
 import Overload.DependentCandidate
 import Overload.Emit
 import Overload.Typeclass
@@ -92,6 +93,8 @@ is the map.
 #audit Overload.surrogate_example
 #audit Overload.operator_beats_surrogate
 #audit Overload.surrogates_ambiguous
+#audit Overload.instantiate_ground
+#audit Overload.member_template_arguments_example
 #audit Overload.invocable_class_iff_call
 #audit Overload.nothrow_invocable_class_invocable
 #audit Overload.full_invocable_class

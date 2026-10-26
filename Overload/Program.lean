@@ -40,6 +40,56 @@ structure TemplateParam where
 /-- A template head: the parameters, by position. -/
 abbrev Head := List TemplateParam
 
+/-- Does a template argument have the kind its parameter declares: the
+type and form of a template argument shall match those of its
+parameter. -/
+@[std rule "temp.arg.general#1.sentence-1"]
+def kindMatches : ParamKind → Ty → Bool
+  | .type, a => a.isType
+  | .const _, a => !a.isType
+
+/-- The template argument that refers to a parameter of a head from
+within the template itself: the parameter for a type parameter, its
+value for a constant parameter. -/
+def TemplateParam.selfArg (q : TemplateParam) (i : ParamIdx) : Ty :=
+  match q.kind with
+  | .type => .param i
+  | .const _ => .value (.param i)
+
+/-- The arguments that refer to every parameter of a head, in order. -/
+def Head.selfArgs (h : Head) : List Ty := h.zipIdx.map fun (q, i) => q.selfArg i
+
+/-- The current instantiation of a class template, as its members name
+it: the name of the class template followed by the template argument
+list of its template-head, `X<T0, …>`, which is also what the
+injected-class-name denotes when used as a type-name. A member, a
+special member or a conversion of a class template is declared for this
+type. -/
+@[std rule "temp.dep.type#1" "temp.decls.general#2.sentence-2" "temp.local#1"]
+def currentInstantiation (n : String) (h : Head) : Ty := .spec' n h.selfArgs
+
+/-- The bindings a positional argument list makes: argument `i` for
+parameter `i`. -/
+def Bindings.ofArgs (args : List Ty) : Bindings := args.zipIdx.map fun (a, i) => (i, a)
+
+/-- A specialization's argument list completed against its template's
+head: each argument of its parameter's kind, and the remaining
+parameters' defaults, each substituted with the arguments before it.
+Forming the defaults and converting a constant argument are the
+environment's business and `validType`'s; what the members of a
+specialization need is the arguments. More arguments than parameters,
+an argument of the wrong kind or a missing default is no argument list. -/
+@[std rule "temp.names#13" "temp.arg.general#1.sentence-1"]
+def Head.specializationArgs? : Head → List Ty → List Ty → Option (List Ty)
+  | [], [], acc => some acc
+  | [], _ :: _, _ => none
+  | q :: qs, a :: as, acc =>
+    if kindMatches q.kind a then Head.specializationArgs? qs as (acc ++ [a]) else none
+  | q :: qs, [], acc =>
+    match q.default with
+    | some d => Head.specializationArgs? qs [] (acc ++ [d.subst (Bindings.ofArgs acc)])
+    | none => none
+
 /-- One step of a scope path: a namespace or a class, each introduced by
 a declaration in the enclosing scope ([basic.scope.scope]/1). -/
 inductive ScopeStep where
@@ -226,8 +276,12 @@ inductive Decl where
   A base may be a class template specialization. -/
   | «class» (name : String) (bases : List Ty := []) (protectedBases : List Ty := [])
       (scope : Scope := [])
-  /-- `template <head> struct name {};` -/
-  | classTemplate (name : String) (head : Head) (scope : Scope := [])
+  /-- `template <head> struct name : public bases..., protected
+  protectedBases... {};`. A base may mention the head's parameters. Its
+  members are declared for `currentInstantiation name head`, its member
+  functions in its scope, which is a class scope. -/
+  | classTemplate (name : String) (head : Head) (bases : List Ty := [])
+      (protectedBases : List Ty := []) (scope : Scope := [])
   /-- A non-template function, by name and parameter types; a member
   function when its scope ends in a class step, and then with its
   virtuality ([class.virtual]/1); its noexcept-specifier, `none` for
@@ -293,6 +347,7 @@ inductive Decl where
   | semantic (concept : String) (law : Semantic)
   deriving Repr, DecidableEq, Inhabited
 
+attribute [std rule "temp.class.general#1" "basic.scope.class#1"] Decl.classTemplate
 attribute [std rule "temp.dep.general#2"] Decl.dependentCall
 attribute [std rule "temp.point#1.sentence-2"] Decl.refersTo
 attribute [std rule "class.conv.general#1"] Decl.converting
@@ -300,6 +355,69 @@ attribute [std rule "class.mem.general#5"] Decl.member
 attribute [std rule "special#1"] Decl.special
 attribute [std rule "temp.constr.normal#1"] Decl.conceptDef
 attribute [std rule "res.on.requirements#1"] Decl.semantic
+
+/-- Substitute a concept-id's arguments for the concept's parameters
+throughout a constraint: in every mapping, and in the types of a
+requires-expression. -/
+def Constraint.substArgs (args : List Ty) : Constraint → Constraint :=
+  let σ : Bindings := args.zipIdx.map fun (a, i) => (i, a)
+  go σ
+where
+  go (σ : Bindings) : Constraint → Constraint
+    | .atomic e m => .atomic e (m.map (Ty.subst σ))
+    | .trait q m => .trait q (m.map (Ty.subst σ))
+    | .requires reqs m => .requires (reqs.map (Constraint.Requirement.subst σ)) (m.map (Ty.subst σ))
+    | .conceptId n as => .conceptId n (as.map (Ty.subst σ))
+    | .conj l r => .conj (go σ l) (go σ r)
+    | .disj l r => .disj (go σ l) (go σ r)
+
+/-- A user-defined conversion with template arguments substituted into
+the types it mentions. -/
+def UserConv.subst (σ : Bindings) : UserConv → UserConv
+  | .constructor param e ne => .constructor (param.subst σ) e ne
+  | .function target e c ne => .function (target.subst σ) e c ne
+
+/-- A member declaration with a positional argument list substituted for
+the template parameters it mentions: the member of a class template
+specialization, implicitly instantiated from the template's member
+declaration. A member template's own parameters follow the class's in
+the numbering, so the arguments `.param 0, …` appended after the class's
+renumber them from zero in the same substitution. With no arguments
+there is nothing to substitute, and the member of a class is the
+declaration itself. A declaration that is not a member is left as it
+is. -/
+@[std rule "temp.inst#3" "temp.mem#1" "temp.spec.general#2"]
+def Decl.instantiate (args : List Ty) (d : Decl) : Decl :=
+  if args.isEmpty then d else
+  let σ := Bindings.ofArgs args
+  match d with
+  | .function n ps sc v ne r => .function n (ps.map (Ty.subst σ)) sc v ne (r.subst σ)
+  | .functionTemplate ft =>
+    let args' := args ++ ft.head.selfArgs
+    let σ' := Bindings.ofArgs args'
+    .functionTemplate
+      { ft with
+        head := ft.head.map fun q =>
+          { kind := match q.kind with | .const t => .const (t.subst σ') | k => k
+            default := q.default.map (Ty.subst σ') }
+        params := ft.params.map (Ty.subst σ')
+        ret := ft.ret.subst σ'
+        constraint := ft.constraint.map (Constraint.substArgs args')
+        mandate := ft.mandate.map (Constraint.substArgs args') }
+  | .member c m => .member (c.subst σ) { m with ty := m.ty.subst σ }
+  | .special c s => .special (c.subst σ) s
+  | .converting c conv => .converting (c.subst σ) (conv.subst σ)
+  | d => d
+
+/-- Instantiation keeps a declaration's kind: an instantiated conversion
+comes from a conversion. -/
+theorem Decl.instantiate_converting (args : List Ty) (d : Decl) (c : Ty) (conv : UserConv)
+    (h : Decl.instantiate args d = .converting c conv) : ∃ c' conv', d = .converting c' conv' := by
+  unfold Decl.instantiate at h
+  split at h
+  · exact ⟨c, conv, h⟩
+  · cases d <;> simp at h
+    exact ⟨_, _, rfl⟩
 
 /-- A program: declarations in order. -/
 abbrev Program := List Decl
@@ -320,16 +438,52 @@ def _root_.Overload.Decl.ret? : Decl → Option Ty
   | .functionTemplate ft => some ft.ret
   | _ => none
 
+/-- The class template the program declares under a name, if any: its
+head, its public bases and its protected bases. -/
+def classTemplateDecl? (p : Program) (n : String) : Option (Head × List Ty × List Ty) :=
+  p.findSome? fun
+    | .classTemplate m h bs ps _ => if m == n then some (h, bs, ps) else none
+    | _ => none
+
+/-- The key under which a class type's members are declared, with the
+argument list to substitute into them: a class is its own key with no
+arguments; a specialization of a declared class template with a valid
+argument list is the current instantiation with the specialization's
+arguments, which are determined by the type. Anything else has no
+members. -/
+@[std rule "temp.mem.func#2" "temp.res.general#1.sentence-2"]
+def classKey? (p : Program) : Ty → Option (Ty × List Ty)
+  | .named n => some (.named n, [])
+  | .spec n as => do
+    let (h, _, _) ← p.classTemplateDecl? n
+    let l ← as.toList
+    let args ← h.specializationArgs? l []
+    return (currentInstantiation n h, args)
+  | _ => none
+
+/-- The member, special member and conversion declarations of a class
+type, in order: a class's own, or for a specialization the template's
+with its arguments substituted, which is the implicit instantiation of
+their declarations that looking into the specialization requires. -/
+@[std rule "temp.inst#2" "temp.inst#3"]
+def memberDecls (p : Program) (c : Ty) : List Decl :=
+  match p.classKey? c with
+  | some (k, args) =>
+    (p.filter fun
+      | .member d _ | .special d _ | .converting d _ => d == k
+      | _ => false).map (Decl.instantiate args)
+  | none => []
+
 /-- The non-static data members of a class, in declaration order. -/
 def membersOf (p : Program) (c : Ty) : List Member :=
-  p.filterMap fun
-    | .member d m => if d == c then some m else none
+  (p.memberDecls c).filterMap fun
+    | .member _ m => some m
     | _ => none
 
 /-- The user-declared special member functions of a class, in order. -/
 def specialDecls (p : Program) (c : Ty) : List SmfDecl :=
-  p.filterMap fun
-    | .special d s => if d == c then some s else none
+  (p.memberDecls c).filterMap fun
+    | .special _ s => some s
     | _ => none
 
 /-- The concept definition of a name, if any: its arity and body. -/
@@ -380,21 +534,6 @@ instance (p : Program) : Decidable (SingleTranslationUnit p) :=
   inferInstanceAs (Decidable (_ = true))
 
 /-! ## Constraint normalization -/
-
-/-- Substitute a concept-id's arguments for the concept's parameters
-throughout a constraint: in every mapping, and in the types of a
-requires-expression. -/
-def Constraint.substArgs (args : List Ty) : Constraint → Constraint :=
-  let σ : Bindings := args.zipIdx.map fun (a, i) => (i, a)
-  go σ
-where
-  go (σ : Bindings) : Constraint → Constraint
-    | .atomic e m => .atomic e (m.map (Ty.subst σ))
-    | .trait q m => .trait q (m.map (Ty.subst σ))
-    | .requires reqs m => .requires (reqs.map (Constraint.Requirement.subst σ)) (m.map (Ty.subst σ))
-    | .conceptId n as => .conceptId n (as.map (Ty.subst σ))
-    | .conj l r => .conj (go σ l) (go σ r)
-    | .disj l r => .disj (go σ l) (go σ r)
 
 /-- The concept-ids a constraint names, with their arguments, outside any
 requires-expression. -/
