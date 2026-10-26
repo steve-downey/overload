@@ -812,16 +812,28 @@ Status, 15 October 2026:
   no other. Settles virtual-fragment, exception-specification-fragment
   and aggregate-fragment.
 
-- Phase 15 is planned, 25 October 2026, and no stage has landed. Class
-  templates get bases and members, a specialization gets the template's
-  member declarations with its arguments substituted when it is looked
-  into, member lookup and the call on an object are keyed by type, and
-  the encoding's derivation base is declared as the class template it
-  is, with the operation object's constraint resolved as the member call
-  it is rather than answered by an oracle. The plan, the cross-reference
-  against N5054 and the stages are
+- Phase 15 is closed, 26 October 2026, planned the day before, on its
+  exit criterion: the member search of a specialization is computed
+  from the template's declarations by cited rules (`Program.classKey?`,
+  `Decl.instantiate`, `Program.declarationSet`); `is_invocable` of a
+  specialization callee is computed and the class-callee residue is
+  closed (`specialization_callee_invocable`); eighteen emitted trait and
+  call cases on specializations agree with GCC 15 and Clang 24; and the
+  operation object's constraint is resolved as the member call it is
+  (`operation_constraint_is_member_call`), with the accurate-members
+  obligation a theorem for the reduced encoding's derivation base
+  (`derivation_base_accurate`), nine emitted cases of the encoding
+  agreeing. Class templates have bases and members declared for the
+  current instantiation, a specialization has the template's member
+  declarations with its arguments substituted when it is looked into,
+  member lookup and the call on an object are keyed by type, and the
+  encoding's derivation base is declared as the class template it is.
+  The plan, the cross-reference against N5054 and the stages are
   [below](#phase-15-class-templates-and-their-members). Settles
-  class-template-members. Stage 1, template-members, landed 26 October
+  class-template-members. Owed: the general member-template-arguments
+  statement, shown on `holder<int>` only, and the inertness of the
+  implicit object parameter, which the surrogate stage left as a
+  target. Stage 1, template-members, landed 26 October
   2026: `Decl.classTemplate` with bases, `currentInstantiation`,
   `Head.specializationArgs?`, `Program.classKey?`, `Decl.instantiate`,
   `Program.memberDecls` behind `membersOf`, `specialDecls` and
@@ -892,7 +904,14 @@ Status, 15 October 2026:
   oracle assumed and the environment now computes. And the instance's
   value type does not replace `instance_of<a, i>` as the name of the
   lookup's value in deduction: it enters only where a member call on
-  the value resolves, so no theorem about the lookup moved.
+  the value resolves, so no theorem about the lookup moved. Stage 4,
+  class-template-docs, landed 26 October 2026: the guide, the
+  obligations' accurate-members row, the findings, this status,
+  `citations.md`, with [temp.inst]/10 and [temp.spec.general]/4 the two
+  in-scope paragraphs without a counterpart, the first saying an
+  instantiation that resolution does not need may not happen, which no
+  theorem rests on, and the second defining a specialization, neither
+  a rule the model transcribes.
 
 ## Target theorems
 

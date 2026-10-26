@@ -246,7 +246,7 @@ and whether it has a default member initializer; `Program.membersOf`
 lists them in order), their user-declared special member functions as
 `special` declarations (`SmfDecl`: kind, body with a definition, `=
 default` or `= delete`, and whether the parameter is a reference to
-`const`), class templates, a concept with a constraint for its body
+`const`), class templates with bases and members, a concept with a constraint for its body
 (`conceptDef`: name, arity, body over `Ty.param i`; the string-bodied
 `concept` stays for the emitted C++ the model reads as one atom),
 functions (name, parameter types, scope, virtuality, noexcept-specifier
@@ -278,7 +278,26 @@ program's length, and `Program.normalizeDecl` gives a function template
 its associated constraints, the normal form of its constraint-expression
 ([temp.constr.normal]/2), which `Program.call` applies to its candidates
 before resolution, so satisfaction and subsumption see atoms and a
-refined concept subsumes the concept it refines.
+refined concept subsumes the concept it refines. Since phase 15 a class
+template has bases, possibly dependent, and members: a member, special
+member or conversion of a class template is declared for its current
+instantiation, the template's name with its head's parameters
+(`currentInstantiation`, [temp.dep.type]/1), and a member function in
+its scope; a member template's own parameters follow the class's in
+the numbering ([temp.mem]/1). `Program.classKey?` is the key a class
+type's members are declared under with the arguments to substitute: a
+class is its own with none, a specialization of a declared class
+template with a valid argument list, completed by kind and default
+(`Head.specializationArgs?`, [temp.names]/13), is the current
+instantiation with its arguments ([temp.mem.func]/2).
+`Decl.instantiate` substitutes a positional argument list into a
+member declaration, renumbering a member template's own parameters
+from zero in the same substitution, and `Program.memberDecls` is the
+member, special member and conversion declarations of a class type,
+instantiated for a specialization ([temp.inst]/3), behind `membersOf`,
+`specialDecls` and `conversionsOf`. `kindMatches` lives here since the
+key needs it. `Decl.instantiate_converting`: instantiation keeps a
+declaration's kind.
 
 ### Arguments
 
@@ -700,9 +719,19 @@ expression. `Program.requirementsHold` checks a
 requires-expression's requirements in lexical order and stops at the
 first that decides, an invalid one making it `false`
 ([expr.prim.req.general]/5): `requires_soft_is_false`,
-`requires_false_stops`, `requires_hard_stops`; and a requirement calling
-a member holds exactly where the member call is viable and well-formed
-(`member_requirement_iff_call`). `Env.full` is the
+`requires_false_stops`, `requires_hard_stops`. A member-call requirement
+forms its object's type and its arguments through the environment, and
+when the object's type is `remove_cvref_t<decltype(TC)>` for `TC` bound
+to a lookup's variable, the object's class is the type the selected
+instance declares its value to have, or the name the environment gives
+the value (`Program.lookupValueType`, `Ty.withClass`); the expression is
+then the member call on that class with the implicit object parameter
+on each member found (`Program.memberCallExpression`). A requirement
+calling a member holds exactly where the member call is viable and
+well-formed (`memberCallExpression_iff`, `member_requirement_iff_call`),
+and one calling a member of a lookup's value exactly where the call on
+the declared value type, an lvalue of `const` that type, is
+(`lookup_member_requirement_iff_call`). `Env.full` is the
 program's environment with requires-expressions answered to the
 program's depth (`Env.fullWithin`): at each depth the environment below
 decides the calls a requirement makes and their candidates'
@@ -717,8 +746,8 @@ surrogates of its class with `declval<Fn>()` the implied object argument
 ([over.call.object]/1 to /3), `objectCandidates` then
 `callExpression`; `Program.traitAbove` answers that trait and its
 nothrow form by it and every other trait by the environment below, and
-`Env.fullWithin` installs it one level up. `classCallee` names the
-class, a class template specialization staying with the residue.
+`Env.fullWithin` installs it one level up. `classCallee` is the class
+type, a class template specialization since phase 15.
 `invocable_class_iff_call` is the trait as the call on the object being
 viable and well-formed, `nothrow_invocable_class_invocable` the nothrow
 form refining it, and `full_invocable_class` the environment's answer
@@ -773,6 +802,11 @@ of arguments.
 `Overload/Lookup.lean`: a variable template over a program.
 `Program.instancesOf` collects its partial specializations in declaration
 order; `Program.selectInstance` is `select` over them.
+`Program.instanceValueType?` is the type the selected instance declares
+its value to have, with the pattern's deduced arguments substituted,
+when it declares one: an instance's value is otherwise named
+`instance_of<a, i>`, and the declared type enters only where a member
+call on the value resolves (`Requires`).
 
 - `coherence`: lookup selects a partial specialization exactly when it is
   the most specialized match, and by `mostSpecialized_unique` at most one
@@ -834,7 +868,9 @@ of a touched class is deduced from as a derived class
 (`NoDerivedDeduction`), and the program declares no user-defined
 conversion (`Program.conversionFree`): one between unrelated classes
 could reach a touched class through a constructor's parameter or a
-conversion function's target. The hypothesis is about conversions
+conversion function's target; and no class template declares a base
+(`Program.templatesBaseFree`), since a specialization's bases are its
+template's and erasure is not extended to specializations. The hypothesis is about conversions
 rather than signatures because a template parameter deduced from one
 argument can meet another argument of a derived type.
 `deduceTemplate_congr`, on the
@@ -989,7 +1025,8 @@ parameter of abstract class type makes the call ill-formed
 conversion is ambiguous makes the call ill-formed
 ([over.best.ics.general]/12); then the access check on its conversions
 ([conv.ptr]/3, [dcl.init.ref]/4), after ambiguity resolution
-([class.conv.general]/2); then the Mandates. `call_eq_invoke`: when the
+([class.conv.general]/2), `Program.publicBases` reading a
+specialization's from its template; then the Mandates. `call_eq_invoke`: when the
 conversions are unambiguous and accessible, the checks change nothing. `protected_base_selected_ill_formed` and
 `protected_base_deduced_ill_formed`: a function that names a protected
 base, or a template that deduces through one, is selected and the call is
@@ -1111,16 +1148,20 @@ candidates.
 
 ### Members
 
-`Overload/Members.lean`: member name lookup and the call on an object. A
-search in a class scope is the lookup set of [class.member.lookup]/2 to
-/5: the class's own declaration set when it is not empty (/3,
-`Program.declarationSet`), otherwise the lookup sets of the direct bases
-merged in turn (/4, `Program.lookupSet`) by the rule of /5
+`Overload/Members.lean`: member name lookup and the call on an object,
+keyed by class type. A search in a class scope is the lookup set of
+[class.member.lookup]/2 to /5: the class's own declaration set when it
+is not empty (/3, `Program.declarationSet`, which for a specialization
+is the single search in the template's scope with the specialization's
+arguments substituted into what it finds, [temp.inst]/3), otherwise the
+lookup sets of the direct bases merged in turn (/4,
+`Program.lookupSet`), a specialization's bases its template's after
+substitution ([temp.dep.type]/3), by the rule of /5
 (`LookupSet.merge`): a set found in a base subobject of one already found
 is hidden, differing declarations from unrelated subobjects make the set
 invalid, and the same declarations in several subobjects are shared. A
-subobject is the path of classes from the class searched down to it. The
-result is the declaration set, or ill-formed when invalid (/6,
+subobject is the path of class types from the class searched down to it.
+The result is the declaration set, or ill-formed when invalid (/6,
 `Program.memberSearch`). `LookupSetRel` with `MergeBases` is the
 relation, `lookupSet_iff` the agreement. A call on an object of class
 type resolves over the function call operators of its class, a search
@@ -1132,17 +1173,19 @@ reference to pointer to function or a reference to function
 implied object argument followed by the call's arguments
 ([over.call.object]/3, `impliedObject`, a `const` lvalue of the class
 since the fragment's objects are `constexpr`): a call operator carries
-its implicit object parameter, `const X&` for the fragment's const
-members (`Decl.withImplicitObject`, [over.match.funcs.general]/2, /4),
+its implicit object parameter, `const X&` for `X` the class type the
+call is on, the fragment's members being const
+(`Decl.withImplicitObject`, [over.match.funcs.general]/2, /4),
 and a surrogate's first parameter is the conversion's type, which the
 object reaches through that conversion function. `Program.objectCandidates`
 is the list, `Program.objectCallAt` the call on an object given its
 implied object argument. `Program.callCandidates` and `Program.callAt`
 are the call from a point: the overload set lookup found with the
 call's arguments, or the object's candidates with the object leading,
-resolved as `Program.call` does; `Program.memberCallAt` is a member call
-`obj.f(args)`, which leaves the object out, its members being const and
-surrogates not arising. Three examples by computation:
+resolved as `Program.call` does; `Program.memberCallOn` is a member call
+`obj.f(args)` with the object given, leading the arguments with its
+implicit object parameter on each member found, and
+`Program.memberCallAt` the same on a named object, a `const` lvalue. Three examples by computation:
 `surrogate_example`, the draft's example with a class for its `float`,
 calls through the first conversion function; `operator_beats_surrogate`,
 a call operator wins on the implied object argument, which it binds by
@@ -1171,6 +1214,32 @@ two surrogates no call tells apart, the footnote's case.
   function of the same name beside the user's class, and it wins; written
   as an object, the user's function is never a candidate.
 
+### ClassTemplates
+
+`Overload/ClassTemplates.lean`: class templates and their members, the
+theorems. `instantiate_ground`: a class's member is its declaration.
+`member_template_arguments_example`: on `holder<int>`, deduction for the
+instantiated member template binds its own parameter alone and gives
+the function type that the combined template gives with the class's
+argument as the leading explicit one ([temp.mem.func]/2); the general
+statement is owed. `Ty.has`, `Decl.types` and `Decl.mentions` say
+whether a declaration refers to a type; `Program.pointOfInstantiation`
+is the position of the first declaration that mentions a specialization,
+which the point of [temp.point]/4 immediately precedes;
+`Program.templatesWellFormed` asks that every member of a class template
+follow its declaration and precede every reference to a ground
+specialization of it, a dependent one being a reference from a
+templated context. `specialization_members_fixed`: under it, the
+declaration set of a specialization with ground arguments is the same
+from every point at or after its point of instantiation, one point per
+unit ([temp.point]/7) for a model without definitions.
+`specialization_callee_invocable`: `is_invocable` of a specialization
+callee computed through a call operator and through a surrogate, the
+residue of `decisions.md#trait-residue` closed.
+`argument_reference_deletes`: `cell<int&>` has its copy assignment
+deleted and `cell<int>` has not; value nature is the specialization's,
+decided by the argument ([class.copy.assign]/7).
+
 ### Emit
 
 `Overload/Emit.lean`: the C++ emitter. Each declaration is rendered in
@@ -1180,13 +1249,18 @@ can name a class defined later, a class's user-defined conversions in
 its body, a constructor defined with an empty body and a conversion
 function defined when its target is complete, a class or class template
 declared in a namespace is named by
-its qualified name wherever a type mentions it, a call case carries the
+its qualified name wherever a type mentions it, a class template's
+members in its body with a member template's own parameters named
+after the class's and its instance's value as the type the instance
+declares, a call case carries the
 scope it is written in, and the functions the call resolves over are
 numbered by entity in the lookup's order; a declaration of the callee's
 name lookup does not find gets a `hidden<j>` return type, and any other
 function its declared return type, so a compound requirement on it sees
 the type the model gives it. A
-`memberCall` query is `obj.f(args)` on an object of a class, and a
+`memberCall` query is `obj.f(args)` on an object of a class type, a
+specialization among them, its members matched to the program's
+declarations through the arguments of the class and its bases, and a
 `dependentCall` query instantiates the dependent call declared at a
 position, rendered as a template whose trailing return type names the
 call, so the function selected is observable and a lookup failure is a
@@ -1335,6 +1409,20 @@ subsumes `copyable` subsumes `copy_constructible` by normalization alone
 in a law and nothing else (`regular_invocable_semantic_only`). `#owes`
 lists the laws a theorem rests on, and the headline theorems of lookup
 rest on none.
+
+Phase 15 gave class templates members. A specialization's members are
+the template's declarations with its arguments substituted, found by the
+same search a class's are and read by the same judgements, so the
+special members, the traits, the call on an object and the member call
+of a specialization are computed from the rules that computed them for
+a class (`Program.classKey?`, `Decl.instantiate`,
+`Program.declarationSet`). A specialization with ground arguments has
+one point of instantiation in a unit, and its declaration set is the
+same from every point after it (`specialization_members_fixed`); a
+reference argument deletes what a reference member deletes
+(`argument_reference_deletes`); and `is_invocable` of a specialization
+callee is the call on the object (`specialization_callee_invocable`),
+which closed the last residue of the trait decision.
 
 ## The typeclass side, module by module
 
@@ -1540,6 +1628,35 @@ copy may throw, where `is_copy_constructible` alone admits it;
 aggregate and an implicit-lifetime class with one value, the empty one,
 so `X{}` in the value route is aggregate initialization of nothing.
 
+### Derivation
+
+`Overload/Typeclass/Derivation.lean`: the derivation base as the class
+template it is, `derive_functor<Impl> : protected Impl` with `fmap` and
+`replace` constrained by the header's requires-expressions over `Impl`
+and `constant_function` beside it (`deriveFunctor`), and the operation
+object with the header's constraint, `requires { TC.fmap(declval<F>(),
+declval<T>()); }`, resolved as the member call it is (`fmapResolved`).
+An instance declares the type of its value, a specialization of the
+base. `operation_constraint_is_member_call`: the resolved constraint
+holds one level up exactly where the member call `fmap` on the declared
+value type, an lvalue of `const` that type, is viable one level down,
+which is what `memberAtomics` assumed and the environment now computes.
+`derivation_base_accurate`: the constraint of
+`derive_functor<Impl>::fmap<F, T>` holds exactly where `Impl`'s `fmap`
+is viable on a `const Impl&` with those arguments, since the
+requires-clause is the call the body makes: the accurate-members
+obligation by construction for the reduced header. On a program,
+`resolved_operation_example` and `inaccurate_oracle_example`: at
+`(int, box<int>)` the lookup selects the `box` instance and the oracle
+says true, while the resolved object is not viable because
+`box_impl::fmap` takes an `Fn`; `replace_through_fmap_example` derives
+`replace` from `fmap` with `constant_function`; and
+`unconstrained_member_hides_derivation_base` is the audit's finding on
+the real shape. `memberAtomics` stays as the abstract object's
+specification, which `Encoding`, `Members`, `Routes` and `Lookup` are
+about; the two agree exactly where the implementation's member is
+accurate.
+
 ### Laws
 
 `Overload/Typeclass/Laws.lean`: the Functor, Applicative and Monad laws
@@ -1560,7 +1677,9 @@ the shape and no law every law as a verdict. That `coherence`,
 `Overload/Typeclass/Emit.lean`: the encoding's emitted cases, with a
 prelude in which `selected<K>` has `fmap`, so a partial specialization's
 value is an instance, and the concepts `fmap_shape` and `fmap_call` are
-declared. Their expectations are computed in `encodingEnv`.
+declared; the derivation-base cases declare the instances' values as
+specializations of the real base. Their expectations are computed in
+`Env.full` over `memberAtomics`.
 
 ## From theorems to obligations
 
