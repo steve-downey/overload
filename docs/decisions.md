@@ -1278,3 +1278,8 @@ specializations other than the primary's have no consumer.
   (`memberAtomics`) stays as the specification the earlier theorems are
   about, agreeing with the computation exactly where the
   implementation's member is accurate.
+- 2026-10-26 — Stage class-template-docs landed; the phase is closed.
+  [temp.inst]/10 and [temp.spec.general]/4 stay in scope without a
+  counterpart: the first says an instantiation that resolution does not
+  need may not happen, which no theorem rests on, and the second
+  defines a specialization.

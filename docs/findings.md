@@ -166,6 +166,32 @@ and described here as they arrive.
 
 ## About the model
 
+- **The operation object's oracle assumed an accurate member, and the
+  computation shows where that fails** (26 October 2026). The abstract
+  operation object's constraint, `fmap_call`, was answered true whenever
+  the lookup selected an instance (`memberAtomics`), which is accurate
+  only if the instance's `fmap` is viable at every argument list the
+  lookup admits. With the derivation base declared as the class template
+  it is and the constraint resolved as the member call it is
+  (`fmapResolved`), an implementation whose `fmap` takes `(Fn, box<int>)`
+  makes the operation object viable at `(Fn, box<int>)` and not at
+  `(int, box<int>)`, where the oracle says true
+  (`inaccurate_oracle_example`, `derived_fmap_argument_not_viable.cpp`).
+  The base's own `fmap` is accurate by construction, its requires-clause
+  being the call its body makes (`derivation_base_accurate`); the gap is
+  the implementation's, which is where the audit found it.
+- **The class-callee residue was the want of class template members**
+  (26 October 2026). The decision log said `is_invocable` of a class
+  template specialization callee stayed with the residue because the
+  member search works by class name. The cause was that the fragment's
+  class templates had no members for any search to find. With members
+  declared for the current instantiation and a specialization's members
+  instantiated when it is looked into, the trait is computed through a
+  call operator, a member template and a surrogate of the specialization
+  (`specialization_callee_invocable`, `trait_invocable_specialization*.cpp`),
+  and the traits of a specialization follow from the same key: a
+  reference argument deletes what a reference member deletes
+  (`argument_reference_deletes`).
 - **A conversion function's call had no value category** (25 October
   2026). `Program.userSequence` formed the second standard sequence of
   a user-defined conversion from a prvalue of the conversion function's

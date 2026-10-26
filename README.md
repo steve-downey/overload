@@ -26,9 +26,10 @@ every citation against the pinned draft (N5054, tag `n5054`).
 
 ## Status
 
-Phases 0 to 10 are closed; see the status note under *Phases* in
-`docs/plan.md`, the phase 9 section there for name lookup and the phase
-10 section for template-argument conversion. Three probes, run before any Lean existed, are in
+Phases 0 to 15 are closed; see the status note under *Phases* in
+`docs/plan.md`, the phase 9 section there for name lookup, the phase
+10 section for template-argument conversion and the phase 15 section
+for class templates and their members. Three probes, run before any Lean existed, are in
 `probes/` with their results and verdicts in
 [`docs/probes.md`](docs/probes.md). Decisions, open and settled, are in
 [`docs/decisions.md`](docs/decisions.md). Findings about the Standard, the
