@@ -67,6 +67,9 @@ In scope:
   defaulted, deleted and trivial; the type traits the fragment can state,
   as judgements of the program; requires-expressions of calls and types;
   and concept-ids, normalized into the associated constraints.
+- Since phase 15: class templates with bases and members, a
+  specialization's members by substitution when it is looked into, and
+  member templates of class templates.
 
 Out of scope at the start:
 
@@ -200,11 +203,12 @@ The four kinds of finding about the Standard are tabulated in
 
 ## Phases
 
-Fourteen phases, each closed by a theorem or a passing test set. The
+Fifteen phases, each closed by a theorem or a passing test set. The
 typeclass results first become reachable at phase 4, before any of
 call-site overload resolution exists. Phase 9 was added on 20 October
 2026, after the others closed, phase 10 on 21 October 2026, phase 11 on
-23 October 2026, and phases 12 to 14 on 24 October 2026.
+23 October 2026, phases 12 to 14 on 24 October 2026, and phase 15 on 25 October
+2026.
 
 | Phase | Builds | Exit criterion | Needs |
 |---|---|---|---|
@@ -223,6 +227,7 @@ call-site overload resolution exists. Phase 9 was added on 20 October
 | 12 The type system, special members and traits | The type categories and data members, function types; the special member functions as implicitly declared, defaulted, deleted and trivial; the type traits and requires-expressions as judgements over those, with concept-ids normalized; the value and reference nature of a type as a theorem of the deletion rules. See [below](#phase-12-the-type-system-special-member-functions-and-traits). | Every trait the fragment can state is computed from cited rules and agrees with GCC and Clang on the emitted cases; the special members of a class are a cited judgement with agreement; the callable-copying rule and refinement subsumption are theorems of the encoding. Settles function-types, special-member-fragment, trait-residue and value-nature. | 3, 9, 11 |
 | 13 Semantic requirements | What satisfies and what models ([res.on.requirements]): a semantic requirement as a named, cited statement nothing decides; modelling as satisfaction plus hypotheses; the ill-formed-no-diagnostic verdict for a satisfied concept not modeled; the library's concepts transcribed with their laws; the typeclass laws named; an audit of the laws each theorem owes. See [below](#phase-13-semantic-requirements-what-satisfies-and-what-models). | Every law a headline theorem of the encoding rests on is named and listed by `#owes`; the library's object concepts subsume one another by normalization; the superclass-coherence obligation is a theorem with its law as hypothesis. Settles semantic-requirements. | 8, 12 |
 | 14 Virtual functions, exception specifications, aggregates | Three stages, one each: virtual and pure virtual functions, overriding by correspondence, polymorphic and abstract classes, and their effect on triviality and layout; exception specifications on every function, the implicit ones of the special members, and the `is_nothrow_` traits; aggregates, their elements as the model's class values, brace and parenthesized aggregate initialization, and `is_aggregate` and `is_implicit_lifetime`. See [below](#phase-14-virtual-functions-exception-specifications-and-aggregates). | `is_polymorphic`, `is_abstract`, `has_virtual_destructor`, every `is_nothrow_` trait, `is_aggregate` and `is_implicit_lifetime` are computed from cited rules and agree with GCC and Clang on the emitted cases; the class value is the aggregate's element list; the encoding's instance types are aggregates with non-throwing special members. Settles virtual-fragment, exception-specification-fragment and aggregate-fragment. | 12, 13 |
+| 15 Class templates and their members | Class templates with bases and members declared for the current instantiation; a specialization's members by substitution when it is looked into, the implicit instantiation of declarations; member templates of class templates; member lookup, the call on an object, the special members and the traits over specializations; the member call with its implied object argument; the point of instantiation of a specialization; the encoding's derivation base as the class template it is, and the operation object's constraint as a resolved member call. See [below](#phase-15-class-templates-and-their-members). | The member search of a specialization is computed from the template's declarations by cited rules; `is_invocable` of a specialization callee is computed and the class-callee residue is closed; the traits of specializations agree with GCC and Clang on the emitted cases; the operation object's constraint is resolved, not assumed, and the accurate-members obligation is a theorem for the reduced encoding. Settles class-template-members. | 9, 12 |
 
 Phase 6 can begin as soon as phase 4 closes. Phase 5 is on the critical
 path only for the function-call surface and the by-value explicit-instance
@@ -614,9 +619,10 @@ Status, 15 October 2026:
   conversion function yielding a reference is a candidate for binding
   one ([over.match.ref]/1), and its call is an lvalue or xvalue as its
   return type says ([expr.call]/15, `conversionResult`). Eleven emitted
-  cases agree with both compilers. What stays with the residue is a
-  class template specialization as callee, and conversion functions
-  declared in a base class, for sequences and surrogates alike. Stage
+  cases agree with both compilers. What stays with the residue is
+  conversion functions declared in a base class, for sequences and
+  surrogates alike, and the fragment's want of class template members,
+  which a specialization callee inherits: phase 15 is the plan for it. Stage
   5, requires-expressions, landed the same day: `Constraint.conceptId` and `Constraint.requires`,
   `Decl.conceptDef`, `Program.normalize` and `normalizeDecl` applied by
   `Program.call` to its candidates, `Overload/Requires.lean` with
@@ -806,9 +812,20 @@ Status, 15 October 2026:
   no other. Settles virtual-fragment, exception-specification-fragment
   and aggregate-fragment.
 
+- Phase 15 is planned, 25 October 2026, and no stage has landed. Class
+  templates get bases and members, a specialization gets the template's
+  member declarations with its arguments substituted when it is looked
+  into, member lookup and the call on an object are keyed by type, and
+  the encoding's derivation base is declared as the class template it
+  is, with the operation object's constraint resolved as the member call
+  it is rather than answered by an oracle. The plan, the cross-reference
+  against N5054 and the stages are
+  [below](#phase-15-class-templates-and-their-members). Settles
+  class-template-members.
+
 ## Target theorems
 
-Fifty-two theorems carry the results. A theorem that fails is recorded with
+Sixty-one theorems carry the results. A theorem that fails is recorded with
 its counterexample and is a finding, not a setback.
 
 | Theorem | Statement | Phase |
@@ -868,6 +885,12 @@ its counterexample and is a finding, not a setback.
 | aggregate-elements-are-value | A class value's subobject list is the aggregate's element list, bases then members ([dcl.init.aggr]/2), so template-argument equivalence of class values is elementwise. Added 24 October 2026. | 14 |
 | brace-init-differs-from-default-init | For an aggregate with a `const` member and no initializer, `T{}` is well-formed and `T t;` is not, so `default_initializable` is false where `requires { T{}; }` holds ([dcl.init.aggr]/6, [dcl.init.general]/7, [concept.default.init]/1). Added 24 October 2026. | 14 |
 | paren-aggregate-constructible | An aggregate with no viable constructor is constructible from a parenthesized list of at most as many arguments as elements, each convertible to its element ([dcl.init.general]/15). Added 24 October 2026. | 14 |
+| member-template-arguments | Deduction for a member template of a class template specialization binds the member's own parameters only: it is deduction for the member with the class's arguments supplied as the leading explicit arguments ([temp.mem.func]/2, [temp.mem]/1). Added 25 October 2026. | 15 |
+| specialization-members-fixed | The member search of a class template specialization gives the same declarations from every point at or after its point of instantiation, which precedes the first declaration that refers to it, in a program whose class templates' members precede that point ([temp.point]/4, /7, [temp.inst]/3). Added 25 October 2026. | 15 |
+| specialization-callee-invocable | `is_invocable` of a class template specialization callee is the call on the object over the specialization's call operators and surrogates, so the class-callee residue closes ([func.require]/1, [over.call.object]/1 to /3). Added 25 October 2026. | 15 |
+| argument-reference-deletes | A class template with a member of its parameter's type has deleted copy and move assignment at a reference argument and non-deleted at an object type: value nature is a property of the specialization, decided by the argument ([class.copy.assign]/7, through value-nature-iff). Added 25 October 2026. | 15 |
+| operation-constraint-is-member-call | The operation object's constraint, `TC.fmap(declval<F>(), declval<T>())`, is the member call on the instance's value type with the lookup's object as the implied object argument: the environment computes what the typeclass side's oracle assumed, and the accurate-member hypothesis of `fmapObject_member` is discharged by computation ([expr.prim.req.compound]/1, [over.match.funcs.general]/3). Added 25 October 2026. | 15 |
+| derivation-base-accurate | The derivation base's `fmap` is constrained by the member call its body makes on `Impl`, so a probe of `fmap` through `derive_functor<Impl>` fails softly exactly where `Impl`'s `fmap` is not viable, and the accurate-members obligation holds by construction for the reduced encoding; an instance type that declares its own unconstrained `fmap` hides it ([class.member.lookup]/3). Added 25 October 2026. | 15 |
 
 Stability is the theorem that says open polymorphism has no surprises. Its
 hypotheses are expected to include soft failure of a missing instance and
@@ -2307,6 +2330,242 @@ and `decisions.md#aggregate-fragment`.
    `default_initializable`'s three conjuncts, `isAggregate` and
    `isImplicitLifetime`, the four theorems, the encoding's one, emitted
    cases, docs and citations.
+
+## Phase 15: class templates and their members
+
+Planned 25 October 2026. The fragment's class templates are `template
+<head> struct name {};` with nothing inside. `Decl.classTemplate` has a
+name, a head and a scope, no bases and no members, and nothing in the
+model looks inside a specialization: `Program.directBases` gives
+`X<int>` no bases, `Program.memberScope?` finds no scope for it, and so
+`is_invocable<X<int>, A>` has no call operators to find, the trait
+inherits that, and the decision log carries it as residue
+(`decisions.md#trait-residue`). The residue wording was a symptom. What
+is missing is members of class templates in general: declarations
+stated in the head's parameters, the substitution of a specialization's
+arguments into them when the specialization is looked into, and the
+instantiation and point-of-instantiation rules that say when that
+happens and what it produces.
+
+That is also the shape the encoding has and the model has stood in for.
+beman.transpose's derivation base is `template <class Impl> struct
+derive_functor : protected Impl`, with member templates `fmap` and
+`replace` constrained by requires-expressions over `Impl`
+(`src/smd/overload/encoding.hpp`), and an instance is a specialization
+of it. The model declares `derive_functor` as a plain class where it
+needs the name (`Overload/Typeclass/Lookup.lean`,
+`Overload/Typeclass/Inheritance.lean`), names an instance's value by the
+type `instance_of<a, i>`, and answers the operation object's constraint,
+`TC.fmap(declval<F>(), declval<T>())`, by an oracle that says true
+exactly when the lookup selects an instance (`memberAtomics`,
+`Overload/Typeclass/Encoding.lean`). Every theorem about the instance's
+members takes that answer as a hypothesis (`Overload/Typeclass/Members.lean`),
+and the accurate-members obligation rests on an audit, not a
+computation. With class template members the member call is resolved
+on the instance's type, the hypothesis becomes a theorem about the
+computed environment, and the derivation base's accuracy is a theorem
+about the reduced encoding.
+
+The phase is the Standard side first. A class template gets bases and
+members, a specialization gets the template's member declarations with
+its arguments substituted, member lookup and the call on an object are
+keyed by type rather than class name, and the traits and special
+members follow because they are already keyed by type. The typeclass
+side then declares the real derivation base and resolves the member
+call. Explicit and partial specializations of class templates stay out:
+the encoding's instances are partial specializations of a variable
+template, which the model has had since phase 1, and the members of an
+explicit or partial specialization are unrelated to the primary's
+([temp.expl.spec]/6, [temp.spec.partial.member]/1), so admitting them
+would be a second member mechanism for no consumer.
+
+### The rules to transcribe, as they stand in N5054
+
+Paragraph numbers counted from `\pnum`, as `make drift-check` does.
+
+| Rule | N5054 text (abbreviated) | Model counterpart | Stage |
+|---|---|---|---|
+| [temp.class.general]/1 | A class template defines the layout and operations for an unbounded set of related types. | `Decl.classTemplate` gains `bases` and `protectedBases`; its members are declarations like a class's. | 1 |
+| [basic.scope.class]/1 | Any declaration of a class or class template `C` introduces a class scope that includes its member-specification. | The class template's scope is the same `.class n` step a class's is; `Program.classScope?` finds it for a class template too. | 1 |
+| [temp.dep.type]/1, [temp.decls.general]/2, [temp.local]/1 | In the definition of a primary class template or its member, the name of the class template followed by the template argument list of its template-head refers to the current instantiation; the primary's argument list is its head's; the injected-class-name used as a type-name is that spelling. | `Program.currentInstantiation n h : Ty`, `X<T0, …>` as `.spec' n (params h)`. A member, special member or conversion of a class template is declared for that type: `Decl.member (currentInstantiation n h) m`. | 1 |
+| [temp.mem]/1 | A template declared within a class template is a member template; defined outside, it takes the class's template-head followed by its own. | A member template's head is its own; its declaration refers to the class's parameters as `.param i` for `i` below the class head's length and to its own as `.param (n + j)`. Instantiation substitutes the class's arguments and renumbers its own to `.param j`, one `Constraint.substArgs`/`Ty.subst` with the list `args ++ [.param 0, …]`. | 1 |
+| [temp.mem.func]/2 | The template arguments for a member function of a class template are determined by the template arguments of the type of the object for which it is called. | `Program.specializationBindings? c : Option Bindings`, the explicit-argument and default steps over the head with the specialization's arguments, as `validType` runs them ([temp.names]/13). `member_template_arguments`: deduction for the instantiated member is deduction for the member with the class's arguments as leading explicit arguments. | 1 |
+| [temp.res.general]/1 sentence 2 | A dependent name is looked up for each specialization, after substitution. | The substitution precedes every lookup into a specialization: `Decl.instantiate σ` on the found declarations. | 1 |
+| [temp.inst]/2 | A class template specialization is implicitly instantiated when referenced in a context that requires a completely-defined object type or when its completeness affects the semantics of the program. | Looking into a specialization, for a member, a base, a special member or a trait, is such a context. The model instantiates on lookup and nowhere else. | 2 |
+| [temp.inst]/3 | The implicit instantiation of a class template specialization causes the implicit instantiation of the declarations, not the definitions, of its member functions, member templates and friends. | `Program.instantiatedMembers c`: the template's member declarations with `σ` substituted. The fragment has no definitions, so this is the whole of instantiation. | 2 |
+| [temp.inst]/10 | If the function selected by overload resolution can be determined without instantiating a class template definition, it is unspecified whether that instantiation takes place. | Nothing: a specialization that is only an argument type is never looked into, and no theorem rests on an instantiation happening. | 2 |
+| [temp.spec.general]/2, /4 | A class instantiated from a class template is an instantiated class; a member function instantiated from the member definition is an instantiated member function; a specialization is a class or member instantiated from a templated entity or explicitly specialized. | The instantiated declarations are ordinary `Decl`s for the ground type `X<int>`, so every judgement over a class applies to them unchanged. | 2 |
+| [temp.dep.type]/3, [class.member.lookup]/4 | A dependent base class is a dependent type that is not the current instantiation; the lookup set merges the direct non-dependent bases. | `Program.directBases (.spec n as)` is the template's bases with `σ` substituted, no longer dependent; the merge of /4 runs over them. `Subobject` becomes a path of types. | 2 |
+| [temp.point]/4 | The point of instantiation of a class template specialization referenced from a non-template context immediately precedes the namespace-scope declaration that refers to it. | `Program.pointOfInstantiation c : Option Nat`, the position of the first declaration that mentions `c`. | 2 |
+| [temp.point]/7 sentence 3 | A specialization for a class template has at most one point of instantiation within a translation unit. | `specialization_members_fixed`: the member search of a specialization gives the same declarations from every point at or after its point of instantiation, under `Program.templatesWellFormed`, the program-shape check that a class template's members precede the first declaration that refers to a specialization of it. | 2 |
+| [over.call.object]/1 to /3, [func.require]/1, [meta.rel]/3 | The call on an object of class type; `INVOKE`; `is_invocable`. | `classCallee : Ty → Option Ty`, `objectCandidates`, `impliedObject`, `objectCallAt` keyed by type; `specialization_callee_invocable` closes the residue. | 2 |
+| [over.match.funcs.general]/2 to /4 | The implicit object parameter and the implied object argument of a member call. | `Program.memberCallAt` leads its argument list with the implied object argument, as the object call does since 25 October 2026; the member functions being `const`, no earlier case moves. | 2 |
+| [class.copy.assign]/7, [class.default.ctor]/2 | A reference member deletes the defaulted copy and move assignment; a reference member without an initializer deletes the default constructor. | `argument_reference_deletes`: a class template with a member of its parameter's type has these deleted at a reference argument and not at an object type, by `value_nature_iff` over the instantiated members. | 2 |
+| [temp.deduct.general]/5, [temp.constr.decl], [expr.prim.req.compound]/1 | The operation object's constraint is a requires-expression whose expression is a member call. | `Env.fullWithin` answers the atom `fmap_call` by resolving `TC.fmap(declval<F>(), declval<T>())` on the instance's value type with the lookup's object as the implied object argument (`Program.memberInvoke`). `Decl.instance` gains the value's type; `Env.instantiate` returns it. `operation_constraint_is_member_call`. | 3 |
+| [class.member.lookup]/3 | The declaration set is the class's own when not empty. | `derivation_base_accurate`, and the hidden-member example on the real shape: an instance type deriving from `derive_functor<I>` that declares its own `fmap` hides the constrained one. | 3 |
+
+Out of the fragment, stated in the decision: explicit specializations
+of class templates and their members ([temp.expl.spec]/6), partial
+specializations of class templates and their members
+([temp.spec.partial.member]/1), member definitions outside the class
+([temp.mem.func]/1, [temp.mem.class], [temp.static]), static data
+members, member classes, friends, member enumerations, dependent names
+inside a template's own definition (every use of the fragment is
+outside every class, so lookup into the current instantiation never
+runs), the incomplete type of a declared-but-undefined template
+([temp.inst]/2 sentence 3), and the multiple points of instantiation of
+a member function specialization ([temp.point]/7 sentences 1 and 2),
+which concern definitions.
+
+### Design
+
+- **Members of a class template.** A member, a special member and a
+  conversion of a class template are `Decl.member`, `Decl.special` and
+  `Decl.converting` for the current instantiation, `currentInstantiation
+  n h = .spec' n [.param 0, …]`, exactly the spelling the Standard uses
+  for an out-of-line member, `A<T1,T2>::f1`. A member function or member
+  function template is a `Decl.function` or `Decl.functionTemplate`
+  whose scope ends in `.class n`, as a class's does, with the class's
+  parameters as `.param i`. `Decl.classTemplate` gains `bases` and
+  `protectedBases`, which may be dependent: `derive_functor : protected
+  Impl` is `protectedBases := [.param 0]`. The flat program stands, and
+  `Decl.isMember` is unchanged.
+- **Member templates.** A member template's own head follows the
+  class's in the numbering: with a class head of length `n`, the
+  member's `j`th own parameter is `.param (n + j)` in its declaration.
+  `Program.specializationBindings? (.spec n as)` runs `explicitStep` and
+  `defaultsStep` over the class head, as `validType` does, and
+  `Decl.instantiate` substitutes with the argument list `as' ++ [.param
+  0, …, .param (own - 1)]` through `Constraint.substArgs` and `Ty.subst`,
+  which are single-pass, so the class's arguments go in and the
+  member's own parameters come out renumbered from zero in one
+  substitution. The emitter names a parameter by its index, so the
+  class's are `T0, …` and the member's own continue the count, which is
+  what C++ needs for the two heads. A ground class has `σ = []` and
+  `Decl.instantiate` is the identity on it (`instantiate_ground`), so
+  the ground and template cases are one code path.
+- **Instantiation on lookup.** `Program.classKey? : Ty → Option (Ty ×
+  Bindings)`: a class name is itself with no bindings; a specialization
+  of a declared class template with a valid argument list is the
+  current instantiation with the bindings; anything else is none.
+  `membersOf`, `specialDecls`, `conversionsOf`, `directBases` and
+  `declarationSet` look the key up and instantiate what they find. The
+  lookup set over bases, `lookupSetWithin`, recurses through
+  `directBases`, which are substituted first, so the merge of
+  [class.member.lookup]/4 sees no dependent base. `Subobject` becomes
+  `List Ty`. Every function of `Overload/Members.lean` that took a class
+  name takes a type: `memberSearch`, `callOperators`, `surrogates`,
+  `objectCandidates`, `impliedObject`, `objectCallAt`, `memberCallAt`,
+  and `classCallee` in `Overload/Requires.lean` returns the type.
+  `Program.trait` and `Program.special` are already keyed by type and
+  need no change beyond the primitives beneath them.
+- **The member call's object.** `memberCallAt` leads with
+  `impliedObject cls`, the const lvalue the object call uses, and the
+  found members carry their implicit object parameter through
+  `Decl.withImplicitObject`. The fragment's member functions are all
+  `const`, so the object binds by the identity and no earlier resolution
+  changes; `member_call_object_inert` says so for the concrete programs
+  that exist, and the general inertness theorem the surrogate stage owes
+  is stated for both calls at once.
+- **Point of instantiation.** `Program.pointOfInstantiation c` is the
+  position of the first declaration that mentions `c`, where
+  [temp.point]/4 puts the point for a specialization referenced from a
+  non-template context. `Program.templatesWellFormed`: every member of a
+  class template follows its declaration and precedes that point, for
+  every specialization the program mentions. Under it, the member search
+  of a specialization is the same from every position at or after the
+  point (`specialization_members_fixed`), which is what "at most one
+  point of instantiation" means for a model without definitions. The
+  dependent-call machinery of phase 9 is untouched: a member call on a
+  specialization is not a dependent call, since its callee is not an
+  unqualified-id.
+- **The typeclass side.** `Decl.instance` gains `value : Option Ty`, the
+  type of the instance's value, mentioning the pattern's parameters;
+  `Env.ofProgram`'s `instantiate` returns it with the pattern's deduced
+  bindings substituted, and `instance_of<a, i>` stays the name when none
+  is given, so every existing theorem about lookup is unchanged.
+  `derive_functor` is declared as the class template it is, with `fmap`
+  and `replace` as member templates constrained by the requires-expressions
+  of the header, over the member-call requirement on `const Impl&`.
+  `Env.fullWithin` answers `fmap_call` one level down, as it answers a
+  requires-expression and a class-callee trait: the member call
+  `TC.fmap(declval<F>(), declval<T>())` on the value type with the
+  lookup's object as implied object argument (`Program.memberInvoke`).
+  `memberAtomics` is retired, and `ofProgram_member` is restated: the
+  computed environment is the accurate member exactly when the value
+  type's `fmap` is accurate, and `derivation_base_accurate` shows the
+  reduced header's is. The hidden-member program of
+  `Overload/Typeclass/Lookup.lean` is restated on the real shape.
+- **Emitter.** A class template renders with its bases, data members,
+  special members, conversions and member functions, the last with
+  their own heads, as a class does; the `head` renderer takes an offset
+  for a member template's own parameters. An instance with a value type
+  renders `inline constexpr value tc<pattern>{}`; the emitted encoding
+  cases that test which instance was selected through `selected<k>` are
+  restated to test the value type.
+
+### Decisions to record (`docs/decisions.md`)
+
+- `class-template-members` (new): the representation above, what is
+  instantiated and when, and the exclusions.
+- `lookup-scope`: log entry, a class template's scope is a class scope.
+- `expression-depth`: log entry, the operation object's member call
+  leaves the oracle.
+- `trait-residue`: log entry when stage 2 lands, closing the
+  class-callee residue.
+- `instance-inheritance`: log entry when stage 3 lands, the derivation
+  base is real and leak 2's program is stated on it.
+
+### Stages
+
+1. [record-phase-fifteen](#record-phase-fifteen), docs only: this
+   section, the phase row, the status, the theorem rows, the decision
+   entries, `Overload.Std.inScope`, the residue notes reworded to say
+   what they mean.
+2. [template-members](#template-members): `Decl.classTemplate` with
+   bases, `currentInstantiation`, members and member templates of a
+   class template, `specializationBindings?`, `classKey?`,
+   `Decl.instantiate` with `instantiate_ground`,
+   `member_template_arguments`, `membersOf`, `specialDecls`,
+   `conversionsOf` and `directBases` over a specialization, the emitter's
+   class template body, guards.
+3. [specialization-lookup](#specialization-lookup): `Overload/Members.lean`
+   keyed by type with `Subobject` as a path of types, `declarationSet`
+   instantiating, `classCallee` returning a type, `memberCallAt` with
+   its implied object argument, `pointOfInstantiation`,
+   `templatesWellFormed`, `specialization_members_fixed`,
+   `specialization_callee_invocable`, `argument_reference_deletes`;
+   emitted cases: a member call and an object call on a specialization,
+   `is_invocable` of a specialization callee through a call operator and
+   through a surrogate, traits of specializations with a member of the
+   parameter's type at an object type and at a reference type, a
+   specialization with a dependent base; the trait-residue log closed.
+4. [derivation-base](#derivation-base): `Decl.instance` with a value
+   type, `Env.instantiate` returning it, `derive_functor` as a class
+   template in `Overload/Typeclass/Encoding.lean`, `fmap_call` answered
+   by `Env.fullWithin` through `Program.memberInvoke`, `memberAtomics`
+   retired, `operation_constraint_is_member_call`,
+   `derivation_base_accurate`, the hidden-member program restated,
+   emitted encoding cases on the real derivation base.
+5. [class-template-docs](#class-template-docs): the guide, the
+   obligations' accurate-members row, the findings, this status,
+   `citations.md`, `make drift-check-current`.
+
+### Risks, recorded so the stages can watch for them
+
+`Decl.classTemplate` gains two fields, so every match on it is touched;
+`Subobject` as `List Ty` touches `LookupSet.merge` and its agreement
+proof; `classCallee` returning a type restates `invocable_class_iff_call`
+and `full_invocable_class`. The `decide` proofs over `Program.call` now
+run `explicitStep` and `defaultsStep` for every specialization looked
+into. `inheritance_erasure` erases the bases of named classes; a class
+template's dependent base is out of its reach, and the typeclass
+theorems that use erasure are on concrete programs with named classes,
+so none moves, but the theorem is not extended to specializations in
+this phase. `Ty.subst` leaves a constant argument's parameter alone
+when the binding is not a type, so a class template with a constant
+parameter whose members mention it needs the `.value` case checked in
+stage 1.
 
 ## Draft citations and prior art
 

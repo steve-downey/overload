@@ -158,6 +158,11 @@ proof needs to see inside a call that a constraint depends on.
   unexpanded concept-ids.
 
 ---
+- 2026-10-25 — Phase 15 planned: the operation object's constraint,
+  the member call `TC.fmap(declval<F>(), declval<T>())`, is to leave the
+  oracle (`memberAtomics` on the typeclass side) and be resolved on the
+  instance's value type by `Env.fullWithin`, as a requires-expression
+  and a class-callee trait are.
 
 ## lookup-scope
 
@@ -206,6 +211,10 @@ section has the cross-reference and the stages.
   computes a member call on the fragment's members.
 
 ---
+- 2026-10-25 — Phase 15 planned: a class template's scope is a class
+  scope ([basic.scope.class]/1), the same `.class n` step a class's
+  members use, and a specialization's members are what that scope
+  declares with the specialization's arguments substituted.
 
 ## ranking-fidelity
 
@@ -908,9 +917,10 @@ named so that a constraint written with it is visibly an assumption.
   in the environment below (`Program.traitAbove`). The base
   environment, `Env.ofProgram`, still answers it softly, so a trait of
   a class callee nested deeper than the program is long is not
-  satisfied. Still residue: a class template specialization as callee,
-  whose members the fragment's search does not see, and surrogate call
-  functions ([over.call.object]/2).
+  satisfied. Still residue: surrogate call functions
+  ([over.call.object]/2), and a class template specialization as
+  callee, because the fragment has no class template members and the
+  trait inherits that.
 - 2026-10-25 — Surrogate call functions are in ([over.call.object]/2,
   `Program.surrogates`), and with them the implied object argument: a
   call on an object resolves over its call operators carrying their
@@ -921,9 +931,16 @@ named so that a constraint written with it is visibly an assumption.
   trait). A member call `obj.f(args)` still leaves the object out. That
   the implicit object parameter changes no resolution over const call
   operators alone is stated as a target theorem, not proved; the
-  concrete programs decide it. Still residue: a class template
-  specialization as callee, and conversion functions declared in a base
-  class, which neither the sequences nor the surrogates see.
+  concrete programs decide it. Still residue: conversion functions
+  declared in a base class, which neither the sequences nor the
+  surrogates see, and the fragment's want of class template members,
+  which a specialization callee inherits.
+- 2026-10-25 — The two notes above first said "a class template
+  specialization as callee", a symptom. The cause is that the fragment
+  has no class template members, so a specialization has no call
+  operators to find. Phase 15 is the plan to give it them
+  (`docs/plan.md`, phase 15); the residue closes when its
+  specialization-lookup stage lands.
 
 ---
 
@@ -1166,3 +1183,45 @@ aggregate with a `const` member, which phase 13 had merged.
   default-initialized by a usable default constructor, a reference
   cannot be. GCC 15's library has no `is_implicit_lifetime`
   (`findings.md`); Clang 24 agrees with the model on every case.
+
+---
+
+## class-template-members
+
+**Question:** How does the fragment represent the members of a class
+template, and what does a specialization have?
+**Status:** DECIDED 25 October 2026.
+**Decision:** A class template has bases, possibly dependent, and its
+members, special members and conversions are declarations for the
+current instantiation, the class template's name followed by its head's
+parameters ([temp.dep.type]/1, [temp.decls.general]/2); its member
+functions and member function templates are declarations in its scope,
+which is a class scope ([basic.scope.class]/1). A member template's own
+parameters follow the class's in the numbering ([temp.mem]/1). A
+specialization has the template's member declarations with its
+arguments substituted, computed when the specialization is looked into
+and nowhere else ([temp.inst]/2, /3, [temp.mem.func]/2,
+[temp.res.general]/1), and its point of instantiation precedes the
+first declaration that refers to it ([temp.point]/4). Out: explicit and
+partial specializations of class templates and their members
+([temp.expl.spec]/6, [temp.spec.partial.member]/1), member definitions
+outside the class, static data members, member classes, friends,
+dependent names inside a template's own definition, the incomplete type
+of an undefined template, and the several points of instantiation of a
+member function specialization.
+**Why:** The fragment's class templates were empty, so a specialization
+had no members for any search to find, and `is_invocable` of a
+specialization callee inherited that as residue. The encoding's
+derivation base is a class template with constrained member templates
+and a dependent protected base, and the model stood in for it with a
+plain class and an oracle for the member call. The substitution of the
+specialization's arguments into the template's declarations is what the
+Standard calls the implicit instantiation of declarations, and the
+fragment has no definitions, so it is the whole of instantiation. The
+encoding's instances are partial specializations of a variable
+template, which the model has had since phase 1, so class template
+specializations other than the primary's have no consumer.
+**Decided by:** the author, on the plan of 25 October 2026.
+**Log:**
+
+- 2026-10-25 — Decided.

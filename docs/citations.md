@@ -631,7 +631,20 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 
 ## In scope, no counterpart yet
 
-Every in-scope paragraph has a counterpart in the model.
+- [[temp.class.general]/1](https://eel.is/c++draft/temp.class.general#1)
+- [[basic.scope.class]/1](https://eel.is/c++draft/basic.scope.class#1)
+- [[temp.dep.type]/1](https://eel.is/c++draft/temp.dep.type#1)
+- [[temp.dep.type]/3](https://eel.is/c++draft/temp.dep.type#3)
+- [[temp.decls.general]/2](https://eel.is/c++draft/temp.decls.general#2)
+- [[temp.local]/1](https://eel.is/c++draft/temp.local#1)
+- [[temp.mem]/1](https://eel.is/c++draft/temp.mem#1)
+- [[temp.mem.func]/2](https://eel.is/c++draft/temp.mem.func#2)
+- [[temp.inst]/2](https://eel.is/c++draft/temp.inst#2)
+- [[temp.inst]/3](https://eel.is/c++draft/temp.inst#3)
+- [[temp.inst]/10](https://eel.is/c++draft/temp.inst#10)
+- [[temp.spec.general]/2](https://eel.is/c++draft/temp.spec.general#2)
+- [[temp.spec.general]/4](https://eel.is/c++draft/temp.spec.general#4)
+- [[temp.point]/4](https://eel.is/c++draft/temp.point#4)
 
 ## Assumptions
 

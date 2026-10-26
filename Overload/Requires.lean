@@ -205,9 +205,10 @@ namespace Program
 
 /-- The class a callee of class type names, when the member search can
 reach it: the referred type with its top-level `const` stripped, when
-that is a class named by a class-name. A specialization of a class
-template is a class whose members the fragment's search does not see,
-and stays with the residue. -/
+that is a class named by a class-name. The fragment has no class
+template members, so a specialization of a class template has none for
+the search to find, and the trait inherits that (`docs/plan.md`, phase
+15). -/
 def classCallee (f : Ty) : Option String :=
   match f.referred.stripConst with
   | .named c => if (Ty.named c).isClass then some c else none
