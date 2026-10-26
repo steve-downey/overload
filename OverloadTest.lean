@@ -21,6 +21,7 @@ import OverloadTest.Names
 import OverloadTest.Adl
 import OverloadTest.Members
 import OverloadTest.ClassTemplates
+import OverloadTest.Derivation
 import OverloadTest.Virtual
 import OverloadTest.Exceptions
 import OverloadTest.Aggregate

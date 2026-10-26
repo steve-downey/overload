@@ -536,10 +536,13 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
       text := text ++ s!"    static_assert(sizeof(T) == 0, \"no {c} instance for this type\");\n"
       text := text ++ s!"    static constexpr int value = 0;\n};\n"
       text := text ++ s!"template <class T>\ninline constexpr auto {c} = {c}_instance<T>::value;\n"
-    | .instance c h pat =>
+    | .instance c h pat v =>
       let k := (instances.find? (·.1 == c)).map (·.2) |>.getD 0
       instances := (c, k + 1) :: instances.filter (·.1 != c)
-      text := s!"{head h}\ninline constexpr selected<{k}> {c}<{ty pat}>\{};\n"
+      let value := match v with
+        | some v => ty v
+        | none => s!"selected<{k}>"
+      text := s!"{head h}\ninline constexpr {value} {c}<{ty pat}>\{};\n"
     | .concept n body arity =>
       let ps := if arity ≤ 1 then "class T"
         else String.intercalate ", " ((List.range arity).map fun i => s!"class T{i}")
@@ -669,7 +672,7 @@ def qualifyDecl (q : List (String × String)) : Decl → Decl
     .functionTemplate { ft with head := ft.head.map (qualifyParam q), params := ft.params.map (qualifyTy q)
                                 ret := qualifyTy q ft.ret, constraint := ft.constraint.map (qualifyConstraint q)
                                 mandate := ft.mandate.map (qualifyConstraint q) }
-  | .instance c h pat => .instance c (h.map (qualifyParam q)) (qualifyTy q pat)
+  | .instance c h pat v => .instance c (h.map (qualifyParam q)) (qualifyTy q pat) (v.map (qualifyTy q))
   | .use c t => .use c (qualifyTy q t)
   | .dependentCall callee as s => .dependentCall callee (as.map fun a => { a with ty := qualifyTy q a.ty }) s
   | .member c m => .member (qualifyTy q c) { m with ty := qualifyTy q m.ty }

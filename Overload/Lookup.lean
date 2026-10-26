@@ -46,13 +46,24 @@ namespace Program
 pattern, in declaration order. -/
 def instancesOf (p : Program) (tc : String) : List (Head × Ty) :=
   p.filterMap fun
-    | .instance c h pat => if c = tc then some (h, pat) else none
+    | .instance c h pat _ => if c = tc then some (h, pat) else none
     | _ => none
 
 /-- Which partial specialization of `tc` the type `a` selects, by partial
 specialization matching and ordering: lookup. -/
 def selectInstance (p : Program) (tc : String) (a : Ty) : Resolution Nat :=
   select tc (p.instancesOf tc) a
+
+/-- The type the selected instance declares its value to have, at the
+argument, with the pattern's deduced arguments substituted; `none` when
+no instance is selected or the selected one declares no value type. -/
+def instanceValueType? (p : Program) (tc : String) (a : Ty) : Option Ty :=
+  match p.selectInstance tc a with
+  | .selected i =>
+    match (p.filter (isInstanceOf tc))[i]? with
+    | some (.instance _ _ pat (some v)) => (deduceTy pat a []).map fun σ => v.subst σ
+    | _ => none
+  | _ => none
 
 theorem instancesOf_insert (p₁ p₂ : Program) (tc : String) (h : Head) (pat : Ty) :
     instancesOf (p₁ ++ .instance tc h pat :: p₂) tc = instancesOf p₁ tc ++ (h, pat) :: instancesOf p₂ tc := by

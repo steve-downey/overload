@@ -126,6 +126,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[class.mem.general]/5](https://eel.is/c++draft/class.mem.general#5) | rule | `Overload.Member` | `Overload.Program` |
 | [[class.mem.general]/15](https://eel.is/c++draft/class.mem.general#15) | rule | `Overload.Member` | `Overload.Program` |
 | [[class.member.lookup]/3](https://eel.is/c++draft/class.member.lookup#3) | rule | `Overload.LookupSetRel.here` | `Overload.Members` |
+| [[class.member.lookup]/3](https://eel.is/c++draft/class.member.lookup#3) | theorem | `Overload.Typeclass.unconstrained_member_hides_derivation_base` | `Overload.Typeclass.Derivation` |
 | [[class.member.lookup]/3 sentence 1](https://eel.is/c++draft/class.member.lookup#3.sentence-1) | rule | `Overload.Program.declarationSet` | `Overload.Members` |
 | [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4) | rule | `Overload.LookupSetRel.bases` | `Overload.Members` |
 | [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4) | rule | `Overload.LookupSetRel.exhausted` | `Overload.Members` |
@@ -248,6 +249,8 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[dcl.ref]/1 sentence 3](https://eel.is/c++draft/dcl.ref#1.sentence-3) | rule | `Overload.formConst` | `Overload.Steps` |
 | [[dcl.ref]/5 sentence 1](https://eel.is/c++draft/dcl.ref#5.sentence-1) | rule | `Overload.formPtr` | `Overload.Steps` |
 | [[dcl.type.decltype]/1](https://eel.is/c++draft/dcl.type.decltype#1) | rule | `Overload.Program.callExpression` | `Overload.Requires` |
+| [[dcl.type.decltype]/1](https://eel.is/c++draft/dcl.type.decltype#1) | rule | `Overload.Program.lookupValueType` | `Overload.Requires` |
+| [[dcl.type.decltype]/1](https://eel.is/c++draft/dcl.type.decltype#1) | theorem | `Overload.lookup_member_requirement_iff_call` | `Overload.Requires` |
 | [[except.spec]/1](https://eel.is/c++draft/except.spec#1) | rule | `Overload.Decl.throwing` | `Overload.Virtual` |
 | [[except.spec]/2](https://eel.is/c++draft/except.spec#2) | rule | `Overload.Emit.noexceptText` | `Overload.Emit` |
 | [[except.spec]/3](https://eel.is/c++draft/except.spec#3) | rule | `Overload.DeduceTy.fn` | `Overload.Deduction` |
@@ -305,7 +308,11 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | rule | `Overload.Constraint.Requirement.memberCall` | `Overload.Constraint` |
 | [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | rule | `Overload.Constraint.Requirement.simple` | `Overload.Constraint` |
 | [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | rule | `Overload.Program.expression` | `Overload.Requires` |
+| [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | rule | `Overload.Program.memberCallExpression` | `Overload.Requires` |
 | [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | rule | `Overload.Program.requirementHolds` | `Overload.Requires` |
+| [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | theorem | `Overload.Typeclass.derivation_base_accurate` | `Overload.Typeclass.Derivation` |
+| [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | theorem | `Overload.Typeclass.operation_constraint_is_member_call` | `Overload.Typeclass.Derivation` |
+| [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | theorem | `Overload.lookup_member_requirement_iff_call` | `Overload.Requires` |
 | [[expr.prim.req.simple]/1](https://eel.is/c++draft/expr.prim.req.simple#1) | theorem | `Overload.member_requirement_iff_call` | `Overload.Requires` |
 | [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1) | rule | `Overload.Constraint.Requirement.type` | `Overload.Constraint` |
 | [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1) | rule | `Overload.Program.requirementHolds` | `Overload.Requires` |
@@ -462,9 +469,13 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[over.match.ctor]/1](https://eel.is/c++draft/over.match.ctor#1) | rule | `Overload.Program.ctorCandidates` | `Overload.Special` |
 | [[over.match.ctor]/1](https://eel.is/c++draft/over.match.ctor#1) | rule | `Overload.UserConv.candidate` | `Overload.Ranking` |
 | [[over.match.funcs.general]/2](https://eel.is/c++draft/over.match.funcs.general#2) | rule | `Overload.Decl.withImplicitObject` | `Overload.Members` |
+| [[over.match.funcs.general]/2](https://eel.is/c++draft/over.match.funcs.general#2) | rule | `Overload.Program.memberCallExpression` | `Overload.Requires` |
 | [[over.match.funcs.general]/2](https://eel.is/c++draft/over.match.funcs.general#2) | rule | `Overload.Program.memberCallOn` | `Overload.Members` |
+| [[over.match.funcs.general]/3](https://eel.is/c++draft/over.match.funcs.general#3) | rule | `Overload.Program.memberCallExpression` | `Overload.Requires` |
 | [[over.match.funcs.general]/3](https://eel.is/c++draft/over.match.funcs.general#3) | rule | `Overload.Program.memberCallOn` | `Overload.Members` |
 | [[over.match.funcs.general]/3](https://eel.is/c++draft/over.match.funcs.general#3) | rule | `Overload.impliedObject` | `Overload.Members` |
+| [[over.match.funcs.general]/3](https://eel.is/c++draft/over.match.funcs.general#3) | theorem | `Overload.Typeclass.operation_constraint_is_member_call` | `Overload.Typeclass.Derivation` |
+| [[over.match.funcs.general]/3](https://eel.is/c++draft/over.match.funcs.general#3) | theorem | `Overload.lookup_member_requirement_iff_call` | `Overload.Requires` |
 | [[over.match.funcs.general]/4](https://eel.is/c++draft/over.match.funcs.general#4) | rule | `Overload.Decl.withImplicitObject` | `Overload.Members` |
 | [[over.match.funcs.general]/5](https://eel.is/c++draft/over.match.funcs.general#5) | rule | `Overload.Program.userSequence` | `Overload.Ranking` |
 | [[over.match.funcs.general]/8 sentence 1](https://eel.is/c++draft/over.match.funcs.general#8.sentence-1) | rule | `Overload.Resolves.generationSoft` | `Overload.Specs` |
@@ -520,6 +531,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.constr.atomic]/3 sentence 1](https://eel.is/c++draft/temp.constr.atomic#3.sentence-1) | rule | `Overload.Constraint.satisfied` | `Overload.Constraint` |
 | [[temp.constr.atomic]/3 sentence 2](https://eel.is/c++draft/temp.constr.atomic#3.sentence-2) | rule | `Overload.Constraint.satisfied_atomic_soft` | `Overload.Constraint` |
 | [[temp.constr.atomic]/3 sentence 5](https://eel.is/c++draft/temp.constr.atomic#3.sentence-5) | rule | `Overload.IllFormedNdr.satisfactionChanged` | `Overload.Units` |
+| [[temp.constr.decl]/1](https://eel.is/c++draft/temp.constr.decl#1) | theorem | `Overload.Typeclass.derivation_base_accurate` | `Overload.Typeclass.Derivation` |
 | [[temp.constr.normal]/1](https://eel.is/c++draft/temp.constr.normal#1) | rule | `Overload.Constraint.conceptId` | `Overload.Constraint` |
 | [[temp.constr.normal]/1](https://eel.is/c++draft/temp.constr.normal#1) | rule | `Overload.Constraint.requires` | `Overload.Constraint` |
 | [[temp.constr.normal]/1](https://eel.is/c++draft/temp.constr.normal#1) | rule | `Overload.Decl.conceptDef` | `Overload.Program` |
@@ -544,6 +556,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.deduct.call]/4](https://eel.is/c++draft/temp.deduct.call#4) | theorem | `Overload.deduction_ignores_conversion` | `Overload.Steps` |
 | [[temp.deduct.call]/5 sentence 1](https://eel.is/c++draft/temp.deduct.call#5.sentence-1) | rule | `Overload.deduceParam` | `Overload.Deduction` |
 | [[temp.deduct.general]/2 sentence 2](https://eel.is/c++draft/temp.deduct.general#2.sentence-2) | rule | `Overload.explicitStep` | `Overload.Steps` |
+| [[temp.deduct.general]/5](https://eel.is/c++draft/temp.deduct.general#5) | theorem | `Overload.Typeclass.operation_constraint_is_member_call` | `Overload.Typeclass.Derivation` |
 | [[temp.deduct.general]/5 sentence 1](https://eel.is/c++draft/temp.deduct.general#5.sentence-1) | rule | `Overload.callStep` | `Overload.Steps` |
 | [[temp.deduct.general]/5 sentence 2](https://eel.is/c++draft/temp.deduct.general#5.sentence-2) | rule | `Overload.defaultsStep` | `Overload.Steps` |
 | [[temp.deduct.general]/5 sentence 4](https://eel.is/c++draft/temp.deduct.general#5.sentence-4) | rule | `Overload.ConvertsTo.dependent` | `Overload.Arguments` |

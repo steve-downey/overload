@@ -298,8 +298,11 @@ inductive Decl where
   instance. The design the step-order probe tests. -/
   | lookupHard (name : String)
   /-- A partial specialization of a lookup variable template, an instance,
-  for the types matching `pattern` under `head`. -/
-  | instance (name : String) (head : Head) (pattern : Ty)
+  for the types matching `pattern` under `head`; `value`, when given, is
+  the type of its value, in terms of the head's parameters, which a
+  member call on the instance resolves against. Without it the value is
+  named `instance_of<a, i>`, a class with no members. -/
+  | instance (name : String) (head : Head) (pattern : Ty) (value : Option Ty := none)
   /-- A point of the program that instantiates the lookup for a type. -/
   | use (name : String) (ty : Ty)
   /-- An object, `inline constexpr cls name{};`: an instance object
@@ -506,7 +509,7 @@ def functionTemplate? (p : Program) (name : String) : Option FunctionTemplate :=
 
 /-- Is the declaration an instance of `tc`? -/
 def isInstanceOf (tc : String) : Decl → Bool
-  | .instance c _ _ => c == tc
+  | .instance c _ _ _ => c == tc
   | _ => false
 
 /-- No partial specialization of a lookup is declared at or after a use of

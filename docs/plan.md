@@ -867,7 +867,32 @@ Status, 15 October 2026:
   carries that as a hypothesis. And an object of specialization type
   cannot be declared, since `Decl.object` names its class, so the call
   on such an object is observed through `is_invocable` and the member
-  call through `declval`, not through a named object.
+  call through `declval`, not through a named object. Stage 3,
+  derivation-base, landed 26 October 2026: `Decl.instance` with the
+  type of its value, `Program.instanceValueType?`,
+  `Program.lookupValueType` and `Ty.withClass`, the member-call
+  requirement formed through the environment with its object's class
+  read through the lookup (`Program.memberCallExpression`),
+  `lookup_member_requirement_iff_call`, and in
+  `Overload/Typeclass/Derivation.lean` the derivation base as the class
+  template it is (`deriveFunctor`, with `constant_function` and
+  `replace`), the operation object with the header's requires-expression
+  (`fmapResolved`), `operation_constraint_is_member_call`,
+  `derivation_base_accurate`, and the examples
+  `resolved_operation_example`, `inaccurate_oracle_example`,
+  `replace_through_fmap_example` and
+  `unconstrained_member_hides_derivation_base`. Nine emitted cases of
+  the encoding agree with GCC 15 and Clang 24, the resolved operation
+  object refusing `(int, box<int>)` where the abstract object's oracle
+  says true among them. Two departures. `memberAtomics` is not retired:
+  it stays as the specification of the abstract operation object, which
+  the theorems of `Encoding`, `Members`, `Routes` and `Lookup` are
+  about, and the resolved object is the header's; the two agree exactly
+  where the implementation's member is accurate, which is what the
+  oracle assumed and the environment now computes. And the instance's
+  value type does not replace `instance_of<a, i>` as the name of the
+  lookup's value in deduction: it enters only where a member call on
+  the value resolves, so no theorem about the lookup moved.
 
 ## Target theorems
 
@@ -935,8 +960,8 @@ its counterexample and is a finding, not a setback.
 | specialization-members-fixed | The declaration set of a class template specialization gives the same declarations from every point at or after its point of instantiation, which precedes the first declaration that refers to it, in a program whose class templates' members precede that point ([temp.point]/4, /7, [temp.inst]/3). Added 25 October 2026; proved 26 October 2026 (`specialization_members_fixed`), for the specialization's own declaration set, with ground arguments. | 15 |
 | specialization-callee-invocable | `is_invocable` of a class template specialization callee is the call on the object over the specialization's call operators and surrogates, so the class-callee residue closes ([func.require]/1, [over.call.object]/1 to /3). Added 25 October 2026; `invocable_class_iff_call` holds for the type since 26 October 2026, and `specialization_callee_invocable` computes the trait through a call operator and a surrogate. | 15 |
 | argument-reference-deletes | A class template with a member of its parameter's type has deleted copy and move assignment at a reference argument and non-deleted at an object type: value nature is a property of the specialization, decided by the argument ([class.copy.assign]/7, through value-nature-iff). Added 25 October 2026; shown by computation 26 October 2026 (`argument_reference_deletes`), with the emitted cases agreeing. | 15 |
-| operation-constraint-is-member-call | The operation object's constraint, `TC.fmap(declval<F>(), declval<T>())`, is the member call on the instance's value type with the lookup's object as the implied object argument: the environment computes what the typeclass side's oracle assumed, and the accurate-member hypothesis of `fmapObject_member` is discharged by computation ([expr.prim.req.compound]/1, [over.match.funcs.general]/3). Added 25 October 2026. | 15 |
-| derivation-base-accurate | The derivation base's `fmap` is constrained by the member call its body makes on `Impl`, so a probe of `fmap` through `derive_functor<Impl>` fails softly exactly where `Impl`'s `fmap` is not viable, and the accurate-members obligation holds by construction for the reduced encoding; an instance type that declares its own unconstrained `fmap` hides it ([class.member.lookup]/3). Added 25 October 2026. | 15 |
+| operation-constraint-is-member-call | The operation object's constraint, `TC.fmap(declval<F>(), declval<T>())`, is the member call on the instance's value type with the lookup's object as the implied object argument: the environment computes what the typeclass side's oracle assumed ([expr.prim.req.simple]/1, [over.match.funcs.general]/3). Added 25 October 2026; proved 26 October 2026 (`operation_constraint_is_member_call`, through `lookup_member_requirement_iff_call`), with `inaccurate_oracle_example` the argument list where the oracle and the computation part. | 15 |
+| derivation-base-accurate | The derivation base's `fmap` is constrained by the member call its body makes on `Impl`, so a probe of `fmap` through `derive_functor<Impl>` fails softly exactly where `Impl`'s `fmap` is not viable, and the accurate-members obligation holds by construction for the reduced encoding; an instance type that declares its own unconstrained `fmap` hides it ([class.member.lookup]/3). Added 25 October 2026; proved 26 October 2026 (`derivation_base_accurate`, `unconstrained_member_hides_derivation_base`). | 15 |
 
 Stability is the theorem that says open polymorphism has no surprises. Its
 hypotheses are expected to include soft failure of a missing instance and

@@ -142,7 +142,7 @@ def Decl.types : Decl → List Ty
   | .classTemplate _ h bs ps _ => h.filterMap (·.default) ++ bs ++ ps
   | .function _ ps _ _ _ r => ps ++ [r]
   | .functionTemplate ft => ft.head.filterMap (·.default) ++ ft.params ++ [ft.ret]
-  | .instance _ h pat => h.filterMap (·.default) ++ [pat]
+  | .instance _ h pat v => h.filterMap (·.default) ++ pat :: v.toList
   | .use _ t => [t]
   | .object _ cls _ => [.named cls]
   | .dependentCall _ args _ => args.map (·.ty)
