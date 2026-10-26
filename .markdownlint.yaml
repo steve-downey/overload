@@ -6,3 +6,7 @@ MD033: false
 # Supress warning about the same heading twice unless they are in the same block
 MD024:
   siblings_only: true
+
+# MD013/line-length : https://github.com/DavidAnson/markdownlint/blob/main/doc/md013.md
+# Prose is written in semantic line breaks, not wrapped to a column; no line-length limit.
+MD013: false
