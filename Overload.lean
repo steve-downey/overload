@@ -98,6 +98,12 @@ is the map.
 #audit Overload.specialization_members_fixed
 #audit Overload.specialization_callee_invocable
 #audit Overload.argument_reference_deletes
+#audit Overload.lookup_member_requirement_iff_call
+#audit Overload.Typeclass.operation_constraint_is_member_call
+#audit Overload.Typeclass.derivation_base_accurate
+#audit Overload.Typeclass.resolved_operation_example
+#audit Overload.Typeclass.inaccurate_oracle_example
+#audit Overload.Typeclass.unconstrained_member_hides_derivation_base
 #audit Overload.invocable_class_iff_call
 #audit Overload.nothrow_invocable_class_invocable
 #audit Overload.full_invocable_class

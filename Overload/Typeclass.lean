@@ -10,6 +10,7 @@ import Overload.Typeclass.Arguments
 import Overload.Typeclass.Conversion
 import Overload.Typeclass.ValueNature
 import Overload.Typeclass.Laws
+import Overload.Typeclass.Derivation
 import Overload.Typeclass.Emit
 
 /-!

@@ -9,6 +9,7 @@ import Overload.Typeclass.Conversion
 import Overload.Typeclass.ValueNature
 import Overload.Typeclass.Laws
 import Overload.Typeclass.Arguments
+import Overload.Typeclass.Derivation
 
 /-!
 # The emitted cases of the encoding
@@ -662,6 +663,102 @@ def monadAlgorithmSelects : Case :=
     source := "computed by Program.call"
     atomics := monadShapes }
 
+/-! ### The derivation base
+
+`derive_functor<Impl>` as the header declares it, instances whose values
+are specializations of it, and the operation object with its constraint
+resolved as the member call it is. The implementation `box_impl` takes
+`(Fn, box<int>)`; `list_impl`'s `fmap` is a member template over the
+function. -/
+
+/-- The resolved operation object selects at `(Fn, box<int>)`. -/
+def derivedFmapSelects : Case :=
+  { name := "derived_fmap_selects"
+    cite := cite "expr.prim.req.simple#1"
+    program := deriveExample
+    query := .call "fmap" [fn, { ty := .spec' "box" [int] }] (.selected 0)
+    source := "computed by resolve, the constraint resolved as a member call on the instance's value"
+    prelude := prelude }
+
+/-- At `(int, box<int>)` the instance is selected but `box_impl::fmap`
+takes an `Fn`: the constraint is false, where the abstract object's oracle
+would have said true. -/
+def derivedFmapInaccurate : Case :=
+  { name := "derived_fmap_argument_not_viable"
+    cite := cite "expr.prim.req.simple#1"
+    program := deriveExample
+    query := .call "fmap" [{ ty := int }, { ty := .spec' "box" [int] }] .noMatch
+    source := "computed by resolve, the constraint resolved as a member call on the instance's value"
+    prelude := prelude }
+
+/-- A member template implementation takes any function. -/
+def derivedFmapMemberTemplate : Case :=
+  { name := "derived_fmap_member_template"
+    cite := cite "temp.mem.func#2"
+    program := deriveExample
+    query := .call "fmap" [{ ty := int }, { ty := .spec' "list" [int] }] (.selected 0)
+    source := "computed by resolve, the constraint resolved as a member call on the instance's value"
+    prelude := prelude }
+
+/-- No instance at `int`: the lookup is the primary, and the call is not
+viable. -/
+def derivedFmapMissing : Case :=
+  { name := "derived_fmap_missing_soft"
+    cite := cite "temp.deduct.general#5.sentence-7"
+    program := deriveExample
+    query := .call "fmap" [fn, { ty := int }] .noMatch
+    source := "computed by resolve, the constraint resolved as a member call on the instance's value"
+    prelude := prelude }
+
+/-- The base's `fmap` on `derive_functor<box_impl>` directly: viable where
+`box_impl::fmap` is, not viable where it is not. -/
+def derivedMemberFmap : Case :=
+  { name := "derived_member_fmap_accurate"
+    cite := cite "temp.constr.decl#1"
+    program := deriveExample
+    query := .memberCall (.spec' "derive_functor" [.named "box_impl"]) "fmap" [fn, { ty := .spec' "box" [int] }]
+      (.selected 0)
+    source := "computed by Program.memberCallAt over the instantiated member"
+    prelude := prelude }
+def derivedMemberFmapNotViable : Case :=
+  { name := "derived_member_fmap_not_viable"
+    cite := cite "temp.constr.decl#1"
+    program := deriveExample
+    query := .memberCall (.spec' "derive_functor" [.named "box_impl"]) "fmap" [{ ty := int }, { ty := .spec' "box" [int] }]
+      .noMatch
+    source := "computed by Program.memberCallAt over the instantiated member"
+    prelude := prelude }
+
+/-- `replace` derived from `fmap` with `constant_function`: viable on the
+member template implementation, not on the one that takes an `Fn`. -/
+def derivedReplaceThroughFmap : Case :=
+  { name := "derived_replace_through_fmap"
+    cite := cite "temp.constr.decl#1"
+    program := deriveExample
+    query := .memberCall (.spec' "derive_functor" [.named "list_impl"]) "replace" [{ ty := .spec' "list" [int] }, { ty := int }]
+      (.selected 0)
+    source := "computed by Program.memberCallAt over the instantiated member"
+    prelude := prelude }
+def derivedReplaceNotViable : Case :=
+  { name := "derived_replace_not_viable"
+    cite := cite "temp.constr.decl#1"
+    program := deriveExample
+    query := .memberCall (.spec' "derive_functor" [.named "box_impl"]) "replace" [{ ty := .spec' "box" [int] }, { ty := int }]
+      .noMatch
+    source := "computed by Program.memberCallAt over the instantiated member"
+    prelude := prelude }
+
+/-- An instance type derived from the base with its own unconstrained
+`fmap` hides the constrained one: the probe resolves over its own at an
+argument the base would refuse. -/
+def derivedHiddenMember : Case :=
+  { name := "derived_unconstrained_member_hides"
+    cite := cite "class.member.lookup#3"
+    program := hidingDerivedProgram
+    query := .memberCall (.named "box_monad") "fmap" [{ ty := int }, { ty := .spec' "box" [int] }] (.selected 0)
+    source := "computed by Program.memberCallAt"
+    prelude := prelude }
+
 /-- Every case of the encoding. -/
 def cases : List Case :=
   [ opObjectSelects, opObjectNormalizedKey, opObjectMissingSoft, opObjectAmbiguousHard
@@ -675,7 +772,10 @@ def cases : List Case :=
   , conversionLeakGeneric, conversionLeakConcrete, conversionSitesAmbiguous, conversionExplicitDead
   , routesValueConverted
   , instanceTriviallyCopyable, instanceEmpty, instanceStandardLayout, referenceInstanceNotAssignable
-  , copyConstraintShields, copyMandateIllFormed, refinementSelectsMonad, monadAlgorithmSelects ]
+  , copyConstraintShields, copyMandateIllFormed, refinementSelectsMonad, monadAlgorithmSelects
+  , derivedFmapSelects, derivedFmapInaccurate, derivedFmapMemberTemplate, derivedFmapMissing
+  , derivedMemberFmap, derivedMemberFmapNotViable, derivedReplaceThroughFmap, derivedReplaceNotViable
+  , derivedHiddenMember ]
 
 /-- What the model computes for the encoding's cases, in the encoding's
 environment. -/

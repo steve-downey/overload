@@ -163,6 +163,11 @@ proof needs to see inside a call that a constraint depends on.
   oracle (`memberAtomics` on the typeclass side) and be resolved on the
   instance's value type by `Env.fullWithin`, as a requires-expression
   and a class-callee trait are.
+- 2026-10-26 — Landed as `fmapResolved` and
+  `operation_constraint_is_member_call`: the member call is resolved on
+  the type the instance declares its value to have. The oracle stays
+  for the abstract object, as its specification; `inaccurate_oracle_example`
+  is an argument list where the two differ.
 
 ## lookup-scope
 
@@ -349,6 +354,12 @@ operations from the Monad ones.
   The obligation is refinement by shape (`obligations.md`).
 
 ---
+- 2026-10-26 — Phase 15's derivation-base stage declares
+  `derive_functor<Impl>` as the class template it is, with its
+  constrained member templates and its protected dependent base
+  (`Overload/Typeclass/Derivation.lean`). Leak 2's program is unchanged:
+  deduction from a derived class reads the base's name and arguments,
+  never its members, so `derived_class_deduction` stands as stated.
 
 ## termination-condition
 
@@ -1254,3 +1265,16 @@ specializations other than the primary's have no consumer.
   earlier case moved. An object of specialization type is not
   declarable, `Decl.object` naming a class, so the call on one is
   observed as `is_invocable`.
+- 2026-10-26 — Stage derivation-base landed. An instance may declare
+  the type of its value (`Decl.instance`), which enters only where a
+  member call on the value resolves: the lookup's value keeps its name
+  `instance_of<a, i>` in deduction, so nothing about the lookup moved.
+  A member-call requirement forms its types through the environment
+  and reads the object's class through the lookup when
+  `remove_cvref_t<decltype(TC)>` names one
+  (`Program.lookupValueType`). The derivation base is the class
+  template it is, and the operation object's constraint is the header's
+  requires-expression, resolved; the abstract object's oracle
+  (`memberAtomics`) stays as the specification the earlier theorems are
+  about, agreeing with the computation exactly where the
+  implementation's member is accurate.

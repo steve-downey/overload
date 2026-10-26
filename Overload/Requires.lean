@@ -83,27 +83,66 @@ expression. -/
 def callHolds (p : Program) (env : Env) (decls : List Decl) (args : List CallArg) : Subst Bool :=
   (p.callExpression env decls args).map (·.isSome)
 
+/-- The class type of the object a member call is on, from the type the
+requirement names for it: for `remove_cvref_t<decltype(TC)>` with `TC`
+bound to a lookup's variable, which forming leaves as the reference to
+the lookup, the type the selected instance declares its value to have,
+or the name the environment gives the value; for anything else, the
+type itself. -/
+@[std rule "dcl.type.decltype#1"]
+def lookupValueType (p : Program) (env : Env) : Ty → Subst Ty
+  | .ref (.lookup n a) | .lookup n a =>
+    match p.instanceValueType? n a with
+    | some v => .ok v
+    | none => env.instantiate n a
+  | t => .ok t.typeOfValue
+
+/-- The object's type with its class replaced and its reference and
+`const` kept. -/
+def _root_.Overload.Ty.withClass (cls c : Ty) : Ty :=
+  match cls with
+  | .lref t => .lref (go t)
+  | .rref t => .rref (go t)
+  | t => go t
+where
+  go : Ty → Ty
+    | .const _ => .const c
+    | _ => c
+
+/-- The expression a member call `declval<cls>().callee(args)` is: the
+members the search finds in the object's class, each with its implicit
+object parameter, resolved over the object followed by the arguments. -/
+@[std rule "expr.prim.req.simple#1" "over.match.funcs.general#2" "over.match.funcs.general#3"]
+def memberCallExpression (p : Program) (env : Env) (cls : Ty) (callee : String) (args : List Ty) :
+    Subst (Option Expression) :=
+  let c := cls.referred.stripConst
+  if c.isClass then
+    match p.memberSearch p.length c callee with
+    | .selected ms =>
+      p.callExpression env ((entities ms).map (Decl.withImplicitObject c)) (declval cls :: args.map declval)
+    | _ => .ok none
+  else .ok none
+
 /-- The expression an expression requirement is, with its types already
 substituted, if it is valid: a simple-requirement is the call
 `callee(declval<args>()...)` at the end of the program, in the global
-scope; a member call is `declval<cls>()`'s call of a member; `T{args}`
-is a prvalue of `T` when the braced initialization is well-formed,
-whether it is potentially throwing left unsaid. A type-requirement, a
-compound-requirement and a nested-requirement are not expressions. -/
+scope; a member call is `declval<cls>()`'s call of a member, its types
+formed and the object's class read through the lookup whose value it
+is, when it is one; `T{args}` is a prvalue of `T` when the braced
+initialization is well-formed, whether it is potentially throwing left
+unsaid. A type-requirement, a compound-requirement and a
+nested-requirement are not expressions. -/
 @[std rule "expr.prim.req.simple#1"]
 def expression (p : Program) (env : Env) : Constraint.Requirement → Subst (Option Expression)
   | .simple callee args =>
     match p.callCandidates p.length [] callee (args.map declval) with
     | .selected (fs, as) => p.callExpression env fs as
     | .illFormed _ | .noMatch | .ambiguous _ => .ok none
-  | .memberCall cls callee args =>
-    let c := cls.referred.stripConst
-    if c.isClass then
-      match p.memberSearch p.length c callee with
-      | .selected ms =>
-        p.callExpression env ((entities ms).map (Decl.withImplicitObject c)) (declval cls :: args.map declval)
-      | _ => .ok none
-    else .ok none
+  | .memberCall cls callee args => do
+    let cls ← form env cls
+    let args ← formAll env args
+    let v ← p.lookupValueType env cls.referred.stripConst
+    p.memberCallExpression env (cls.withClass v) callee args
   | .braceInit t as =>
     let formed : Subst Bool :=
       if !(t :: as).all Ty.concrete then .soft "a braced initialization of a dependent type"
@@ -165,33 +204,79 @@ def requirementsHold (p : Program) (env : Env) : List Constraint.Requirement →
 
 end Program
 
-/-- A requirement that calls a member of a class holds exactly where the
-member call is viable and well-formed, when generating its candidates is
-no hard error: a probe of a member through a requires-expression says
-what the call says. -/
-@[std theorem "expr.prim.req.simple#1"]
-theorem member_requirement_iff_call (p : Program) (env : Env) (c : Ty) (f : String) (args : List Ty)
-    (hc : c.isClass = true) (hcs : c.stripConst = c) (hcr : c.referred = c)
-    (hgen : ∀ ms, p.memberSearch p.length c f = .selected ms →
-      ∀ r, generate .text env (((entities ms).map (Decl.withImplicitObject c)).map p.normalizeDecl)
-        (Program.declval c :: args.map Program.declval) [] ≠ .hard r) :
-    p.requirementHolds env (.memberCall c f args) = .ok true ↔
-      ∃ cand, p.memberCallOn env p.length c (Program.declval c) f (args.map Program.declval) = .selected cand := by
-  simp only [Program.requirementHolds, Program.expression, hcr, hcs, hc, ↓reduceIte, Program.memberCallOn]
-  cases hs : p.memberSearch p.length c f with
+/-- The expression of a member call on an object of class type is one
+exactly where the call is viable and well-formed, when generating its
+candidates is no hard error. -/
+theorem memberCallExpression_iff (p : Program) (env : Env) (cls : Ty) (f : String) (args : List Ty)
+    (hc : cls.referred.stripConst.isClass = true)
+    (hgen : ∀ ms, p.memberSearch p.length cls.referred.stripConst f = .selected ms →
+      ∀ r, generate .text env (((entities ms).map (Decl.withImplicitObject cls.referred.stripConst)).map
+        p.normalizeDecl) (Program.declval cls :: args.map Program.declval) [] ≠ .hard r) :
+    (p.memberCallExpression env cls f args).map (·.isSome) = .ok true ↔
+      ∃ cand, p.memberCallOn env p.length cls.referred.stripConst (Program.declval cls) f
+        (args.map Program.declval) = .selected cand := by
+  simp only [Program.memberCallExpression, hc, ↓reduceIte, Program.memberCallOn]
+  cases hs : p.memberSearch p.length cls.referred.stripConst f with
   | selected ms =>
     simp only [Program.callExpression]
-    cases hg : generate .text env (((entities ms).map (Decl.withImplicitObject c)).map p.normalizeDecl)
-        (Program.declval c :: args.map Program.declval) [] with
+    cases hg : generate .text env (((entities ms).map (Decl.withImplicitObject cls.referred.stripConst)).map
+        p.normalizeDecl) (Program.declval cls :: args.map Program.declval) [] with
     | hard r => exact absurd hg (hgen ms hs r)
     | ok _ | soft _ =>
-      cases p.call env ((entities ms).map (Decl.withImplicitObject c)) (Program.declval c :: args.map Program.declval) with
+      cases p.call env ((entities ms).map (Decl.withImplicitObject cls.referred.stripConst))
+          (Program.declval cls :: args.map Program.declval) with
       | selected cand =>
         cases hsp : cand.specialization with
         | some sp => simp [hsp, Subst.map]
-        | none => cases hd : ((entities ms).map (Decl.withImplicitObject c))[cand.index]? <;> simp [hsp, hd, Subst.map]
+        | none =>
+          cases hd : ((entities ms).map (Decl.withImplicitObject cls.referred.stripConst))[cand.index]? <;>
+            simp [hsp, hd, Subst.map]
       | _ => simp [Subst.map]
   | illFormed _ | noMatch | ambiguous _ => simp [Subst.map]
+
+/-- A requirement that calls a member of a class holds exactly where the
+member call is viable and well-formed, when generating its candidates is
+no hard error: a probe of a member through a requires-expression says
+what the call says. The object's type and the arguments are formed
+already, and the object's class is a class type, not a lookup's value. -/
+@[std theorem "expr.prim.req.simple#1"]
+theorem member_requirement_iff_call (p : Program) (env : Env) (cls : Ty) (f : String) (args : List Ty)
+    (hcls : form env cls = .ok cls) (hargs : formAll env args = .ok args)
+    (hv : p.lookupValueType env cls.referred.stripConst = .ok cls.referred.stripConst)
+    (hw : cls.withClass cls.referred.stripConst = cls)
+    (hc : cls.referred.stripConst.isClass = true)
+    (hgen : ∀ ms, p.memberSearch p.length cls.referred.stripConst f = .selected ms →
+      ∀ r, generate .text env (((entities ms).map (Decl.withImplicitObject cls.referred.stripConst)).map
+        p.normalizeDecl) (Program.declval cls :: args.map Program.declval) [] ≠ .hard r) :
+    p.requirementHolds env (.memberCall cls f args) = .ok true ↔
+      ∃ cand, p.memberCallOn env p.length cls.referred.stripConst (Program.declval cls) f
+        (args.map Program.declval) = .selected cand := by
+  simp only [Program.requirementHolds, Program.expression, hcls, hargs, hv, hw, Subst.bind_eq, Subst.bind_ok]
+  exact memberCallExpression_iff p env cls f args hc hgen
+
+/-- A member call on a lookup's value, `TC.f(args)` for `TC` a `const
+auto&` bound to the lookup, holds as a requirement exactly where the
+call on the type the selected instance declares its value to have is
+viable and well-formed, the object an lvalue of `const` that type: what
+the operation object's constraint asks is the member call on the
+instance. -/
+@[std theorem "expr.prim.req.simple#1" "over.match.funcs.general#3" "dcl.type.decltype#1"]
+theorem lookup_member_requirement_iff_call (p : Program) (env : Env) (tc : String) (a : Ty) (v : Ty)
+    (f : String) (args : List Ty) (hv : p.instanceValueType? tc a = some v) (hc : v.isClass = true)
+    (ha : a.dependent = false) (hfa : form env a = .ok a) (hinst : ∃ t, env.instantiate tc a = .ok t)
+    (hargs : formAll env args = .ok args)
+    (hgen : ∀ ms, p.memberSearch p.length v f = .selected ms →
+      ∀ r, generate .text env (((entities ms).map (Decl.withImplicitObject v)).map p.normalizeDecl)
+        (impliedObject v :: args.map Program.declval) [] ≠ .hard r) :
+    p.requirementHolds env (.memberCall (.lref (.const (.typeOf (.ref (.lookup tc a))))) f args) = .ok true ↔
+      ∃ cand, p.memberCallOn env p.length v (impliedObject v) f (args.map Program.declval) = .selected cand := by
+  obtain ⟨t, ht⟩ := hinst
+  have hform : form env (.lref (.const (.typeOf (.ref (.lookup tc a))))) =
+      .ok (.lref (.const (.ref (.lookup tc a)))) := by
+    simp [form, ha, hfa, ht, Ty.collapse, formConst, Ty.isRef, Ty.typeOfValue, Ty.dependent]
+  simp only [Program.requirementHolds, Program.expression, hform, hargs, Subst.bind_eq, Subst.bind_ok,
+    Ty.referred, Ty.stripConst, Program.lookupValueType, hv, Ty.withClass, Ty.withClass.go]
+  exact memberCallExpression_iff p env (.lref (.const v)) f args hc hgen
 
 /-! ## A class callee
 
