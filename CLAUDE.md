@@ -16,7 +16,8 @@ suspects and obligations. `docs/decisions.md` is the decision log; every
 `@[assumed "..."]` tag names an entry there. `docs/findings.md` collects what
 the work has turned up, and `docs/obligations.md` the obligations harvested
 from the theorems. Do not restate those documents elsewhere; link to
-them.
+them. `docs/handoff.md` is where the last session left off; read it
+after the plan and rewrite it when a phase closes.
 
 ## Two sides, one Makefile
 
