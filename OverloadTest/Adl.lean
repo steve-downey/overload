@@ -18,7 +18,7 @@ void f(int); struct D : N::S {};` -/
 private def p : Program :=
   [ .class "B" [] [] N, .class "S" [.named "B"] [] N, .function "f" [.named "S"] N
   , .function "f" [int] N
-  , .classTemplate "box" [T] M, .function "f" [.spec' "box" [.named "S"]] M
+  , .classTemplate "box" [T] (scope := M), .function "f" [.spec' "box" [.named "S"]] M
   , .function "f" [int], .class "D" [.named "S"] ]
 
 -- Associated entities: the class and its bases, through cv and pointers; none for int.

@@ -20,6 +20,7 @@ import OverloadTest.Scope
 import OverloadTest.Names
 import OverloadTest.Adl
 import OverloadTest.Members
+import OverloadTest.ClassTemplates
 import OverloadTest.Virtual
 import OverloadTest.Exceptions
 import OverloadTest.Aggregate

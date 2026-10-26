@@ -36,13 +36,18 @@ namespace Overload
 namespace Program
 
 /-- The direct base classes a program declares for a class, from its
-first definition. A class template specialization has none: the fragment
-does not give class templates bases. -/
+first definition; for a class template specialization, the template's
+bases with its arguments substituted, which are no longer dependent. -/
+@[std rule "temp.dep.type#3"]
 def directBases (p : Program) : Ty → List Ty
   | .named n =>
     (p.findSome? fun
       | .class m bs ps _ => if m = n then some (bs ++ ps) else none
       | _ => none).getD []
+  | .spec n as =>
+    match p.classKey? (.spec n as), p.classTemplateDecl? n with
+    | some (_, args), some (_, bs, ps) => (bs ++ ps).map (Ty.subst (Bindings.ofArgs args))
+    | _, _ => []
   | _ => []
 
 /-- `derivesWithin p fuel d b`: `b` is a base class of `d`, found within
@@ -97,8 +102,8 @@ def subobject (p : Program) (b : Ty) : Val → Option Val
 
 /-- The user-defined conversions declared for a class, in order. -/
 def conversionsOf (p : Program) (cls : Ty) : List UserConv :=
-  p.filterMap fun
-    | .converting c conv => if c == cls then some conv else none
+  (p.memberDecls cls).filterMap fun
+    | .converting _ conv => some conv
     | _ => none
 
 end Program
@@ -624,9 +629,18 @@ theorem userConversions_free (p : Program) (h : p.conversionFree = true) (init :
     intro c
     simp only [Program.conversionsOf, List.filterMap_eq_nil_iff]
     intro d hd
-    simp only [Program.conversionFree, List.all_eq_true] at h
-    have := h d hd
-    cases d <;> simp_all
+    simp only [Program.memberDecls] at hd
+    split at hd
+    · simp only [List.mem_map, List.mem_filter] at hd
+      obtain ⟨d', ⟨hd', _⟩, rfl⟩ := hd
+      simp only [Program.conversionFree, List.all_eq_true] at h
+      have := h d' hd'
+      split
+      · rename_i heq
+        obtain ⟨c', conv', rfl⟩ := Decl.instantiate_converting _ _ _ _ heq
+        simp at this
+      · rfl
+    · simp at hd
   simp [Program.userConversions, hc]
 
 theorem ics_free (p : Program) (h : p.conversionFree = true) (init : Init) (a : CallArg) (t : Ty) :

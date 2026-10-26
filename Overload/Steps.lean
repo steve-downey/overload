@@ -146,14 +146,6 @@ def formAll (env : Env) : List Ty → Subst (List Ty)
 
 /-! ## The steps -/
 
-/-- Does a template argument have the kind its parameter declares: the
-type and form of a template argument shall match those of its
-parameter. -/
-@[std rule "temp.arg.general#1.sentence-1"]
-def kindMatches : ParamKind → Ty → Bool
-  | .type, a => a.isType
-  | .const _, a => !a.isType
-
 /-- Explicitly specified template arguments are substituted for the
 corresponding template parameters. A template-id that is not valid, with
 more arguments than parameters, an argument of the wrong kind, or an

@@ -57,7 +57,7 @@ any. A partial specialization binds no name, and a use is not a
 declaration. -/
 def Decl.name? : Decl → Option String
   | .class n _ _ _ => some n
-  | .classTemplate n _ _ => some n
+  | .classTemplate n _ _ _ _ => some n
   | .function n _ _ _ _ _ => some n
   | .functionTemplate ft => some ft.name
   | .lookup n | .lookupHard n => some n
@@ -81,7 +81,7 @@ def Decl.kind? : Decl → Option EntityKind
 template and a concept are at global scope until lookup needs them
 elsewhere. -/
 def Decl.scope : Decl → Scope
-  | .class _ _ _ s | .classTemplate _ _ s | .function _ _ s _ _ _ | .object _ _ s
+  | .class _ _ _ s | .classTemplate _ _ _ _ s | .function _ _ s _ _ _ | .object _ _ s
   | .dependentCall _ _ s => s
   | .functionTemplate ft => ft.scope
   | _ => []

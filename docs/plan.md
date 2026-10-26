@@ -821,7 +821,28 @@ Status, 15 October 2026:
   it is rather than answered by an oracle. The plan, the cross-reference
   against N5054 and the stages are
   [below](#phase-15-class-templates-and-their-members). Settles
-  class-template-members.
+  class-template-members. Stage 1, template-members, landed 26 October
+  2026: `Decl.classTemplate` with bases, `currentInstantiation`,
+  `Head.specializationArgs?`, `Program.classKey?`, `Decl.instantiate`,
+  `Program.memberDecls` behind `membersOf`, `specialDecls` and
+  `conversionsOf`, `directBases` over a specialization, the emitter's
+  class template body with a member template's own parameters named
+  after the class's, and `Overload/ClassTemplates.lean` with
+  `instantiate_ground` and `member_template_arguments_example`. Two
+  departures. `kindMatches` moved from `Steps` to `Program`, since the
+  key computation needs it below the environment, and that computation
+  neither forms a default nor converts a constant argument: those stay
+  with `validType`, in the environment, and the member search needs
+  only the arguments. The general member-template-arguments theorem is
+  stated on `holder<int>` by computation, not in general: the general
+  form is a commutation of substitution with deduction that the
+  stage did not pay for, and the row records it as owed.
+  `inheritance_erasure` gained the hypothesis that no class template
+  of the program declares a base (`Program.templatesBaseFree`), since
+  a specialization's bases are now its template's; the derivation
+  bound stays the program's length, so a chain through specializations
+  nested deeper than the program is cut off, which no program of the
+  fragment approaches.
 
 ## Target theorems
 
@@ -885,7 +906,7 @@ its counterexample and is a finding, not a setback.
 | aggregate-elements-are-value | A class value's subobject list is the aggregate's element list, bases then members ([dcl.init.aggr]/2), so template-argument equivalence of class values is elementwise. Added 24 October 2026. | 14 |
 | brace-init-differs-from-default-init | For an aggregate with a `const` member and no initializer, `T{}` is well-formed and `T t;` is not, so `default_initializable` is false where `requires { T{}; }` holds ([dcl.init.aggr]/6, [dcl.init.general]/7, [concept.default.init]/1). Added 24 October 2026. | 14 |
 | paren-aggregate-constructible | An aggregate with no viable constructor is constructible from a parenthesized list of at most as many arguments as elements, each convertible to its element ([dcl.init.general]/15). Added 24 October 2026. | 14 |
-| member-template-arguments | Deduction for a member template of a class template specialization binds the member's own parameters only: it is deduction for the member with the class's arguments supplied as the leading explicit arguments ([temp.mem.func]/2, [temp.mem]/1). Added 25 October 2026. | 15 |
+| member-template-arguments | Deduction for a member template of a class template specialization binds the member's own parameters only: it is deduction for the member with the class's arguments supplied as the leading explicit arguments ([temp.mem.func]/2, [temp.mem]/1). Added 25 October 2026; shown by computation on `holder<int>` 26 October 2026 (`member_template_arguments_example`), the general statement owed. | 15 |
 | specialization-members-fixed | The member search of a class template specialization gives the same declarations from every point at or after its point of instantiation, which precedes the first declaration that refers to it, in a program whose class templates' members precede that point ([temp.point]/4, /7, [temp.inst]/3). Added 25 October 2026. | 15 |
 | specialization-callee-invocable | `is_invocable` of a class template specialization callee is the call on the object over the specialization's call operators and surrogates, so the class-callee residue closes ([func.require]/1, [over.call.object]/1 to /3). Added 25 October 2026. | 15 |
 | argument-reference-deletes | A class template with a member of its parameter's type has deleted copy and move assignment at a reference argument and non-deleted at an object type: value nature is a property of the specialization, decided by the argument ([class.copy.assign]/7, through value-nature-iff). Added 25 October 2026. | 15 |

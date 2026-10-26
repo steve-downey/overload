@@ -306,7 +306,7 @@ theorem singleSearch_global_eq_candidates (p : Program) (callee : String)
   | «class» m bs ps sc =>
     have : m ≠ callee := fun h => by simp [Decl.name?, Decl.declaresFunction, Decl.kind?, h] at hg
     simp [Decl.binds, Decl.name?, this]
-  | classTemplate m h sc =>
+  | classTemplate m h bs ps sc =>
     have : m ≠ callee := fun h => by simp [Decl.name?, Decl.declaresFunction, Decl.kind?, h] at hg
     simp [Decl.binds, Decl.name?, this]
   | lookup m =>

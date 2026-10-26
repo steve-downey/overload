@@ -34,7 +34,7 @@ type is valid. -/
 @[std rule "expr.prim.req.type#1" "temp.names#13"]
 def validType (p : Program) (env : Env) : Ty → Subst Bool
   | .spec c as =>
-    match p.findSome? (fun | .classTemplate n h _ => if n == c then some h else none | _ => none) with
+    match (p.classTemplateDecl? c).map (·.1) with
     | none => .ok false
     | some h =>
       match explicitStep env h (as.toList.getD []) >>= defaultsStep env h with

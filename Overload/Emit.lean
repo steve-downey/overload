@@ -188,12 +188,13 @@ where
     | some l => String.intercalate ", " (l.map ty)
     | none => ty as
 
-/-- A template head as C++. -/
-def head (h : Head) : String :=
+/-- A template head as C++. A member template of a class template names
+its own parameters after the class's, from `offset`. -/
+def head (h : Head) (offset : Nat := 0) : String :=
   let ps := h.zipIdx.map fun (p, i) =>
     let decl := match p.kind with
-      | .type => s!"class {paramName i}"
-      | .const t => s!"{ty t} {paramName i}"
+      | .type => s!"class {paramName (offset + i)}"
+      | .const t => s!"{ty t} {paramName (offset + i)}"
     match p.default with
     | some d => s!"{decl} = {ty d}"
     | none => decl
@@ -403,7 +404,7 @@ def virtText : Virt → String × String
 
 /-- A function or function template, as a declaration with the return
 type `r`, a member when `cv` is ` const`, with its virtuality spelled. -/
-def functionText (d : Decl) (r : String) (cv : String := "") : String :=
+def functionText (d : Decl) (r : String) (cv : String := "") (offset : Nat := 0) : String :=
   match d with
   | .function n ps _ v ne _ =>
     let (pre, post) := virtText v
@@ -412,7 +413,7 @@ def functionText (d : Decl) (r : String) (cv : String := "") : String :=
     let req := match ft.constraint with
       | some c => s!"\n    requires {constraint c}"
       | none => ""
-    s!"{head ft.head}{req}\n{declarator ft r (params ft.params ft.defaultArgs) cv}{body ft r}\n"
+    s!"{head ft.head offset}{req}\n{declarator ft r (params ft.params ft.defaultArgs) cv}{body ft r}\n"
   | _ => ""
 
 /-- Is the class a type names, if any, defined before position `i` of
@@ -484,6 +485,34 @@ the members of a class in its body. -/
 def program (p : Program) (callee : String) (ret : Nat → Head → String)
     (index : Decl → Option Nat) : String := Id.run do
   let rs := returnTypes p callee ret index
+  -- The body of a class or class template: its bases, data members,
+  -- member functions, special members and conversions. A class template's
+  -- members are declared for its current instantiation, and a member
+  -- template's own parameters are named after the class's.
+  let classText (i : Nat) (n : String) (key : Ty) (bases prot : List Ty) (sc : Scope) (offset : Nat)
+      (pre : String) : String := Id.run do
+    let specs := bases.map (s!"public {ty ·}") ++ prot.map (s!"protected {ty ·}")
+    let inherit := if specs.isEmpty then "" else s!" : {String.intercalate ", " specs}"
+    let members := p.zipIdx.filter fun (m, _) => m.scope == sc ++ [.class n]
+    let q := String.join (sc.filterMap fun | .namespace m => some s!"{m}::" | .class _ => none)
+    let ofClass (c : Ty) : Bool := c == key || c == .named (q ++ n)
+    let convs := p.filterMap fun
+      | .converting c conv => if ofClass c then some conv else none
+      | _ => none
+    let data := p.filterMap fun
+      | .member c m => if ofClass c then some m else none
+      | _ => none
+    let specials := p.filterMap fun
+      | .special c s => if ofClass c then some s else none
+      | _ => none
+    if members.isEmpty && convs.isEmpty && data.isEmpty && specials.isEmpty then
+      return s!"{pre}struct {n}{inherit} \{};\n"
+    let fields := String.join (data.map fun m =>
+      let init := if !m.init then "" else if m.throwingInit then s!" = may_throw<{ty m.ty}>()" else " {}"
+      s!"    {ty m.ty} {m.name}{init};\n")
+    let body := String.join (members.map fun (m, j) =>
+      "    " ++ (functionText m (rs.getD j "void") " const" offset).replace "\n    " "\n        ")
+    return s!"{pre}struct {n}{inherit} \{\n{fields}{body}{specialsText n specials}{conversionsText p i n convs}};\n"
   let mut out := ""
   let mut instances : List (String × Nat) := []
   -- Every class is declared first, so a conversion or a parameter can
@@ -496,31 +525,9 @@ def program (p : Program) (callee : String) (ret : Nat → Head → String)
     if d.isMember then continue
     let mut text := ""
     match d with
-    | .class n bases prot sc =>
-      let specs := bases.map (s!"public {ty ·}") ++ prot.map (s!"protected {ty ·}")
-      let inherit := if specs.isEmpty then "" else s!" : {String.intercalate ", " specs}"
-      let members := p.zipIdx.filter fun (m, _) => m.scope == sc ++ [.class n]
-      let q := String.join (sc.filterMap fun | .namespace m => some s!"{m}::" | .class _ => none)
-      let ofClass (c : Ty) : Bool := c == .named n || c == .named (q ++ n)
-      let convs := p.filterMap fun
-        | .converting c conv => if ofClass c then some conv else none
-        | _ => none
-      let data := p.filterMap fun
-        | .member c m => if ofClass c then some m else none
-        | _ => none
-      let specials := p.filterMap fun
-        | .special c s => if ofClass c then some s else none
-        | _ => none
-      if members.isEmpty && convs.isEmpty && data.isEmpty && specials.isEmpty then
-        text := s!"struct {n}{inherit} \{};\n"
-      else
-        let fields := String.join (data.map fun m =>
-          let init := if !m.init then "" else if m.throwingInit then s!" = may_throw<{ty m.ty}>()" else " {}"
-          s!"    {ty m.ty} {m.name}{init};\n")
-        let body := String.join (members.map fun (m, j) =>
-          "    " ++ (functionText m (rs.getD j "void") " const").replace "\n    " "\n        ")
-        text := s!"struct {n}{inherit} \{\n{fields}{body}{specialsText n specials}{conversionsText p i n convs}};\n"
-    | .classTemplate n h _ => text := s!"{head h}\nstruct {n} \{};\n"
+    | .class n bases prot sc => text := classText i n (.named n) bases prot sc 0 ""
+    | .classTemplate n h bases prot sc =>
+      text := classText i n (currentInstantiation n h) bases prot sc h.length s!"{head h}\n"
     | .function .. | .functionTemplate _ => text := functionText d (rs.getD i "void")
     | .lookup c =>
       text := s!"template <class T>\ninline constexpr auto {c} = std::false_type\{};\n"
@@ -597,7 +604,7 @@ their qualifiers. -/
 def qualifiers (p : Program) : List (String × String) :=
   p.filterMap fun
     | .class n _ _ s => if s.isEmpty then none else some (n, qualifier s)
-    | .classTemplate n _ s => if s.isEmpty then none else some (n, qualifier s)
+    | .classTemplate n _ _ _ s => if s.isEmpty then none else some (n, qualifier s)
     | _ => none
 
 /-- Qualify every class and class template name in a type. -/
@@ -655,7 +662,8 @@ def qualifyConstraint (q : List (String × String)) : Constraint → Constraint
 /-- Qualify the types of a declaration; its own name stays as declared. -/
 def qualifyDecl (q : List (String × String)) : Decl → Decl
   | .class n bs ps s => .class n (bs.map (qualifyTy q)) (ps.map (qualifyTy q)) s
-  | .classTemplate n h s => .classTemplate n (h.map (qualifyParam q)) s
+  | .classTemplate n h bs ps s =>
+    .classTemplate n (h.map (qualifyParam q)) (bs.map (qualifyTy q)) (ps.map (qualifyTy q)) s
   | .function n ps s v ne r => .function n (ps.map (qualifyTy q)) s v ne (qualifyTy q r)
   | .functionTemplate ft =>
     .functionTemplate { ft with head := ft.head.map (qualifyParam q), params := ft.params.map (qualifyTy q)
