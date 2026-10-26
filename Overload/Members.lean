@@ -17,9 +17,12 @@ set invalid, and the same declarations in several subobjects are shared.
 An invalid set is ill-formed (/6).
 
 * Members are declarations whose scope ends in their class
-  (`Program.memberScope?`). A subobject is the path of classes from the
-  class searched down to it; with no virtual bases, two paths are two
-  subobjects.
+  (`Program.memberScope?`), a class template's in its scope, which is a
+  class scope; the search into a specialization finds the template's
+  members and instantiates them with the specialization's arguments
+  ([temp.inst]/3, `Program.declarationSet`). A subobject is the path of
+  class types from the class searched down to it; with no virtual bases,
+  two paths are two subobjects.
 * `Program.declarationSet` (/3), `LookupSet.merge` (/5),
   `Program.lookupSet` (/4, with the derivation depth bounded by the
   program as `allBases` bounds it), `Program.memberSearch` (/6). The
@@ -34,9 +37,8 @@ An invalid set is ill-formed (/6).
   against its implicit object parameter, `const X&` for the fragment's
   const members ([over.match.funcs.general]/2, /4), a surrogate against
   its first parameter, the conversion's type, which the object reaches by
-  that conversion function. A member call `obj.name(args)` still leaves
-  the object out, since its members are all const and it has no
-  surrogates.
+  that conversion function. A member call `obj.name(args)` leads with
+  the object likewise (`Program.memberCallOn`).
 * `Program.callCandidates` and `Program.callAt`: what a call from a point
   resolves over, through the lookup of the callee and then, for an
   object, of its call operators.
@@ -56,23 +58,36 @@ namespace Overload
 
 /-! ## The lookup set -/
 
-/-- The scope of a class's members: the class's own scope extended by its
-step. -/
-def Program.memberScope? (p : Program) (c : String) : Option Scope :=
-  (p.classScope? c).map (· ++ [.class c])
+/-- The scope of a class type's members: the class's own scope extended
+by its step, and for a specialization the class template's, which is a
+class scope. -/
+@[std rule "basic.scope.class#1"]
+def Program.memberScope? (p : Program) (c : Ty) : Option Scope :=
+  match ((p.classKey? c).map (·.1) : Option Ty) with
+  | some (.named n) => (p.classScope? n).map (· ++ [.class n])
+  | some (.spec n _) => (p.classTemplateScope? n).map (· ++ [.class n])
+  | _ => none
 
-/-- The declaration set of a name in a class: a single search in the
-class's scope from the point. Complete-class contexts are out of the
+/-- The declaration set of a name in a class type: a single search in
+the class's scope from the point, and for a specialization the
+template's declarations found there, instantiated with the
+specialization's arguments. Complete-class contexts are out of the
 fragment, whose uses are all outside every class. -/
-@[std rule "class.member.lookup#3.sentence-1"]
-def Program.declarationSet (p : Program) (pos : Nat) (c name : String) : List Decl :=
-  match p.memberScope? c with
-  | some s => singleSearch p pos s name
-  | none => []
+@[std rule "class.member.lookup#3.sentence-1" "temp.inst#3"]
+def Program.declarationSet (p : Program) (pos : Nat) (c : Ty) (name : String) : List Decl :=
+  match p.memberScope? c, p.classKey? c with
+  | some s, some (_, args) => (singleSearch p pos s name).map (Decl.instantiate args)
+  | _, _ => []
 
-/-- A subobject, as the path of class names from the class searched down
+/-- A class type as a message names it. -/
+def Ty.className : Ty → String
+  | .named n => n
+  | .spec n _ => s!"{n}<...>"
+  | t => toString (repr t)
+
+/-- A subobject, as the path of class types from the class searched down
 to it. -/
-abbrev Subobject := List String
+abbrev Subobject := List Ty
 
 /-- `q` is a base class subobject of `r`: `r`'s path leads to `q`'s. -/
 def Subobject.isBaseOf (q r : Subobject) : Bool := r.isPrefixOf q
@@ -116,51 +131,49 @@ set if it is not empty, and otherwise the lookup sets of its direct
 bases merged in turn. -/
 @[std rule "class.member.lookup#4"]
 def Program.lookupSetWithin (p : Program) (pos : Nat) (name : String) :
-    Nat → Subobject → String → LookupSet
+    Nat → Subobject → Ty → LookupSet
   | 0, _, _ => LookupSet.empty
   | fuel + 1, path, c =>
     let here := p.declarationSet pos c name
     if here.isEmpty then
-      (p.directBases (.named c)).foldl (fun acc b =>
-        match b with
-        | .named bn => acc.merge (p.lookupSetWithin pos name fuel (path ++ [c]) bn)
-        | _ => acc) LookupSet.empty
+      (p.directBases c).foldl (fun acc b => acc.merge (p.lookupSetWithin pos name fuel (path ++ [c]) b))
+        LookupSet.empty
     else { decls := some here, subobjects := [path ++ [c]] }
 
-/-- The lookup set of a name in a class. A base is complete before the
-class that names it, so a chain of derivation is no longer than the
+/-- The lookup set of a name in a class type. A base is complete before
+the class that names it, so a chain of derivation is no longer than the
 program, which bounds the search as it bounds `allBases`. -/
-def Program.lookupSet (p : Program) (pos : Nat) (c name : String) : LookupSet :=
+def Program.lookupSet (p : Program) (pos : Nat) (c : Ty) (name : String) : LookupSet :=
   p.lookupSetWithin pos name p.length [] c
 
 /-- The result of a search in a class scope: the declaration set of the
 lookup set, and an ill-formed program when it is invalid. The
 complete-class-context sentence is out of the fragment. -/
 @[std rule "class.member.lookup#6"]
-def Program.memberSearch (p : Program) (pos : Nat) (c name : String) : Resolution (List Decl) :=
+def Program.memberSearch (p : Program) (pos : Nat) (c : Ty) (name : String) : Resolution (List Decl) :=
   match (p.lookupSet pos c name).decls with
   | some ds => .selected ds
-  | none => .illFormed s!"the lookup of {name} in {c} is ambiguous"
+  | none => .illFormed s!"the lookup of {name} in {c.className} is ambiguous"
 
 mutual
 
 /-- The lookup set as a relation, within `fuel` steps of derivation. -/
 @[specification]
 inductive LookupSetRel (p : Program) (pos : Nat) (name : String) :
-    Nat → Subobject → String → LookupSet → Prop where
+    Nat → Subobject → Ty → LookupSet → Prop where
   /-- The derivation bound is exhausted: nothing more is found. The
   bound is the program's length, which no chain of derivation reaches. -/
-  | exhausted (path : Subobject) (c : String) : LookupSetRel p pos name 0 path c LookupSet.empty
+  | exhausted (path : Subobject) (c : Ty) : LookupSetRel p pos name 0 path c LookupSet.empty
   /-- The class declares the name: its declaration set, in the class
   itself, and the calculation is complete. -/
-  | here (fuel : Nat) (path : Subobject) (c : String) (h : p.declarationSet pos c name ≠ []) :
+  | here (fuel : Nat) (path : Subobject) (c : Ty) (h : p.declarationSet pos c name ≠ []) :
       LookupSetRel p pos name (fuel + 1) path c
         { decls := some (p.declarationSet pos c name), subobjects := [path ++ [c]] }
   /-- The class does not: the lookup sets of its direct bases, merged in
   turn into the empty set. -/
-  | bases (fuel : Nat) (path : Subobject) (c : String) (S : LookupSet)
+  | bases (fuel : Nat) (path : Subobject) (c : Ty) (S : LookupSet)
       (h : p.declarationSet pos c name = [])
-      (hm : MergeBases p pos name fuel (path ++ [c]) (p.directBases (.named c)) LookupSet.empty S) :
+      (hm : MergeBases p pos name fuel (path ++ [c]) (p.directBases c) LookupSet.empty S) :
       LookupSetRel p pos name (fuel + 1) path c S
 
 /-- Merging the lookup sets of a list of direct bases, in turn, into an
@@ -171,14 +184,9 @@ inductive MergeBases (p : Program) (pos : Nat) (name : String) :
   /-- No bases left: the accumulated set. -/
   | nil (fuel : Nat) (path : Subobject) (acc : LookupSet) : MergeBases p pos name fuel path [] acc acc
   /-- A direct base: its lookup set is merged, then the rest. -/
-  | named (fuel : Nat) (path : Subobject) (bn : String) (bs : List Ty) (acc Sb S : LookupSet)
-      (hb : LookupSetRel p pos name fuel path bn Sb)
+  | base (fuel : Nat) (path : Subobject) (b : Ty) (bs : List Ty) (acc Sb S : LookupSet)
+      (hb : LookupSetRel p pos name fuel path b Sb)
       (rest : MergeBases p pos name fuel path bs (acc.merge Sb) S) :
-      MergeBases p pos name fuel path (.named bn :: bs) acc S
-  /-- A base that is not a class by name, which the fragment never
-  declares, contributes nothing. -/
-  | other (fuel : Nat) (path : Subobject) (b : Ty) (bs : List Ty) (acc S : LookupSet)
-      (hb : ∀ bn, b ≠ .named bn) (rest : MergeBases p pos name fuel path bs acc S) :
       MergeBases p pos name fuel path (b :: bs) acc S
 
 end
@@ -187,17 +195,14 @@ attribute [std rule "class.member.lookup#4"] LookupSetRel.exhausted
 attribute [std rule "class.member.lookup#3"] LookupSetRel.here
 attribute [std rule "class.member.lookup#4"] LookupSetRel.bases
 attribute [std rule "class.member.lookup#4"] MergeBases.nil
-attribute [std rule "class.member.lookup#4"] MergeBases.named
-attribute [std rule "class.member.lookup#4"] MergeBases.other
+attribute [std rule "class.member.lookup#4"] MergeBases.base
 
 /-- The fold over the bases computes the merge relation. -/
 theorem mergeBases_iff (p : Program) (pos : Nat) (name : String) (fuel : Nat) (path : Subobject)
-    (ih : ∀ bn S, p.lookupSetWithin pos name fuel path bn = S ↔ LookupSetRel p pos name fuel path bn S) :
+    (ih : ∀ b S, p.lookupSetWithin pos name fuel path b = S ↔ LookupSetRel p pos name fuel path b S) :
     ∀ (bs : List Ty) (acc S : LookupSet),
-      bs.foldl (fun acc b =>
-        match b with
-        | .named bn => acc.merge (p.lookupSetWithin pos name fuel path bn)
-        | _ => acc) acc = S ↔ MergeBases p pos name fuel path bs acc S := by
+      bs.foldl (fun acc b => acc.merge (p.lookupSetWithin pos name fuel path b)) acc = S ↔
+        MergeBases p pos name fuel path bs acc S := by
   intro bs
   induction bs with
   | nil =>
@@ -211,22 +216,16 @@ theorem mergeBases_iff (p : Program) (pos : Nat) (name : String) (fuel : Nat) (p
     simp only [List.foldl_cons]
     constructor
     · intro h
-      cases b with
-      | named bn =>
-        exact .named fuel path bn bs acc _ S ((ih bn _).1 rfl) ((ihb _ S).1 h)
-      | _ =>
-        refine .other fuel path _ bs acc S (fun bn => by simp) ((ihb acc S).1 h)
+      exact .base fuel path b bs acc _ S ((ih b _).1 rfl) ((ihb _ S).1 h)
     · intro h
       cases h with
-      | named _ _ bn bs acc Sb S hb rest =>
-        rw [← (ih bn Sb).2 hb] at rest
+      | base _ _ b bs acc Sb S hb rest =>
+        rw [← (ih b Sb).2 hb] at rest
         exact (ihb _ S).2 rest
-      | other _ _ b bs acc S hb rest =>
-        cases b <;> first | exact absurd rfl (hb _) | exact (ihb acc S).2 rest
 
 /-- The function computes the relation. -/
 theorem lookupSetWithin_iff (p : Program) (pos : Nat) (name : String) : ∀ (fuel : Nat)
-    (path : Subobject) (c : String) (S : LookupSet),
+    (path : Subobject) (c : Ty) (S : LookupSet),
     p.lookupSetWithin pos name fuel path c = S ↔ LookupSetRel p pos name fuel path c S := by
   intro fuel
   induction fuel with
@@ -256,7 +255,7 @@ theorem lookupSetWithin_iff (p : Program) (pos : Nat) (name : String) : ∀ (fue
         | here => rfl
         | bases _ _ _ _ hnil => exact absurd hnil h
 
-theorem lookupSet_iff (p : Program) (pos : Nat) (c name : String) (S : LookupSet) :
+theorem lookupSet_iff (p : Program) (pos : Nat) (c : Ty) (name : String) (S : LookupSet) :
     p.lookupSet pos c name = S ↔ LookupSetRel p pos name p.length [] c S :=
   lookupSetWithin_iff p pos name p.length [] c S
 
@@ -265,7 +264,7 @@ theorem lookupSet_iff (p : Program) (pos : Nat) (c name : String) (S : LookupSet
 /-- A class that declares the name is the whole result: its own
 declarations, whatever every base declares and whatever the
 signatures. -/
-theorem derived_member_hides_base (p : Program) (pos : Nat) (c name : String)
+theorem derived_member_hides_base (p : Program) (pos : Nat) (c : Ty) (name : String)
     (h : p.declarationSet pos c name ≠ []) :
     p.memberSearch pos c name = .selected (p.declarationSet pos c name) := by
   have hlen : ∃ n, p.length = n + 1 := by
@@ -275,7 +274,8 @@ theorem derived_member_hides_base (p : Program) (pos : Nat) (c name : String)
       apply h
       have : p = [] := List.length_eq_zero_iff.1 hp
       subst this
-      simp [Program.declarationSet, Program.memberScope?, Program.classScope?]
+      cases c <;> simp [Program.declarationSet, Program.memberScope?, Program.classKey?,
+        Program.classTemplateDecl?, Program.classScope?]
     | succ n => exact ⟨n, rfl⟩
   obtain ⟨n, hn⟩ := hlen
   simp only [Program.memberSearch, Program.lookupSet, hn, Program.lookupSetWithin,
@@ -293,10 +293,10 @@ def ambiguousBasesProgram : Program :=
 subobjects, and the declaration sets differ. -/
 @[std example "class.member.lookup#6"]
 theorem ambiguous_bases_example :
-    (ambiguousBasesProgram.lookupSet 5 "C" "x").decls = none ∧
-      ambiguousBasesProgram.lookupSet 5 "C" "x" =
-        { decls := none, subobjects := [["C", "A"], ["C", "B"]] } ∧
-      ∃ e, ambiguousBasesProgram.memberSearch 5 "C" "x" = .illFormed e := by
+    (ambiguousBasesProgram.lookupSet 5 (.named "C") "x").decls = none ∧
+      ambiguousBasesProgram.lookupSet 5 (.named "C") "x" =
+        { decls := none, subobjects := [[.named "C", .named "A"], [.named "C", .named "B"]] } ∧
+      ∃ e, ambiguousBasesProgram.memberSearch 5 (.named "C") "x" = .illFormed e := by
   refine ⟨by decide, by decide, ⟨_, rfl⟩⟩
 
 /-- `struct D : A { void x(int); }`, over the same `A`: the derived
@@ -304,7 +304,7 @@ declaration hides the base's. -/
 theorem hiding_member_example :
     Program.memberSearch
         (ambiguousBasesProgram ++ [.class "D" [.named "A"], .function "x" [.named "int"] [.class "D"]])
-        7 "D" "x" = .selected [.function "x" [.named "int"] [.class "D"]] := by
+        7 (.named "D") "x" = .selected [.function "x" [.named "int"] [.class "D"]] := by
   decide
 
 /-! ## A call on an object -/
@@ -312,23 +312,22 @@ theorem hiding_member_example :
 /-- The function call operators of a class: a search for `operator()` in
 its scope. -/
 @[std rule "over.call.object#1.sentence-2"]
-def Program.callOperators (p : Program) (pos : Nat) (cls : String) : Resolution (List Decl) :=
+def Program.callOperators (p : Program) (pos : Nat) (cls : Ty) : Resolution (List Decl) :=
   p.memberSearch pos cls "operator()"
 
 /-- A member function with its implicit object parameter, an lvalue
-reference to `const X` for `X` the class of which it is a direct
-member: every member function of the fragment is declared `const` and
-without a ref-qualifier. A declaration that is not a member is left as
-it is. -/
+reference to `const X` for `X` the class type the call is on: every
+member function of the fragment is declared `const` and without a
+ref-qualifier. A declaration that is not a member is left as it is. -/
 @[std rule "over.match.funcs.general#2" "over.match.funcs.general#4"]
-def Decl.withImplicitObject : Decl → Decl
+def Decl.withImplicitObject (cls : Ty) : Decl → Decl
   | .function n ps sc v ne r =>
     match sc.getLast? with
-    | some (.class x) => .function n (.lref (.const (.named x)) :: ps) sc v ne r
+    | some (.class _) => .function n (.lref (.const cls) :: ps) sc v ne r
     | _ => .function n ps sc v ne r
   | .functionTemplate ft =>
     match ft.scope.getLast? with
-    | some (.class x) => .functionTemplate { ft with params := .lref (.const (.named x)) :: ft.params }
+    | some (.class _) => .functionTemplate { ft with params := .lref (.const cls) :: ft.params }
     | _ => .functionTemplate ft
   | d => d
 
@@ -341,8 +340,8 @@ conversion function and then the function, so the surrogate is known
 not to throw when both are. Conversion functions declared in a base
 class are out, as they are for the fragment's conversion sequences. -/
 @[std rule "over.call.object#2"]
-def Program.surrogates (p : Program) (cls : String) : List Decl :=
-  (p.conversionsOf (.named cls)).filterMap fun
+def Program.surrogates (p : Program) (cls : Ty) : List Decl :=
+  (p.conversionsOf cls).filterMap fun
     | .function t false _ ne =>
       let fn : Option (Ty × Ty × Bool) := match t with
         | .ptr (.fn ps r fne) | .lref (.ptr (.fn ps r fne)) | .lref (.fn ps r fne) => some (ps, r, fne)
@@ -356,21 +355,21 @@ call operators, each with its implicit object parameter, then its
 surrogate call functions. A class with neither makes the call
 ill-formed. -/
 @[std rule "over.call.object#1.sentence-1" "over.call.object#2"]
-def Program.objectCandidates (p : Program) (pos : Nat) (cls : String) : Resolution (List Decl) :=
+def Program.objectCandidates (p : Program) (pos : Nat) (cls : Ty) : Resolution (List Decl) :=
   let found : Resolution (List Decl) := match p.callOperators pos cls with
-    | .selected ms => .selected ((entities ms).map Decl.withImplicitObject ++ p.surrogates cls)
+    | .selected ms => .selected ((entities ms).map (Decl.withImplicitObject cls) ++ p.surrogates cls)
     | .noMatch => .selected (p.surrogates cls)
     | .illFormed e => .illFormed e
-    | .ambiguous _ => .illFormed s!"the function call operators of {cls} are ambiguous"
+    | .ambiguous _ => .illFormed s!"the function call operators of {cls.className} are ambiguous"
   match found with
-  | .selected [] => .illFormed s!"{cls} has no function call operator"
+  | .selected [] => .illFormed s!"{cls.className} has no function call operator"
   | r => r
 
 /-- The implied object argument of a call on a named object: the object,
 an lvalue of its class, `const` since the fragment's objects are
 `constexpr`. -/
 @[std rule "over.call.object#3.sentence-1" "over.match.funcs.general#3"]
-def impliedObject (cls : String) : CallArg := { ty := .const (.named cls), lvalue := true }
+def impliedObject (cls : Ty) : CallArg := { ty := .const cls, lvalue := true }
 
 /-- The candidates a call resolves over and the argument list submitted
 to overload resolution, given what lookup found for its name: the
@@ -385,7 +384,7 @@ def Program.candidatesOf (p : Program) (pos : Nat) (found : List Decl) (callee :
   | .overloadSet fs => .selected (fs, args)
   | .entity (.object _ cls _) =>
     if (p.classScope? cls).isNone then .illFormed s!"the class {cls} of {callee} is not declared"
-    else (p.objectCandidates pos cls).map fun cs => (cs, impliedObject cls :: args)
+    else (p.objectCandidates pos (.named cls)).map fun cs => (cs, impliedObject (.named cls) :: args)
   | .entity _ => .illFormed s!"{callee} does not denote a function or an object"
   | .none => .illFormed s!"no declaration of {callee} is found"
   | .ambiguous _ => .illFormed s!"the lookup of {callee} is ambiguous"
@@ -411,13 +410,13 @@ def Program.callAt (p : Program) (env : Env) (pos : Nat) (s : Scope) (callee : S
 object argument: the class's call operators and surrogates, resolved
 over the object followed by the arguments. -/
 @[std rule "over.call.object#3.sentence-1"]
-def Program.objectCallAt (p : Program) (env : Env) (pos : Nat) (cls : String) (obj : CallArg)
+def Program.objectCallAt (p : Program) (env : Env) (pos : Nat) (cls : Ty) (obj : CallArg)
     (args : List CallArg) (explicit : List Ty := []) : Resolution Candidate :=
   match p.objectCandidates pos cls with
   | .selected cs => p.call env cs (obj :: args) explicit
   | .illFormed e => .illFormed e
   | .noMatch => .noMatch
-  | .ambiguous _ => .illFormed s!"the function call operators of {cls} are ambiguous"
+  | .ambiguous _ => .illFormed s!"the function call operators of {cls.className} are ambiguous"
 
 /-- A callee that unqualified lookup binds to an object resolves over the
 candidates of a call on the object, its class's call operators and
@@ -429,7 +428,7 @@ theorem object_call_candidates (p : Program) (pos : Nat) (s : Scope) (callee cls
     (h : unqualifiedLookup p pos s callee = [.object callee cls sc])
     (hcls : (p.classScope? cls).isSome = true) :
     p.callCandidates pos s callee args =
-      (p.objectCandidates pos cls).map fun cs => (cs, impliedObject cls :: args) := by
+      (p.objectCandidates pos (.named cls)).map fun cs => (cs, impliedObject (.named cls) :: args) := by
   have hl : p.callLookup pos s callee args = [.object callee cls sc] := by
     rw [object_suppresses_adl p pos s callee args ⟨_, by rw [h]; exact List.mem_singleton_self _, rfl⟩]
     exact h
@@ -439,15 +438,24 @@ theorem object_call_candidates (p : Program) (pos : Nat) (s : Scope) (callee cls
     Decl.declaresType, Decl.kind?, Decl.declaresFunction, entities, entities.go, List.filter_cons,
     List.filter_nil, List.any_cons, List.any_nil, List.all_cons, List.all_nil, hnone]
 
-/-- A member call, `obj.name(args)` on an object of class `cls`: the
-members the search finds, resolved over the explicit arguments. -/
-def Program.memberCallAt (p : Program) (env : Env) (pos : Nat) (cls name : String)
-    (args : List CallArg) (explicit : List Ty := []) : Resolution Candidate :=
+/-- A member call `obj.name(args)` with `obj` the implied object
+argument, of class type `cls`: the members the search finds, each with
+its implicit object parameter, resolved over the object followed by the
+arguments. -/
+@[std rule "over.match.funcs.general#2" "over.match.funcs.general#3"]
+def Program.memberCallOn (p : Program) (env : Env) (pos : Nat) (cls : Ty) (obj : CallArg)
+    (name : String) (args : List CallArg) (explicit : List Ty := []) : Resolution Candidate :=
   match p.memberSearch pos cls name with
-  | .selected ms => p.call env (entities ms) args explicit
+  | .selected ms => p.call env ((entities ms).map (Decl.withImplicitObject cls)) (obj :: args) explicit
   | .illFormed e => .illFormed e
   | .noMatch => .noMatch
-  | .ambiguous _ => .illFormed s!"the lookup of {name} in {cls} is ambiguous"
+  | .ambiguous _ => .illFormed s!"the lookup of {name} in {cls.className} is ambiguous"
+
+/-- A member call, `obj.name(args)` on a named object of class type
+`cls`, a `const` lvalue as the fragment's objects are. -/
+def Program.memberCallAt (p : Program) (env : Env) (pos : Nat) (cls : Ty) (name : String)
+    (args : List CallArg) (explicit : List Ty := []) : Resolution Candidate :=
+  p.memberCallOn env pos cls (impliedObject cls) name args explicit
 
 /-! ## A template under another name -/
 
@@ -625,7 +633,7 @@ theorem free_function_admits_adl :
         .selected ([.functionTemplate { name := "operator()", head := [{ kind := .type }]
                                         params := [.lref (.const (.named "fmap_fn")), .param 0]
                                         scope := [.class "fmap_fn"] }],
-                   [impliedObject "fmap_fn", { ty := .named "X" }]) ∧
+                   [impliedObject (.named "fmap_fn"), { ty := .named "X" }]) ∧
       (objectProgram.callAt (Env.ofProgram objectProgram) 5 [] "fmap"
           [{ ty := .named "X" }]).map (·.index) = .selected 0 := by
   refine ⟨by decide, by decide, by decide, by decide⟩
@@ -646,7 +654,7 @@ def surrogateProgram : Program :=
 returns: the surrogate of `fp1` is the only viable candidate. -/
 @[std example "over.call.object#3"]
 theorem surrogate_example :
-    surrogateProgram.objectCandidates 5 "A" =
+    surrogateProgram.objectCandidates 5 (.named "A") =
       .selected [ .function "call-function" [.ptr (.fn' [.named "int"] (.named "int")), .named "int"] [] .none none (.named "int")
                 , .function "call-function" [.ptr (.fn' [.named "B"] (.named "int")), .named "B"] [] .none none (.named "int") ] ∧
     (surrogateProgram.callAt (Env.ofProgram surrogateProgram) 5 [] "a" [{ ty := .named "int" }]).map (·.index) =

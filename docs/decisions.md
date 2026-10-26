@@ -941,6 +941,13 @@ named so that a constraint written with it is visibly an assumption.
   operators to find. Phase 15 is the plan to give it them
   (`docs/plan.md`, phase 15); the residue closes when its
   specialization-lookup stage lands.
+- 2026-10-26 — Closed. Phase 15's specialization-lookup stage keys the
+  member search by type and instantiates the template's declarations
+  for a specialization, so `classCallee` returns the type and
+  `is_invocable` of a specialization callee is the call on the object
+  through its call operators and surrogates
+  (`specialization_callee_invocable`). Still residue: conversion
+  functions declared in a base class.
 
 ---
 
@@ -1237,3 +1244,13 @@ specializations other than the primary's have no consumer.
   it. `inheritance_erasure` assumes no class template declares a base
   (`Program.templatesBaseFree`): erasure is not extended to
   specializations, as the plan said.
+- 2026-10-26 — Stage specialization-lookup landed. For the point of
+  instantiation, a declaration refers to a specialization only with
+  ground arguments (`Decl.mentionsSpecOf`): the current instantiation,
+  and any dependent specialization, is referenced from a templated
+  context, whose point is the enclosing specialization's, out of the
+  fragment. The member call `obj.f(args)` now leads with the object
+  (`Program.memberCallOn`); the fragment's members being `const`, no
+  earlier case moved. An object of specialization type is not
+  declarable, `Decl.object` naming a class, so the call on one is
+  observed as `is_invocable`.

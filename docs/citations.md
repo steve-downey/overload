@@ -55,6 +55,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[basic.lookup.unqual]/2 sentence 2](https://eel.is/c++draft/basic.lookup.unqual#2.sentence-2) | rule | `Overload.UnqualifiedSearch.parent` | `Overload.Names` |
 | [[basic.lookup.unqual]/3](https://eel.is/c++draft/basic.lookup.unqual#3) | rule | `Overload.unqualifiedLookup` | `Overload.Names` |
 | [[basic.scope.class]/1](https://eel.is/c++draft/basic.scope.class#1) | rule | `Overload.Decl.classTemplate` | `Overload.Program` |
+| [[basic.scope.class]/1](https://eel.is/c++draft/basic.scope.class#1) | rule | `Overload.Program.memberScope?` | `Overload.Members` |
 | [[basic.scope.scope]/2](https://eel.is/c++draft/basic.scope.scope#2) | rule | `Overload.Decl.binds` | `Overload.Names` |
 | [[basic.scope.scope]/2](https://eel.is/c++draft/basic.scope.scope#2) | rule | `Overload.Scope.parent?` | `Overload.Names` |
 | [[basic.scope.scope]/4](https://eel.is/c++draft/basic.scope.scope#4) | example | `Overload.scope_scope_4_example` | `Overload.Scope` |
@@ -89,6 +90,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[class.copy.assign]/4](https://eel.is/c++draft/class.copy.assign#4) | rule | `Overload.Program.specialWithin` | `Overload.Special` |
 | [[class.copy.assign]/7](https://eel.is/c++draft/class.copy.assign#7) | rule | `Overload.Program.assignCandidates` | `Overload.Special` |
 | [[class.copy.assign]/7](https://eel.is/c++draft/class.copy.assign#7) | rule | `Overload.Program.deletedWithin` | `Overload.Special` |
+| [[class.copy.assign]/7](https://eel.is/c++draft/class.copy.assign#7) | theorem | `Overload.argument_reference_deletes` | `Overload.ClassTemplates` |
 | [[class.copy.assign]/9](https://eel.is/c++draft/class.copy.assign#9) | rule | `Overload.Program.trivialWithin` | `Overload.Special` |
 | [[class.copy.assign]/9](https://eel.is/c++draft/class.copy.assign#9) | theorem | `Overload.polymorphic_not_trivial` | `Overload.Traits` |
 | [[class.copy.ctor]/1](https://eel.is/c++draft/class.copy.ctor#1) | rule | `Overload.Program.copyMoveForm` | `Overload.Special` |
@@ -105,6 +107,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[class.default.ctor]/1](https://eel.is/c++draft/class.default.ctor#1) | rule | `Overload.Program.specialWithin` | `Overload.Special` |
 | [[class.default.ctor]/1](https://eel.is/c++draft/class.default.ctor#1) | rule | `Overload.Program.userDeclaredCtor` | `Overload.Special` |
 | [[class.default.ctor]/2](https://eel.is/c++draft/class.default.ctor#2) | rule | `Overload.Program.deletedWithin` | `Overload.Special` |
+| [[class.default.ctor]/2](https://eel.is/c++draft/class.default.ctor#2) | theorem | `Overload.argument_reference_deletes` | `Overload.ClassTemplates` |
 | [[class.default.ctor]/2](https://eel.is/c++draft/class.default.ctor#2) | theorem | `Overload.brace_init_differs_from_default_init` | `Overload.Traits` |
 | [[class.default.ctor]/3](https://eel.is/c++draft/class.default.ctor#3) | rule | `Overload.Program.trivialWithin` | `Overload.Special` |
 | [[class.default.ctor]/3](https://eel.is/c++draft/class.default.ctor#3) | theorem | `Overload.polymorphic_not_trivial` | `Overload.Traits` |
@@ -126,9 +129,8 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[class.member.lookup]/3 sentence 1](https://eel.is/c++draft/class.member.lookup#3.sentence-1) | rule | `Overload.Program.declarationSet` | `Overload.Members` |
 | [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4) | rule | `Overload.LookupSetRel.bases` | `Overload.Members` |
 | [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4) | rule | `Overload.LookupSetRel.exhausted` | `Overload.Members` |
-| [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4) | rule | `Overload.MergeBases.named` | `Overload.Members` |
+| [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4) | rule | `Overload.MergeBases.base` | `Overload.Members` |
 | [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4) | rule | `Overload.MergeBases.nil` | `Overload.Members` |
-| [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4) | rule | `Overload.MergeBases.other` | `Overload.Members` |
 | [[class.member.lookup]/4](https://eel.is/c++draft/class.member.lookup#4) | rule | `Overload.Program.lookupSetWithin` | `Overload.Members` |
 | [[class.member.lookup]/5](https://eel.is/c++draft/class.member.lookup#5) | rule | `Overload.LookupSet.merge` | `Overload.Members` |
 | [[class.member.lookup]/6](https://eel.is/c++draft/class.member.lookup#6) | example | `Overload.ambiguous_bases_example` | `Overload.Members` |
@@ -309,6 +311,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1) | rule | `Overload.Program.requirementHolds` | `Overload.Requires` |
 | [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1) | rule | `Overload.Program.validType` | `Overload.Requires` |
 | [[func.require]/1](https://eel.is/c++draft/func.require#1) | rule | `Overload.Program.objectInvoke` | `Overload.Requires` |
+| [[func.require]/1](https://eel.is/c++draft/func.require#1) | theorem | `Overload.specialization_callee_invocable` | `Overload.ClassTemplates` |
 | [[lex.icon]/3 sentence 1](https://eel.is/c++draft/lex.icon#3.sentence-1) | rule | `Overload.literalType` | `Overload.Arguments` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Program.invocable` | `Overload.Traits` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Program.nothrowInvocable` | `Overload.Traits` |
@@ -321,6 +324,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | theorem | `Overload.full_invocable_class` | `Overload.Requires` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | theorem | `Overload.invocable_class_iff_call` | `Overload.Requires` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | theorem | `Overload.nothrow_invocable_class_invocable` | `Overload.Requires` |
+| [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | theorem | `Overload.specialization_callee_invocable` | `Overload.ClassTemplates` |
 | [[meta.rel]/6](https://eel.is/c++draft/meta.rel#6) | rule | `Overload.Program.convertible` | `Overload.Traits` |
 | [[meta.rel]/6](https://eel.is/c++draft/meta.rel#6) | rule | `Overload.Program.nothrowConvertible` | `Overload.Traits` |
 | [[meta.rel]/6](https://eel.is/c++draft/meta.rel#6) | rule | `Overload.Trait.isConvertible` | `Overload.Types` |
@@ -458,6 +462,8 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[over.match.ctor]/1](https://eel.is/c++draft/over.match.ctor#1) | rule | `Overload.Program.ctorCandidates` | `Overload.Special` |
 | [[over.match.ctor]/1](https://eel.is/c++draft/over.match.ctor#1) | rule | `Overload.UserConv.candidate` | `Overload.Ranking` |
 | [[over.match.funcs.general]/2](https://eel.is/c++draft/over.match.funcs.general#2) | rule | `Overload.Decl.withImplicitObject` | `Overload.Members` |
+| [[over.match.funcs.general]/2](https://eel.is/c++draft/over.match.funcs.general#2) | rule | `Overload.Program.memberCallOn` | `Overload.Members` |
+| [[over.match.funcs.general]/3](https://eel.is/c++draft/over.match.funcs.general#3) | rule | `Overload.Program.memberCallOn` | `Overload.Members` |
 | [[over.match.funcs.general]/3](https://eel.is/c++draft/over.match.funcs.general#3) | rule | `Overload.impliedObject` | `Overload.Members` |
 | [[over.match.funcs.general]/4](https://eel.is/c++draft/over.match.funcs.general#4) | rule | `Overload.Decl.withImplicitObject` | `Overload.Members` |
 | [[over.match.funcs.general]/5](https://eel.is/c++draft/over.match.funcs.general#5) | rule | `Overload.Program.userSequence` | `Overload.Ranking` |
@@ -598,7 +604,10 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.func.order]/8](https://eel.is/c++draft/temp.func.order#8) | theorem | `Overload.PartialOrdering.tieBreak_needs_equal_heads` | `Overload.Ordering` |
 | [[temp.inst]/2](https://eel.is/c++draft/temp.inst#2) | rule | `Overload.Program.memberDecls` | `Overload.Program` |
 | [[temp.inst]/3](https://eel.is/c++draft/temp.inst#3) | rule | `Overload.Decl.instantiate` | `Overload.Program` |
+| [[temp.inst]/3](https://eel.is/c++draft/temp.inst#3) | rule | `Overload.Program.declarationSet` | `Overload.Members` |
 | [[temp.inst]/3](https://eel.is/c++draft/temp.inst#3) | rule | `Overload.Program.memberDecls` | `Overload.Program` |
+| [[temp.inst]/3](https://eel.is/c++draft/temp.inst#3) | rule | `Overload.Program.templatesWellFormed` | `Overload.ClassTemplates` |
+| [[temp.inst]/3](https://eel.is/c++draft/temp.inst#3) | theorem | `Overload.specialization_members_fixed` | `Overload.ClassTemplates` |
 | [[temp.local]/1](https://eel.is/c++draft/temp.local#1) | rule | `Overload.currentInstantiation` | `Overload.Program` |
 | [[temp.mem]/1](https://eel.is/c++draft/temp.mem#1) | rule | `Overload.Decl.instantiate` | `Overload.Program` |
 | [[temp.mem.func]/2](https://eel.is/c++draft/temp.mem.func#2) | example | `Overload.member_template_arguments_example` | `Overload.ClassTemplates` |
@@ -613,8 +622,11 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[temp.param]/12](https://eel.is/c++draft/temp.param#12) | rule | `Overload.Program.structural` | `Overload.Identity` |
 | [[temp.point]/1 sentence 2](https://eel.is/c++draft/temp.point#1.sentence-2) | rule | `Overload.Decl.refersTo` | `Overload.Program` |
 | [[temp.point]/1 sentence 2](https://eel.is/c++draft/temp.point#1.sentence-2) | rule | `Overload.Program.instantiationPoints` | `Overload.DependentCandidate` |
+| [[temp.point]/4](https://eel.is/c++draft/temp.point#4) | rule | `Overload.Program.pointOfInstantiation` | `Overload.ClassTemplates` |
+| [[temp.point]/4](https://eel.is/c++draft/temp.point#4) | rule | `Overload.Program.templatesWellFormed` | `Overload.ClassTemplates` |
 | [[temp.point]/7](https://eel.is/c++draft/temp.point#7) | rule | `Overload.IllFormedNdr.laterInUnit` | `Overload.Units` |
 | [[temp.point]/7 sentence 1](https://eel.is/c++draft/temp.point#7.sentence-1) | rule | `Overload.Program.instantiationPoints` | `Overload.DependentCandidate` |
+| [[temp.point]/7 sentence 2](https://eel.is/c++draft/temp.point#7.sentence-2) | theorem | `Overload.specialization_members_fixed` | `Overload.ClassTemplates` |
 | [[temp.point]/7 sentence 4](https://eel.is/c++draft/temp.point#7.sentence-4) | rule | `Overload.IllFormedNdr.laterCandidate` | `Overload.Units` |
 | [[temp.point]/7 sentence 4](https://eel.is/c++draft/temp.point#7.sentence-4) | rule | `Overload.pointVerdict` | `Overload.DependentCandidate` |
 | [[temp.res.general]/1](https://eel.is/c++draft/temp.res.general#1) | example | `Overload.temp_res_general_1_example` | `Overload.DependentCandidate` |
@@ -649,7 +661,6 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 
 - [[temp.inst]/10](https://eel.is/c++draft/temp.inst#10)
 - [[temp.spec.general]/4](https://eel.is/c++draft/temp.spec.general#4)
-- [[temp.point]/4](https://eel.is/c++draft/temp.point#4)
 
 ## Assumptions
 

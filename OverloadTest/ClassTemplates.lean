@@ -78,3 +78,38 @@ private def p : Program :=
 #guard Decl.instantiate [int] (.class "impl") == .class "impl"
 #guard Decl.instantiate [] (.function "get" [] [.class "box"] (ret := .param 0)) ==
   .function "get" [] [.class "box"] (ret := .param 0)
+
+-- Lookup into a specialization finds the template's members instantiated; the member call
+-- leads with the object.
+private def getT : Ty := .param 0
+#guard p.memberScope? (boxOf int) == some [.class "box"]
+#guard p.memberScope? (.named "impl") == some [.class "impl"]
+#guard p.memberScope? (.spec' "nothing" [int]) == none
+#guard p.declarationSet p.length (boxOf int) "get" == [.function "get" [] [.class "box"] (ret := int)]
+#guard p.memberSearch p.length (boxOf int) "as" ==
+  .selected [.functionTemplate { name := "as", head := [T], params := [int, .param 0], ret := .param 0
+                                 scope := [.class "box"] }]
+#guard p.memberSearch p.length (boxOf int) "nothing" == .selected []
+#guard (p.memberCallAt (Env.ofProgram p) p.length (boxOf int) "get" []).map (·.index) == .selected 0
+#guard (p.memberCallAt (Env.ofProgram p) p.length (boxOf int) "as" [{ ty := int }, { ty := .named "char" }]).map (·.index)
+  == .selected 0
+#guard (p.memberCallAt (Env.ofProgram p) p.length (boxOf int) "as" [{ ty := .named "impl" }, { ty := int }]).map (·.index)
+  == .noMatch
+-- A call operator of a class template, with its implicit object parameter spelling the specialization.
+private def fnT : Program :=
+  [ .class "A", .classTemplate "fn" [T], .function "operator()" [getT] [.class "fn"] .none none getT ]
+#guard fnT.objectCandidates fnT.length (.spec' "fn" [int]) ==
+  .selected [.function "operator()" [.lref (.const (.spec' "fn" [int])), int] [.class "fn"] .none none int]
+#guard (Env.full fnT).atomic (.trait .isInvocable) [.spec' "fn" [int], int] == .ok true
+#guard (Env.full fnT).atomic (.trait .isInvocable) [.spec' "fn" [int], .named "A"] == .ok false
+#guard Program.classCallee (.lref (.const (.spec' "fn" [int]))) == some (.spec' "fn" [int])
+#guard Program.classCallee (.ptr (.spec' "fn" [int])) == none
+-- The point of instantiation precedes the first declaration that mentions the specialization,
+-- and the program's class templates are well-formed.
+private def usesBox : Program := p ++ [.function "use" [boxOf int], .function "use2" [boxOf int]]
+#guard usesBox.pointOfInstantiation (boxOf int) == some p.length
+#guard usesBox.pointOfInstantiation (boxOf (.named "char")) == none
+#guard usesBox.templatesWellFormed
+-- A member declared after a reference to a specialization breaks the shape.
+#guard !(usesBox ++ [Decl.function "late" [] [.class "box"]]).templatesWellFormed
+#guard usesBox.declarationSet (p.length + 1) (boxOf int) "get" == usesBox.declarationSet p.length (boxOf int) "get"

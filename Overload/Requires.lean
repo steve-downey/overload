@@ -97,12 +97,13 @@ def expression (p : Program) (env : Env) : Constraint.Requirement → Subst (Opt
     | .selected (fs, as) => p.callExpression env fs as
     | .illFormed _ | .noMatch | .ambiguous _ => .ok none
   | .memberCall cls callee args =>
-    match cls.referred.stripConst with
-    | .named c =>
+    let c := cls.referred.stripConst
+    if c.isClass then
       match p.memberSearch p.length c callee with
-      | .selected ms => p.callExpression env (entities ms) (args.map declval)
+      | .selected ms =>
+        p.callExpression env ((entities ms).map (Decl.withImplicitObject c)) (declval cls :: args.map declval)
       | _ => .ok none
-    | _ => .ok none
+    else .ok none
   | .braceInit t as =>
     let formed : Subst Bool :=
       if !(t :: as).all Ty.concrete then .soft "a braced initialization of a dependent type"
@@ -169,23 +170,26 @@ member call is viable and well-formed, when generating its candidates is
 no hard error: a probe of a member through a requires-expression says
 what the call says. -/
 @[std theorem "expr.prim.req.simple#1"]
-theorem member_requirement_iff_call (p : Program) (env : Env) (c f : String) (args : List Ty)
+theorem member_requirement_iff_call (p : Program) (env : Env) (c : Ty) (f : String) (args : List Ty)
+    (hc : c.isClass = true) (hcs : c.stripConst = c) (hcr : c.referred = c)
     (hgen : ∀ ms, p.memberSearch p.length c f = .selected ms →
-      ∀ r, generate .text env ((entities ms).map p.normalizeDecl) (args.map Program.declval) [] ≠ .hard r) :
-    p.requirementHolds env (.memberCall (.named c) f args) = .ok true ↔
-      ∃ cand, p.memberCallAt env p.length c f (args.map Program.declval) = .selected cand := by
-  simp only [Program.requirementHolds, Program.expression, Ty.referred, Ty.stripConst, Program.memberCallAt]
+      ∀ r, generate .text env (((entities ms).map (Decl.withImplicitObject c)).map p.normalizeDecl)
+        (Program.declval c :: args.map Program.declval) [] ≠ .hard r) :
+    p.requirementHolds env (.memberCall c f args) = .ok true ↔
+      ∃ cand, p.memberCallOn env p.length c (Program.declval c) f (args.map Program.declval) = .selected cand := by
+  simp only [Program.requirementHolds, Program.expression, hcr, hcs, hc, ↓reduceIte, Program.memberCallOn]
   cases hs : p.memberSearch p.length c f with
   | selected ms =>
     simp only [Program.callExpression]
-    cases hg : generate .text env ((entities ms).map p.normalizeDecl) (args.map Program.declval) [] with
+    cases hg : generate .text env (((entities ms).map (Decl.withImplicitObject c)).map p.normalizeDecl)
+        (Program.declval c :: args.map Program.declval) [] with
     | hard r => exact absurd hg (hgen ms hs r)
     | ok _ | soft _ =>
-      cases p.call env (entities ms) (args.map Program.declval) with
+      cases p.call env ((entities ms).map (Decl.withImplicitObject c)) (Program.declval c :: args.map Program.declval) with
       | selected cand =>
         cases hsp : cand.specialization with
         | some sp => simp [hsp, Subst.map]
-        | none => cases hd : (entities ms)[cand.index]? <;> simp [hsp, hd, Subst.map]
+        | none => cases hd : ((entities ms).map (Decl.withImplicitObject c))[cand.index]? <;> simp [hsp, hd, Subst.map]
       | _ => simp [Subst.map]
   | illFormed _ | noMatch | ambiguous _ => simp [Subst.map]
 
@@ -203,16 +207,12 @@ requires-expression. -/
 
 namespace Program
 
-/-- The class a callee of class type names, when the member search can
-reach it: the referred type with its top-level `const` stripped, when
-that is a class named by a class-name. The fragment has no class
-template members, so a specialization of a class template has none for
-the search to find, and the trait inherits that (`docs/plan.md`, phase
-15). -/
-def classCallee (f : Ty) : Option String :=
-  match f.referred.stripConst with
-  | .named c => if (Ty.named c).isClass then some c else none
-  | _ => none
+/-- The class type a callee of class type names: the referred type with
+its top-level `const` stripped, when that is a class, named by a
+class-name or a specialization of a class template. -/
+def classCallee (f : Ty) : Option Ty :=
+  let c := f.referred.stripConst
+  if c.isClass then some c else none
 
 /-- `INVOKE(declval<Fn>(), declval<Args>()...)` for a class `Fn`: `Fn`
 is no pointer to member, so the invocation is the call `f(t1, ..., tN)`,
@@ -223,7 +223,7 @@ expression, `none` when the class has neither, its call operators are
 found ambiguously, or the call is not viable or ill-formed. -/
 @[std rule "func.require#1" "over.call.object#1.sentence-1" "over.call.object#2"
   "over.call.object#3.sentence-1"]
-def objectInvoke (p : Program) (env : Env) (obj : CallArg) (cls : String) (args : List Ty) :
+def objectInvoke (p : Program) (env : Env) (obj : CallArg) (cls : Ty) (args : List Ty) :
     Subst (Option Expression) :=
   match p.objectCandidates p.length cls with
   | .selected cs => p.callExpression env cs (obj :: args.map declval)
@@ -403,7 +403,7 @@ object, `declval<Fn>()` over the class's call operators and surrogates,
 is viable and well-formed, when generating the candidates is no hard
 error. -/
 @[std theorem "meta.rel#3"]
-theorem invocable_class_iff_call (p : Program) (env : Env) (f : Ty) (c : String) (as : List Ty)
+theorem invocable_class_iff_call (p : Program) (env : Env) (f : Ty) (c : Ty) (as : List Ty)
     (hc : Program.classCallee f = some c)
     (hgen : ∀ cs, p.objectCandidates p.length c = .selected cs →
       ∀ r, generate .text env (cs.map p.normalizeDecl) (Program.declval f :: as.map Program.declval) [] ≠ .hard r) :
@@ -427,7 +427,7 @@ theorem invocable_class_iff_call (p : Program) (env : Env) (f : Ty) (c : String)
 /-- `is_nothrow_invocable` of a class callee implies `is_invocable` of
 it: the trait is the base trait and the call known not to throw. -/
 @[std theorem "meta.rel#3"]
-theorem nothrow_invocable_class_invocable (p : Program) (env : Env) (f : Ty) (c : String) (as : List Ty)
+theorem nothrow_invocable_class_invocable (p : Program) (env : Env) (f : Ty) (c : Ty) (as : List Ty)
     (hc : Program.classCallee f = some c)
     (h : p.traitAbove env .isNothrowInvocable (f :: as) = .ok true) :
     p.traitAbove env .isInvocable (f :: as) = .ok true := by
@@ -443,7 +443,7 @@ as it answers a requires-expression there. -/
 @[std theorem "meta.rel#3"]
 theorem full_invocable_class (p : Program) (atomics : List (String × List Ty × Bool))
     (extra : Constraint.ExprOracle) (traits : Trait → List Ty → Subst Bool) (depth : Nat)
-    (f : Ty) (c : String) (as : List Ty) (hc : Program.classCallee f = some c) :
+    (f : Ty) (c : Ty) (as : List Ty) (hc : Program.classCallee f = some c) :
     (Env.fullWithin p atomics extra traits (depth + 1)).atomic (.trait .isInvocable) (f :: as) =
       (p.objectInvoke (Env.fullWithin p atomics extra traits depth) (Program.declval f) c as).map (·.isSome) := by
   show p.traitAbove _ .isInvocable (f :: as) = _

@@ -95,6 +95,9 @@ is the map.
 #audit Overload.surrogates_ambiguous
 #audit Overload.instantiate_ground
 #audit Overload.member_template_arguments_example
+#audit Overload.specialization_members_fixed
+#audit Overload.specialization_callee_invocable
+#audit Overload.argument_reference_deletes
 #audit Overload.invocable_class_iff_call
 #audit Overload.nothrow_invocable_class_invocable
 #audit Overload.full_invocable_class
