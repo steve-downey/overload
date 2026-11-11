@@ -1311,6 +1311,16 @@ charter, and the decisions are `object-model`, `object-fragment`,
   `vacuous_initialization_begins_lifetime`,
   `vacuous_initialization_erroneous_value` and
   `determinate_outside_lifetime`.
+- `P4222`: Stroustrup's initialization profile, P4222R3, as a checker
+  over traces. `Annotations` carries the `[[uninit]]` marks and how the
+  library spells `start_lifetime_as`; `check` folds the paper's rules
+  over a trace with a `Mark` per root and member path and a `Ref` per
+  pointer, `accepts` is an empty violation list, `classViolations` is
+  §5.1, and `hazard` is the run's. The paper's examples are theorems
+  (`loc_rejected` to `construct_twice_rejected`); `acceptedHazards` and
+  `rejectedSafe` are the table of disagreements with the object model,
+  `guarantee_fails` the headline, `now_init_identity` the statement
+  that the attributes change no execution.
 - `Emit`: the differential cases, with constant evaluation as the
   oracle. An `ObjectCase` is a trace, the model, and the `Case` the
   harness compiles: a `constexpr` function that spells the trace and a
@@ -1324,10 +1334,13 @@ not transparently replaceable by the new one, a const complete object or
 a base class subobject; `std::start_lifetime_as` is needed when the
 bytes of a `T` sit where no operation created a `T`, which `malloc`,
 the creation of a byte buffer and `memcpy` do and a byte-by-byte store
-does not; and the initialization profile's rule, stated on variables,
-neither implies nor is implied by the absence of uninitialized reads,
-because the reads are of objects and the objects a program creates are
-mostly not variables.
+does not; and P4222R3's mark, "initialized memory", neither implies nor is
+implied by the absence of undefined behaviour, because the Standard's
+two notions are an object's lifetime and the state of its bytes, and
+the mark is neither: it survives the death of a const or base-subobject
+object, it covers a union whole where the Standard has one active
+member, and it is cleared by the member assignment that gives an
+aggregate or a union its value.
 
 ### Emit
 

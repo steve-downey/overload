@@ -178,7 +178,12 @@ and described here as they arrive.
   twins, `object_launder_const_complete` and
   `object_launder_base_subobject`, agree on both compilers. The
   evaluators track storage, not objects, where [basic.life]/10 tracks
-  objects; the Standard's text is the model's. Listed in
+  objects; the Standard's text is the model's. The two P4222R3 traces
+  that add the profile's `destroy_at` before the reuse
+  (`object_const_complete_destroyed_not_replaced`,
+  `object_base_destroyed_replaced_complete`) are accepted the same way,
+  so the profile's implementations, which the paper says live in these
+  compilers, have no evaluator to disagree with it. Listed in
   `differential/known-disagreements.txt` for both compilers.
 
 - **GCC 13's constant evaluator does not end a lifetime at
@@ -909,22 +914,58 @@ and described here as they arrive.
   as a theorem; the reference parameters the library uses keep the
   object's identity (`pin_keeps_identity`).
 
-## About the object model and the initialization profile
+## About the object model and P4222R3
 
-- **The initialization profile's rule and its hazard are about
-  different things** (11 November 2026). The rule, every variable
-  initialized at its definition, is a predicate on definitions; the
-  hazard, a read of an indeterminate or erroneous value, is a predicate
-  on objects and bytes. `Overload/Object/Profile.lean` has six traces
-  the rule accepts that have the hazard, `new int` read before
-  assignment, `T t{}` where `T() {}` leaves a member, `[[indeterminate]]`,
-  `start_lifetime_as` over `malloc`'s storage, an inactive union member
-  after `U u{}`, and an initialized variable read after its destructor;
-  and three it rejects that do not: a scalar assigned before it is read,
-  a buffer filled before it is read, a static variable. A definite
-  assignment rule would take the first of the three and keep all six.
-  Recorded under `decisions.md#initialization-profile`, provisionally,
-  since the earlier discussion it formalizes is not in the repository.
+- **P4222R3's guarantee does not hold against the object model** (11
+  November 2026). The initialization profile (P4222R3, §8.2) guarantees
+  "no use of uninitialized objects" by marking memory initialized or
+  not; `Overload/Object/P4222.lean` transcribes its rules as a checker
+  and runs the traces. Six traces the profile accepts have undefined
+  behaviour: the [ptr.launder]/6 example with the `destroy_at` the
+  profile requires before the storage is reused, read through the old
+  pointer (`launderExample`, [basic.life]/9); a base class subobject
+  destroyed and recreated as a complete object, then the complete
+  object's own member read (`baseReplaced`, [basic.life]/2); an
+  initialized union's inactive member read (`unionInactive`,
+  [class.union.general]/2); an `int` read as a `Pair` through a cast
+  (`typePun`, [basic.lval]/11); a byte buffer read as a second type
+  after bytes were stored over the first (`bufferReuse`,
+  [intro.object]/13); `start_lifetime_as` over `malloc`'s storage
+  (`startLifetimeAsIndeterminate`, [basic.indet]/1). Four traces it
+  rejects are defined: member assignment into an `[[uninit]]` aggregate
+  (`pointAssigned`, §5.4) and union (`unionAssigned`, §5.6, the
+  assignment [class.union.general]/5 makes begin the member's
+  lifetime); `construct_at` over a live object (`constructOverLive`,
+  [basic.life]/6, /10); and `start_lifetime_as` on an `int`'s bytes
+  under the `[[ref_to_uninit]]` reading (`startLifetimeAsDefined`). The
+  paper mentions neither `std::launder`, `std::start_lifetime_as`,
+  implicit object creation nor the active member of a union, and its
+  mark is a third state beside the Standard's lifetime and value state.
+  The paper leaves casts to another profile (§4.3) and `now_init` is its
+  declared hole (§4.4); `typePun` and `bufferReuse` are listed as what
+  the initialization guarantee alone does not cover, the other four are
+  not covered by any companion the paper names.
+
+- **P4222R3 §1.4 misstates two cases** (11 November 2026). "If X is a
+  class without a default constructor, x is uninitialized, so the
+  assignment is UB in older compilers and erroneous behavior in C++26":
+  `X x;` for a class with no default constructor is ill-formed
+  ([dcl.init.general]/6, no constructor is selected), and erroneous
+  behaviour applies to a scalar's value ([basic.indet]/2), not to a
+  class assignment. The sentence reads as if it meant a class with a
+  trivial default constructor, which is the case the model has
+  (`vacuous_initialization_erroneous_value` for the scalar; a class's
+  members are read one at a time). Also §4.6, "Reading an uninitialized
+  object … is UB": erroneous for automatic storage since C++26
+  ([basic.indet]/1, /2), undefined for dynamic storage.
+
+- **The definition rule and its hazard are about different things** (11
+  November 2026). The rule, every variable initialized at its
+  definition, is a predicate on definitions; the hazard, a read of an
+  indeterminate or erroneous value, is a predicate on objects and bytes.
+  `Overload/Object/Profile.lean` has six traces the rule accepts that
+  have the hazard and three it rejects that do not; the full rule set
+  of P4222R3 closes some of each and is the finding above.
 
 - **A class with a user-provided default constructor can be an
   implicit-lifetime type** (11 November 2026). `struct T { T() {} int

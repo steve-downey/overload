@@ -156,3 +156,6 @@ replaced by an object of the same type is fine. -/
 /-! `T() {}` leaves `x` erroneous although `T t{};` has an initializer
 ([dcl.attr.indet]/3). -/
 #guard (run model [.var "t" cT .value, .addr "p" "t", .member "px" "p" 0, .read "v" "px"]).isErroneous
+
+-- `now_init` is the identity on the pointer and changes no object.
+#guard value (run model [.var "x" int (.scalar 3), .addr "p" "x", .nowInit "q" "p", .read "v" "q"]) "v" == some (.int 3)

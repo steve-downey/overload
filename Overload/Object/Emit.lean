@@ -216,6 +216,38 @@ def launderBase (laundered : Bool) : ObjectCase :=
     ("  D d{1, 2};\n  B* pb = &d;\n  std::construct_at(pb, 7);\n" ++
      s!"  return {if laundered then "std::launder(pb)->b" else "pb->b"};\n") 7
 
+/-! ### P4222R3's accepted traces (`Overload/Object/P4222.lean`) -/
+
+/-- `U u{7}; return u.s;`: an initialized union whose inactive member is
+read. The profile accepts (`P4222.unionInactive`). -/
+def unionInitializedInactiveRead : ObjectCase :=
+  mk "object_union_initialized_inactive_read" "class.union.general#2"
+    [.var "u" cU (.braces [7]), .addr "pu" "u", .member "ps" "pu" 1, .read "v" "ps"]
+    "  U u{7};\n  return u.s;\n" 0
+
+/-- A base subobject destroyed and recreated as a complete `B`, then the
+complete object's own member read (`P4222.baseReplaced`). -/
+def baseDestroyedReplacedComplete : ObjectCase :=
+  mk "object_base_destroyed_replaced_complete" "basic.life#2"
+    [ .var "d" cD (.braces [1, 2]), .addr "pd" "d", .member "pb" "pd" 0
+    , .destroy "pb", .placementNew "nb" cB "pb" (.braces [7])
+    , .addr "pd2" "d", .member "pdd" "pd2" 1, .read "v" "pdd" ]
+    "  D d{1, 2};\n  B* pb = &d;\n  std::destroy_at(pb);\n  std::construct_at(pb, 7);\n  return d.d;\n" 2
+
+/-- [ptr.launder]/6 with the destructor call the profile requires before
+the storage is reused, read through the old pointer
+(`P4222.launderExample`). -/
+def constCompleteDestroyedNotReplaced : ObjectCase :=
+  mk "object_const_complete_destroyed_not_replaced" "basic.life#9"
+    [ .malloc "s" 4, .cast "s0" (.const cX) "s", .placementNew "p" (.const cX) "s0" (.braces [3])
+    , .member "pn" "p" 0, .read "a" "pn"
+    , .destroy "p", .placementNew "p2" cX "s" (.braces [5])
+    , .member "pn2" "p" 0, .read "c" "pn2", .destroy "s", .free "s" ]
+    ("  std::allocator<X> al;\n  X* s = al.allocate(1);\n" ++
+     "  const X* p = std::construct_at(static_cast<const X*>(s), 3);\n" ++
+     "  const int a = p->n;\n  std::destroy_at(p);\n  std::construct_at(s, 5);\n" ++
+     "  const int c = p->n;\n  std::destroy_at(s);\n  al.deallocate(s, 1);\n  return a + c;\n") 8
+
 /-- Every case. -/
 def cases : List ObjectCase :=
   [ uninitRead, assignedBeforeRead, valueInitZero, userCtorLeavesMember
@@ -224,7 +256,8 @@ def cases : List ObjectCase :=
   , implicitDestructor, destroyRecreateBlockExit
   , newIntUninit, newIntInit
   , launderConstComplete true, launderConstComplete false
-  , launderBase true, launderBase false ]
+  , launderBase true, launderBase false
+  , unionInitializedInactiveRead, baseDestroyedReplacedComplete, constCompleteDestroyedNotReplaced ]
 
 /-- The cases the harness compiles. -/
 def harnessCases : List Case := cases.map (·.case)

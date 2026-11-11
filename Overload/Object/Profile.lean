@@ -3,11 +3,16 @@
 import Overload.Object.Machine
 
 /-!
-# The initialization profile against the object model
+# The definition rule of the initialization profile against the object model
 
-A safety profile for initialization is a rule on the source: every
-variable is initialized at its definition, with `[[indeterminate]]` as
-the opt-out. The object model lets the rule be stated against the thing
+The first rule of P4222R3's initialization profile is a rule on the
+source: every variable is initialized at its definition, with an
+attribute as the opt-out (§4.1; the paper spells it `[[uninit]]`, this
+module takes `[[indeterminate]]` as the mark on the fragment's
+definitions). `Overload/Object/P4222.lean` transcribes the paper's full
+rule set; this module keeps the definition rule alone, which is what
+the comparison needs to show that the rule's subject, variables, is not
+the hazard's, objects. The object model lets the rule be stated against the thing
 it is meant to prevent, a read that produces an indeterminate or
 erroneous value, or any other undefined behaviour of the trace, and the
 two compared. Both directions fail, and each failure is a concrete trace

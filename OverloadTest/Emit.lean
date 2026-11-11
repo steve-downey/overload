@@ -67,7 +67,7 @@ private def traitsAgree (cs : List Case) : Bool :=
 -- The object model's cases: the emitted expectation is the machine's.
 #guard Object.Emit.cases.all fun oc =>
   oc.case.wellFormed == ((Object.Machine.run oc.model oc.trace) matches .defined _)
-#guard Object.Emit.cases.length == 17
+#guard Object.Emit.cases.length == 20
 
 -- The first line carries the expectation the harness reads.
 #guard (render draftDeductCall3_rvalue).startsWith "// expect: well-formed\n"

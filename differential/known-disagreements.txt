@@ -171,3 +171,12 @@ object_double_destroy.cpp g++
 object_double_destroy.cpp g++-13
 object_implicit_destructor.cpp g++
 object_implicit_destructor.cpp g++-13
+# The same leniency on P4222R3's accepted traces (phase 16, stage 5).
+object_const_complete_destroyed_not_replaced.cpp g++
+object_const_complete_destroyed_not_replaced.cpp g++-13
+object_const_complete_destroyed_not_replaced.cpp clang++
+object_const_complete_destroyed_not_replaced.cpp clang++-18
+object_base_destroyed_replaced_complete.cpp g++
+object_base_destroyed_replaced_complete.cpp g++-13
+object_base_destroyed_replaced_complete.cpp clang++
+object_base_destroyed_replaced_complete.cpp clang++-18

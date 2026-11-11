@@ -8,7 +8,7 @@ import Overload.Object.State
 A program of the object model is a list of operations: definitions,
 allocations, placement `new`, destructor calls, reads and writes through
 pointers, `std::launder`, `std::start_lifetime_as`, `std::start_lifetime`,
-`memcpy`, and block entry and exit. `step` runs one on a state and
+`memcpy`, P4222R3's `now_init`, and block entry and exit. `step` runs one on a state and
 produces a `Behavior`, `run` the list. There are no expressions beyond a
 pointer variable and a constant: the fragment is the traces the lifetime
 rules are about, not the language that produces them
@@ -116,6 +116,10 @@ inductive Op where
   lvalues, by a loop or a `read` system call: not an operation that
   implicitly creates objects. -/
   | storeBytes (p : String) (bs : List Nat)
+  /-- `T* x = now_init(p);`, P4222R3's unverified assertion that the
+  memory `p` refers to has been initialized: the identity on the
+  pointer, with no effect on any object (`Overload/Object/P4222.lean`). -/
+  | nowInit (x : String) (p : String)
   /-- `{`: a block begins. -/
   | beginBlock
   /-- `}`: the block's automatic objects are destroyed in reverse order
@@ -719,6 +723,9 @@ def step (m : Model) (s : State) : Op → Behavior State
     else
       let s := match p.loc with | .object o => s.touch (s.resolve o) | _ => s
       .defined (writeBytes s r off (bs.map Byte.byte))
+  | .nowInit x q => do
+    let p ← ptr s q
+    .defined (s.setPtr x p)
   | .beginBlock => .defined { s with blocks := [] :: s.blocks }
   | .endBlock =>
     match s.blocks with

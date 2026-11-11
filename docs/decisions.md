@@ -1454,42 +1454,64 @@ read after it is defined.
 
 ## initialization-profile
 
-**Question:** How is the proposed initialization profile stated against
-the object model, and what do the theorems about it say?
-**Status:** DECIDED 11 November 2026, provisionally: the author's
-earlier discussion of the profile is not in the repository, and this
-entry is the session's reconstruction of it, to be corrected.
-**Decision:** The profile is a predicate on operations
-(`Overload.Object.Profile.accepts`): a definition without an initializer
-is rejected unless the variable is marked `[[indeterminate]]`; every
-other operation is accepted, since the rule is about variables and their
-initializers. The hazard is a predicate on the run (`Profile.hazard`):
-undefined or erroneous behaviour; `uninitializedRead` is the narrower
-one, a read producing an indeterminate or erroneous value. The theorems
-are `not_sound`, an accepted trace with the hazard, with six witnesses
-(`acceptedHazards`): `new int` read before assignment; `T t{}` where
-`T() {}` leaves `x`; `[[indeterminate]]`; `start_lifetime_as` over
-`malloc`'s storage; an inactive union member read after `U u{}`; an
-initialized variable read after its destructor. And `not_complete`, a
-rejected trace with no hazard, with three (`rejectedSafe`): `int x; x =
-1;` then read; a byte buffer filled by a system call before it is read;
-`static int x;`, which is zero-initialized. Two further theorems
-separate lifetime from initialization: `int x;` is within its lifetime
-with an erroneous value, and an initialized object outside its lifetime
-holds a determinate value whose read is undefined.
-**Why:** The profile's rule names the variable and the hazard names the
-object, and most objects are not variables: everything `new` creates,
-every subobject a constructor does not mention, every union member,
-every object `start_lifetime_as` creates from bytes. The erroneous
-value of C++26 ([basic.indet], P2795) changed the uninitialized
-automatic read from undefined to erroneous, so the profile's gain over
-the language is the rejection, and the theorems say the rejection
-neither covers the hazard nor confines itself to it. A profile that
-tracked definite assignment would accept the first rejected trace and
-still accept the six hazards, which is the direction the next stage
-can state.
-**Decided by:** the session, on the author's request of 11 November
-2026, pending the author's correction.
+**Question:** How is P4222R3, "An initialization profile", stated
+against the object model, and what do the theorems about it say?
+**Status:** DECIDED 11 November 2026. First stated the same day from a
+reconstruction; restated against the paper (P4222R3, Stroustrup, 22
+October 2026) once the author supplied it.
+**Decision:** Two modules. `Overload/Object/Profile.lean` keeps the
+paper's definition rule alone, every variable initialized at its
+definition or marked, with `[[indeterminate]]` as the fragment's mark,
+and shows the rule's subject is variables where the hazard's is objects.
+`Overload/Object/P4222.lean` transcribes the paper's rule set as a
+checker over traces (`check`, `accepts`): a definition is initialized by
+an initializer, a user-provided default constructor, default member
+initializers throughout, or static storage (§2, §3, §4.1); an
+uninitialized definition must be marked `[[uninit]]` and an initialized
+one must not (§4.1, §5.4); `construct_at` sets the mark and is an error
+on initialized memory, `destroy_at` clears it and is an error on
+uninitialized memory (§4.6, §8.2); a read of uninitialized memory is an
+error except through `unsigned char` or `std::byte` (§4.1, §4.6);
+assignment initializes a complete scalar (§1.3) and a member marked
+`[[uninit]]` of an initialized class (§5.2), and is an error on a member
+of an uninitialized aggregate or union (§5.4, §5.6); bytes stored through
+byte lvalues are allowed and leave the mark (§4.8); `memcpy` sets it;
+casts and `std::launder` carry the mark (§6); `now_init` sets it (§4.4);
+a constructor must initialize every member not marked `[[uninit]]`
+(§5.1, `classViolations`). Four readings the paper leaves open are
+fixed: the analysis knows every alias, each pointer carrying the root
+and member path it was derived from; `malloc` is `[[ref_to_uninit]]`
+(§4.3); `std::start_lifetime_as`, which the paper does not mention, is
+checked under both the unannotated reading, a function returning a
+pointer to initialized memory, and the `[[ref_to_uninit]]` reading
+(`Annotations.startLifetimeAsRefToUninit`); the hazard is undefined or
+erroneous behaviour of the run. Functions, `[[ref_to_uninit]]` on
+parameters and `[[must_init]]` are outside the fragment.
+**Why:** The paper states its guarantee as "no use of uninitialized
+objects" (§8.2) and asks that the guarantee, not the rule list, be what
+is specified (§7). The object model is where that guarantee can be
+checked, and the checker is the rule list. The result is the table at
+the end of `P4222.lean`: six accepted traces with undefined behaviour,
+where the profile's mark says initialized and the Standard has a dead
+object (the [ptr.launder]/6 example with the destructor call the profile
+requires, a base subobject recreated as a complete object), a union
+member never active, or no object at all (a cast, a reused byte buffer,
+`start_lifetime_as` over `malloc`); and four rejected traces with none,
+where the mark says uninitialized and the Standard has a live object with
+a determinate value (member assignment into an `[[uninit]]` aggregate and
+union, `construct_at` over a live object, `start_lifetime_as` under the
+annotated reading). The profile's "initialized memory" is a third state
+beside lifetime and value state, and it is the one of the three the
+Standard does not have. The most favourable alias reading is chosen so
+that no finding rests on what the analysis fails to see.
+**Decided by:** the session, on the author's request of 11 November 2026
+and the paper the author supplied.
 **Log:**
 
-- 2026-11-11 — Decided provisionally.
+- 2026-11-11 — Decided provisionally from a reconstruction.
+- 2026-11-11 — Restated against P4222R3. The paper's own examples of
+  §4.1, §4.6, §5.4 and §5.6 reproduce (`loc_rejected` to
+  `construct_twice_rejected`). The annotated `start_lifetime_as`
+  reading first left the referent's mark alone, which accepted the
+  defined case; a `[[ref_to_uninit]]` result marks the referent
+  uninitialized.

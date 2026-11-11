@@ -960,6 +960,16 @@ Status, 15 October 2026:
   unions, value-initialization, a user-provided constructor that leaves
   a member, and `new int`; `std::start_lifetime_as`, `reinterpret_cast`,
   `malloc` and `memcpy` are outside constant evaluation and stay stated.
+  Stage 5, p4222, landed the same day, when the author supplied
+  P4222R3: `Overload/Object/P4222.lean`, the paper's rules as `check`
+  and `accepts` over traces with `Annotations` for `[[uninit]]`, the
+  paper's examples of §4.1, §4.6, §5.4 and §5.6 as theorems, six
+  accepted traces with undefined behaviour and four rejected traces
+  with none (`acceptedHazards`, `rejectedSafe`, `guarantee_fails`), the
+  two readings of `std::start_lifetime_as`, and `Op.nowInit`. Three
+  emitted cases for the accepted traces; both compilers accept two of
+  them, the evaluator leniency already filed. The findings are in
+  `findings.md`, "About the object model and P4222R3".
 
 ## Target theorems
 
@@ -1034,8 +1044,8 @@ its counterexample and is a finding, not a setback.
 | transparent-replacement | A non-const complete object replaced by one of the same type is transparently replaced: the old pointer, the variable's name and `std::launder` all refer to the new object ([basic.life]/10). Added 11 November 2026. | 16 |
 | start-lifetime-as-necessity | Reading the bytes of an object of one type as another through a cast pointer is undefined, and `std::start_lifetime_as` makes it defined with the object representation unchanged and the old lifetime ended; a byte buffer filled byte by byte after an object of another type was created in it is the same ([basic.lval]/11, [basic.life]/2, [obj.lifetime]/5). Added 11 November 2026. | 16 |
 | implicit-creation-suffices | Where the bytes come from `malloc`, from the creation of a byte array or from `memcpy`, the operation implicitly creates the object and no call is needed ([intro.object]/13, /15, /16, [cstring.syn]/3). Added 11 November 2026. | 16 |
-| profile-not-sound | A trace the initialization profile accepts, every definition initialized or marked `[[indeterminate]]`, can read an indeterminate or erroneous value or have other undefined behaviour: `new int`, a user-provided constructor that leaves a member, `[[indeterminate]]`, `start_lifetime_as` over indeterminate storage, an inactive union member, an initialized variable outside its lifetime. Added 11 November 2026. | 16 |
-| profile-not-complete | A trace the profile rejects can have no hazard: a scalar assigned before it is read, a buffer filled before it is read, a static variable. Added 11 November 2026. | 16 |
+| profile-not-sound | A trace the initialization profile's definition rule accepts can read an indeterminate or erroneous value or have other undefined behaviour; under P4222R3's full rule set six traces remain: the [ptr.launder]/6 example with its destructor call, a base subobject recreated as a complete object, an initialized union's inactive member, a cast, a reused byte buffer, `start_lifetime_as` over `malloc` (`P4222.accepted_hazards`, `guarantee_fails`). Added 11 November 2026. | 16 |
+| profile-not-complete | A trace the profile rejects can have no hazard: under the definition rule a scalar assigned before it is read; under P4222R3's rules member assignment into an `[[uninit]]` aggregate or union, `construct_at` over a live object, and `start_lifetime_as` under the `[[ref_to_uninit]]` reading (`P4222.rejected_safe`). Added 11 November 2026. | 16 |
 | lifetime-not-initialization | `int x;` begins the lifetime of `x` with an erroneous value, and an initialized object outside its lifetime holds a determinate value whose read is undefined: the profile's notion, initialized variables, is neither of the object model's two, lifetime and value state ([basic.life]/2, [basic.indet]/1, [basic.life]/8). Added 11 November 2026. | 16 |
 
 Stability is the theorem that says open polymorphism has no surprises. Its
@@ -2832,15 +2842,14 @@ operations.
   `Machine.access`, with `access_iff`. The other operations are given as
   the step function, each clause cited; the relation forms are owed and
   logged under `spec-style`.
-- **The profile as a predicate on traces.** `Profile.accepts` rejects a
-  definition without an initializer unless marked `[[indeterminate]]`,
-  and accepts every other operation, since the rule is about variables.
-  `Profile.hazard` is undefined or erroneous behaviour of the run;
-  `uninitializedRead` the narrower hazard the rule names. The theorems
-  are concrete traces in both directions, each a `decide`. The author's
-  earlier discussion of the profile is not in the repository; the
-  formalization is a reconstruction to be corrected against it
-  (`decisions.md#initialization-profile`).
+- **The profile as a checker over traces.** P4222R3's rules
+  (`decisions.md#initialization-profile`) are `P4222.check`, a fold over
+  the trace with a mark per root and member path, each pointer carrying
+  what it was derived from; `P4222.accepts` is an empty violation list,
+  and `P4222.hazard` undefined or erroneous behaviour of the run.
+  `Profile.lean` keeps the definition rule alone. The theorems are
+  concrete traces in both directions, each a `decide`, and the paper's
+  own examples reproduce.
 
 ### Decisions to record (`docs/decisions.md`)
 
@@ -2872,6 +2881,12 @@ operations.
    ([class.cdtor]), with the ordering of subobject initialization
    ([class.base.init]), which is where the initialization profile meets
    constructors that read members.
+5. [p4222](#p4222): P4222R3's rule set as a checker over traces,
+   `Overload/Object/P4222.lean`, the paper's own examples reproduced,
+   and the table of accepted-and-undefined and rejected-and-defined
+   traces; `now_init` as an operation of the machine; three emitted
+   cases for the accepted traces. Landed 11 November 2026, out of order,
+   when the author supplied the paper.
 
 ### Risks, recorded so the stages can watch for them
 

@@ -258,6 +258,18 @@ is the map.
 #audit Overload.Object.Profile.rejected_safe_defined
 #audit Overload.Object.Profile.vacuous_initialization_begins_lifetime
 #audit Overload.Object.Profile.determinate_outside_lifetime
+#audit Overload.Object.P4222.launder_example_accepted
+#audit Overload.Object.P4222.launder_example_undefined
+#audit Overload.Object.P4222.base_replaced_undefined
+#audit Overload.Object.P4222.union_inactive_undefined
+#audit Overload.Object.P4222.type_pun_undefined
+#audit Overload.Object.P4222.buffer_reuse_undefined
+#audit Overload.Object.P4222.start_lifetime_as_unannotated_undefined
+#audit Overload.Object.P4222.start_lifetime_as_annotated
+#audit Overload.Object.P4222.accepted_hazards
+#audit Overload.Object.P4222.rejected_safe
+#audit Overload.Object.P4222.guarantee_fails
+#audit Overload.Object.P4222.now_init_identity
 
 -- Erasing derivation, Mandates, SFINAE, dispatch, access.
 #audit Overload.inheritance_erasure

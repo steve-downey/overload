@@ -6,15 +6,18 @@ which.
 
 ## Where things stand, 11 November 2026
 
-Phase 16, the object model, is open with its first two stages landed
-on the branch `claude/cpp-object-model-lean-gec6xk`. Fifteen phases are closed
+Phase 16, the object model, is open with stages 1, 2 and 5 landed on
+the branch `claude/cpp-object-model-lean-gec6xk`. Fifteen phases are closed
 before it. `Overload/Object/*.lean` is the object model: storage,
 bytes, objects and their lifetime, pointers, the abstract machine of
 nineteen operations, the access judgement in both forms with
 `access_iff`, the `std::launder` and `std::start_lifetime_as` theorems,
-and the initialization profile with `not_sound` and `not_complete`.
+the definition rule of the initialization profile with `not_sound` and
+`not_complete`, and P4222R3's full rule set as a checker
+(`Overload/Object/P4222.lean`) with the paper's examples reproduced and
+the table of traces on which it and the object model disagree.
 `OverloadTest/Object.lean` holds the guards. Every theorem is a
-`decide`. `Overload/Object/Emit.lean` has seventeen differential cases
+`decide`. `Overload/Object/Emit.lean` has twenty differential cases
 with constant evaluation as the oracle; `make differential
 PROBE_COMPILERS="g++-13 clang++-18"` agrees except for the six filed in
 `findings.md` and `differential/known-disagreements.txt`.
@@ -30,8 +33,11 @@ Recorded in `plan.md`, phase 16, stages 2 to 4, and the status entry:
   (`decisions.md#spec-style`, log of 11 November 2026).
 - The periods of construction and destruction, where the profile meets
   constructors that read members.
-- The author's correction of `decisions.md#initialization-profile`: the
-  formalization reconstructs a discussion that is not in the repository.
+- The author's reading of `decisions.md#initialization-profile`: the
+  four readings the checker fixes where P4222R3 leaves room, aliasing
+  above all.
+- Functions in the fragment, which is where `[[ref_to_uninit]]` on
+  parameters, `[[must_init]]` and §5.1's constructor bodies live.
 
 The owed items of phase 15 stand as `plan.md` records them.
 
