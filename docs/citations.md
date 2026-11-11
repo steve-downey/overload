@@ -405,6 +405,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[expr.call]/15](https://eel.is/c++draft/expr.call#15) | rule | `Overload.Program.conversionResult` | `Overload.Ranking` |
 | [[expr.const.const]/8](https://eel.is/c++draft/expr.const.const#8) | rule | `Overload.ConvertsTo.reference` | `Overload.Arguments` |
 | [[expr.const.const]/8](https://eel.is/c++draft/expr.const.const#8) | rule | `Overload.integralConversion` | `Overload.Arguments` |
+| [[expr.const.core]/2](https://eel.is/c++draft/expr.const.core#2) | rule | `Overload.Object.Emit.constant` | `Overload.Object.Emit` |
 | [[expr.delete]/5](https://eel.is/c++draft/expr.delete#5) | rule | `Overload.Object.Op.delete` | `Overload.Object.Machine` |
 | [[expr.prim.req.compound]/1](https://eel.is/c++draft/expr.prim.req.compound#1) | rule | `Overload.Constraint.Requirement.compound` | `Overload.Constraint` |
 | [[expr.prim.req.compound]/1](https://eel.is/c++draft/expr.prim.req.compound#1) | rule | `Overload.Program.requirementHolds` | `Overload.Requires` |

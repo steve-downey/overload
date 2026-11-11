@@ -948,7 +948,18 @@ Status, 15 October 2026:
   for meanwhile (`decisions.md#spec-style`); the periods of construction
   and destruction ([class.cdtor]); arrays beyond byte buffers; pointers
   stored in objects; thread and static destruction; `mutable`;
-  `[[indeterminate]]` on parameters.
+  `[[indeterminate]]` on parameters. Stage 2, object-differential,
+  landed the same day: seventeen cases in `Overload/Object/Emit.lean`,
+  each a trace and the `constexpr` function that spells it, the
+  expectation computed by `run` and checked against the emitted file by
+  `OverloadTest/Emit.lean`. Clang 18 agrees on fifteen and GCC 13 on
+  eleven; the six disagreements are the evaluators', not the text's,
+  and are filed (`findings.md`, "Compiler disagreements"). The cases
+  cover `std::launder` on a const complete object and on a base
+  subobject, transparent replacement, `std::destroy_at` and block exit,
+  unions, value-initialization, a user-provided constructor that leaves
+  a member, and `new int`; `std::start_lifetime_as`, `reinterpret_cast`,
+  `malloc` and `memcpy` are outside constant evaluation and stay stated.
 
 ## Target theorems
 
@@ -2854,7 +2865,7 @@ operations.
    cases for `std::launder`, `std::construct_at`, destructor calls,
    unions and uninitialized reads, compiled by `make differential`;
    `std::start_lifetime_as` and `reinterpret_cast` are outside constant
-   evaluation and stay stated.
+   evaluation and stay stated. Landed 11 November 2026.
 3. object-relations: the relation forms of creation, destruction and
    assignment, with agreement theorems.
 4. object-construction: the periods of construction and destruction

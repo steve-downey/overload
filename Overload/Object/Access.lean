@@ -24,7 +24,7 @@ namespace Machine
 the object `o`, as a function: the part of `readThrough` after
 indirection. -/
 @[std rule "basic.life#8" "basic.lval#11" "basic.indet#2" "conv.lval#3"]
-def access (m : Model) (s : State) (t : Ty) (o : ObjId) : Behavior (State × Value) :=
+def access (_m : Model) (s : State) (t : Ty) (o : ObjId) : Behavior (State × Value) :=
   match s.obj? o with
   | none => .undefined .noObject
   | some ob =>

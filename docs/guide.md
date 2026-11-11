@@ -1311,11 +1311,18 @@ charter, and the decisions are `object-model`, `object-fragment`,
   `vacuous_initialization_begins_lifetime`,
   `vacuous_initialization_erroneous_value` and
   `determinate_outside_lifetime`.
+- `Emit`: the differential cases, with constant evaluation as the
+  oracle. An `ObjectCase` is a trace, the model, and the `Case` the
+  harness compiles: a `constexpr` function that spells the trace and a
+  `static_assert` on it, expected well-formed exactly when `run` gives
+  the trace defined behaviour with no erroneous behaviour
+  ([expr.const.core]/2). `harnessCases` joins the emitter's lists in
+  `Tools/Emit.lean`.
 
 In C++ terms: `std::launder` is needed exactly when the old object was
 not transparently replaceable by the new one, a const complete object or
-a base class subobject; `std::start_lifetime_as` is needed exactly when
-the bytes of a `T` sit where no operation created a `T`, which `malloc`,
+a base class subobject; `std::start_lifetime_as` is needed when the
+bytes of a `T` sit where no operation created a `T`, which `malloc`,
 the creation of a byte buffer and `memcpy` do and a byte-by-byte store
 does not; and the initialization profile's rule, stated on variables,
 neither implies nor is implied by the absence of uninitialized reads,

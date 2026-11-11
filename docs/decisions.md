@@ -456,6 +456,15 @@ a disagreement.
 - 2026-10-15 — `scripts/differential.sh` compiles every emitted program with
   each compiler and fails on a disagreement unless it is listed in
   `differential/known-disagreements.txt`; findings go in `findings.md`.
+- 2026-11-11 — The object model's oracle is constant evaluation: a
+  trace is spelled as a `constexpr` function under a `static_assert`,
+  well-formed exactly when the machine gives it defined behaviour with
+  no erroneous behaviour ([expr.const.core]/2). It reaches
+  `std::launder`, `std::construct_at`, `std::destroy_at`, unions and
+  uninitialized reads, and not `std::start_lifetime_as`,
+  `reinterpret_cast`, `malloc`, `memcpy` or placement `new` before
+  C++26. Six disagreements on the first seventeen cases, all the
+  evaluators' (`findings.md`).
 
 ---
 

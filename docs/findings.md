@@ -164,6 +164,34 @@ and described here as they arrive.
   `differential/known-disagreements.txt` for GCC 15 until that libstdc++
   has it.
 
+- **Constant evaluation does not model transparent replaceability** (11
+  November 2026). Two object-model cases create an object in the storage
+  of one it does not transparently replace, a const complete `X` through
+  `std::allocator` and `std::construct_at`
+  (`object_const_complete_not_replaced`, [ptr.launder]/6 with the
+  placement `new` spelled as `std::construct_at`) and the base class
+  subobject of a `D` (`object_base_subobject_not_replaced`,
+  [ptr.launder]/5), then read through the old pointer. The model has both
+  undefined, since the pointer refers to the dead object ([basic.life]/9,
+  /10), and expects the `static_assert` to fail; GCC 13 and Clang 18 both
+  evaluate the read as the new object's value and accept. The laundered
+  twins, `object_launder_const_complete` and
+  `object_launder_base_subobject`, agree on both compilers. The
+  evaluators track storage, not objects, where [basic.life]/10 tracks
+  objects; the Standard's text is the model's. Listed in
+  `differential/known-disagreements.txt` for both compilers.
+
+- **GCC 13's constant evaluator does not end a lifetime at
+  `std::destroy_at`** (11 November 2026). Four cases: a read after
+  `std::destroy_at` (`object_destroy_then_read`, [basic.life]/8), a second
+  `std::destroy_at` (`object_double_destroy`, [class.dtor]/18), block exit
+  after `std::destroy_at` of an object with a constexpr destructor
+  (`object_implicit_destructor`, [basic.life]/11), and a read of the
+  inactive member after `U u{}` (`object_union_inactive_read`,
+  [class.union.general]/2). GCC 13 accepts all four; Clang 18 rejects all
+  four, agreeing with the model. Not checked on a newer GCC in this
+  session; listed in `differential/known-disagreements.txt` for GCC.
+
 ## About the model
 
 - **The operation object's oracle assumed an accurate member, and the

@@ -146,3 +146,28 @@ trait_implicit_lifetime_reference.cpp g++
 trait_implicit_lifetime_scalar.cpp g++
 trait_implicit_lifetime_user_ctor.cpp g++
 trait_implicit_lifetime_user_dtor.cpp g++
+#
+# The object model, phase 16 (docs/findings.md, "Compiler disagreements",
+# 11 November 2026). Both constant evaluators treat a pointer to an object
+# whose storage was reused as pointing to the new object whether or not
+# the old one was transparently replaceable ([basic.life]/9, /10,
+# [ptr.launder]/5, /6).
+object_const_complete_not_replaced.cpp g++
+object_const_complete_not_replaced.cpp g++-13
+object_const_complete_not_replaced.cpp clang++
+object_const_complete_not_replaced.cpp clang++-18
+object_base_subobject_not_replaced.cpp g++
+object_base_subobject_not_replaced.cpp g++-13
+object_base_subobject_not_replaced.cpp clang++
+object_base_subobject_not_replaced.cpp clang++-18
+# GCC 13's constant evaluator does not end an object's lifetime at
+# std::destroy_at, nor refuse an inactive union member after `U u{}`;
+# Clang 18 does both.
+object_union_inactive_read.cpp g++
+object_union_inactive_read.cpp g++-13
+object_destroy_then_read.cpp g++
+object_destroy_then_read.cpp g++-13
+object_double_destroy.cpp g++
+object_double_destroy.cpp g++-13
+object_implicit_destructor.cpp g++
+object_implicit_destructor.cpp g++-13
