@@ -16,6 +16,9 @@ The Lean sources are one library, `Overload`, in two layers.
   definition, and theorems about those rules alone. Nothing here is about
   typeclasses. The examples use neutral names: a variable template is
   `trait<T>`, a class is `X`.
+  `Overload/Object/*.lean`, namespace `Overload.Object`, is the Standard
+  side's object model: storage, lifetime and initialization as an
+  abstract machine over the type system's classes.
 - **The typeclass side**, `Overload/Typeclass/*.lean`, namespace
   `Overload.Typeclass`. The encoding of beman.transpose, defined as
   programs and function templates of the Standard side's syntax, and the
@@ -1239,6 +1242,85 @@ residue of `decisions.md#trait-residue` closed.
 `argument_reference_deletes`: `cell<int&>` has its copy assignment
 deleted and `cell<int>` has not; value nature is the specialization's,
 decided by the argument ([class.copy.assign]/7).
+
+### Object
+
+`Overload/Object/*.lean`, namespace `Overload.Object`, is the object
+model: storage, objects, lifetime, initialization and destruction as an
+abstract machine over the type system's classes. It is on the Standard
+side and imports `Aggregate` and `Traits` for what a class is; the
+typeclass side does not use it yet. Phase 16 of `plan.md` is its
+charter, and the decisions are `object-model`, `object-fragment`,
+`object-representation`, `implicit-creation` and
+`initialization-profile`.
+
+- `Storage`: `Duration`, the four storage durations; `Byte`,
+  indeterminate, erroneous or a value ([basic.indet]/1); `Value`, what
+  a scalar's bytes decode to; `Why`, the model's reasons, one per rule;
+  `Behavior`, the outcome type with `defined`, `erroneous` carrying the
+  next state, `undefined` and `illFormed`, and a `Monad` instance whose
+  bind keeps the first erroneous reason; `encode` and `decode`, the
+  object representation of an integer under `object-representation`.
+- `Model`: the program with the object model's additions, unions by
+  name and `ctorInits`, what a user-provided default constructor writes;
+  `elements`, `layout`, `leaves`, `sizeOf`; the type-system judgements
+  the lifetime rules consult, `implicitLifetime`, `aggregate`,
+  `triviallyCopyable`, `trivialDefaultCtor`, `nontrivialDtor`,
+  `standardLayout`.
+- `State`: `Region` with its bytes and the ranges an operation
+  implicitly created objects in; `Obj` with its type, storage, `Life`,
+  parent, base and union-member flags, replacement link and last use;
+  `Loc` and `Ptr`, the Standard's four pointer values with a static type;
+  the machine `State`; and the queries of [intro.object] and
+  [basic.life]: `resolve`, `providesStorage`, `nestedWithin`,
+  `completeObject`, `transparentlyReplaceable`, `typeAccessible`,
+  `pointerInterconvertible`, `liveObjectAt`.
+- `Machine`: `Init`, the four initializers; `Op`, the nineteen
+  operations; `step` and `run`. Read it by its three rules: creation
+  reuses storage (`reuse`, `createObject`, `linkReplacements`), an
+  access needs a live type-accessible object (`deref`, `readThrough`,
+  `writeThrough`), and some storage implicitly creates objects
+  (`implicitlyCreatable`, `pointAt`). `defaultInit` and `applyInit` are
+  [dcl.init.general]/5 to /8 on bytes; `activate`, `activateAlone` and
+  `unionActivation` are the union rules; `release` and `endBlock` end
+  durations.
+- `Access`: the lvalue-to-rvalue conversion as a relation, one cited
+  constructor per sentence, and `access_iff`, its agreement with
+  `Machine.access`; `readThrough_eq` says a read is indirection then
+  access.
+- `Launder`: the theorems about `std::launder` and
+  `std::start_lifetime_as`, each a trace run by `decide`.
+  `ptr_launder_6_a`, `_b`, `_c` are [ptr.launder]/6: `b` is undefined
+  because a const complete object is not transparently replaceable, `c`
+  is 5. `basic_life_10_follows` and `_name` are [basic.life]/10: the
+  non-const `C` is replaced and the pointer and the name follow;
+  `launder_identity_when_replaceable` says `std::launder` changes
+  nothing then. `base_not_replaced` and `base_laundered` are the base
+  subobject case of [ptr.launder]/5. `reinterpret_without_lifetime`,
+  `start_lifetime_as_reads_bytes` and `start_lifetime_as_ends_old` are
+  an `int` reinterpreted as a `Pair`; `buffer_first_use`,
+  `buffer_reuse_undefined`, `buffer_reuse_start_lifetime_as` and
+  `buffer_reuse_memcpy` are the byte buffer, where the first type read
+  is implicitly created, the second is not until `start_lifetime_as`,
+  and `memcpy` makes the call unnecessary; `malloc_implicitly_creates`
+  is [intro.object]/15.
+- `Profile`: the initialization profile as `accepts` on operations and
+  `acceptsTrace`, the hazard as `hazard` and `uninitializedRead` on the
+  run, and the theorems: `not_sound` with the six `acceptedHazards`,
+  `not_complete` with the three `rejectedSafe`,
+  `vacuous_initialization_begins_lifetime`,
+  `vacuous_initialization_erroneous_value` and
+  `determinate_outside_lifetime`.
+
+In C++ terms: `std::launder` is needed exactly when the old object was
+not transparently replaceable by the new one, a const complete object or
+a base class subobject; `std::start_lifetime_as` is needed exactly when
+the bytes of a `T` sit where no operation created a `T`, which `malloc`,
+the creation of a byte buffer and `memcpy` do and a byte-by-byte store
+does not; and the initialization profile's rule, stated on variables,
+neither implies nor is implied by the absence of uninitialized reads,
+because the reads are of objects and the objects a program creates are
+mostly not variables.
 
 ### Emit
 

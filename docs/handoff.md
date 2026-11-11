@@ -4,49 +4,41 @@ The state of the work at the last session's end, for the next session to
 read after `plan.md`. Rewritten when a phase closes; the dated line says
 which.
 
-## Where things stand, 26 October 2026
+## Where things stand, 11 November 2026
 
-Fifteen phases are closed, through phase 15, class templates and their
-members. `main` is at `2bf5e73` plus this note, pushed to `origin`.
-Every check passes: `lake build`, `lake test`, `make citations` (661
-citations, two in-scope paragraphs uncovered, both definitional),
-`make drift-check-current` (six known editorial drifts), `make
-differential PROBE_COMPILERS="g++ clang++-24"` (all cases agree with
-GCC 15 and Clang 24), `make lint`.
-
-The model covers deduction, substitution outcomes, constraints, partial
-ordering, overload resolution with user-defined conversions, declarations
-and lookup, template argument conversion, the type categories, special
-members, traits, requires-expressions, semantic requirements, virtual
-functions, exception specifications, aggregates, and class templates with
-bases and members. The typeclass side declares the encoding of
-beman.transpose, now part of beman.typeclass, through Functor: lookup,
-the explicit-instance routes, superclass retrieval, the derivation base
-as a class template, and the operation object's constraint as a resolved
-member call.
+Phase 16, the object model, is open with its first stage landed on the
+branch `claude/cpp-object-model-lean-gec6xk`. Fifteen phases are closed
+before it. `Overload/Object/*.lean` is the object model: storage,
+bytes, objects and their lifetime, pointers, the abstract machine of
+nineteen operations, the access judgement in both forms with
+`access_iff`, the `std::launder` and `std::start_lifetime_as` theorems,
+and the initialization profile with `not_sound` and `not_complete`.
+`OverloadTest/Object.lean` holds the guards. Every theorem is a
+`decide`.
 
 ## What is owed
 
-Recorded in `plan.md`'s theorem table and the phase status entries:
+Recorded in `plan.md`, phase 16, stages 2 to 4, and the status entry:
 
-- The general member-template-arguments theorem; shown on one program.
-- The inertness of the implicit object parameter for a class whose call
-  operators are all `const`.
-- Erasure assumes no class template declares a base.
-- The abstract oracle `memberAtomics` stays as the specification the
-  early theorems are about; the resolved constraint is the header's.
+- The differential cases for the object model, with constant
+  evaluation as the oracle; `std::start_lifetime_as` and
+  `reinterpret_cast` are outside it and stay stated.
+- The relation forms of creation, destruction and assignment
+  (`decisions.md#spec-style`, log of 11 November 2026).
+- The periods of construction and destruction, where the profile meets
+  constructors that read members.
+- The author's correction of `decisions.md#initialization-profile`: the
+  formalization reconstructs a discussion that is not in the repository.
 
-Residue: conversion functions declared in a base class
-(`decisions.md#trait-residue`).
+The owed items of phase 15 stand as `plan.md` records them.
 
 ## What comes next
 
-`plan.md`, section "Open areas, to be picked up next": the list of what
-the fragment lacks, ordered by weight, with the order to take it in.
-The target is Applicative and Monad, then sender/receiver of
-`std::execution`. Those need parameter packs first and a typed
-expression fragment with computed return types second; translation
-units are the area that changes what is already proved.
+Stage 2 of phase 16, then the author's reading of the profile entry and
+the findings' open question about `std::start_lifetime`. The open areas
+list of `plan.md` is unchanged: Applicative and Monad need parameter
+packs and the expression fragment; the object model is now the place a
+typed expression fragment would get its lvalues from.
 
 ## How the work runs
 

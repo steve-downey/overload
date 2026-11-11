@@ -40,6 +40,7 @@ import Overload.Members
 import Overload.ClassTemplates
 import Overload.DependentCandidate
 import Overload.Emit
+import Overload.Object
 import Overload.Typeclass
 import Overload.Lint
 
@@ -235,6 +236,28 @@ is the map.
 #audit Overload.separability_tie_break_reach
 #audit Overload.separability_rank_precedence
 #audit Overload.ranking_live
+
+-- The object model: the access judgement, launder, start_lifetime_as, the
+-- initialization profile.
+#audit Overload.Object.access_iff
+#audit Overload.Object.Machine.readThrough_eq
+#audit Overload.Object.Launder.ptr_launder_6_b
+#audit Overload.Object.Launder.ptr_launder_6_c
+#audit Overload.Object.Launder.basic_life_10_follows
+#audit Overload.Object.Launder.launder_identity_when_replaceable
+#audit Overload.Object.Launder.base_not_replaced
+#audit Overload.Object.Launder.base_laundered
+#audit Overload.Object.Launder.reinterpret_without_lifetime
+#audit Overload.Object.Launder.start_lifetime_as_reads_bytes
+#audit Overload.Object.Launder.buffer_reuse_undefined
+#audit Overload.Object.Launder.buffer_reuse_start_lifetime_as
+#audit Overload.Object.Launder.buffer_reuse_memcpy
+#audit Overload.Object.Profile.not_sound
+#audit Overload.Object.Profile.not_complete
+#audit Overload.Object.Profile.accepted_hazards_hazard
+#audit Overload.Object.Profile.rejected_safe_defined
+#audit Overload.Object.Profile.vacuous_initialization_begins_lifetime
+#audit Overload.Object.Profile.determinate_outside_lifetime
 
 -- Erasing derivation, Mandates, SFINAE, dispatch, access.
 #audit Overload.inheritance_erasure

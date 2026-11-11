@@ -94,6 +94,11 @@ transcription.
   file is about 350 lines, most of it the agreement proofs. `Selects`
   is still stated over the executable more-specialized, which
   `moreSpecialized_iff` now makes interchangeable with the relation.
+- 2026-11-11 — Deviation, to repair: the object model's machine
+  (`Overload/Object/Machine.lean`) is given in the executable form, one
+  cited clause per rule, with the relation form for the access
+  judgement alone (`Access`, `access_iff`). The operations that create,
+  destroy and assign owe their relation forms; phase 16, stage 3.
 
 ---
 
@@ -1283,3 +1288,199 @@ specializations other than the primary's have no consumer.
   counterpart: the first says an instantiation that resolution does not
   need may not happen, which no theorem rests on, and the second
   defines a specialization.
+
+---
+
+## object-model
+
+**Question:** Where does the object model live, and how does it relate
+to the type system the model already has?
+**Status:** DECIDED 11 November 2026.
+**Decision:** On the Standard side, in `Overload/Object/*.lean`,
+namespace `Overload.Object`, importing `Overload.Aggregate` and
+`Overload.Traits` for what a class is: its elements, bases then members
+([dcl.init.aggr]/2), whether its special members are trivial,
+user-provided or deleted, whether it is an aggregate, an
+implicit-lifetime class, trivially copyable or standard-layout. The
+object model adds layout, bytes, objects, pointers and the operations,
+as an abstract machine over traces (`Op`, `Machine.step`, `Machine.run`)
+with a four-valued outcome (`Behavior`: defined, erroneous, undefined,
+ill-formed). Nothing on the typeclass side imports it yet, and it
+imports nothing of the typeclass side.
+**Why:** The two questions that want an object model, why
+`std::launder` and `std::start_lifetime_as` exist and what the
+initialization profile does and does not prevent, are about the
+language, not the encoding, so they belong on the Standard side. The
+type system's judgements are the ones the lifetime rules consult:
+vacuous initialization needs triviality ([basic.life]/2),
+`start_lifetime_as` needs implicit-lifetime types ([obj.lifetime]/3),
+the union assignment rule needs a trivial non-deleted default
+constructor ([class.union.general]/5). A separate library would have
+to restate them. A separate Lake library in the same repository was
+considered and rejected for the same reason: the dependency is real,
+and the layering lint already says what may import what.
+**Decided by:** the author's request of 11 November 2026, the design
+by the session.
+**Log:**
+
+- 2026-11-11 — Decided; stage object-machine landed the same day.
+
+---
+
+## object-fragment
+
+**Question:** What does the object model cover, and what does it leave
+out?
+**Status:** DECIDED 11 November 2026.
+**Decision:** In: static, automatic and dynamic storage duration;
+scalar objects of the integer types; class objects of the program's
+classes with their bases and members as subobjects; unions declared to
+the model by name; arrays of `unsigned char` as the byte buffers that
+provide storage; the lifetime states not started, alive and ended;
+default-, value-, scalar and aggregate initialization, with a
+user-provided default constructor's effect on the bytes given as data;
+placement `new`, `new`, `delete`, `malloc`, `free`, destructor and
+pseudo-destructor calls; reads and writes of scalars through pointers;
+`reinterpret_cast` and `static_cast` of pointers, `&`, member access;
+`std::launder`, `std::start_lifetime_as`, `std::start_lifetime`,
+`memcpy`, byte stores that create nothing; block entry and exit with
+implicit destruction. Out: the periods of construction and destruction
+([class.cdtor]) and so virtual calls during them; arrays other than
+byte buffers; pointers stored in objects, so no pointer has an object
+representation; `mutable`; `[[indeterminate]]` on parameters; thread
+storage duration and the destruction of static objects; `volatile`;
+bit-fields; alignment, every region being suitably aligned; references
+as objects; the expression language that produces the operations, so
+no rule about sequencing within an expression. A union's special
+members are the implicit trivial ones.
+**Why:** The fragment is the traces the lifetime rules of [basic.life]
+and [intro.object] are about, and the two questions of `object-model`
+need no more: every example of [ptr.launder], [basic.life]/10,
+[intro.object]/15 and [obj.lifetime] is a trace of these operations.
+Unions are in because the active member is the clearest case of an
+object that exists without being within its lifetime, and because
+`std::optional`-style storage is where the initialization profile meets
+code that initializes nothing on purpose. Construction periods are out
+because they need subobject initialization order and `this` inside a
+constructor, which is a stage of its own.
+**Decided by:** the session, on the plan of 11 November 2026.
+**Log:**
+
+- 2026-11-11 — Decided.
+
+---
+
+## object-representation
+
+**Question:** What is the layout of a class, and what are the bytes of
+an integer?
+**Status:** DECIDED 11 November 2026.
+**Decision:** Layout is sequential with no padding: a class's elements,
+bases then members, at increasing offsets, each the size of its type;
+a union's members all at offset zero; an empty class one byte
+([intro.object]/8). An integer's size is the least of 1, 2, 4 and 8
+bytes whose range covers it, from the widths of `integer-widths`, and
+its object representation is little-endian two's complement
+(`Overload.Object.encode`, tagged `@[assumed "object-representation"]`).
+`bool` is one byte whose only valid value representations are 0 and 1,
+so any other byte is undefined to read ([conv.lval]/3).
+**Why:** The Standard leaves the value representation of integers and
+the layout of classes to the implementation, and the theorems do not
+depend on either: a theorem about `start_lifetime_as` says the created
+object's representation is the storage's contents, whatever they
+encode. One concrete choice lets the machine compute and the examples
+state values. It is the layout the differential compilers use on the
+fragment's classes, which have no padding to speak of, so an emitted
+case that reads bytes agrees with them.
+**Decided by:** the session, on the plan of 11 November 2026.
+**Log:**
+
+- 2026-11-11 — Decided.
+
+---
+
+## implicit-creation
+
+**Question:** How does a deterministic machine model [intro.object]/13,
+which creates "zero or more objects of implicit-lifetime types in its
+specified region of storage if doing so would result in the program
+having defined behavior"?
+**Status:** DECIDED 11 November 2026.
+**Decision:** Lazily. An operation that implicitly creates objects
+records the range of storage and its epoch, the number of objects that
+existed and the clock reading when it ran (`ImplicitRange`). When a
+glvalue of an implicit-lifetime type is formed at an address in the
+range and no object of that type is within its lifetime there, the
+object is created then, provided no object created since the operation
+overlaps it and every object from before the operation that overlaps it
+is either a byte array that provides storage for it or one not used
+since the operation, whose lifetime the creation ends
+(`Machine.implicitlyCreatable`, `pointAt`). The implicit-lifetime
+subobjects of the created object are created with it, others not within
+their lifetime. Nothing is created for a type that is not
+implicit-lifetime, and `std::launder` creates nothing.
+**Why:** The Standard's rule is a choice over whole-program behaviour,
+which a step function cannot make. The lazy construction creates only
+objects the operation could have created: at the operation the range
+held no object created since, and an object from before that is not
+used again could have had its lifetime ended by the reuse. If the
+program does use such an object later, the model has ended its lifetime
+and the use is undefined, which is also what the Standard says, since no
+set of objects would have given both uses defined behaviour. The
+construction is sound and not complete: a program defined under some
+set the rule never constructs is undefined under the model. The byte
+buffer example in `Overload/Object/Launder.lean` shows the shape: a
+`Pair` read first is created by the buffer's creation; bytes stored
+afterwards create nothing, so a read as `int` finds no object until
+`std::start_lifetime_as`, while `memcpy` records its own range and the
+read after it is defined.
+**Decided by:** the session, on the plan of 11 November 2026.
+**Log:**
+
+- 2026-11-11 — Decided. The use clock was added when the `memcpy` case
+  failed: without it an object created and read before the `memcpy`
+  blocked the creation the `memcpy` permits.
+
+---
+
+## initialization-profile
+
+**Question:** How is the proposed initialization profile stated against
+the object model, and what do the theorems about it say?
+**Status:** DECIDED 11 November 2026, provisionally: the author's
+earlier discussion of the profile is not in the repository, and this
+entry is the session's reconstruction of it, to be corrected.
+**Decision:** The profile is a predicate on operations
+(`Overload.Object.Profile.accepts`): a definition without an initializer
+is rejected unless the variable is marked `[[indeterminate]]`; every
+other operation is accepted, since the rule is about variables and their
+initializers. The hazard is a predicate on the run (`Profile.hazard`):
+undefined or erroneous behaviour; `uninitializedRead` is the narrower
+one, a read producing an indeterminate or erroneous value. The theorems
+are `not_sound`, an accepted trace with the hazard, with six witnesses
+(`acceptedHazards`): `new int` read before assignment; `T t{}` where
+`T() {}` leaves `x`; `[[indeterminate]]`; `start_lifetime_as` over
+`malloc`'s storage; an inactive union member read after `U u{}`; an
+initialized variable read after its destructor. And `not_complete`, a
+rejected trace with no hazard, with three (`rejectedSafe`): `int x; x =
+1;` then read; a byte buffer filled by a system call before it is read;
+`static int x;`, which is zero-initialized. Two further theorems
+separate lifetime from initialization: `int x;` is within its lifetime
+with an erroneous value, and an initialized object outside its lifetime
+holds a determinate value whose read is undefined.
+**Why:** The profile's rule names the variable and the hazard names the
+object, and most objects are not variables: everything `new` creates,
+every subobject a constructor does not mention, every union member,
+every object `start_lifetime_as` creates from bytes. The erroneous
+value of C++26 ([basic.indet], P2795) changed the uninitialized
+automatic read from undefined to erroneous, so the profile's gain over
+the language is the rejection, and the theorems say the rejection
+neither covers the hazard nor confines itself to it. A profile that
+tracked definite assignment would accept the first rejected trace and
+still accept the six hazards, which is the direction the next stage
+can state.
+**Decided by:** the session, on the author's request of 11 November
+2026, pending the author's correction.
+**Log:**
+
+- 2026-11-11 — Decided provisionally.

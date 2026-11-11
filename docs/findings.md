@@ -881,6 +881,55 @@ and described here as they arrive.
   as a theorem; the reference parameters the library uses keep the
   object's identity (`pin_keeps_identity`).
 
+## About the object model and the initialization profile
+
+- **The initialization profile's rule and its hazard are about
+  different things** (11 November 2026). The rule, every variable
+  initialized at its definition, is a predicate on definitions; the
+  hazard, a read of an indeterminate or erroneous value, is a predicate
+  on objects and bytes. `Overload/Object/Profile.lean` has six traces
+  the rule accepts that have the hazard, `new int` read before
+  assignment, `T t{}` where `T() {}` leaves a member, `[[indeterminate]]`,
+  `start_lifetime_as` over `malloc`'s storage, an inactive union member
+  after `U u{}`, and an initialized variable read after its destructor;
+  and three it rejects that do not: a scalar assigned before it is read,
+  a buffer filled before it is read, a static variable. A definite
+  assignment rule would take the first of the three and keep all six.
+  Recorded under `decisions.md#initialization-profile`, provisionally,
+  since the earlier discussion it formalizes is not in the repository.
+
+- **A class with a user-provided default constructor can be an
+  implicit-lifetime type** (11 November 2026). `struct T { T() {} int
+  x; };` has a trivial copy constructor and a trivial destructor, so
+  [class.prop]/8's second clause makes it an implicit-lifetime class,
+  and `std::start_lifetime_as<T>` is permitted for it: an object of `T`
+  comes into being without any constructor of `T` running. The model's
+  own test expected otherwise and was corrected
+  (`OverloadTest/Object.lean`). For the initialization profile this is
+  one more object that is no variable and runs no initializer.
+
+- **Vacuous initialization over reused storage keeps the old bytes** (11
+  November 2026). [basic.indet]/1 gives bytes their indeterminate or
+  erroneous value "when storage for an object with automatic or dynamic
+  storage duration is obtained", and a placement `new` obtains none, so
+  under the model `int x = 5; new (&x) int;` leaves an `int` whose value
+  is 5. Whether the compilers' constant evaluators read it so is for the
+  differential stage; constexpr placement `new` is C++26 and GCC 13 and
+  Clang 18 have no part of it. To probe.
+
+- **`std::start_lifetime` and the subobjects of what it starts** (11
+  November 2026). [obj.lifetime]/2's note says no subobject of the
+  object has its lifetime started, and [class.union.general]/5 begins a
+  member's lifetime on assignment only when the member is nominated
+  through a union member whose modification would be undefined. For
+  `union U { S s; int k; }` with `struct S { int a; }`, after
+  `std::start_lifetime(u.s)` the model has `u.s` within its lifetime and
+  `u.s.a` not, and `u.s.a = 1` finds `S(u.s.a)` holding `u.s` alone,
+  which is alive, so nothing is created and the assignment is undefined
+  under [basic.life]/8. The model transcribes the text as read; whether
+  the text means that is a question for the authors of P3074, not a
+  claim. Not yet a test: the question is recorded here first.
+
 ## Design note
 
 - **A variable cannot be overloaded** (17 October 2026). The typeclass
