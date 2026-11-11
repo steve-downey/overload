@@ -5,6 +5,10 @@ import Overload.Object.Machine
 /-!
 # P4222R3, "An initialization profile", against the object model
 
+The checker is parameterized by `Rules`, with the design paper's
+reading as the default and P4416R0's as `Rules.wording`
+(`Overload/Object/P4416.lean`).
+
 Stroustrup's initialization profile (P4222R3, 22 October 2026) is a
 set of compile-time rules with a stated guarantee, "no use of
 uninitialized objects", enforced by local static analysis over three
@@ -47,21 +51,68 @@ What the checker reads into the paper, where the paper leaves room
   unannotated, an ordinary function returning a pointer to initialized
   memory (§4.3, the default for a pointer); or annotated
   `[[ref_to_uninit]]`, so that its result must be initialized before use
-  (`Annotations.startLifetimeAsRefToUninit`). Both are checked.
+  (`Rules.startLifetimeAs`). Both are checked, and the wording's third
+  reading in `Overload/Object/P4416.lean`.
 -/
 
 namespace Overload.Object.P4222
 
 open Machine
 
+/-- How the library spells `std::start_lifetime_as`, which neither paper
+mentions: as an ordinary function whose result refers to initialized
+objects and whose argument may be anything (the design paper's default
+for a function returning a pointer, P4222R3 §4.3); with its result
+`[[ref_to_uninit]]`; or as the wording has every unannotated function,
+P4416R0 [profiles.init.ref]/3, /4, whose pointer argument must refer to
+initialized objects and whose result refers to initialized objects. -/
+inductive StartLifetimeAs where
+  | unannotated | refToUninit | wording
+  deriving Repr, DecidableEq, Inhabited
+
+/-- The points where the two papers differ, or where either leaves room,
+as switches. `design` is P4222R3 read as the session reads it;
+`wording` is P4416R0 (`Overload/Object/P4416.lean`). -/
+structure Rules where
+  /-- Reading an uninitialized `unsigned char` or `std::byte` is allowed
+  (P4222R3 abstract, §4.6); the wording's [profiles.init.use]/1 has no
+  such exception. -/
+  byteReadException : Bool := true
+  /-- Bytes may be stored into an uninitialized buffer through byte
+  lvalues (P4222R3 §4.8, "assigning to an uninitialized std::byte … is
+  allowed"); the wording's [profiles.init.use]/(1.3) makes an
+  assignment to an element of an uninitialized array a use, and its
+  example rejects `buf[0] = std::byte{0}`. -/
+  byteStoresAllowed : Bool := true
+  /-- `memcpy` into uninitialized storage initializes it, as assignment
+  of bytes; the wording's drafting note under [profiles.init.terms]/4
+  says deliberately not, and its [profiles.init.ref]/4 then rejects the
+  call, since `memcpy`'s parameters are unannotated. -/
+  memcpyInitializes : Bool := true
+  /-- Arguments to unannotated library functions, `std::launder` among
+  them, must refer to initialized objects ([profiles.init.ref]/4). -/
+  libraryArgumentsInitialized : Bool := false
+  /-- An object with automatic storage duration whose type is not
+  trivially destructible must be initialized where its scope ends
+  ([profiles.init.life]/2). The design paper has no explicit rule;
+  its §4.6 "Destruction has a similar pattern" is read as agreeing. -/
+  initializedAtScopeExit : Bool := true
+  startLifetimeAs : StartLifetimeAs := .unannotated
+  deriving Repr, DecidableEq, Inhabited
+
 /-- The profile's annotations on a trace: the variables defined
 `[[uninit]]` (§4.1), the class members marked `[[uninit]]` by class and
-element index (§5.2), and how the library spells `start_lifetime_as`. -/
+element index (§5.2), and the rule set. -/
 structure Annotations where
   uninit : List String := []
   uninitMembers : List (Ty × Nat) := []
-  startLifetimeAsRefToUninit : Bool := false
+  rules : Rules := {}
   deriving Repr, Inhabited
+
+/-- P4416R0's rule set. -/
+def Rules.wording : Rules :=
+  { byteReadException := false, byteStoresAllowed := false, memcpyInitializes := false
+    libraryArgumentsInitialized := true, initializedAtScopeExit := true, startLifetimeAs := .wording }
 
 /-- The profile's two states of memory (§4.1, §4.6). -/
 inductive Mark where
@@ -96,6 +147,13 @@ inductive Violation where
   /-- A constructor that leaves a member neither initialized nor marked
   `[[uninit]]` (§5.1). -/
   | constructorLeavesMember (cls : Ty) (element : Nat)
+  /-- An argument that refers to uninitialized objects passed to a
+  function whose parameter refers to initialized ones (P4416R0
+  [profiles.init.ref]/4). -/
+  | uninitArgument (ptr : String)
+  /-- An automatic object of a type that is not trivially destructible,
+  uninitialized where its scope ends (P4416R0 [profiles.init.life]/2). -/
+  | uninitAtScopeExit (name : String)
   /-- A pointer variable the trace never bound. -/
   | unbound (name : String)
   deriving Repr, DecidableEq, Inhabited
@@ -110,6 +168,9 @@ structure CheckState where
   paths : List (Ref × Mark) := []
   /-- What each pointer variable refers to, with its static type. -/
   ptrs : List (String × Ref × Ty) := []
+  /-- The open blocks, innermost first, each with the automatic
+  variables defined in it. -/
+  blocks : List (List String) := [[]]
   violations : List Violation := []
   deriving Repr, Inhabited
 
@@ -131,6 +192,11 @@ def setPath (c : CheckState) (ref : Ref) (mk : Mark) : CheckState :=
 
 def setPtr (c : CheckState) (x : String) (ref : Ref) (t : Ty) : CheckState :=
   { c with ptrs := (x, ref, t) :: c.ptrs.filter (·.1 != x) }
+
+def declare (c : CheckState) (x : String) : CheckState :=
+  match c.blocks with
+  | b :: bs => { c with blocks := (b ++ [x]) :: bs }
+  | [] => c
 
 def ptr? (c : CheckState) (x : String) : Option (Ref × Ty) := (c.ptrs.find? (·.1 == x)).map (·.2)
 
@@ -199,6 +265,7 @@ def referentType (m : Model) (c : CheckState) (ref : Ref) : Option Ty :=
 def checkOp (m : Model) (a : Annotations) (c : CheckState) : Op → CheckState
   | .var x ty init _ _ =>
     let initialized := initializedBy m ty init
+    let c := c.declare x
     if a.uninit.contains x then
       if initialized || (init == .default && defaultInitializesSome m ty) then
         (c.setRoot x ty .uninit).violate (.initializedAndUninit x)
@@ -217,15 +284,25 @@ def checkOp (m : Model) (a : Annotations) (c : CheckState) : Op → CheckState
     let mk := if initializedBy m ty init then Mark.init else .uninit
     (c.setRoot ("#" ++ x) ty mk).setPtr x ⟨"#" ++ x, []⟩ ty
   | .delete q =>
+    -- A delete-expression is not a destruction in either paper: P4222R3
+    -- §4.6 names `destroy_at`, P4416R0 [profiles.init.terms]/5 names
+    -- `destroy_at`, `destroy` and explicit destructor calls. The state
+    -- is unchanged, and the dangling pointer is the invalidation
+    -- profile's.
     match c.ptr? q with
-    | some (ref, _) =>
-      if markOf m a c ref == .uninit then c.violate (.destroyTwice q) else c.setPath ref .uninit
+    | some _ => c
     | none => c.violate (.unbound q)
-  | .placementNew x ty q _ =>
+  | .placementNew x ty q init =>
     match c.ptr? q with
     | some (ref, _) =>
-      let c := if markOf m a c ref == .init then c.violate (.constructTwice q) else c
-      (c.setPath ref .init).setPtr x ref ty
+      if initializedBy m ty init then
+        let c := if markOf m a c ref == .init then c.violate (.constructTwice q) else c
+        (c.setPath ref .init).setPtr x ref ty
+      else
+        -- A placement new whose initialization leaves the object
+        -- uninitialized is not an initialization ([profiles.init.terms]/4.3);
+        -- the object is uninitialized at its definition (/3.3).
+        (c.setPath ref .uninit).setPtr x ref ty
     | none => c.violate (.unbound q)
   | .destroy q =>
     match c.ptr? q with
@@ -235,13 +312,20 @@ def checkOp (m : Model) (a : Annotations) (c : CheckState) : Op → CheckState
   | .startLifetimeAs x ty q =>
     match c.ptr? q with
     | some (ref, _) =>
-      if a.startLifetimeAsRefToUninit then (c.setPath ref .uninit).setPtr x ref ty
-      else (c.setPath ref .init).setPtr x ref ty
+      match a.rules.startLifetimeAs with
+      | .refToUninit => (c.setPath ref .uninit).setPtr x ref ty
+      | .unannotated => (c.setPath ref .init).setPtr x ref ty
+      | .wording =>
+        let c := if markOf m a c ref == .uninit then c.violate (.uninitArgument q) else c
+        (c.setPath ref .init).setPtr x ref ty
     | none => c.violate (.unbound q)
   | .startLifetime _ => c
   | .launder x q =>
     match c.ptr? q with
-    | some (ref, t) => c.setPtr x ref t
+    | some (ref, t) =>
+      let c := if a.rules.libraryArgumentsInitialized && markOf m a c ref == .uninit then
+        c.violate (.uninitArgument q) else c
+      c.setPtr x ref t
     | none => c.violate (.unbound q)
   | .nowInit x q =>
     match c.ptr? q with
@@ -266,7 +350,9 @@ def checkOp (m : Model) (a : Annotations) (c : CheckState) : Op → CheckState
   | .read _ q =>
     match c.ptr? q with
     | some (ref, t) =>
-      if markOf m a c ref == .uninit && !isByteType t then c.violate (.readUninit q) else c
+      if markOf m a c ref == .uninit && !(a.rules.byteReadException && isByteType t) then
+        c.violate (.readUninit q)
+      else c
     | none => c.violate (.unbound q)
   | .write q _ =>
     match c.ptr? q with
@@ -282,13 +368,33 @@ def checkOp (m : Model) (a : Annotations) (c : CheckState) : Op → CheckState
     | none => c.violate (.unbound q)
   | .memcpy dst src _ =>
     match c.ptr? dst, c.ptr? src with
-    | some (rd, _), some (rs, ts) =>
-      let c := if markOf m a c rs == .uninit && !isByteType ts then c.violate (.readUninit src) else c
-      c.setPath rd .init
+    | some (rd, _), some (rs, _) =>
+      if a.rules.memcpyInitializes then
+        let c := if markOf m a c rs == .uninit then c.violate (.readUninit src) else c
+        c.setPath rd .init
+      else
+        -- Not an initialization, and both parameters unannotated.
+        let c := if markOf m a c rs == .uninit then c.violate (.uninitArgument src) else c
+        if markOf m a c rd == .uninit then c.violate (.uninitArgument dst) else c
     | none, _ => c.violate (.unbound dst)
     | _, none => c.violate (.unbound src)
-  | .storeBytes _ _ => c
-  | .beginBlock | .endBlock => c
+  | .storeBytes q _ =>
+    match c.ptr? q with
+    | some (ref, _) =>
+      if !a.rules.byteStoresAllowed && markOf m a c ref == .uninit then c.violate (.memberAssignment q) else c
+    | none => c.violate (.unbound q)
+  | .beginBlock => { c with blocks := [] :: c.blocks }
+  | .endBlock =>
+    match c.blocks with
+    | b :: bs =>
+      let c := { c with blocks := bs }
+      if !a.rules.initializedAtScopeExit then c
+      else b.foldl (fun c x =>
+        match c.types.find? (·.1 == x) with
+        | some (_, t) =>
+          if m.nontrivialDtor t && markOf m a c ⟨x, []⟩ == .uninit then c.violate (.uninitAtScopeExit x) else c
+        | none => c) c
+    | [] => c
 
 /-- A class's constructors initialize every member not marked
 `[[uninit]]` (§5.1): for each class with a user-provided default
@@ -514,7 +620,7 @@ indeterminate case is rejected, and so is the case the function exists
 for, `int x = …; auto* r = start_lifetime_as<Pair>(&x); r->a`, which is
 defined with the `int`'s bytes. Under this reading the function is
 unusable without `now_init`. -/
-def annotated : Annotations := { plain with startLifetimeAsRefToUninit := true }
+def annotated : Annotations := { plain with rules := { startLifetimeAs := .refToUninit } }
 
 def startLifetimeAsDefined : Trace :=
   [.var "x" int (.scalar 0x00020001), .addr "p" "x", .startLifetimeAs "r" cPair "p", .member "ra" "r" 0, .read "v" "ra"]

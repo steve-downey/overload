@@ -970,6 +970,12 @@ Status, 15 October 2026:
   emitted cases for the accepted traces; both compilers accept two of
   them, the evaluator leniency already filed. The findings are in
   `findings.md`, "About the object model and P4222R3".
+  Stage 6, p4416, landed the same day: the checker parameterized by
+  `Rules`, P4416R0's examples as theorems in `Overload/Object/P4416.lean`,
+  one of them ill-formed by the wording's own rules, and the table
+  under the wording: eight accepted traces with undefined behaviour,
+  six rejected traces with none (`P4416.accepted_hazards`,
+  `P4416.rejected_safe`). The findings are in `findings.md`.
 
 ## Target theorems
 
@@ -2887,6 +2893,13 @@ operations.
    traces; `now_init` as an operation of the machine; three emitted
    cases for the accepted traces. Landed 11 November 2026, out of order,
    when the author supplied the paper.
+6. [p4416](#p4416): P4416R0, the proposed wording, as `P4222.Rules.wording`
+   and `Overload/Object/P4416.lean`: the wording's examples reproduced,
+   the five rule differences as switches, and the table restated under
+   the wording. Landed 11 November 2026.
+7. object-functions: functions with bodies as traces, so that
+   `[[ref_to_uninit]]` on parameters, `[[must_init]]`, `[[now_init]]`
+   on functions and §5.1's constructor bodies can be stated and run.
 
 ### Risks, recorded so the stages can watch for them
 

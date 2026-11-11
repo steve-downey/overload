@@ -1312,8 +1312,9 @@ charter, and the decisions are `object-model`, `object-fragment`,
   `vacuous_initialization_erroneous_value` and
   `determinate_outside_lifetime`.
 - `P4222`: Stroustrup's initialization profile, P4222R3, as a checker
-  over traces. `Annotations` carries the `[[uninit]]` marks and how the
-  library spells `start_lifetime_as`; `check` folds the paper's rules
+  over traces. `Annotations` carries the `[[uninit]]` marks and the
+  `Rules`, the switches for the points where the design paper and the
+  wording differ; `check` folds the paper's rules
   over a trace with a `Mark` per root and member path and a `Ref` per
   pointer, `accepts` is an empty violation list, `classViolations` is
   §5.1, and `hazard` is the run's. The paper's examples are theorems
@@ -1321,6 +1322,14 @@ charter, and the decisions are `object-model`, `object-fragment`,
   `rejectedSafe` are the table of disagreements with the object model,
   `guarantee_fails` the headline, `now_init_identity` the statement
   that the attributes change no execution.
+- `P4416`: the proposed wording, P4416R0, as `P4222.Rules.wording`.
+  The wording's examples from [profiles.init.decl], [profiles.init.use],
+  [profiles.init.life] and [profiles.init.ref] are theorems, one of them
+  (`ref8_now_init_after_construct_at`) ill-formed by the wording's own
+  rules; `start_lifetime_as_malloc_rejected`,
+  `start_lifetime_as_ends_old`, `destroy_then_delete`, `memcpy_init`,
+  `byte_fill` and `uninit_scope_exit` are what the wording changes; the
+  table is `acceptedHazards` and `rejectedSafe` again.
 - `Emit`: the differential cases, with constant evaluation as the
   oracle. An `ObjectCase` is a trace, the model, and the `Case` the
   harness compiles: a `constexpr` function that spells the trace and a

@@ -270,6 +270,16 @@ is the map.
 #audit Overload.Object.P4222.rejected_safe
 #audit Overload.Object.P4222.guarantee_fails
 #audit Overload.Object.P4222.now_init_identity
+#audit Overload.Object.P4416.ref8_now_init_after_construct_at
+#audit Overload.Object.P4416.start_lifetime_as_malloc_rejected
+#audit Overload.Object.P4416.start_lifetime_as_ends_old
+#audit Overload.Object.P4416.destroy_then_delete
+#audit Overload.Object.P4416.buffer_reuse_initialized
+#audit Overload.Object.P4416.memcpy_init
+#audit Overload.Object.P4416.uninit_scope_exit
+#audit Overload.Object.P4416.accepted_hazards
+#audit Overload.Object.P4416.rejected_safe
+#audit Overload.Object.P4416.guarantee_fails
 
 -- Erasing derivation, Mandates, SFINAE, dispatch, access.
 #audit Overload.inheritance_erasure

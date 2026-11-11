@@ -1515,3 +1515,15 @@ and the paper the author supplied.
   reading first left the referent's mark alone, which accepted the
   defined case; a `[[ref_to_uninit]]` result marks the referent
   uninitialized.
+- 2026-11-11 — P4416R0, the proposed wording, read. The checker gains
+  `Rules`, with the design paper's reading as the default and
+  `Rules.wording` for the five points where the wording differs: no
+  byte-read exception, byte stores into an `[[uninit]]` array are uses,
+  `memcpy` is not an initialization, unannotated functions' pointer
+  arguments must refer to initialized objects, and an automatic object
+  of a type that is not trivially destructible must be initialized at
+  scope exit. `std::start_lifetime_as` gets the wording's reading as a
+  third value of `Rules.startLifetimeAs`. A delete-expression is not a
+  destruction in either paper, and the checker follows them. The
+  wording's examples reproduce (`Overload/Object/P4416.lean`), one of
+  them as ill-formed by the wording's own rules.

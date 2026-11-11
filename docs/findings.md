@@ -946,6 +946,57 @@ and described here as they arrive.
   the initialization guarantee alone does not cover, the other four are
   not covered by any companion the paper names.
 
+- **P4416R0's wording closes two of the design paper's holes and opens
+  three** (11 November 2026). The wording (`Overload/Object/P4416.lean`,
+  `P4222.Rules.wording`) makes every unannotated function's pointer
+  parameter require initialized arguments ([profiles.init.ref]/4), so
+  `std::start_lifetime_as` can no longer be applied to storage from
+  `malloc` (`start_lifetime_as_malloc_rejected`) and its primary use on
+  initialized bytes is accepted and defined
+  (`start_lifetime_as_defined_accepted`): the design paper's dilemma is
+  gone. What remains: `start_lifetime_as<Pair>(&x)` ends the lifetime of
+  `x` and the profile keeps `x` initialized, so a read of `x` afterwards
+  is accepted and undefined (`start_lifetime_as_ends_old`). A
+  delete-expression is not a destruction ([profiles.init.terms]/5), so
+  `std::destroy_at(p); delete p;` is accepted and G2 does not see the
+  second destructor call (`destroy_then_delete`, [class.dtor]/18). And
+  two defined programs the design paper relies on are rejected: a byte
+  buffer filled byte by byte (`byteFill`, the wording's own example
+  `buf[0] = std::byte{0}; // error` against P4222R3 §4.8's "assigning to
+  an uninitialized std::byte … is allowed"), and `memcpy` into an
+  `[[uninit]]` scalar (`memcpyInit`, the drafting note under
+  [profiles.init.terms]/4 records the choice). The accepted-and-undefined
+  traces of the design paper that do not use byte stores stand under the
+  wording (`P4416.accepted_hazards`): the [ptr.launder]/6 example with
+  its destructor call, the recreated base subobject, the inactive union
+  member, the cast.
+
+- **One of P4416R0's examples is ill-formed by its own rules** (11
+  November 2026). [profiles.init.ref]/8 has `std::construct_at(s, 1);
+  // OK` followed by `int* t = std::now_init(s); // OK: t refers to
+  initialized objects`. By [profiles.init.terms]/(4.5) a call to
+  `now_init` is an initialization of the object `s` designates, and by
+  [profiles.init.life]/1 an initialization shall not be applied to an
+  object that is initialized, which `*s` is after the `construct_at`
+  (`ref8_now_init_after_construct_at`). The intent is to convert the
+  pointer's marking, which the terms treat as a property of the pointer
+  ([profiles.init.terms]/6) and the example treats as changed by
+  `now_init`; the text needs `now_init` out of (4.5), or exempted in
+  [profiles.init.life]/1 as it is in [profiles.init.analysis]/4. The
+  same two paragraphs also leave `*p` after `construct_at(p)` with two
+  states, uninitialized by [profiles.init.ref]/1 since `p` still refers
+  to uninitialized objects, initialized by [profiles.init.terms]/4; the
+  `k()` example of [profiles.init.life]/4 takes the second, and the
+  checker follows the example.
+
+- **The wording's rule for G4 alone rejects a defined program** (11
+  November 2026). `E e [[uninit]];` with a user-provided destructor and
+  nothing else is rejected by [profiles.init.life]/2 and defined: `E e;`
+  is vacuous initialization ([basic.life]/2) and the destructor runs on
+  an object within its lifetime (`uninit_scope_exit`). The wording's own
+  consistency table marks this rule as serving only locality, and this
+  is the trace that shows the price.
+
 - **P4222R3 §1.4 misstates two cases** (11 November 2026). "If X is a
   class without a default constructor, x is uninitialized, so the
   assignment is UB in older compilers and erroneous behavior in C++26":

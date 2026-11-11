@@ -6,7 +6,7 @@ which.
 
 ## Where things stand, 11 November 2026
 
-Phase 16, the object model, is open with stages 1, 2 and 5 landed on
+Phase 16, the object model, is open with stages 1, 2, 5 and 6 landed on
 the branch `claude/cpp-object-model-lean-gec6xk`. Fifteen phases are closed
 before it. `Overload/Object/*.lean` is the object model: storage,
 bytes, objects and their lifetime, pointers, the abstract machine of
@@ -15,7 +15,10 @@ nineteen operations, the access judgement in both forms with
 the definition rule of the initialization profile with `not_sound` and
 `not_complete`, and P4222R3's full rule set as a checker
 (`Overload/Object/P4222.lean`) with the paper's examples reproduced and
-the table of traces on which it and the object model disagree.
+the table of traces on which it and the object model disagree, and the
+proposed wording P4416R0 as a rule set of the same checker
+(`Overload/Object/P4416.lean`), its examples reproduced and its changes
+to the table proved.
 `OverloadTest/Object.lean` holds the guards. Every theorem is a
 `decide`. `Overload/Object/Emit.lean` has twenty differential cases
 with constant evaluation as the oracle; `make differential
