@@ -194,8 +194,10 @@ and described here as they arrive.
   (`object_implicit_destructor`, [basic.life]/11), and a read of the
   inactive member after `U u{}` (`object_union_inactive_read`,
   [class.union.general]/2). GCC 13 accepts all four; Clang 18 rejects all
-  four, agreeing with the model. Not checked on a newer GCC in this
-  session; listed in `differential/known-disagreements.txt` for GCC.
+  four, agreeing with the model, as it does on the same destruction
+  inside a called function (`object_callee_destroys`). Not checked on a
+  newer GCC in this session; listed in
+  `differential/known-disagreements.txt` for GCC.
 
 ## About the model
 
@@ -996,6 +998,28 @@ and described here as they arrive.
   an object within its lifetime (`uninit_scope_exit`). The wording's own
   consistency table marks this rule as serving only locality, and this
   is the trace that shows the price.
+
+- **Locality has no attribute for destruction, so G1 and G2 fail
+  across a call** (11 November 2026). Both papers make a call affect
+  the caller's view of an argument only through the callee's attributes
+  (P4222R3 §1.5, P4416R0 [profiles.init.analysis]/1 note), and the
+  attributes say that a parameter refers to uninitialized objects or
+  that the callee initializes it; none says that the callee destroys
+  it, and the wording's drafting note under [dcl.attr.nowinit] says
+  "there is no now_uninit". So `void destroy(C* p) { std::destroy_at(p);
+  }` passes its own body check, its parameter plain and initialized, and
+  `C c{1}; destroy(&c); std::destroy_at(&c);` is accepted with the
+  second destructor call undefined ([class.dtor]/18), as is `destroy(&c);
+  auto v = c.i;` ([basic.life]/8) and the [ptr.launder]/6 example split
+  into a callee that destroys and recreates behind a `const X*`
+  (`Overload/Object/Functions.lean`, `callee_destroys_then_destroy`,
+  `callee_destroys_then_read`, `callee_resets`). `[[must_init]]` and a
+  `[[ref_to_uninit]]` result behave as specified (`must_init_works`,
+  `ref_to_uninit_result`), and `[[now_init]]` is the hole both papers
+  declare (`now_init_hole`). A `[[ref_to_uninit]]` parameter is a
+  precondition and `[[must_init]]` a postcondition; the symmetric
+  postcondition, that the callee leaves the referent uninitialized, is
+  what G2 needs and the design does not have.
 
 - **P4222R3 §1.4 misstates two cases** (11 November 2026). "If X is a
   class without a default constructor, x is uninitialized, so the

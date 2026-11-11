@@ -1,6 +1,6 @@
 -- Overload/Object/Model.lean                                         -*-lean-*-
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-import Overload.Object.Storage
+import Overload.Object.Syntax
 import Overload.Aggregate
 import Overload.Traits
 
@@ -39,7 +39,12 @@ structure Model where
   /-- What a user-provided default constructor initializes: for a class,
   the elements by index with the value each is given. -/
   ctorInits : List (Ty × List (Nat × Int)) := []
+  /-- The functions a trace may call. -/
+  functions : List FunDef := []
   deriving Inhabited
+
+/-- The function of the model with a name. -/
+def Model.function? (m : Model) (f : String) : Option FunDef := m.functions.find? (·.name == f)
 
 namespace Model
 

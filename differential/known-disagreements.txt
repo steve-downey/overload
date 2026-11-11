@@ -180,3 +180,7 @@ object_base_destroyed_replaced_complete.cpp g++
 object_base_destroyed_replaced_complete.cpp g++-13
 object_base_destroyed_replaced_complete.cpp clang++
 object_base_destroyed_replaced_complete.cpp clang++-18
+# GCC 13 again does not end the lifetime at std::destroy_at, here inside
+# a called function (phase 16, stage 7).
+object_callee_destroys.cpp g++
+object_callee_destroys.cpp g++-13

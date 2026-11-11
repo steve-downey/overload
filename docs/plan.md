@@ -976,6 +976,23 @@ Status, 15 October 2026:
   under the wording: eight accepted traces with undefined behaviour,
   six rejected traces with none (`P4416.accepted_hazards`,
   `P4416.rejected_safe`). The findings are in `findings.md`.
+  Stage 7, object-functions, landed the same day: `Op` and `Init` moved
+  to `Overload/Object/Syntax.lean` so that a `Model` can carry
+  `FunDef`s; `Op.call` binds pointer parameters to the arguments'
+  pointer values, runs the body in its own block with its own names on
+  the caller's objects, and reads the returned pointer after the block
+  ends, so a pointer to a callee's automatic object comes back invalid;
+  `Machine.exec` is `runFrom` with fuel, structural so that `decide`
+  still runs. The checker's `FunSig` carries the parameter attributes,
+  `[[now_init]]`, a `[[ref_to_uninit]]` result and the body's own
+  `[[uninit]]` names; a call affects the caller only through them, and
+  `functionViolations` checks each body alone. The theorems
+  (`Overload/Object/Functions.lean`): `[[must_init]]` and a
+  `[[ref_to_uninit]]` result behave as specified; a callee that
+  destroys through a plain parameter is accepted and the caller's second
+  destructor call or read is undefined; the [ptr.launder]/6 example
+  split across a call; `[[now_init]]` as the declared hole; a dangling
+  return. One emitted case, `object_callee_destroys`.
 
 ## Target theorems
 
@@ -2897,9 +2914,14 @@ operations.
    and `Overload/Object/P4416.lean`: the wording's examples reproduced,
    the five rule differences as switches, and the table restated under
    the wording. Landed 11 November 2026.
-7. object-functions: functions with bodies as traces, so that
-   `[[ref_to_uninit]]` on parameters, `[[must_init]]`, `[[now_init]]`
-   on functions and §5.1's constructor bodies can be stated and run.
+7. [object-functions](#object-functions): functions with bodies as
+   traces (`FunDef`, `Op.call`, `Machine.exec` with fuel), the
+   checker's call-site rules and body obligations (`FunSig`,
+   `functionViolations`), and `Overload/Object/Functions.lean`: the
+   attributes as specified, and what locality loses across a call.
+   Landed 11 November 2026. Constructor bodies (§5.1,
+   [profiles.init.class]/1) stay with stage 4, since they need the
+   period of construction.
 
 ### Risks, recorded so the stages can watch for them
 

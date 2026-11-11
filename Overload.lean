@@ -280,6 +280,13 @@ is the map.
 #audit Overload.Object.P4416.accepted_hazards
 #audit Overload.Object.P4416.rejected_safe
 #audit Overload.Object.P4416.guarantee_fails
+#audit Overload.Object.Functions.bodies
+#audit Overload.Object.Functions.must_init_works
+#audit Overload.Object.Functions.callee_destroys_then_destroy
+#audit Overload.Object.Functions.callee_destroys_then_read
+#audit Overload.Object.Functions.callee_resets
+#audit Overload.Object.Functions.now_init_hole
+#audit Overload.Object.Functions.accepted_hazards
 
 -- Erasing derivation, Mandates, SFINAE, dispatch, access.
 #audit Overload.inheritance_erasure

@@ -100,14 +100,48 @@ structure Rules where
   startLifetimeAs : StartLifetimeAs := .unannotated
   deriving Repr, DecidableEq, Inhabited
 
+/-- The attribute on a pointer parameter: none, so that it refers to
+initialized objects; `[[ref_to_uninit]]` (§4.2); or `[[must_init]]`, a
+`[[ref_to_uninit]]` the function must initialize (§4.2, P4416R0
+[dcl.attr.mustinit]). -/
+inductive ParamAttr where
+  | plain | refToUninit | mustInit
+  deriving Repr, DecidableEq, Inhabited
+
+/-- A function's annotations: one per parameter, in order; whether the
+function is `[[now_init]]`, so that its `[[ref_to_uninit]]` parameters
+count as initialized by the call without the body being checked
+(P4416R0 [dcl.attr.nowinit]); whether its result is `[[ref_to_uninit]]`
+(§4.2, [dcl.attr.reftouninit]/(1.3)); and the pointee type of its
+result, for member access on it. A function with no entry is
+unannotated: every parameter plain, the result referring to initialized
+objects (P4416R0 [profiles.init.general]/5). -/
+structure FunSig where
+  name : String
+  params : List ParamAttr := []
+  nowInit : Bool := false
+  retRefToUninit : Bool := false
+  ret : Ty := .named "void"
+  /-- The body's variables defined `[[uninit]]`: a body has names of its
+  own. -/
+  uninit : List String := []
+  deriving Repr, DecidableEq, Inhabited
+
 /-- The profile's annotations on a trace: the variables defined
 `[[uninit]]` (§4.1), the class members marked `[[uninit]]` by class and
-element index (§5.2), and the rule set. -/
+element index (§5.2), the functions' annotations, and the rule set. -/
 structure Annotations where
   uninit : List String := []
   uninitMembers : List (Ty × Nat) := []
+  functions : List FunSig := []
   rules : Rules := {}
   deriving Repr, Inhabited
+
+/-- The signature of a function, unannotated when none is given. -/
+def Annotations.sig (a : Annotations) (f : String) (arity : Nat) : FunSig :=
+  match a.functions.find? (·.name == f) with
+  | some sg => sg
+  | none => { name := f, params := List.replicate arity .plain }
 
 /-- P4416R0's rule set. -/
 def Rules.wording : Rules :=
@@ -151,6 +185,18 @@ inductive Violation where
   function whose parameter refers to initialized ones (P4416R0
   [profiles.init.ref]/4). -/
   | uninitArgument (ptr : String)
+  /-- An argument that refers to initialized objects passed to a
+  `[[ref_to_uninit]]` or `[[must_init]]` parameter (§4.2, P4416R0
+  [profiles.init.ref]/2, /4). -/
+  | initializedArgument (ptr : String)
+  /-- A `[[must_init]]` parameter whose referent is not initialized at
+  the end of the body (P4416R0 [profiles.init.ref]/5). -/
+  | mustInitNotInitialized (fn param : String)
+  /-- A return whose operand's marking is not the function's: a
+  `[[ref_to_uninit]]` function returning a pointer to initialized
+  objects, or any other function returning one to uninitialized objects
+  (P4416R0 [profiles.init.ref]/6). -/
+  | returnMarkMismatch (fn : String)
   /-- An automatic object of a type that is not trivially destructible,
   uninitialized where its scope ends (P4416R0 [profiles.init.life]/2). -/
   | uninitAtScopeExit (name : String)
@@ -383,6 +429,33 @@ def checkOp (m : Model) (a : Annotations) (c : CheckState) : Op → CheckState
     | some (ref, _) =>
       if !a.rules.byteStoresAllowed && markOf m a c ref == .uninit then c.violate (.memberAssignment q) else c
     | none => c.violate (.unbound q)
+  | .call x f args =>
+    -- The call affects the arguments only through the callee's
+    -- attributes ([profiles.init.analysis]/1 note): a plain parameter
+    -- wants an initialized argument, a `[[ref_to_uninit]]` or
+    -- `[[must_init]]` one an uninitialized argument, and after the call
+    -- the referents of `[[must_init]]` parameters, and of every
+    -- `[[ref_to_uninit]]` parameter of a `[[now_init]]` function, are
+    -- initialized.
+    let sg := a.sig f args.length
+    let c := (sg.params.zip args).foldl (fun c (attr, q) =>
+      match c.ptr? q with
+      | some (ref, _) =>
+        let mk := markOf m a c ref
+        match attr with
+        | .plain => if mk == .uninit then c.violate (.uninitArgument q) else c
+        | .refToUninit =>
+          let c := if mk == .init then c.violate (.initializedArgument q) else c
+          if sg.nowInit then c.setPath ref .init else c
+        | .mustInit =>
+          let c := if mk == .init then c.violate (.initializedArgument q) else c
+          c.setPath ref .init
+      | none => c.violate (.unbound q)) c
+    match x with
+    | some x =>
+      let root := "#" ++ x
+      (c.setRoot root sg.ret (if sg.retRefToUninit then .uninit else .init)).setPtr x ⟨root, []⟩ sg.ret
+    | none => c
   | .beginBlock => { c with blocks := [] :: c.blocks }
   | .endBlock =>
     match c.blocks with
@@ -416,9 +489,38 @@ def classViolations (m : Model) (a : Annotations) : List Violation :=
             defaultInitializes m m.depth e then none
         else some (.constructorLeavesMember cls i)
 
-/-- The violations of a trace. -/
+/-- A function body under the profile's rules, each function analyzed on
+its own (P4416R0 [profiles.init.general]/3): each parameter refers to an
+object whose mark is its attribute's; at the end of the body every
+`[[must_init]]` parameter's referent is initialized unless the function
+is `[[now_init]]` ([profiles.init.ref]/5), and the returned pointer's
+referent is uninitialized exactly when the function is
+`[[ref_to_uninit]]` ([profiles.init.ref]/6). -/
+def functionViolations (m : Model) (a : Annotations) : List Violation :=
+  m.functions.flatMap fun fd =>
+    let sg := a.sig fd.name fd.params.length
+    let a : Annotations := { a with uninit := sg.uninit }
+    let c₀ : CheckState := (fd.params.zip sg.params).foldl (fun c ((pn, pty), attr) =>
+      let root := "*" ++ pn
+      (c.setRoot root pty (if attr == .plain then .init else .uninit)).setPtr pn ⟨root, []⟩ pty) {}
+    let c := fd.body.foldl (checkOp m a) c₀
+    let obligations := (fd.params.zip sg.params).filterMap fun ((pn, _), attr) =>
+      if attr == .mustInit && !sg.nowInit && markOf m a c ⟨"*" ++ pn, []⟩ != .init then
+        some (Violation.mustInitNotInitialized fd.name pn)
+      else none
+    let ret := match fd.ret with
+      | some r =>
+        match c.ptr? r with
+        | some (ref, _) =>
+          if (markOf m a c ref == .uninit) != sg.retRefToUninit then [Violation.returnMarkMismatch fd.name] else []
+        | none => [Violation.unbound r]
+      | none => []
+    c.violations ++ obligations ++ ret
+
+/-- The violations of a trace, with those of the model's classes and
+functions. -/
 def check (m : Model) (a : Annotations) (t : Trace) : List Violation :=
-  classViolations m a ++ (t.foldl (checkOp m a) {}).violations
+  classViolations m a ++ functionViolations m a ++ (t.foldl (checkOp m a) {}).violations
 
 /-- Does the profile accept the trace? -/
 def accepts (m : Model) (a : Annotations) (t : Trace) : Bool := (check m a t).isEmpty

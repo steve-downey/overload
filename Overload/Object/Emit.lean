@@ -67,13 +67,14 @@ def classes : String :=
   "struct Pair { short a; short b; };\n" ++
   "struct T { constexpr T() {} int x; };\n" ++
   "union U { int i; short s; };\n" ++
-  "struct B { int b; };\nstruct D : B { int d; };\n"
+  "struct B { int b; };\nstruct D : B { int d; };\n" ++
+  "constexpr void destroy(C* p) { std::destroy_at(p); }\n"
 
 /-- Is the trace defined behaviour, with no erroneous behaviour: the
 condition under which its constant evaluation is a constant expression
 ([expr.const.core]/2)? -/
 @[std rule "expr.const.core#2"]
-def constant (t : Trace) : Bool := (run model t) matches .defined _
+def constant (m : Model) (t : Trace) : Bool := (run m t) matches .defined _
 
 private def cite (s : String) : Overload.Std.Citation :=
   match Overload.Std.parseCitation s with
@@ -82,15 +83,16 @@ private def cite (s : String) : Overload.Std.Citation :=
 
 /-- A case: the trace, and a `constexpr` function body that spells it,
 returning an `int` the `static_assert` compares with `expected`. -/
-def mk (name : String) (cite' : String) (trace : Trace) (body : String) (expected : Int) : ObjectCase :=
+def mk (name : String) (cite' : String) (trace : Trace) (body : String) (expected : Int)
+    (m : Model := model) : ObjectCase :=
   let cpp := classes ++ s!"constexpr int f() \{\n{body}}\n" ++
-    (if constant trace then s!"static_assert(f() == {expected});\n"
+    (if constant m trace then s!"static_assert(f() == {expected});\n"
      else s!"// the model expects the evaluation not to be a constant expression\nstatic_assert(f() == {expected});\n")
   { case :=
-      { name, cite := cite cite', program := [], query := .raw cpp (constant trace)
+      { name, cite := cite cite', program := [], query := .raw cpp (constant m trace)
         source := "computed by Overload.Object.Machine.run; constant evaluation is the oracle"
         prelude := "" }
-    trace, model }
+    trace, model := m }
 
 /-- `int x; return x;`: erroneous, so not a constant expression. -/
 def uninitRead : ObjectCase :=
@@ -248,6 +250,15 @@ def constCompleteDestroyedNotReplaced : ObjectCase :=
      "  const int a = p->n;\n  std::destroy_at(p);\n  std::construct_at(s, 5);\n" ++
      "  const int c = p->n;\n  std::destroy_at(s);\n  al.deallocate(s, 1);\n  return a + c;\n") 8
 
+/-- `constexpr void destroy(C* p) { std::destroy_at(p); }` then
+`C c{1}; destroy(&c); std::destroy_at(&c);`
+(`Functions.calleeDestroysThenDestroy`). -/
+def calleeDestroys : ObjectCase :=
+  mk "object_callee_destroys" "class.dtor#18"
+    [.var "c" cC (.braces [1]), .addr "p" "c", .call none "destroy" ["p"], .destroy "p"]
+    "  C c{1};\n  destroy(&c);\n  std::destroy_at(&c);\n  return 0;\n" 0
+    { model with functions := [{ name := "destroy", params := [("p", cC)], body := [.destroy "p"] }] }
+
 /-- Every case. -/
 def cases : List ObjectCase :=
   [ uninitRead, assignedBeforeRead, valueInitZero, userCtorLeavesMember
@@ -257,7 +268,8 @@ def cases : List ObjectCase :=
   , newIntUninit, newIntInit
   , launderConstComplete true, launderConstComplete false
   , launderBase true, launderBase false
-  , unionInitializedInactiveRead, baseDestroyedReplacedComplete, constCompleteDestroyedNotReplaced ]
+  , unionInitializedInactiveRead, baseDestroyedReplacedComplete, constCompleteDestroyedNotReplaced
+  , calleeDestroys ]
 
 /-- The cases the harness compiles. -/
 def harnessCases : List Case := cases.map (·.case)

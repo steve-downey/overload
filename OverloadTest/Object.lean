@@ -159,3 +159,19 @@ replaced by an object of the same type is fine. -/
 
 -- `now_init` is the identity on the pointer and changes no object.
 #guard value (run model [.var "x" int (.scalar 3), .addr "p" "x", .nowInit "q" "p", .read "v" "q"]) "v" == some (.int 3)
+
+/-! Calls: the callee runs on the caller's objects with its own names, a
+returned pointer to a callee's automatic object is invalid, and an
+unknown function is ill-formed. -/
+private def withFns : Model :=
+  { model with functions :=
+      [ { name := "set", params := [("p", int)], body := [.write "p" 9] }
+      , { name := "local", body := [.var "x" int (.scalar 1), .addr "r" "x"], ret := some "r" }
+      , { name := "shadow", params := [("p", int)], body := [.var "x" int (.scalar 5), .write "p" 2] } ] }
+#guard value (run withFns [.var "x" int (.scalar 1), .addr "p" "x", .call none "set" ["p"], .read "v" "p"]) "v" ==
+  some (.int 9)
+#guard (run withFns [.call (some "r") "local" [], .read "v" "r"]) == .undefined .invalidPointer
+-- The callee's `x` does not replace the caller's.
+#guard value (run withFns [.var "x" int (.scalar 1), .addr "p" "x", .call none "shadow" ["p"], .addr "p2" "x",
+  .read "v" "p2"]) "v" == some (.int 2)
+#guard (run withFns [.call none "nothing" []]) == .illFormed (.badCall "nothing")

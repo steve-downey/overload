@@ -6,7 +6,7 @@ which.
 
 ## Where things stand, 11 November 2026
 
-Phase 16, the object model, is open with stages 1, 2, 5 and 6 landed on
+Phase 16, the object model, is open with stages 1, 2, 5, 6 and 7 landed on
 the branch `claude/cpp-object-model-lean-gec6xk`. Fifteen phases are closed
 before it. `Overload/Object/*.lean` is the object model: storage,
 bytes, objects and their lifetime, pointers, the abstract machine of
@@ -18,7 +18,9 @@ the definition rule of the initialization profile with `not_sound` and
 the table of traces on which it and the object model disagree, and the
 proposed wording P4416R0 as a rule set of the same checker
 (`Overload/Object/P4416.lean`), its examples reproduced and its changes
-to the table proved.
+to the table proved, and functions with bodies as traces, so that the
+call-site attributes are checked and the callee run
+(`Overload/Object/Functions.lean`).
 `OverloadTest/Object.lean` holds the guards. Every theorem is a
 `decide`. `Overload/Object/Emit.lean` has twenty differential cases
 with constant evaluation as the oracle; `make differential
@@ -39,8 +41,8 @@ Recorded in `plan.md`, phase 16, stages 2 to 4, and the status entry:
 - The author's reading of `decisions.md#initialization-profile`: the
   four readings the checker fixes where P4222R3 leaves room, aliasing
   above all.
-- Functions in the fragment, which is where `[[ref_to_uninit]]` on
-  parameters, `[[must_init]]` and §5.1's constructor bodies live.
+- Constructor bodies (P4222R3 §5.1, P4416R0 [profiles.init.class]/1),
+  which need the period of construction: stage 4.
 
 The owed items of phase 15 stand as `plan.md` records them.
 

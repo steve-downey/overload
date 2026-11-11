@@ -28,9 +28,9 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[basic.indet]/1](https://eel.is/c++draft/basic.indet#1) | example | `Overload.Object.Profile.new_int_undefined` | `Overload.Object.Profile` |
 | [[basic.indet]/1](https://eel.is/c++draft/basic.indet#1) | rule | `Overload.Object.Byte.erroneous` | `Overload.Object.Storage` |
 | [[basic.indet]/1](https://eel.is/c++draft/basic.indet#1) | rule | `Overload.Object.Byte.indeterminate` | `Overload.Object.Storage` |
-| [[basic.indet]/1](https://eel.is/c++draft/basic.indet#1) | rule | `Overload.Object.Op.malloc` | `Overload.Object.Machine` |
-| [[basic.indet]/1](https://eel.is/c++draft/basic.indet#1) | rule | `Overload.Object.Op.newObject` | `Overload.Object.Machine` |
-| [[basic.indet]/1](https://eel.is/c++draft/basic.indet#1) | rule | `Overload.Object.Op.var` | `Overload.Object.Machine` |
+| [[basic.indet]/1](https://eel.is/c++draft/basic.indet#1) | rule | `Overload.Object.Op.malloc` | `Overload.Object.Syntax` |
+| [[basic.indet]/1](https://eel.is/c++draft/basic.indet#1) | rule | `Overload.Object.Op.newObject` | `Overload.Object.Syntax` |
+| [[basic.indet]/1](https://eel.is/c++draft/basic.indet#1) | rule | `Overload.Object.Op.var` | `Overload.Object.Syntax` |
 | [[basic.indet]/1](https://eel.is/c++draft/basic.indet#1) | rule | `Overload.Object.decode` | `Overload.Object.Storage` |
 | [[basic.indet]/1](https://eel.is/c++draft/basic.indet#1) | theorem | `Overload.Object.Profile.vacuous_initialization_erroneous_value` | `Overload.Object.Profile` |
 | [[basic.indet]/2](https://eel.is/c++draft/basic.indet#2) | rule | `Overload.Object.Access.erroneous` | `Overload.Object.Access` |
@@ -48,13 +48,13 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[basic.life]/2](https://eel.is/c++draft/basic.life#2) | rule | `Overload.Object.Machine.release` | `Overload.Object.Machine` |
 | [[basic.life]/2](https://eel.is/c++draft/basic.life#2) | rule | `Overload.Object.Machine.reuse` | `Overload.Object.Machine` |
 | [[basic.life]/2](https://eel.is/c++draft/basic.life#2) | rule | `Overload.Object.Model.trivialDefaultCtor` | `Overload.Object.Model` |
-| [[basic.life]/2](https://eel.is/c++draft/basic.life#2) | rule | `Overload.Object.Op.placementNew` | `Overload.Object.Machine` |
+| [[basic.life]/2](https://eel.is/c++draft/basic.life#2) | rule | `Overload.Object.Op.placementNew` | `Overload.Object.Syntax` |
 | [[basic.life]/2](https://eel.is/c++draft/basic.life#2) | theorem | `Overload.Object.Profile.vacuous_initialization_begins_lifetime` | `Overload.Object.Profile` |
 | [[basic.life]/7](https://eel.is/c++draft/basic.life#7) | example | `Overload.Object.Launder.basic_life_10_between` | `Overload.Object.Launder` |
 | [[basic.life]/7](https://eel.is/c++draft/basic.life#7) | note | `Overload.Object.Launder.reinterpret_without_lifetime` | `Overload.Object.Launder` |
 | [[basic.life]/7](https://eel.is/c++draft/basic.life#7) | rule | `Overload.Object.Access.noObject` | `Overload.Object.Access` |
 | [[basic.life]/7](https://eel.is/c++draft/basic.life#7) | rule | `Overload.Object.Machine.deref` | `Overload.Object.Machine` |
-| [[basic.life]/7](https://eel.is/c++draft/basic.life#7) | rule | `Overload.Object.Op.member` | `Overload.Object.Machine` |
+| [[basic.life]/7](https://eel.is/c++draft/basic.life#7) | rule | `Overload.Object.Op.member` | `Overload.Object.Syntax` |
 | [[basic.life]/8](https://eel.is/c++draft/basic.life#8) | rule | `Overload.Object.Access.inactiveMember` | `Overload.Object.Access` |
 | [[basic.life]/8](https://eel.is/c++draft/basic.life#8) | rule | `Overload.Object.Access.outsideLifetime` | `Overload.Object.Access` |
 | [[basic.life]/8](https://eel.is/c++draft/basic.life#8) | rule | `Overload.Object.Machine.access` | `Overload.Object.Access` |
@@ -108,7 +108,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[basic.lookup.unqual]/2 sentence 2](https://eel.is/c++draft/basic.lookup.unqual#2.sentence-2) | rule | `Overload.UnqualifiedSearch.parent` | `Overload.Names` |
 | [[basic.lookup.unqual]/3](https://eel.is/c++draft/basic.lookup.unqual#3) | rule | `Overload.unqualifiedLookup` | `Overload.Names` |
 | [[basic.lval]/10](https://eel.is/c++draft/basic.lval#10) | rule | `Overload.Object.Machine.writeThrough` | `Overload.Object.Machine` |
-| [[basic.lval]/10](https://eel.is/c++draft/basic.lval#10) | rule | `Overload.Object.Op.write` | `Overload.Object.Machine` |
+| [[basic.lval]/10](https://eel.is/c++draft/basic.lval#10) | rule | `Overload.Object.Op.write` | `Overload.Object.Syntax` |
 | [[basic.lval]/11](https://eel.is/c++draft/basic.lval#11) | note | `Overload.Object.Launder.reinterpret_without_lifetime` | `Overload.Object.Launder` |
 | [[basic.lval]/11](https://eel.is/c++draft/basic.lval#11) | rule | `Overload.Object.Access.notScalar` | `Overload.Object.Access` |
 | [[basic.lval]/11](https://eel.is/c++draft/basic.lval#11) | rule | `Overload.Object.Access.typeInaccessible` | `Overload.Object.Access` |
@@ -128,18 +128,18 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[basic.scope.scope]/4](https://eel.is/c++draft/basic.scope.scope#4) | rule | `Overload.corresponds` | `Overload.Scope` |
 | [[basic.scope.scope]/6 sentence 1](https://eel.is/c++draft/basic.scope.scope#6.sentence-1) | rule | `Overload.potentiallyConflict` | `Overload.Scope` |
 | [[basic.scope.scope]/6 sentence 2](https://eel.is/c++draft/basic.scope.scope#6.sentence-2) | rule | `Overload.Program.conflicts` | `Overload.Scope` |
-| [[basic.start.static]/2](https://eel.is/c++draft/basic.start.static#2) | rule | `Overload.Object.Op.staticVar` | `Overload.Object.Machine` |
+| [[basic.start.static]/2](https://eel.is/c++draft/basic.start.static#2) | rule | `Overload.Object.Op.staticVar` | `Overload.Object.Syntax` |
 | [[basic.stc.auto]/1](https://eel.is/c++draft/basic.stc.auto#1) | rule | `Overload.Object.Machine.step` | `Overload.Object.Machine` |
-| [[basic.stc.auto]/1](https://eel.is/c++draft/basic.stc.auto#1) | rule | `Overload.Object.Op.endBlock` | `Overload.Object.Machine` |
-| [[basic.stc.auto]/1](https://eel.is/c++draft/basic.stc.auto#1) | rule | `Overload.Object.Op.var` | `Overload.Object.Machine` |
+| [[basic.stc.auto]/1](https://eel.is/c++draft/basic.stc.auto#1) | rule | `Overload.Object.Op.endBlock` | `Overload.Object.Syntax` |
+| [[basic.stc.auto]/1](https://eel.is/c++draft/basic.stc.auto#1) | rule | `Overload.Object.Op.var` | `Overload.Object.Syntax` |
 | [[basic.stc.dynamic.deallocation]/5](https://eel.is/c++draft/basic.stc.dynamic.deallocation#5) | rule | `Overload.Object.Machine.release` | `Overload.Object.Machine` |
-| [[basic.stc.dynamic.deallocation]/5](https://eel.is/c++draft/basic.stc.dynamic.deallocation#5) | rule | `Overload.Object.Op.delete` | `Overload.Object.Machine` |
-| [[basic.stc.dynamic.deallocation]/5](https://eel.is/c++draft/basic.stc.dynamic.deallocation#5) | rule | `Overload.Object.Op.free` | `Overload.Object.Machine` |
+| [[basic.stc.dynamic.deallocation]/5](https://eel.is/c++draft/basic.stc.dynamic.deallocation#5) | rule | `Overload.Object.Op.delete` | `Overload.Object.Syntax` |
+| [[basic.stc.dynamic.deallocation]/5](https://eel.is/c++draft/basic.stc.dynamic.deallocation#5) | rule | `Overload.Object.Op.free` | `Overload.Object.Syntax` |
 | [[basic.stc.general]/1](https://eel.is/c++draft/basic.stc.general#1) | rule | `Overload.Object.Duration.automatic` | `Overload.Object.Storage` |
 | [[basic.stc.general]/1](https://eel.is/c++draft/basic.stc.general#1) | rule | `Overload.Object.Duration.dynamic` | `Overload.Object.Storage` |
 | [[basic.stc.general]/1](https://eel.is/c++draft/basic.stc.general#1) | rule | `Overload.Object.Duration.static` | `Overload.Object.Storage` |
 | [[basic.stc.general]/1](https://eel.is/c++draft/basic.stc.general#1) | rule | `Overload.Object.Duration.thread` | `Overload.Object.Storage` |
-| [[basic.stc.static]/1](https://eel.is/c++draft/basic.stc.static#1) | rule | `Overload.Object.Op.staticVar` | `Overload.Object.Machine` |
+| [[basic.stc.static]/1](https://eel.is/c++draft/basic.stc.static#1) | rule | `Overload.Object.Op.staticVar` | `Overload.Object.Syntax` |
 | [[basic.types.general]/1](https://eel.is/c++draft/basic.types.general#1) | rule | `Overload.Ty.isReference` | `Overload.Types` |
 | [[basic.types.general]/2 sentence 1](https://eel.is/c++draft/basic.types.general#2.sentence-1) | rule | `Overload.Object.Byte.byte` | `Overload.Object.Storage` |
 | [[basic.types.general]/6](https://eel.is/c++draft/basic.types.general#6) | rule | `Overload.Ty.isObject` | `Overload.Types` |
@@ -202,9 +202,9 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[class.dtor]/11](https://eel.is/c++draft/class.dtor#11) | rule | `Overload.SmfDecl` | `Overload.Program` |
 | [[class.dtor]/11](https://eel.is/c++draft/class.dtor#11) | theorem | `Overload.virtual_destructor_inherited` | `Overload.Virtual` |
 | [[class.dtor]/14](https://eel.is/c++draft/class.dtor#14) | rule | `Overload.Object.Machine.step` | `Overload.Object.Machine` |
-| [[class.dtor]/14](https://eel.is/c++draft/class.dtor#14) | rule | `Overload.Object.Op.endBlock` | `Overload.Object.Machine` |
-| [[class.dtor]/16](https://eel.is/c++draft/class.dtor#16) | rule | `Overload.Object.Op.destroy` | `Overload.Object.Machine` |
-| [[class.dtor]/18](https://eel.is/c++draft/class.dtor#18) | rule | `Overload.Object.Op.destroy` | `Overload.Object.Machine` |
+| [[class.dtor]/14](https://eel.is/c++draft/class.dtor#14) | rule | `Overload.Object.Op.endBlock` | `Overload.Object.Syntax` |
+| [[class.dtor]/16](https://eel.is/c++draft/class.dtor#16) | rule | `Overload.Object.Op.destroy` | `Overload.Object.Syntax` |
+| [[class.dtor]/18](https://eel.is/c++draft/class.dtor#18) | rule | `Overload.Object.Op.destroy` | `Overload.Object.Syntax` |
 | [[class.mem.general]/5](https://eel.is/c++draft/class.mem.general#5) | rule | `Overload.Decl.member` | `Overload.Program` |
 | [[class.mem.general]/5](https://eel.is/c++draft/class.mem.general#5) | rule | `Overload.Member` | `Overload.Program` |
 | [[class.mem.general]/15](https://eel.is/c++draft/class.mem.general#15) | rule | `Overload.Member` | `Overload.Program` |
@@ -304,7 +304,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[concepts.object]/1](https://eel.is/c++draft/concepts.object#1) | theorem | `Overload.regular_refines` | `Overload.Concepts` |
 | [[concepts.object]/2](https://eel.is/c++draft/concepts.object#2) | rule | `Overload.Concepts.objectConcepts` | `Overload.Concepts` |
 | [[concepts.object]/3](https://eel.is/c++draft/concepts.object#3) | rule | `Overload.Concepts.objectConcepts` | `Overload.Concepts` |
-| [[conv.lval]/1](https://eel.is/c++draft/conv.lval#1) | rule | `Overload.Object.Op.read` | `Overload.Object.Machine` |
+| [[conv.lval]/1](https://eel.is/c++draft/conv.lval#1) | rule | `Overload.Object.Op.read` | `Overload.Object.Syntax` |
 | [[conv.lval]/3](https://eel.is/c++draft/conv.lval#3) | rule | `Overload.Object.Access.invalidRepresentation` | `Overload.Object.Access` |
 | [[conv.lval]/3](https://eel.is/c++draft/conv.lval#3) | rule | `Overload.Object.Access.value` | `Overload.Object.Access` |
 | [[conv.lval]/3](https://eel.is/c++draft/conv.lval#3) | rule | `Overload.Object.Machine.access` | `Overload.Object.Access` |
@@ -312,8 +312,8 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[conv.lval]/3](https://eel.is/c++draft/conv.lval#3) | rule | `Overload.Object.decode` | `Overload.Object.Storage` |
 | [[conv.ptr]/3 sentence 2](https://eel.is/c++draft/conv.ptr#3.sentence-2) | rule | `Overload.Program.accessibleConversion` | `Overload.Access` |
 | [[cstring.syn]/3](https://eel.is/c++draft/cstring.syn#3) | example | `Overload.Object.Launder.buffer_reuse_memcpy` | `Overload.Object.Launder` |
-| [[cstring.syn]/3](https://eel.is/c++draft/cstring.syn#3) | rule | `Overload.Object.Op.memcpy` | `Overload.Object.Machine` |
-| [[dcl.attr.indet]/1](https://eel.is/c++draft/dcl.attr.indet#1) | rule | `Overload.Object.Op.var` | `Overload.Object.Machine` |
+| [[cstring.syn]/3](https://eel.is/c++draft/cstring.syn#3) | rule | `Overload.Object.Op.memcpy` | `Overload.Object.Syntax` |
+| [[dcl.attr.indet]/1](https://eel.is/c++draft/dcl.attr.indet#1) | rule | `Overload.Object.Op.var` | `Overload.Object.Syntax` |
 | [[dcl.attr.indet]/3](https://eel.is/c++draft/dcl.attr.indet#3) | example | `Overload.Object.Profile.user_provided_ctor_erroneous` | `Overload.Object.Profile` |
 | [[dcl.fct.def.default]/1](https://eel.is/c++draft/dcl.fct.def.default#1) | rule | `Overload.SmfBody.defaulted` | `Overload.Program` |
 | [[dcl.fct.def.default]/5](https://eel.is/c++draft/dcl.fct.def.default#5) | rule | `Overload.Provenance.defaulted` | `Overload.Special` |
@@ -330,28 +330,28 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[dcl.init.aggr]/2](https://eel.is/c++draft/dcl.init.aggr#2) | rule | `Overload.Program.elements` | `Overload.Ranking` |
 | [[dcl.init.aggr]/2](https://eel.is/c++draft/dcl.init.aggr#2) | rule | `Overload.Program.elementsWith` | `Overload.Aggregate` |
 | [[dcl.init.aggr]/2](https://eel.is/c++draft/dcl.init.aggr#2) | theorem | `Overload.aggregate_elements_are_value` | `Overload.Ranking` |
-| [[dcl.init.aggr]/4](https://eel.is/c++draft/dcl.init.aggr#4) | rule | `Overload.Object.Init.braces` | `Overload.Object.Machine` |
+| [[dcl.init.aggr]/4](https://eel.is/c++draft/dcl.init.aggr#4) | rule | `Overload.Object.Init.braces` | `Overload.Object.Syntax` |
 | [[dcl.init.aggr]/4](https://eel.is/c++draft/dcl.init.aggr#4) | rule | `Overload.Object.Machine.applyInit` | `Overload.Object.Machine` |
 | [[dcl.init.aggr]/4](https://eel.is/c++draft/dcl.init.aggr#4) | rule | `Overload.Program.braceInitWithin` | `Overload.Aggregate` |
 | [[dcl.init.aggr]/4](https://eel.is/c++draft/dcl.init.aggr#4) | rule | `Overload.Program.elementInit` | `Overload.Aggregate` |
-| [[dcl.init.aggr]/6](https://eel.is/c++draft/dcl.init.aggr#6) | rule | `Overload.Object.Init.braces` | `Overload.Object.Machine` |
+| [[dcl.init.aggr]/6](https://eel.is/c++draft/dcl.init.aggr#6) | rule | `Overload.Object.Init.braces` | `Overload.Object.Syntax` |
 | [[dcl.init.aggr]/6](https://eel.is/c++draft/dcl.init.aggr#6) | rule | `Overload.Object.Machine.applyInit` | `Overload.Object.Machine` |
 | [[dcl.init.aggr]/6](https://eel.is/c++draft/dcl.init.aggr#6) | rule | `Overload.Program.braceInitWithin` | `Overload.Aggregate` |
 | [[dcl.init.aggr]/6](https://eel.is/c++draft/dcl.init.aggr#6) | theorem | `Overload.brace_init_differs_from_default_init` | `Overload.Traits` |
 | [[dcl.init.general]/5](https://eel.is/c++draft/dcl.init.general#5) | rule | `Overload.Object.Machine.zeroInit` | `Overload.Object.Machine` |
-| [[dcl.init.general]/6](https://eel.is/c++draft/dcl.init.general#6) | rule | `Overload.Object.Init.default` | `Overload.Object.Machine` |
+| [[dcl.init.general]/6](https://eel.is/c++draft/dcl.init.general#6) | rule | `Overload.Object.Init.default` | `Overload.Object.Syntax` |
 | [[dcl.init.general]/6](https://eel.is/c++draft/dcl.init.general#6) | rule | `Overload.Object.Machine.defaultInit` | `Overload.Object.Machine` |
 | [[dcl.init.general]/7](https://eel.is/c++draft/dcl.init.general#7) | rule | `Overload.Program.constDefaultConstructibleWithin` | `Overload.Special` |
 | [[dcl.init.general]/8](https://eel.is/c++draft/dcl.init.general#8) | example | `Overload.Object.Profile.user_provided_ctor_erroneous` | `Overload.Object.Profile` |
-| [[dcl.init.general]/8](https://eel.is/c++draft/dcl.init.general#8) | rule | `Overload.Object.Init.value` | `Overload.Object.Machine` |
+| [[dcl.init.general]/8](https://eel.is/c++draft/dcl.init.general#8) | rule | `Overload.Object.Init.value` | `Overload.Object.Syntax` |
 | [[dcl.init.general]/8](https://eel.is/c++draft/dcl.init.general#8) | rule | `Overload.Object.Machine.applyInit` | `Overload.Object.Machine` |
 | [[dcl.init.general]/8](https://eel.is/c++draft/dcl.init.general#8) | rule | `Overload.Program.valueInit` | `Overload.Aggregate` |
-| [[dcl.init.general]/11](https://eel.is/c++draft/dcl.init.general#11) | rule | `Overload.Object.Init.default` | `Overload.Object.Machine` |
+| [[dcl.init.general]/11](https://eel.is/c++draft/dcl.init.general#11) | rule | `Overload.Object.Init.default` | `Overload.Object.Syntax` |
 | [[dcl.init.general]/13](https://eel.is/c++draft/dcl.init.general#13) | rule | `Overload.Init.copy` | `Overload.Program` |
 | [[dcl.init.general]/13](https://eel.is/c++draft/dcl.init.general#13) | rule | `Overload.Program.ranking` | `Overload.Ranking` |
 | [[dcl.init.general]/14](https://eel.is/c++draft/dcl.init.general#14) | rule | `Overload.Init.direct` | `Overload.Program` |
 | [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15) | rule | `Overload.IcsForms.userDefined` | `Overload.Ranking` |
-| [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15) | rule | `Overload.Object.Init.scalar` | `Overload.Object.Machine` |
+| [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15) | rule | `Overload.Object.Init.scalar` | `Overload.Object.Syntax` |
 | [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15) | rule | `Overload.Object.Machine.applyInit` | `Overload.Object.Machine` |
 | [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15) | rule | `Overload.Program.betterCandidate` | `Overload.Ranking` |
 | [[dcl.init.general]/15](https://eel.is/c++draft/dcl.init.general#15) | rule | `Overload.Program.candidateInitializer` | `Overload.Ranking` |
@@ -397,7 +397,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[except.spec]/8](https://eel.is/c++draft/except.spec#8) | theorem | `Overload.nothrow_propagates` | `Overload.Traits` |
 | [[except.spec]/9](https://eel.is/c++draft/except.spec#9) | rule | `Overload.Program.throwingWithin` | `Overload.Special` |
 | [[except.spec]/9](https://eel.is/c++draft/except.spec#9) | theorem | `Overload.implicit_noexcept_from_subobjects` | `Overload.Traits` |
-| [[expr.call]/4](https://eel.is/c++draft/expr.call#4) | rule | `Overload.Object.Op.destroy` | `Overload.Object.Machine` |
+| [[expr.call]/4](https://eel.is/c++draft/expr.call#4) | rule | `Overload.Object.Op.destroy` | `Overload.Object.Syntax` |
 | [[expr.call]/7](https://eel.is/c++draft/expr.call#7) | rule | `Overload.Program.abstractParameter` | `Overload.Access` |
 | [[expr.call]/7](https://eel.is/c++draft/expr.call#7) | rule | `Overload.Program.call` | `Overload.Access` |
 | [[expr.call]/7](https://eel.is/c++draft/expr.call#7) | theorem | `Overload.abstract_by_value_ill_formed` | `Overload.Access` |
@@ -406,7 +406,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[expr.const.const]/8](https://eel.is/c++draft/expr.const.const#8) | rule | `Overload.ConvertsTo.reference` | `Overload.Arguments` |
 | [[expr.const.const]/8](https://eel.is/c++draft/expr.const.const#8) | rule | `Overload.integralConversion` | `Overload.Arguments` |
 | [[expr.const.core]/2](https://eel.is/c++draft/expr.const.core#2) | rule | `Overload.Object.Emit.constant` | `Overload.Object.Emit` |
-| [[expr.delete]/5](https://eel.is/c++draft/expr.delete#5) | rule | `Overload.Object.Op.delete` | `Overload.Object.Machine` |
+| [[expr.delete]/5](https://eel.is/c++draft/expr.delete#5) | rule | `Overload.Object.Op.delete` | `Overload.Object.Syntax` |
 | [[expr.prim.req.compound]/1](https://eel.is/c++draft/expr.prim.req.compound#1) | rule | `Overload.Constraint.Requirement.compound` | `Overload.Constraint` |
 | [[expr.prim.req.compound]/1](https://eel.is/c++draft/expr.prim.req.compound#1) | rule | `Overload.Program.requirementHolds` | `Overload.Requires` |
 | [[expr.prim.req.compound]/1](https://eel.is/c++draft/expr.prim.req.compound#1) | theorem | `Overload.compound_eq_simple` | `Overload.Requires` |
@@ -439,8 +439,8 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1) | rule | `Overload.Constraint.Requirement.type` | `Overload.Constraint` |
 | [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1) | rule | `Overload.Program.requirementHolds` | `Overload.Requires` |
 | [[expr.prim.req.type]/1](https://eel.is/c++draft/expr.prim.req.type#1) | rule | `Overload.Program.validType` | `Overload.Requires` |
-| [[expr.reinterpret.cast]/7](https://eel.is/c++draft/expr.reinterpret.cast#7) | rule | `Overload.Object.Op.cast` | `Overload.Object.Machine` |
-| [[expr.static.cast]/12](https://eel.is/c++draft/expr.static.cast#12) | rule | `Overload.Object.Op.cast` | `Overload.Object.Machine` |
+| [[expr.reinterpret.cast]/7](https://eel.is/c++draft/expr.reinterpret.cast#7) | rule | `Overload.Object.Op.cast` | `Overload.Object.Syntax` |
+| [[expr.static.cast]/12](https://eel.is/c++draft/expr.static.cast#12) | rule | `Overload.Object.Op.cast` | `Overload.Object.Syntax` |
 | [[expr.unary.op]/1](https://eel.is/c++draft/expr.unary.op#1) | rule | `Overload.Object.Machine.deref` | `Overload.Object.Machine` |
 | [[func.require]/1](https://eel.is/c++draft/func.require#1) | rule | `Overload.Program.objectInvoke` | `Overload.Requires` |
 | [[func.require]/1](https://eel.is/c++draft/func.require#1) | theorem | `Overload.specialization_callee_invocable` | `Overload.ClassTemplates` |
@@ -451,7 +451,7 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[intro.object]/1](https://eel.is/c++draft/intro.object#1) | rule | `Overload.Object.Obj` | `Overload.Object.State` |
 | [[intro.object]/2](https://eel.is/c++draft/intro.object#2) | rule | `Overload.Object.Machine.createWithin` | `Overload.Object.Machine` |
 | [[intro.object]/2](https://eel.is/c++draft/intro.object#2) | rule | `Overload.Object.Machine.reuse` | `Overload.Object.Machine` |
-| [[intro.object]/2](https://eel.is/c++draft/intro.object#2) | rule | `Overload.Object.Op.placementNew` | `Overload.Object.Machine` |
+| [[intro.object]/2](https://eel.is/c++draft/intro.object#2) | rule | `Overload.Object.Op.placementNew` | `Overload.Object.Syntax` |
 | [[intro.object]/3](https://eel.is/c++draft/intro.object#3) | example | `Overload.Object.Launder.buffer_first_use` | `Overload.Object.Launder` |
 | [[intro.object]/3](https://eel.is/c++draft/intro.object#3) | rule | `Overload.Object.Machine.reuse` | `Overload.Object.Machine` |
 | [[intro.object]/3](https://eel.is/c++draft/intro.object#3) | rule | `Overload.Object.Obj.isByteArray` | `Overload.Object.State` |
@@ -467,8 +467,8 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[intro.object]/15](https://eel.is/c++draft/intro.object#15) | example | `Overload.Object.Launder.malloc_implicitly_creates` | `Overload.Object.Launder` |
 | [[intro.object]/16](https://eel.is/c++draft/intro.object#16) | example | `Overload.Object.Launder.buffer_first_use` | `Overload.Object.Launder` |
 | [[intro.object]/16](https://eel.is/c++draft/intro.object#16) | rule | `Overload.Object.Machine.implicitlyCreatable` | `Overload.Object.Machine` |
-| [[intro.object]/16](https://eel.is/c++draft/intro.object#16) | rule | `Overload.Object.Op.malloc` | `Overload.Object.Machine` |
-| [[intro.object]/16](https://eel.is/c++draft/intro.object#16) | rule | `Overload.Object.Op.newObject` | `Overload.Object.Machine` |
+| [[intro.object]/16](https://eel.is/c++draft/intro.object#16) | rule | `Overload.Object.Op.malloc` | `Overload.Object.Syntax` |
+| [[intro.object]/16](https://eel.is/c++draft/intro.object#16) | rule | `Overload.Object.Op.newObject` | `Overload.Object.Syntax` |
 | [[lex.icon]/3 sentence 1](https://eel.is/c++draft/lex.icon#3.sentence-1) | rule | `Overload.literalType` | `Overload.Arguments` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Program.invocable` | `Overload.Traits` |
 | [[meta.rel]/3](https://eel.is/c++draft/meta.rel#3) | rule | `Overload.Program.nothrowInvocable` | `Overload.Traits` |
@@ -550,15 +550,15 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[meta.unary.prop]/9](https://eel.is/c++draft/meta.unary.prop#9) | rule | `Overload.Trait.isConstructible` | `Overload.Types` |
 | [[meta.unary.prop]/9](https://eel.is/c++draft/meta.unary.prop#9) | theorem | `Overload.trait_is_resolution` | `Overload.Traits` |
 | [[module.context]/5](https://eel.is/c++draft/module.context#5) | rule | `Overload.Program.dependentLookup` | `Overload.DependentCandidate` |
-| [[obj.lifetime]/1](https://eel.is/c++draft/obj.lifetime#1) | rule | `Overload.Object.Op.startLifetime` | `Overload.Object.Machine` |
+| [[obj.lifetime]/1](https://eel.is/c++draft/obj.lifetime#1) | rule | `Overload.Object.Op.startLifetime` | `Overload.Object.Syntax` |
 | [[obj.lifetime]/2](https://eel.is/c++draft/obj.lifetime#2) | rule | `Overload.Object.Machine.activateAlone` | `Overload.Object.Machine` |
-| [[obj.lifetime]/2](https://eel.is/c++draft/obj.lifetime#2) | rule | `Overload.Object.Op.startLifetime` | `Overload.Object.Machine` |
-| [[obj.lifetime]/3](https://eel.is/c++draft/obj.lifetime#3) | rule | `Overload.Object.Op.startLifetimeAs` | `Overload.Object.Machine` |
-| [[obj.lifetime]/4](https://eel.is/c++draft/obj.lifetime#4) | rule | `Overload.Object.Op.startLifetimeAs` | `Overload.Object.Machine` |
+| [[obj.lifetime]/2](https://eel.is/c++draft/obj.lifetime#2) | rule | `Overload.Object.Op.startLifetime` | `Overload.Object.Syntax` |
+| [[obj.lifetime]/3](https://eel.is/c++draft/obj.lifetime#3) | rule | `Overload.Object.Op.startLifetimeAs` | `Overload.Object.Syntax` |
+| [[obj.lifetime]/4](https://eel.is/c++draft/obj.lifetime#4) | rule | `Overload.Object.Op.startLifetimeAs` | `Overload.Object.Syntax` |
 | [[obj.lifetime]/5](https://eel.is/c++draft/obj.lifetime#5) | example | `Overload.Object.Launder.buffer_reuse_start_lifetime_as` | `Overload.Object.Launder` |
 | [[obj.lifetime]/5](https://eel.is/c++draft/obj.lifetime#5) | example | `Overload.Object.Launder.start_lifetime_as_reads_bytes` | `Overload.Object.Launder` |
 | [[obj.lifetime]/5](https://eel.is/c++draft/obj.lifetime#5) | example | `Overload.Object.Launder.start_lifetime_as_round_trip` | `Overload.Object.Launder` |
-| [[obj.lifetime]/5](https://eel.is/c++draft/obj.lifetime#5) | rule | `Overload.Object.Op.startLifetimeAs` | `Overload.Object.Machine` |
+| [[obj.lifetime]/5](https://eel.is/c++draft/obj.lifetime#5) | rule | `Overload.Object.Op.startLifetimeAs` | `Overload.Object.Syntax` |
 | [[over.best.ics.general]/1](https://eel.is/c++draft/over.best.ics.general#1) | rule | `Overload.Ics` | `Overload.Ranking` |
 | [[over.best.ics.general]/3](https://eel.is/c++draft/over.best.ics.general#3) | rule | `Overload.Ics.standard` | `Overload.Ranking` |
 | [[over.best.ics.general]/4](https://eel.is/c++draft/over.best.ics.general#4) | rule | `Overload.Program.userSequence` | `Overload.Ranking` |
@@ -650,10 +650,10 @@ Every citation is read against N5054, tag `n5054` of the cplusplus/draft reposit
 | [[over.match.viable]/4 sentence 1](https://eel.is/c++draft/over.match.viable#4.sentence-1) | rule | `Overload.Resolves.viabilityHard` | `Overload.Specs` |
 | [[over.match.viable]/4 sentence 1](https://eel.is/c++draft/over.match.viable#4.sentence-1) | rule | `Overload.Resolves.viabilitySoft` | `Overload.Specs` |
 | [[over.match.viable]/4 sentence 1](https://eel.is/c++draft/over.match.viable#4.sentence-1) | rule | `Overload.conversions` | `Overload.Resolution` |
-| [[ptr.launder]/1](https://eel.is/c++draft/ptr.launder#1) | rule | `Overload.Object.Op.launder` | `Overload.Object.Machine` |
-| [[ptr.launder]/2](https://eel.is/c++draft/ptr.launder#2) | rule | `Overload.Object.Op.launder` | `Overload.Object.Machine` |
+| [[ptr.launder]/1](https://eel.is/c++draft/ptr.launder#1) | rule | `Overload.Object.Op.launder` | `Overload.Object.Syntax` |
+| [[ptr.launder]/2](https://eel.is/c++draft/ptr.launder#2) | rule | `Overload.Object.Op.launder` | `Overload.Object.Syntax` |
 | [[ptr.launder]/3](https://eel.is/c++draft/ptr.launder#3) | example | `Overload.Object.Launder.ptr_launder_6_c` | `Overload.Object.Launder` |
-| [[ptr.launder]/3](https://eel.is/c++draft/ptr.launder#3) | rule | `Overload.Object.Op.launder` | `Overload.Object.Machine` |
+| [[ptr.launder]/3](https://eel.is/c++draft/ptr.launder#3) | rule | `Overload.Object.Op.launder` | `Overload.Object.Syntax` |
 | [[ptr.launder]/5](https://eel.is/c++draft/ptr.launder#5) | note | `Overload.Object.Launder.base_laundered` | `Overload.Object.Launder` |
 | [[ptr.launder]/5](https://eel.is/c++draft/ptr.launder#5) | note | `Overload.Object.Launder.base_not_replaced` | `Overload.Object.Launder` |
 | [[ptr.launder]/5](https://eel.is/c++draft/ptr.launder#5) | note | `Overload.Object.Launder.launder_identity_when_replaceable` | `Overload.Object.Launder` |

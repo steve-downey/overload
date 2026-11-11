@@ -1275,8 +1275,13 @@ charter, and the decisions are `object-model`, `object-fragment`,
   [basic.life]: `resolve`, `providesStorage`, `nestedWithin`,
   `completeObject`, `transparentlyReplaceable`, `typeAccessible`,
   `pointerInterconvertible`, `liveObjectAt`.
-- `Machine`: `Init`, the four initializers; `Op`, the nineteen
-  operations; `step` and `run`. Read it by its three rules: creation
+- `Syntax`: `Init`, the four initializers; `Op`, the operations, with
+  `Op.call` and `Op.nowInit`; `Trace`; `FunDef`, a function as a trace
+  with pointer parameters and an optional returned pointer.
+- `Machine`: `step` for every operation but a call; `call`, which binds
+  the parameters to the arguments' pointer values, runs the body in its
+  own block with its own names on the caller's objects, and reads the
+  returned pointer after that block ends; `exec`, the fuelled run; `run`. Read it by its three rules: creation
   reuses storage (`reuse`, `createObject`, `linkReplacements`), an
   access needs a live type-accessible object (`deref`, `readThrough`,
   `writeThrough`), and some storage implicitly creates objects
@@ -1330,6 +1335,14 @@ charter, and the decisions are `object-model`, `object-fragment`,
   `start_lifetime_as_ends_old`, `destroy_then_delete`, `memcpy_init`,
   `byte_fill` and `uninit_scope_exit` are what the wording changes; the
   table is `acceptedHazards` and `rejectedSafe` again.
+- `Functions`: the profile across calls. The model's functions include
+  `destroy(C* p)` with a plain parameter, `init(int* p [[must_init]])`,
+  `read_fn [[now_init]]`, `alloc [[ref_to_uninit]]()`, and `reset` and
+  `local`; `bodies` is what the body check says of them,
+  `must_init_works` and `ref_to_uninit_result` the attributes as
+  specified, `callee_destroys_then_destroy`, `callee_destroys_then_read`
+  and `callee_resets` what the caller is not told, `now_init_hole` the
+  declared hole, `dangling_return` the invalidation profile's case.
 - `Emit`: the differential cases, with constant evaluation as the
   oracle. An `ObjectCase` is a trace, the model, and the `Case` the
   harness compiles: a `constexpr` function that spells the trace and a

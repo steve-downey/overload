@@ -126,6 +126,12 @@ inductive Why where
   | notDeletable
   /-- A name the program never bound. -/
   | unbound (name : String)
+  /-- A call of a function the model does not define, with the wrong
+  number of arguments, or whose result the caller binds when it returns
+  none. -/
+  | badCall (name : String)
+  /-- The machine ran out of fuel: a trace longer than `run` allows for. -/
+  | fuel
   /-- A block-scope definition with no open block. -/
   | noBlock
   deriving Repr, DecidableEq, Inhabited

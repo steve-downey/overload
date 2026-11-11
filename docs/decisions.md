@@ -1376,6 +1376,11 @@ constructor, which is a stage of its own.
 **Log:**
 
 - 2026-11-11 — Decided.
+- 2026-11-11 — Functions join the fragment: free functions with pointer
+  parameters and bodies that are traces, called by `Op.call`, each in
+  a block of its own with its own names. Still out: constructor bodies,
+  by-value parameters, recursion beyond the fuel, and functions as
+  objects.
 
 ---
 
@@ -1527,3 +1532,13 @@ and the paper the author supplied.
   destruction in either paper, and the checker follows them. The
   wording's examples reproduce (`Overload/Object/P4416.lean`), one of
   them as ill-formed by the wording's own rules.
+- 2026-11-11 — Functions. A function of the model is a trace with
+  pointer parameters and an optional returned pointer (`FunDef`); its
+  annotations are a `FunSig`, with the parameter attributes,
+  `[[now_init]]`, a `[[ref_to_uninit]]` result and its own `[[uninit]]`
+  names. A call affects the caller's marks only through the attributes
+  (P4416R0 [profiles.init.analysis]/1 note), each body is checked alone
+  with `[[must_init]]` obligations and the return rule
+  ([profiles.init.ref]/5, /6), and an unannotated function is plain
+  throughout ([profiles.init.general]/5). Constructor bodies are not
+  functions of the model yet; they need the period of construction.

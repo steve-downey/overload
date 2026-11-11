@@ -1,6 +1,7 @@
 -- Overload/Object.lean                                               -*-lean-*-
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 import Overload.Object.Storage
+import Overload.Object.Syntax
 import Overload.Object.Model
 import Overload.Object.State
 import Overload.Object.Machine
@@ -9,6 +10,7 @@ import Overload.Object.Launder
 import Overload.Object.Profile
 import Overload.Object.P4222
 import Overload.Object.P4416
+import Overload.Object.Functions
 import Overload.Object.Emit
 
 /-!
