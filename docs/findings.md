@@ -164,40 +164,53 @@ and described here as they arrive.
   `differential/known-disagreements.txt` for GCC 15 until that libstdc++
   has it.
 
-- **Constant evaluation does not model transparent replaceability** (11
-  November 2026). Two object-model cases create an object in the storage
-  of one it does not transparently replace, a const complete `X` through
-  `std::allocator` and `std::construct_at`
-  (`object_const_complete_not_replaced`, [ptr.launder]/6 with the
-  placement `new` spelled as `std::construct_at`) and the base class
-  subobject of a `D` (`object_base_subobject_not_replaced`,
-  [ptr.launder]/5), then read through the old pointer. The model has both
-  undefined, since the pointer refers to the dead object ([basic.life]/9,
-  /10), and expects the `static_assert` to fail; GCC 13 and Clang 18 both
-  evaluate the read as the new object's value and accept. The laundered
-  twins, `object_launder_const_complete` and
-  `object_launder_base_subobject`, agree on both compilers. The
-  evaluators track storage, not objects, where [basic.life]/10 tracks
-  objects; the Standard's text is the model's. The two P4222R3 traces
-  that add the profile's `destroy_at` before the reuse
-  (`object_const_complete_destroyed_not_replaced`,
-  `object_base_destroyed_replaced_complete`) are accepted the same way,
-  so the profile's implementations, which the paper says live in these
-  compilers, have no evaluator to disagree with it. Listed in
-  `differential/known-disagreements.txt` for both compilers.
+- **Constant evaluation does not model transparent replaceability for a
+  base class subobject** (11 November 2026, rerun 12 November on GCC 15
+  and Clang 24). A base subobject of a `D` is destroyed and a complete
+  `B` created in its storage, then the old base pointer is read
+  (`object_base_subobject_not_replaced`, [ptr.launder]/5;
+  `object_base_destroyed_replaced_complete`, the same with the profile's
+  `destroy_at` and then a read of the complete object's own member,
+  [basic.life]/2). The model has both undefined, since the pointer
+  refers to the dead base subobject ([basic.life]/9, /10), and expects
+  the `static_assert` to fail. GCC 13, Clang 18, GCC 15 and Clang 24 all
+  accept. The laundered twin, `object_launder_base_subobject`, agrees on
+  all four. The evaluators track storage where [basic.life]/10 tracks
+  objects; the Standard's text is the model's. The profile's
+  implementations, which P4222R3 says live in these compilers, have no
+  evaluator to disagree with the profile on this trace. Listed in
+  `differential/known-disagreements.txt` for the versioned and
+  unversioned names.
+
+- **The const complete cases cannot be run on libstdc++ 15 or later**
+  (12 November 2026). The three cases that create a const complete `X`,
+  `launderConstComplete` in both forms and
+  `constCompleteDestroyedNotReplaced` ([ptr.launder]/6, [basic.life]/9),
+  spell the creation as `std::construct_at(static_cast<const X*>(s), 3)`.
+  libstdc++ 15 and 16 reject that call (`const void*` to `void*` inside
+  `construct_at`), so every compiler on them rejects all three, which
+  agrees with the model's ill-formed expectation for two of them for the
+  wrong reason and disagrees on the third. GCC 13 and Clang 18, whose
+  library accepted the call, evaluated the old pointer's read as the
+  new object's value, which is what the first version of this finding
+  reported for const objects. Constant evaluation has no other way to
+  create a const complete object, so the cases are no longer emitted
+  (`Overload.Object.Emit.constCases`, the model's expectation still
+  checked against the machine) and the const claim rests on the GCC 13
+  and Clang 18 run alone. The model's theorems for it are unchanged.
 
 - **GCC 13's constant evaluator does not end a lifetime at
-  `std::destroy_at`** (11 November 2026). Four cases: a read after
-  `std::destroy_at` (`object_destroy_then_read`, [basic.life]/8), a second
-  `std::destroy_at` (`object_double_destroy`, [class.dtor]/18), block exit
-  after `std::destroy_at` of an object with a constexpr destructor
-  (`object_implicit_destructor`, [basic.life]/11), and a read of the
-  inactive member after `U u{}` (`object_union_inactive_read`,
-  [class.union.general]/2). GCC 13 accepts all four; Clang 18 rejects all
-  four, agreeing with the model, as it does on the same destruction
-  inside a called function (`object_callee_destroys`). Not checked on a
-  newer GCC in this session; listed in
-  `differential/known-disagreements.txt` for GCC.
+  `std::destroy_at`** (11 November 2026; GCC 15 does, 12 November). Four
+  cases: a read after `std::destroy_at` (`object_destroy_then_read`,
+  [basic.life]/8), a second `std::destroy_at` (`object_double_destroy`,
+  [class.dtor]/18), block exit after `std::destroy_at` of an object with
+  a constexpr destructor (`object_implicit_destructor`,
+  [basic.life]/11), and a read of the inactive member after `U u{}`
+  (`object_union_inactive_read`, [class.union.general]/2). GCC 13 accepts
+  all four; Clang 18, GCC 15 and Clang 24 reject all four, agreeing with
+  the model, as they do on the same destruction inside a called function
+  (`object_callee_destroys`). Listed in
+  `differential/known-disagreements.txt` for GCC 13 only.
 
 ## About the model
 

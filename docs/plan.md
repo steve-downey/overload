@@ -952,9 +952,13 @@ Status, 15 October 2026:
   landed the same day: seventeen cases in `Overload/Object/Emit.lean`,
   each a trace and the `constexpr` function that spells it, the
   expectation computed by `run` and checked against the emitted file by
-  `OverloadTest/Emit.lean`. Clang 18 agrees on fifteen and GCC 13 on
-  eleven; the six disagreements are the evaluators', not the text's,
-  and are filed (`findings.md`, "Compiler disagreements"). The cases
+  `OverloadTest/Emit.lean`. Clang 18 agreed on fifteen and GCC 13 on
+  eleven; the six disagreements were the evaluators', not the text's,
+  and are filed (`findings.md`, "Compiler disagreements"). Rerun on
+  GCC 15 and Clang 24 on 12 November: the destruction cases agree on
+  both, the base subobject cases still do not, and the three const
+  complete cases are no longer emitted, since libstdc++ 15 rejects
+  `construct_at` on a const pointer. The cases
   cover `std::launder` on a const complete object and on a base
   subobject, transparent replacement, `std::destroy_at` and block exit,
   unions, value-initialization, a user-provided constructor that leaves

@@ -22,18 +22,19 @@ to the table proved, and functions with bodies as traces, so that the
 call-site attributes are checked and the callee run
 (`Overload/Object/Functions.lean`).
 `OverloadTest/Object.lean` holds the guards. Every theorem is a
-`decide`. `Overload/Object/Emit.lean` has twenty differential cases
-with constant evaluation as the oracle; `make differential
-PROBE_COMPILERS="g++-13 clang++-18"` agrees except for the six filed in
-`findings.md` and `differential/known-disagreements.txt`.
+`decide`. `Overload/Object/Emit.lean` has eighteen differential cases
+with constant evaluation as the oracle, run on GCC 13 and Clang 18 (in the
+earlier cloud session; on the author's machine Clang 18 selects
+libstdc++ 16, which it cannot parse, so only GCC 15 and Clang 24 run
+there) and on GCC 15 and Clang 24; the disagreements are filed in `findings.md`
+and `differential/known-disagreements.txt`. Three const complete cases
+are kept but not emitted, since libstdc++ 15 rejects `construct_at` on
+a const pointer.
 
 ## What is owed
 
 Recorded in `plan.md`, phase 16, stages 2 to 4, and the status entry:
 
-- A run of the object-model cases on GCC 15 and Clang 24, which this
-  session did not have: four of the six disagreements are GCC 13's
-  alone.
 - The relation forms of creation, destruction and assignment
   (`decisions.md#spec-style`, log of 11 November 2026).
 - The periods of construction and destruction, where the profile meets

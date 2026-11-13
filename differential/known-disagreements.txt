@@ -152,10 +152,6 @@ trait_implicit_lifetime_user_dtor.cpp g++
 # whose storage was reused as pointing to the new object whether or not
 # the old one was transparently replaceable ([basic.life]/9, /10,
 # [ptr.launder]/5, /6).
-object_const_complete_not_replaced.cpp g++
-object_const_complete_not_replaced.cpp g++-13
-object_const_complete_not_replaced.cpp clang++
-object_const_complete_not_replaced.cpp clang++-18
 object_base_subobject_not_replaced.cpp g++
 object_base_subobject_not_replaced.cpp g++-13
 object_base_subobject_not_replaced.cpp clang++
@@ -172,10 +168,6 @@ object_double_destroy.cpp g++-13
 object_implicit_destructor.cpp g++
 object_implicit_destructor.cpp g++-13
 # The same leniency on P4222R3's accepted traces (phase 16, stage 5).
-object_const_complete_destroyed_not_replaced.cpp g++
-object_const_complete_destroyed_not_replaced.cpp g++-13
-object_const_complete_destroyed_not_replaced.cpp clang++
-object_const_complete_destroyed_not_replaced.cpp clang++-18
 object_base_destroyed_replaced_complete.cpp g++
 object_base_destroyed_replaced_complete.cpp g++-13
 object_base_destroyed_replaced_complete.cpp clang++
@@ -184,3 +176,17 @@ object_base_destroyed_replaced_complete.cpp clang++-18
 # a called function (phase 16, stage 7).
 object_callee_destroys.cpp g++
 object_callee_destroys.cpp g++-13
+# GCC 15 and Clang 24 (libstdc++ 15 and 16), phase 16. The evaluators still
+# treat a pointer to a destroyed base subobject as pointing to the object
+# created in its storage ([basic.life]/9, [ptr.launder]/5). Both now end
+# lifetimes at std::destroy_at and refuse an inactive union member.
+object_base_subobject_not_replaced.cpp g++-15
+object_base_subobject_not_replaced.cpp clang++-24
+object_base_destroyed_replaced_complete.cpp g++-15
+object_base_destroyed_replaced_complete.cpp clang++-24
+# libstdc++ 15 has no std::is_implicit_lifetime (findings.md).
+trait_implicit_lifetime_aggregate.cpp g++-15
+trait_implicit_lifetime_reference.cpp g++-15
+trait_implicit_lifetime_scalar.cpp g++-15
+trait_implicit_lifetime_user_ctor.cpp g++-15
+trait_implicit_lifetime_user_dtor.cpp g++-15

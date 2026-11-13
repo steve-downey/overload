@@ -266,10 +266,20 @@ def cases : List ObjectCase :=
   , destroyThenRead, doubleDestroy, transparentReplacement
   , implicitDestructor, destroyRecreateBlockExit
   , newIntUninit, newIntInit
-  , launderConstComplete true, launderConstComplete false
   , launderBase true, launderBase false
-  , unionInitializedInactiveRead, baseDestroyedReplacedComplete, constCompleteDestroyedNotReplaced
-  , calleeDestroys ]
+  , unionInitializedInactiveRead, baseDestroyedReplacedComplete, calleeDestroys ]
+
+/-- The const complete object cases, `launderConstComplete` and
+`constCompleteDestroyedNotReplaced`, are not emitted. They create a
+`const X` with `std::construct_at(static_cast<const X*>(s), 3)`, which
+libstdc++ 15 and 16 reject (`const void*` to `void*` in `construct_at`),
+so on those libraries every compiler "agrees" with the model's
+ill-formed expectation for the wrong reason, and the case that expects
+well-formed fails. GCC 13 and Clang 18, with the older library, accepted
+them; the finding in `docs/findings.md` rests on that run. Constant
+evaluation has no other way to create a const complete object. -/
+def constCases : List ObjectCase :=
+  [launderConstComplete true, launderConstComplete false, constCompleteDestroyedNotReplaced]
 
 /-- The cases the harness compiles. -/
 def harnessCases : List Case := cases.map (·.case)
