@@ -6,7 +6,7 @@ which.
 
 ## Where things stand, 11 November 2026
 
-Phase 16, the object model, is open with stages 1, 2, 4, 5, 6 and 7 landed on
+Phase 16, the object model, is open with stages 1 to 7 landed on
 the branch `claude/cpp-object-model-lean-gec6xk`. Fifteen phases are closed
 before it. `Overload/Object/*.lean` is the object model: storage,
 bytes, objects and their lifetime, pointers, the abstract machine of
@@ -36,8 +36,9 @@ a const pointer.
 
 Recorded in `plan.md`, phase 16, stages 2 to 4, and the status entry:
 
-- The relation forms of creation, destruction and assignment
-  (`decisions.md#spec-style`, log of 11 November 2026).
+- The relation forms of the machine's remaining clauses: casts,
+  `launder`, `start_lifetime_as`, `memcpy`, the block operations,
+  `activate` and `construct` (`decisions.md#spec-style`).
 - The period of destruction, delegating constructors, constructors with
   parameters, exceptions in constructors, and members of class type
   with constructor bodies of their own (`decisions.md#construction-period`).
@@ -51,7 +52,7 @@ The owed items of phase 15 stand as `plan.md` records them.
 
 ## What comes next
 
-Stage 3 of phase 16, the relation forms, then the author's reading of the profile entry and
+The author's reading of the profile entry and
 the findings' open question about `std::start_lifetime`. The open areas
 list of `plan.md` is unchanged: Applicative and Monad need parameter
 packs and the expression fragment; the object model is now the place a

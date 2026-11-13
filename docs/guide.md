@@ -1293,6 +1293,18 @@ charter, and the decisions are `object-model`, `object-fragment`,
   constructor per sentence, and `access_iff`, its agreement with
   `Machine.access`; `readThrough_eq` says a read is indirection then
   access.
+- `Relations`: the relation forms of the machine's rules, per
+  `decisions.md#spec-style`. `Deref` is indirection ([expr.unary.op]/1,
+  [basic.life]/7, [basic.compound]/6) and `Destroy` destruction through a
+  pointer ([class.dtor]/16, /18); `WriteTail` and `Write` are assignment,
+  with the union rule of [class.union.general]/5 as `Write.activated`;
+  `Reuse` is what creating an object does to the objects whose storage it
+  overlaps ([basic.life]/2, /12); `CreateAfter` and `CreateObject` are
+  creation. Each has a `_agrees` theorem against the function it
+  transcribes (`destroyThrough`, `writeThrough`, `reuse`, `createObject`),
+  and `deref_shape` and `reuse_shape` say which outcomes are possible.
+  The leaves are the executable parts that are definitions and not rules:
+  `pointAt`, `unionActivation`, `reuseState`, `applyInit`.
 - `Launder`: the theorems about `std::launder` and
   `std::start_lifetime_as`, each a trace run by `decide`.
   `ptr_launder_6_a`, `_b`, `_c` are [ptr.launder]/6: `b` is undefined

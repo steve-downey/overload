@@ -99,6 +99,23 @@ transcription.
   cited clause per rule, with the relation form for the access
   judgement alone (`Access`, `access_iff`). The operations that create,
   destroy and assign owe their relation forms; phase 16, stage 3.
+- 2026-11-12 — Deviation partly repaired, phase 16 stage 3.
+  `Overload/Object/Relations.lean` gives indirection (`Deref`),
+  destruction (`Destroy`), assignment (`Write` over `WriteTail`), storage
+  reuse (`Reuse`) and creation (`CreateAfter`, `CreateObject`) their
+  relation forms, one cited constructor per case, each with an agreement
+  theorem; the executable side was factored to name the pieces
+  (`destroyThrough`, `writeTail`, `reuseConstComplete`, `reuseParent`,
+  `reuseKeeps`, `reuseState`, `createAfter`, `byteBufferState`) with no
+  change of behaviour, which the existing `decide` proofs and the
+  differential run checked. The leaves are executable definitions that
+  are not rules: `pointAt` (`decisions.md#implicit-creation`),
+  `unionActivation`, `reuseState`, `applyInit`. Still executable only:
+  the clauses of `step` for casts, `launder`, `start_lifetime_as`,
+  `memcpy` and the block operations, `activate`, and `construct`. The
+  agreement proofs cost about 330 lines in all, most of it case analysis
+  on the monadic bind, and came without a surprise: no relation found a
+  case the function lacked.
 
 ---
 

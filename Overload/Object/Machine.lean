@@ -147,40 +147,58 @@ def activateAlone (s : State) (o : ObjId) : State :=
     | _ => s
   s.updateObj o fun ob => { ob with life := .alive }
 
+/-- Is some object overlapping the new one a const complete object of
+static or automatic storage duration ([basic.life]/12)? -/
+@[std rule "basic.life#12"]
+def reuseConstComplete (m : Model) (s : State) (ty : Ty) (r : RegionId) (off : Nat) : Bool :=
+  (s.objectsOverlapping r off (m.sizeOf ty)).any fun o =>
+    (s.obj? o).any fun ob =>
+      ob.isConst && ob.parent.isNone && (s.region? r).any (·.duration != .dynamic)
+
+/-- The parent of an object created at an address: if the storage exactly
+overlays a subobject `e` of an object within its lifetime, `e` not
+potentially-overlapping and of the same type, the new object is a
+subobject of `e`'s containing object ([intro.object]/2); otherwise it is
+a complete object. -/
+@[std rule "intro.object#2"]
+def reuseParent (m : Model) (s : State) (ty : Ty) (r : RegionId) (off : Nat) : Option ObjId :=
+  let n := m.sizeOf ty
+  let corresponding := (s.objectsOverlapping r off n).find? fun e =>
+    (s.obj? e).any fun eb =>
+      eb.offset == off && eb.size == n && !eb.isBase && eb.ty.stripConst == ty.stripConst &&
+        eb.count == 1 && eb.parent.isSome && eb.parent.any s.alive
+  corresponding.bind fun e => (s.obj? e).bind (·.parent)
+
+/-- Does an overlapped object survive the creation ([basic.life]/2)? The
+containing object and its ancestors survive when the new object replaces
+one of their subobjects, and a byte array providing storage survives
+([intro.object]/3). -/
+@[std rule "basic.life#2" "intro.object#3"]
+def reuseKeeps (m : Model) (s : State) (ty : Ty) (r : RegionId) (off : Nat) (o : ObjId) : Bool :=
+  let n := m.sizeOf ty
+  (match reuseParent m s ty r off with
+   | some p => o == p || s.nestedWithin p o
+   | none => false) ||
+    ((s.obj? o).any fun ob => ob.isByteArray && ob.life == .alive && contains ob.offset ob.size off n)
+
+/-- The state after the creation has reused the storage: the lifetime of
+every overlapped object that does not survive has ended. -/
+@[std rule "basic.life#2"]
+def reuseState (m : Model) (s : State) (ty : Ty) (r : RegionId) (off : Nat) : State :=
+  (s.objectsOverlapping r off (m.sizeOf ty)).foldl
+    (fun s o => if reuseKeeps m s ty r off o then s else s.endLifetime o) s
+
 /-- Storage reuse ([basic.life]/2): an object of type `ty` is about to be
 created at an address. Creating it within the storage of a const
 complete object of static or automatic storage duration is undefined
-([basic.life]/12). If the storage exactly overlays a subobject `e` of an
-object within its lifetime, `e` not potentially-overlapping and of the
-same type, the new object is a subobject of `e`'s containing object
-([intro.object]/2); otherwise it is a complete object. The lifetime of
-every other overlapped object the new object is not nested within ends,
-except an array that provides storage for it. Returns the state and the
-parent, if any. -/
+([basic.life]/12); otherwise the lifetime of every overlapped object the
+new object is not nested within ends, except an array that provides
+storage for it, and the new object has the parent `reuseParent` gives.
+Returns the state and the parent, if any. -/
 @[std rule "basic.life#2" "basic.life#12" "intro.object#2" "intro.object#3"]
 def reuse (m : Model) (s : State) (ty : Ty) (r : RegionId) (off : Nat) : Behavior (State × Option ObjId) :=
-  let n := m.sizeOf ty
-  let overlapping := s.objectsOverlapping r off n
-  let constComplete := overlapping.any fun o =>
-    (s.obj? o).any fun ob =>
-      ob.isConst && ob.parent.isNone && (s.region? r).any (·.duration != .dynamic)
-  if constComplete then .undefined .constStorageReuse
-  else
-    let corresponding := overlapping.find? fun e =>
-      (s.obj? e).any fun eb =>
-        eb.offset == off && eb.size == n && !eb.isBase && eb.ty.stripConst == ty.stripConst &&
-          eb.count == 1 && eb.parent.isSome && eb.parent.any s.alive
-    let parent := corresponding.bind fun e => (s.obj? e).bind (·.parent)
-    let keep (o : ObjId) : Bool :=
-      -- The containing object and its ancestors survive when the new
-      -- object replaces one of their subobjects; a byte array providing
-      -- storage survives.
-      (match parent with
-       | some p => o == p || s.nestedWithin p o
-       | none => false) ||
-      ((s.obj? o).any fun ob => ob.isByteArray && ob.life == .alive && contains ob.offset ob.size off n)
-    let s := overlapping.foldl (fun s o => if keep o then s else s.endLifetime o) s
-    .defined (s, parent)
+  if reuseConstComplete m s ty r off then .undefined .constStorageReuse
+  else .defined (reuseState m s ty r off, reuseParent m s ty r off)
 
 /-- Can an object of type `ty` be taken as implicitly created at an
 address ([intro.object]/13, /16): the range lies in one an operation
@@ -241,6 +259,20 @@ def deref (m : Model) (s : State) (p : Ptr) : Behavior (State × ObjId) :=
   | .null => .undefined .nullPointer
   | .invalid => .undefined .invalidPointer
 
+/-- Destruction through a pointer: `p->~T()` ([class.dtor]/16, /18). The
+destructor's class must be the object's, and invoking it for an object
+whose lifetime has ended is undefined; otherwise the object's lifetime
+ends and so does that of everything nested within it ([basic.life]/2). -/
+@[std rule "class.dtor#16" "class.dtor#18" "basic.life#2"]
+def destroyThrough (m : Model) (s : State) (p : Ptr) : Behavior State := do
+  let (s, o) ← deref m s p
+  match s.obj? o with
+  | none => .undefined .noObject
+  | some ob =>
+    if ob.ty.stripConst != p.ty.stripConst then .undefined .wrongDestructor
+    else if ob.life != .alive then .undefined .destructorOutsideLifetime
+    else .defined (s.endLifetime o)
+
 /-- The union member whose lifetime an assignment through the glvalue
 denoting `o` begins ([class.union.general]/5): the outermost object on
 the parent chain from `o` that is not within its lifetime, when that
@@ -291,13 +323,24 @@ def readThrough (m : Model) (s : State) (p : Ptr) : Behavior (State × Value) :=
         else .erroneous ({ s with errors := s.errors ++ [.erroneousValue] }, .erroneous) .erroneousValue
       | some v => .defined (s, v)
 
+/-- The tail of an assignment, once the object is within its lifetime:
+the object must be type-accessible ([basic.lval]/11) and not const
+([dcl.type.cv]/4), and the fragment assigns scalars alone. -/
+@[std rule "basic.lval#11" "dcl.type.cv#4"]
+def writeTail (m : Model) (s : State) (p : Ptr) (o : ObjId) (ob : Obj) (v : Int) : Behavior State :=
+  if !typeAccessible p.ty ob.ty then .undefined .typeInaccessible
+  else if ob.isConst || (s.obj? (s.completeObject o)).any Obj.isConst then .undefined .modifiesConst
+  else if !Model.isScalar p.ty then .illFormed .notScalar
+  else
+    let n := scalarName p.ty
+    .defined (writeBytes s ob.region ob.offset (encode v (integerSize n)))
+
 /-- Assignment through a pointer ([expr.assign]). Modifying through a
-const glvalue is ill-formed ([basic.lval]/10); the glvalue must denote
-an object within its lifetime, except that an assignment to a union
-member of scalar or trivially default-constructible class type begins its
-lifetime ([class.union.general]/5); the object must be type-accessible
-([basic.lval]/11) and not const ([dcl.type.cv]/4). -/
-@[std rule "basic.lval#10" "basic.life#8" "class.union.general#5" "basic.lval#11" "dcl.type.cv#4"]
+const glvalue is ill-formed ([basic.lval]/10); the glvalue must denote an
+object within its lifetime, except that an assignment to a union member
+of scalar or trivially default-constructible class type begins its
+lifetime ([class.union.general]/5); then `writeTail`. -/
+@[std rule "basic.lval#10" "basic.life#8" "class.union.general#5"]
 def writeThrough (m : Model) (s : State) (p : Ptr) (v : Int) : Behavior State := do
   if p.ty.isConst then .illFormed .constGlvalue
   else
@@ -311,12 +354,7 @@ def writeThrough (m : Model) (s : State) (p : Ptr) (v : Int) : Behavior State :=
           match unionActivation m s o with
           | some u => pure (activate s u)
           | none => .undefined (if ob.unionMember then .inactiveMember else .outsideLifetime)
-      if !typeAccessible p.ty ob.ty then .undefined .typeInaccessible
-      else if ob.isConst || (s.obj? (s.completeObject o)).any Obj.isConst then .undefined .modifiesConst
-      else if !Model.isScalar p.ty then .illFormed .notScalar
-      else
-        let n := scalarName p.ty
-        .defined (writeBytes s ob.region ob.offset (encode v (integerSize n)))
+      writeTail m s p o ob v
 
 /-- Link every ended object the new object transparently replaces to it
 ([basic.life]/10). -/
@@ -386,30 +424,48 @@ def applyInit (m : Model) (s : State) (o : ObjId) (ty : Ty) (r : RegionId) (off 
           let v := vs[i]?.getD 0
           writeBytes s r (off + eo) (encode v (integerSize (scalarName e)))) s)
 
+/-- Whether creating an object of this type with this initializer leaves
+it under construction: a class with a constructor body and a default or
+value initializer. -/
+def underConstruction (m : Model) (ty : Ty) (init : Init) (count : Nat) : Bool :=
+  count == 1 && (m.ctorOf? ty).isSome && (init == .default || init == .value)
+
+/-- The state after a byte array's creation: its lifetime beginning
+implicitly creates objects within it ([intro.object]/16), and
+value-initialization zeroes it. -/
+@[std rule "intro.object#16" "dcl.init.general#8"]
+def byteBufferState (m : Model) (s : State) (ty : Ty) (r : RegionId) (off : Nat) (init : Init) (count : Nat)
+    (o : ObjId) : State :=
+  let s := s.updateRegion r fun rg =>
+    { rg with implicit := rg.implicit ++ [{ offset := off, size := count * m.sizeOf ty, epochObjects := o + 1, epochClock := s.clock }] }
+  if init == .default then s else writeBytes s r off (List.replicate (count * m.sizeOf ty) Byte.zero)
+
+/-- Creation once the storage has been reused: the object is made with its
+subobjects, under construction or alive, the ended objects it
+transparently replaces are linked to it ([basic.life]/10), and it is
+initialized unless it is under construction (`construct` does that) or a
+byte array, whose lifetime beginning implicitly creates objects within it
+([intro.object]/16). -/
+@[std rule "basic.life#10" "intro.object#16" "dcl.init.general#8"]
+def createAfter (m : Model) (s : State) (ty : Ty) (r : RegionId) (off : Nat) (init : Init) (count : Nat)
+    (parent : Option ObjId) : Behavior (State × ObjId) :=
+  let (s, o) := create m s ty count r off parent (if underConstruction m ty init count then .constructing else .alive)
+  let s := linkReplacements s o
+  if underConstruction m ty init count then .defined (s, o)
+  else if count != 1 then .defined (byteBufferState m s ty r off init count o, o)
+  else
+    applyInit m s o ty r off init >>= fun s => .defined (s, o)
+
 /-- Create an object of type `ty` with an initializer in storage already
 obtained, reusing the storage: the general step behind a definition, a
-`new` and a placement `new`. -/
+`new` and a placement `new`. The storage must be allocated, large enough
+for the object ([obj.lifetime]/4 for the library's precondition, the
+allocation function's guarantee for `new`). -/
+@[std rule "basic.life#2"]
 def createObject (m : Model) (s : State) (ty : Ty) (r : RegionId) (off : Nat) (init : Init)
-    (count : Nat := 1) : Behavior (State × ObjId) := do
+    (count : Nat := 1) : Behavior (State × ObjId) :=
   if !allocated s r off (count * m.sizeOf ty) then .undefined .lifetimePrecondition
-  else
-    let (s, parent) ← reuse m s ty r off
-    -- A class with a constructor body is created under construction, its
-    -- elements not yet started; `construct` runs the constructor.
-    let underConstruction := count == 1 && (m.ctorOf? ty).isSome && (init == .default || init == .value)
-    let (s, o) := create m s ty count r off parent (if underConstruction then .constructing else .alive)
-    let s := linkReplacements s o
-    if underConstruction then .defined (s, o)
-    else if count != 1 then
-      -- A byte array: its lifetime beginning implicitly creates objects
-      -- within it ([intro.object]/16), and value-initialization zeroes it.
-      let s := s.updateRegion r fun rg =>
-        { rg with implicit := rg.implicit ++ [{ offset := off, size := count * m.sizeOf ty, epochObjects := o + 1, epochClock := s.clock }] }
-      let s := if init == .default then s else writeBytes s r off (List.replicate (count * m.sizeOf ty) Byte.zero)
-      .defined (s, o)
-    else
-      let s ← applyInit m s o ty r off init
-      .defined (s, o)
+  else reuse m s ty r off >>= fun (s, parent) => createAfter m s ty r off init count parent
 
 /-- A new region of storage. -/
 def obtain (s : State) (d : Duration) (bytes : List Byte) (implicit : Bool) : State × RegionId :=
@@ -505,13 +561,7 @@ def step (m : Model) (s : State) : Op → Behavior State
     .defined (s.setPtr x { ty, loc := .object o })
   | .destroy q => do
     let p ← ptr s q
-    let (s, o) ← deref m s p
-    match s.obj? o with
-    | none => .undefined .noObject
-    | some ob =>
-      if ob.ty.stripConst != p.ty.stripConst then .undefined .wrongDestructor
-      else if ob.life != .alive then .undefined .destructorOutsideLifetime
-      else .defined (s.endLifetime o)
+    destroyThrough m s p
   | .startLifetimeAs x ty q => do
     if !m.implicitLifetime ty then .illFormed .notImplicitLifetime
     else

@@ -287,6 +287,15 @@ is the map.
 #audit Overload.Object.Functions.callee_resets
 #audit Overload.Object.Functions.now_init_hole
 #audit Overload.Object.Functions.accepted_hazards
+#audit Overload.Object.deref_agrees
+#audit Overload.Object.deref_shape
+#audit Overload.Object.destroy_agrees
+#audit Overload.Object.writeTail_agrees
+#audit Overload.Object.write_agrees
+#audit Overload.Object.reuse_agrees
+#audit Overload.Object.reuse_shape
+#audit Overload.Object.createAfter_agrees
+#audit Overload.Object.createObject_agrees
 #audit Overload.Object.Construction.w_reads_member_before_init
 #audit Overload.Object.Construction.mem_init_order_is_declaration_order
 #audit Overload.Object.Construction.alive_after_constructor

@@ -1006,7 +1006,10 @@ Status, 15 October 2026:
   (`w_accepted_undefined`), the list's order is irrelevant, a member
   marked `[[uninit]]` stays uninitialized outside the constructor that
   assigned it (`q_read_outside_rejected`). Four emitted cases agree on
-  GCC 13, GCC 15 and Clang 24.
+  GCC 13, GCC 15 and Clang 24. Stage 3, object-relations, landed the
+  same day: `Deref`, `Destroy`, `WriteTail`, `Write`, `Reuse`,
+  `CreateAfter` and `CreateObject`, each with an agreement theorem, and
+  the executable side factored to name their pieces.
 
 ## Target theorems
 
@@ -2912,8 +2915,11 @@ operations.
    unions and uninitialized reads, compiled by `make differential`;
    `std::start_lifetime_as` and `reinterpret_cast` are outside constant
    evaluation and stay stated. Landed 11 November 2026.
-3. object-relations: the relation forms of creation, destruction and
-   assignment, with agreement theorems.
+3. [object-relations](#object-relations): the relation forms of
+   indirection, destruction, assignment, storage reuse and creation, with
+   agreement theorems (`Overload/Object/Relations.lean`). Landed 12
+   November 2026. The remaining clauses of `step` stay executable
+   (`decisions.md#spec-style`).
 4. [object-construction](#object-construction): the period of
    construction and constructor bodies: `Life.constructing`, `CtorDef`
    with `MemInit`, `Machine.construct` initializing elements in
