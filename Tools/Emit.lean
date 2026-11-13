@@ -5,14 +5,16 @@ import Overload
 /-!
 `lake exe emit <dir>` writes one C++ translation unit per case, the
 Standard side's (`Overload.Emit.cases`) and the encoding's
-(`Overload.Typeclass.Emit.cases`), into `dir`; `scripts/differential.sh`
+(`Overload.Typeclass.Emit.cases`) and the object model's
+(`Overload.Object.Emit.harnessCases`), into `dir`; `scripts/differential.sh`
 compiles them.
 -/
 
 open Overload.Emit
 
 /-- Every case of both sides. -/
-def allCases : List Case := cases ++ Overload.Typeclass.Emit.cases
+def allCases : List Case :=
+  cases ++ Overload.Typeclass.Emit.cases ++ Overload.Object.Emit.harnessCases
 
 def main (args : List String) : IO UInt32 := do
   match args with

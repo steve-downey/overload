@@ -40,6 +40,7 @@ import Overload.Members
 import Overload.ClassTemplates
 import Overload.DependentCandidate
 import Overload.Emit
+import Overload.Object
 import Overload.Typeclass
 import Overload.Lint
 
@@ -235,6 +236,74 @@ is the map.
 #audit Overload.separability_tie_break_reach
 #audit Overload.separability_rank_precedence
 #audit Overload.ranking_live
+
+-- The object model: the access judgement, launder, start_lifetime_as, the
+-- initialization profile.
+#audit Overload.Object.access_iff
+#audit Overload.Object.Machine.readThrough_eq
+#audit Overload.Object.Launder.ptr_launder_6_b
+#audit Overload.Object.Launder.ptr_launder_6_c
+#audit Overload.Object.Launder.basic_life_10_follows
+#audit Overload.Object.Launder.launder_identity_when_replaceable
+#audit Overload.Object.Launder.base_not_replaced
+#audit Overload.Object.Launder.base_laundered
+#audit Overload.Object.Launder.reinterpret_without_lifetime
+#audit Overload.Object.Launder.start_lifetime_as_reads_bytes
+#audit Overload.Object.Launder.buffer_reuse_undefined
+#audit Overload.Object.Launder.buffer_reuse_start_lifetime_as
+#audit Overload.Object.Launder.buffer_reuse_memcpy
+#audit Overload.Object.Profile.not_sound
+#audit Overload.Object.Profile.not_complete
+#audit Overload.Object.Profile.accepted_hazards_hazard
+#audit Overload.Object.Profile.rejected_safe_defined
+#audit Overload.Object.Profile.vacuous_initialization_begins_lifetime
+#audit Overload.Object.Profile.determinate_outside_lifetime
+#audit Overload.Object.P4222.launder_example_accepted
+#audit Overload.Object.P4222.launder_example_undefined
+#audit Overload.Object.P4222.base_replaced_undefined
+#audit Overload.Object.P4222.union_inactive_undefined
+#audit Overload.Object.P4222.type_pun_undefined
+#audit Overload.Object.P4222.buffer_reuse_undefined
+#audit Overload.Object.P4222.start_lifetime_as_unannotated_undefined
+#audit Overload.Object.P4222.start_lifetime_as_annotated
+#audit Overload.Object.P4222.accepted_hazards
+#audit Overload.Object.P4222.rejected_safe
+#audit Overload.Object.P4222.guarantee_fails
+#audit Overload.Object.P4222.now_init_identity
+#audit Overload.Object.P4416.ref8_now_init_after_construct_at
+#audit Overload.Object.P4416.start_lifetime_as_malloc_rejected
+#audit Overload.Object.P4416.start_lifetime_as_ends_old
+#audit Overload.Object.P4416.destroy_then_delete
+#audit Overload.Object.P4416.buffer_reuse_initialized
+#audit Overload.Object.P4416.memcpy_init
+#audit Overload.Object.P4416.uninit_scope_exit
+#audit Overload.Object.P4416.accepted_hazards
+#audit Overload.Object.P4416.rejected_safe
+#audit Overload.Object.P4416.guarantee_fails
+#audit Overload.Object.Functions.bodies
+#audit Overload.Object.Functions.must_init_works
+#audit Overload.Object.Functions.callee_destroys_then_destroy
+#audit Overload.Object.Functions.callee_destroys_then_read
+#audit Overload.Object.Functions.callee_resets
+#audit Overload.Object.Functions.now_init_hole
+#audit Overload.Object.Functions.accepted_hazards
+#audit Overload.Object.deref_agrees
+#audit Overload.Object.deref_shape
+#audit Overload.Object.destroy_agrees
+#audit Overload.Object.writeTail_agrees
+#audit Overload.Object.write_agrees
+#audit Overload.Object.reuse_agrees
+#audit Overload.Object.reuse_shape
+#audit Overload.Object.createAfter_agrees
+#audit Overload.Object.createObject_agrees
+#audit Overload.Object.Construction.w_reads_member_before_init
+#audit Overload.Object.Construction.mem_init_order_is_declaration_order
+#audit Overload.Object.Construction.alive_after_constructor
+#audit Overload.Object.Construction.r_body_reads_unset_member
+#audit Overload.Object.Construction.w_accepted_undefined
+#audit Overload.Object.Construction.q_read_outside_rejected
+#audit Overload.Object.Construction.marked_member_named
+#audit Overload.Object.Construction.accepted_hazards
 
 -- Erasing derivation, Mandates, SFINAE, dispatch, access.
 #audit Overload.inheritance_erasure

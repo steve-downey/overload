@@ -70,6 +70,13 @@ In scope:
 - Since phase 15: class templates with bases and members, a
   specialization's members by substitution when it is looked into, and
   member templates of class templates.
+- Since phase 16: the object model. Storage and its duration, objects
+  and their lifetime, bytes with indeterminate and erroneous values,
+  initialization as what it does to an object's bytes, destruction,
+  storage reuse and transparent replacement, implicit object creation,
+  unions and their active member, `std::launder`,
+  `std::start_lifetime_as` and `std::start_lifetime`, as an abstract
+  machine over the type system's classes.
 
 Out of scope at the start:
 
@@ -206,12 +213,12 @@ The four kinds of finding about the Standard are tabulated in
 
 ## Phases
 
-Fifteen phases, each closed by a theorem or a passing test set. The
+Sixteen phases, each closed by a theorem or a passing test set. The
 typeclass results first become reachable at phase 4, before any of
 call-site overload resolution exists. Phase 9 was added on 20 October
 2026, after the others closed, phase 10 on 21 October 2026, phase 11 on
-23 October 2026, phases 12 to 14 on 24 October 2026, and phase 15 on 25 October
-2026.
+23 October 2026, phases 12 to 14 on 24 October 2026, phase 15 on 25 October 2026,
+and phase 16 on 11 November 2026.
 
 | Phase | Builds | Exit criterion | Needs |
 |---|---|---|---|
@@ -231,6 +238,7 @@ call-site overload resolution exists. Phase 9 was added on 20 October
 | 13 Semantic requirements | What satisfies and what models ([res.on.requirements]): a semantic requirement as a named, cited statement nothing decides; modelling as satisfaction plus hypotheses; the ill-formed-no-diagnostic verdict for a satisfied concept not modeled; the library's concepts transcribed with their laws; the typeclass laws named; an audit of the laws each theorem owes. See [below](#phase-13-semantic-requirements-what-satisfies-and-what-models). | Every law a headline theorem of the encoding rests on is named and listed by `#owes`; the library's object concepts subsume one another by normalization; the superclass-coherence obligation is a theorem with its law as hypothesis. Settles semantic-requirements. | 8, 12 |
 | 14 Virtual functions, exception specifications, aggregates | Three stages, one each: virtual and pure virtual functions, overriding by correspondence, polymorphic and abstract classes, and their effect on triviality and layout; exception specifications on every function, the implicit ones of the special members, and the `is_nothrow_` traits; aggregates, their elements as the model's class values, brace and parenthesized aggregate initialization, and `is_aggregate` and `is_implicit_lifetime`. See [below](#phase-14-virtual-functions-exception-specifications-and-aggregates). | `is_polymorphic`, `is_abstract`, `has_virtual_destructor`, every `is_nothrow_` trait, `is_aggregate` and `is_implicit_lifetime` are computed from cited rules and agree with GCC and Clang on the emitted cases; the class value is the aggregate's element list; the encoding's instance types are aggregates with non-throwing special members. Settles virtual-fragment, exception-specification-fragment and aggregate-fragment. | 12, 13 |
 | 15 Class templates and their members | Class templates with bases and members declared for the current instantiation; a specialization's members by substitution when it is looked into, the implicit instantiation of declarations; member templates of class templates; member lookup, the call on an object, the special members and the traits over specializations; the member call with its implied object argument; the point of instantiation of a specialization; the encoding's derivation base as the class template it is, and the operation object's constraint as a resolved member call. See [below](#phase-15-class-templates-and-their-members). | The member search of a specialization is computed from the template's declarations by cited rules; `is_invocable` of a specialization callee is computed and the class-callee residue is closed; the traits of specializations agree with GCC and Clang on the emitted cases; the operation object's constraint is resolved, not assumed, and the accurate-members obligation is a theorem for the reduced encoding. Settles class-template-members. | 9, 12 |
+| 16 The object model | Storage, objects and their lifetime, initialization and destruction, as an abstract machine over the type system's classes: storage durations, bytes with indeterminate and erroneous values, storage reuse and transparent replacement, implicit object creation, unions, `std::launder`, `std::start_lifetime_as` and `std::start_lifetime`, block exit. See [below](#phase-16-the-object-model). | The Standard's examples for `std::launder` and transparent replacement run through the machine with their stated outcomes; the access judgement has both forms and they agree; the initialization profile is stated against the hazard it is meant to prevent and shown neither sound nor complete, each direction a trace. Settles object-model, object-fragment, object-representation, implicit-creation, initialization-profile. | 12, 14 |
 
 Phase 6 can begin as soon as phase 4 closes. Phase 5 is on the critical
 path only for the function-call surface and the by-value explicit-instance
@@ -915,10 +923,97 @@ Status, 15 October 2026:
   instantiation that resolution does not need may not happen, which no
   theorem rests on, and the second defining a specialization, neither
   a rule the model transcribes.
+- Phase 16, stage 1, landed 11 November 2026, planned the same day.
+  `Overload/Object/*.lean`: storage regions with a duration and bytes
+  that are indeterminate, erroneous or values (`Storage`); layout over
+  the program's classes, with unions and constructor effects as the
+  object model's own additions (`Model`); objects with a lifetime
+  state, a parent, a replacement link, pointers as the Standard's four
+  values with a static type, and the lifetime queries of [intro.object]
+  and [basic.life] (`State`); the abstract machine, nineteen
+  operations with `step` and `run` (`Machine`); the access judgement in
+  both forms with `access_iff` (`Access`); the Standard's examples for
+  `std::launder` and transparent replacement, the base subobject case
+  of [ptr.launder]/5, `std::start_lifetime_as` over an `int`'s storage
+  and over a byte buffer, `memcpy` and `malloc` as the operations that
+  make the call unnecessary (`Launder`); the initialization profile as a
+  predicate on traces with `not_sound`, `not_complete`, six accepted
+  traces with the hazard and three rejected ones without it, and the
+  separation of lifetime from initialization (`Profile`). Every theorem
+  is a computation by `decide`. Owed: the differential cases, which
+  need constant evaluation as the oracle and so cover `std::launder`,
+  `std::construct_at`, destructor calls and unions but not
+  `std::start_lifetime_as` or `reinterpret_cast`; the relation forms of
+  the other operations, which the executable forms carry the citations
+  for meanwhile (`decisions.md#spec-style`); the periods of construction
+  and destruction ([class.cdtor]); arrays beyond byte buffers; pointers
+  stored in objects; thread and static destruction; `mutable`;
+  `[[indeterminate]]` on parameters. Stage 2, object-differential,
+  landed the same day: seventeen cases in `Overload/Object/Emit.lean`,
+  each a trace and the `constexpr` function that spells it, the
+  expectation computed by `run` and checked against the emitted file by
+  `OverloadTest/Emit.lean`. Clang 18 agreed on fifteen and GCC 13 on
+  eleven; the six disagreements were the evaluators', not the text's,
+  and are filed (`findings.md`, "Compiler disagreements"). Rerun on
+  GCC 15 and Clang 24 on 12 November: the destruction cases agree on
+  both, the base subobject cases still do not, and the three const
+  complete cases are no longer emitted, since libstdc++ 15 rejects
+  `construct_at` on a const pointer. The cases
+  cover `std::launder` on a const complete object and on a base
+  subobject, transparent replacement, `std::destroy_at` and block exit,
+  unions, value-initialization, a user-provided constructor that leaves
+  a member, and `new int`; `std::start_lifetime_as`, `reinterpret_cast`,
+  `malloc` and `memcpy` are outside constant evaluation and stay stated.
+  Stage 5, p4222, landed the same day, when the author supplied
+  P4222R3: `Overload/Object/P4222.lean`, the paper's rules as `check`
+  and `accepts` over traces with `Annotations` for `[[uninit]]`, the
+  paper's examples of §4.1, §4.6, §5.4 and §5.6 as theorems, six
+  accepted traces with undefined behaviour and four rejected traces
+  with none (`acceptedHazards`, `rejectedSafe`, `guarantee_fails`), the
+  two readings of `std::start_lifetime_as`, and `Op.nowInit`. Three
+  emitted cases for the accepted traces; both compilers accept two of
+  them, the evaluator leniency already filed. The findings are in
+  `findings.md`, "About the object model and P4222R3".
+  Stage 6, p4416, landed the same day: the checker parameterized by
+  `Rules`, P4416R0's examples as theorems in `Overload/Object/P4416.lean`,
+  one of them ill-formed by the wording's own rules, and the table
+  under the wording: eight accepted traces with undefined behaviour,
+  six rejected traces with none (`P4416.accepted_hazards`,
+  `P4416.rejected_safe`). The findings are in `findings.md`.
+  Stage 7, object-functions, landed the same day: `Op` and `Init` moved
+  to `Overload/Object/Syntax.lean` so that a `Model` can carry
+  `FunDef`s; `Op.call` binds pointer parameters to the arguments'
+  pointer values, runs the body in its own block with its own names on
+  the caller's objects, and reads the returned pointer after the block
+  ends, so a pointer to a callee's automatic object comes back invalid;
+  `Machine.exec` is `runFrom` with fuel, structural so that `decide`
+  still runs. The checker's `FunSig` carries the parameter attributes,
+  `[[now_init]]`, a `[[ref_to_uninit]]` result and the body's own
+  `[[uninit]]` names; a call affects the caller only through them, and
+  `functionViolations` checks each body alone. The theorems
+  (`Overload/Object/Functions.lean`): `[[must_init]]` and a
+  `[[ref_to_uninit]]` result behave as specified; a callee that
+  destroys through a plain parameter is accepted and the caller's second
+  destructor call or read is undefined; the [ptr.launder]/6 example
+  split across a call; `[[now_init]]` as the declared hole; a dangling
+  return. One emitted case, `object_callee_destroys`.
+  Stage 4, object-construction, landed 12 November 2026: constructor
+  bodies as `CtorDef`s, an object under construction with its elements
+  starting one at a time, the mem-initializer order of
+  [class.base.init]/15 observable, and the checker's constructor rules.
+  The theorems are in `Overload/Object/Construction.lean`: a
+  mem-initializer reading a later member is undefined and accepted
+  (`w_accepted_undefined`), the list's order is irrelevant, a member
+  marked `[[uninit]]` stays uninitialized outside the constructor that
+  assigned it (`q_read_outside_rejected`). Four emitted cases agree on
+  GCC 13, GCC 15 and Clang 24. Stage 3, object-relations, landed the
+  same day: `Deref`, `Destroy`, `WriteTail`, `Write`, `Reuse`,
+  `CreateAfter` and `CreateObject`, each with an agreement theorem, and
+  the executable side factored to name their pieces.
 
 ## Target theorems
 
-Sixty-one theorems carry the results. A theorem that fails is recorded with
+Sixty-nine theorems carry the results. A theorem that fails is recorded with
 its counterexample and is a finding, not a setback.
 
 | Theorem | Statement | Phase |
@@ -984,6 +1079,14 @@ its counterexample and is a finding, not a setback.
 | argument-reference-deletes | A class template with a member of its parameter's type has deleted copy and move assignment at a reference argument and non-deleted at an object type: value nature is a property of the specialization, decided by the argument ([class.copy.assign]/7, through value-nature-iff). Added 25 October 2026; shown by computation 26 October 2026 (`argument_reference_deletes`), with the emitted cases agreeing. | 15 |
 | operation-constraint-is-member-call | The operation object's constraint, `TC.fmap(declval<F>(), declval<T>())`, is the member call on the instance's value type with the lookup's object as the implied object argument: the environment computes what the typeclass side's oracle assumed ([expr.prim.req.simple]/1, [over.match.funcs.general]/3). Added 25 October 2026; proved 26 October 2026 (`operation_constraint_is_member_call`, through `lookup_member_requirement_iff_call`), with `inaccurate_oracle_example` the argument list where the oracle and the computation part. | 15 |
 | derivation-base-accurate | The derivation base's `fmap` is constrained by the member call its body makes on `Impl`, so a probe of `fmap` through `derive_functor<Impl>` fails softly exactly where `Impl`'s `fmap` is not viable, and the accurate-members obligation holds by construction for the reduced encoding; an instance type that declares its own unconstrained `fmap` hides it ([class.member.lookup]/3). Added 25 October 2026; proved 26 October 2026 (`derivation_base_accurate`, `unconstrained_member_hides_derivation_base`). | 15 |
+| access-agreement | The lvalue-to-rvalue conversion as a relation, one cited constructor per sentence of [basic.life]/7, /8, [basic.lval]/11, [basic.indet]/2 and [conv.lval]/3, agrees with the machine's computation (`access_iff`). Added 11 November 2026. | 16 |
+| launder-necessity | A new object created in the storage of a const complete object or of a base class subobject does not transparently replace it: a pointer to the old object refers to a dead object and reading through it is undefined, and `std::launder` yields a pointer to the new one ([ptr.launder]/5, /6, [basic.life]/9). Added 11 November 2026. | 16 |
+| transparent-replacement | A non-const complete object replaced by one of the same type is transparently replaced: the old pointer, the variable's name and `std::launder` all refer to the new object ([basic.life]/10). Added 11 November 2026. | 16 |
+| start-lifetime-as-necessity | Reading the bytes of an object of one type as another through a cast pointer is undefined, and `std::start_lifetime_as` makes it defined with the object representation unchanged and the old lifetime ended; a byte buffer filled byte by byte after an object of another type was created in it is the same ([basic.lval]/11, [basic.life]/2, [obj.lifetime]/5). Added 11 November 2026. | 16 |
+| implicit-creation-suffices | Where the bytes come from `malloc`, from the creation of a byte array or from `memcpy`, the operation implicitly creates the object and no call is needed ([intro.object]/13, /15, /16, [cstring.syn]/3). Added 11 November 2026. | 16 |
+| profile-not-sound | A trace the initialization profile's definition rule accepts can read an indeterminate or erroneous value or have other undefined behaviour; under P4222R3's full rule set six traces remain: the [ptr.launder]/6 example with its destructor call, a base subobject recreated as a complete object, an initialized union's inactive member, a cast, a reused byte buffer, `start_lifetime_as` over `malloc` (`P4222.accepted_hazards`, `guarantee_fails`). Added 11 November 2026. | 16 |
+| profile-not-complete | A trace the profile rejects can have no hazard: under the definition rule a scalar assigned before it is read; under P4222R3's rules member assignment into an `[[uninit]]` aggregate or union, `construct_at` over a live object, and `start_lifetime_as` under the `[[ref_to_uninit]]` reading (`P4222.rejected_safe`). Added 11 November 2026. | 16 |
+| lifetime-not-initialization | `int x;` begins the lifetime of `x` with an erroneous value, and an initialized object outside its lifetime holds a determinate value whose read is undefined: the profile's notion, initialized variables, is neither of the object model's two, lifetime and value state ([basic.life]/2, [basic.indet]/1, [basic.life]/8). Added 11 November 2026. | 16 |
 
 Stability is the theorem that says open polymorphism has no surprises. Its
 hypotheses are expected to include soft failure of a missing instance and
@@ -2660,10 +2763,209 @@ when the binding is not a type, so a class template with a constant
 parameter whose members mention it needs the `.value` case checked in
 stage 1.
 
+## Phase 16: the object model
+
+Planned 11 November 2026. The model has had no object model: a type is
+a `Ty`, a class has members and special members, and the traits say
+what is trivial, aggregate and implicit-lifetime, but nothing is ever
+created, lives, is read or dies. Two questions need one. The first is
+why `std::launder` and `std::start_lifetime_as` exist: each is the
+answer to a rule of [basic.life] or [intro.object], and stating the rule
+as a machine step makes the answer a theorem with the call and a
+counterexample without it. The second is the initialization profile.
+A profile is a rule on the source, every variable initialized at its
+definition; the hazard it is meant to prevent is a property of an
+execution, a read that produces an indeterminate or erroneous value.
+With an object model both can be stated and compared, and the
+comparison fails in both directions on concrete traces.
+
+The object model is the Standard side's, in `Overload/Object/*.lean`,
+namespace `Overload.Object`. It imports the type system for what a class
+is, its elements, bases then members, whether its special members are
+trivial, user-provided or deleted, whether it is an aggregate, an
+implicit-lifetime class, trivially copyable or standard-layout, and adds
+what the type system never needed: layout, bytes, objects, pointers, and
+the operations. Nothing on the typeclass side is touched, and the
+layering lint still holds. The fragment is a list of operations, not an
+expression language: definitions, allocation, placement `new`,
+destructor calls, reads and writes through named pointers, the three
+library calls, `memcpy`, and block exit (`decisions.md#object-fragment`).
+
+### The rules to transcribe, as they stand in N5054
+
+Paragraph numbers counted from `\pnum`, as `make drift-check` does.
+
+| Rule | N5054 text (abbreviated) | Model counterpart | Stage |
+|---|---|---|---|
+| [basic.stc.general]/1 | The storage duration is one of static, thread, automatic, dynamic. | `Duration`; a `Region` has one. | 1 |
+| [basic.indet]/1 | When storage for an object with automatic or dynamic storage duration is obtained, its bytes are indeterminate for dynamic storage or `[[indeterminate]]`, erroneous otherwise; the object's value is indeterminate if any bit is, erroneous if any bit is. | `Byte`, `Value`, `decode`; `Op.var` obtains erroneous bytes, `Op.malloc` and `Op.newObject` indeterminate ones. | 1 |
+| [basic.indet]/2 | An indeterminate value produced by an evaluation is undefined behaviour; an erroneous one is erroneous behaviour and the result is that value; `unsigned char` and `std::byte` are exempt. | `Machine.access`, `Access.indeterminate`, `.indeterminateByte`, `.erroneous`, `.erroneousByte`. | 1 |
+| [basic.types.general]/2 | The object representation is the sequence of `unsigned char` objects an object takes up. | `Region.bytes`; `representation`; `encode`, `decode` under `object-representation`. | 1 |
+| [intro.object]/1 to /5 | An object occupies storage, has a type and a storage duration; subobjects, complete objects, provides storage, nested within, the complete object of. | `Obj`, `Obj.parent`, `State.providesStorage`, `nestedWithin`, `completeObject`. | 1 |
+| [intro.object]/2 | An object created in storage associated with a subobject `e` of a live object, exactly overlaying it, not potentially-overlapping, of the same type, is a subobject of `e`'s containing object. | `Machine.reuse`: the corresponding subobject gives the new object its parent. | 1 |
+| [intro.object]/13, /14, /16 | Operations that implicitly create objects create the objects of implicit-lifetime type that give the program defined behaviour and return a pointer to a suitable created one; an allocation function and the creation of an array of `unsigned char` are such operations. | `ImplicitRange`, `Machine.implicitlyCreatable`, `pointAt`, under `implicit-creation`. | 1 |
+| [basic.life]/2 | Lifetime begins when storage is obtained and initialization is complete, vacuous initialization included; ends when the object is destroyed, the destructor call starts, or the storage is released or reused by an object not nested within it. | `Life`, `createObject`, `reuse`, `release`, `Op.destroy`; `vacuous_initialization_begins_lifetime`. | 1 |
+| [basic.life]/7, /8 | A pointer to, or a glvalue denoting, an object outside its lifetime may be used only in limited ways; accessing the object or a member through it is undefined. | `Machine.deref`, `access`, `Op.member`; `Access.outsideLifetime`, `Access.noObject`. | 1 |
+| [basic.life]/9, /10 | Transparently replaceable; a pointer, reference or name of the original object refers to the new object. | `State.transparentlyReplaceable`, `Obj.replacedBy`, `State.resolve`, `Machine.linkReplacements`. | 1 |
+| [basic.life]/11 | Ending the lifetime of an automatic object with a non-trivial destructor and leaving the block with no object of the original type in its storage is undefined. | `Op.endBlock`. | 1 |
+| [basic.life]/12 | Creating an object within the storage of a const complete object of static or automatic duration is undefined. | `Machine.reuse`, `Why.constStorageReuse`. | 1 |
+| [basic.compound]/3, /6, /7 | The four pointer values; a pointer not valid in the context of an indirection is undefined; pointer-interconvertible. | `Loc`, `Ptr`, `State.locAddress`, `release` invalidating pointers, `State.pointerInterconvertible`. | 1 |
+| [basic.lval]/10, /11 | A const glvalue is not modifiable; type-accessible. | `State.typeAccessible`, `Machine.writeThrough`, `Access.typeInaccessible`. | 1 |
+| [conv.lval]/3 | Bits not valid for the type are undefined; otherwise the object is read. | `decode` returning `none`; `Access.invalidRepresentation`, `Access.value`. | 1 |
+| [expr.unary.op]/1 | Indirection yields an lvalue denoting the object the pointer points to. | `Machine.deref`. | 1 |
+| [dcl.init.general]/5, /6, /8, /11 | Zero-, default- and value-initialization; no initializer means default-initialization. | `Init`, `Machine.zeroInit`, `defaultInit`, `applyInit`. | 1 |
+| [dcl.init.aggr]/2, /4, /6 | The elements of an aggregate; aggregate initialization and the elements left out. | `Model.elements`, `Model.leaves`, `Init.braces`. | 1 |
+| [dcl.attr.indet]/1 | `[[indeterminate]]` makes automatic storage indeterminate rather than erroneous. | `Op.var`'s flag. | 1 |
+| [dcl.type.cv]/4 | Modifying a const object during its lifetime is undefined. | `Machine.writeThrough`, `Why.modifiesConst`. | 1 |
+| [class.union.general]/2, /3, /5 | Active member; a union's size and each member at offset zero; assignment to a member of scalar or trivially default-constructible type begins its lifetime. | `Model.isUnion`, `Model.layout`, `Life.notStarted`, `Machine.unionActivation`, `activate`. | 1 |
+| [class.dtor]/14, /16, /18 | Implicit destructor calls at block exit; the destructor's class; a destructor invoked for an object whose lifetime has ended is undefined. | `Op.endBlock`, `Op.destroy`, `Why.wrongDestructor`, `Why.destructorOutsideLifetime`. | 1 |
+| [ptr.launder]/2, /3, /5 | Precondition: an object of similar type within its lifetime at the address; returns a pointer to it; the note on const and base subobjects. | `Op.launder`; `Launder.ptr_launder_6_*`, `base_laundered`. | 1 |
+| [obj.lifetime]/1 to /5 | `start_lifetime`: implicit-lifetime aggregate, begins the lifetime of the object alone; `start_lifetime_as`: implicit-lifetime type, allocated storage, creates the object with the storage's contents as its representation. | `Op.startLifetime`, `Machine.activateAlone`, `Op.startLifetimeAs`. | 1 |
+| [cstring.syn]/3 | `memcpy` implicitly creates objects in its destination. | `Op.memcpy`'s `ImplicitRange`. | 1 |
+| [basic.start.static]/2 | A static variable is zero-initialized before any other initialization. | `Op.staticVar`. | 1 |
+| [basic.stc.auto]/1, [basic.stc.dynamic.deallocation]/5 | Automatic storage lasts until the block exits; deallocation ends the duration of the region. | `Op.endBlock`, `Op.free`, `Op.delete`, `Machine.release`. | 1 |
+
+Out of the fragment, stated in the decision: the periods of
+construction and destruction ([class.cdtor]), virtual functions during
+them, arrays other than byte buffers, pointers stored in objects,
+`mutable`, `[[indeterminate]]` on parameters, thread storage duration,
+the destruction of static objects at termination, `volatile`, bit-fields,
+alignment (every region is suitably aligned), the ill-formed-no-diagnostic
+verdicts, and every rule about which expressions produce these
+operations.
+
+### Design
+
+- **Bytes, not values.** A region's content is a list of `Byte`, each
+  indeterminate, erroneous or a value; a scalar's value is decoded from
+  its bytes when it is read. This is what makes [basic.indet] stateable:
+  `memcpy` of an erroneous `int` gives an erroneous `int` with no
+  erroneous behaviour, `start_lifetime_as` gives the created object the
+  bytes it found, and vacuous initialization over reused storage keeps
+  the old bytes. Pointers are not stored in objects; they live in the
+  machine's named pointer variables, each the Standard's pointer value
+  with its static type.
+- **Objects are kept after their lifetime ends.** The state keeps every
+  object created, with `Life.alive` or `Life.ended`, so a pointer to a
+  dead object is a pointer to that object and [basic.life]/7 and /8
+  apply to it as written. Transparent replacement is a link from the
+  dead object to its replacement that `resolve` follows.
+- **Implicit creation on demand.** The Standard's angelic choice, the
+  set of objects whose creation gives the program defined behaviour, is
+  constructed lazily: an operation that implicitly creates objects
+  records the range and the epoch, and the first glvalue of an
+  implicit-lifetime type formed at an address in the range creates the
+  object there, provided no object created since overlaps it and every
+  object from before it that overlaps is either the byte array providing
+  storage or one not used since the operation, whose lifetime the
+  creation then ends. The construction only creates objects the
+  operation could have created, and a program that later touches an
+  object it ended finds it dead, as the Standard's choice would have
+  made it (`decisions.md#implicit-creation`).
+- **Construction bodies as effects.** A user-provided default
+  constructor's body is out of the fragment; what it does to the bytes,
+  the elements it initializes and with what, is given to the model as
+  `ctorInits`. A default member initializer gives its member zero. The
+  trivial case is vacuous initialization, nothing written, and the
+  value-initialization case is zero-initialization first unless the
+  constructor is user-provided, as [dcl.init.general]/8 says.
+- **Unions are the object model's own.** The type system's classes are
+  all non-union. A union is declared to the `Model` by name with its
+  members, laid out at offset zero, its members created not within
+  their lifetime, with the first activated by value- or aggregate
+  initialization and any by assignment under [class.union.general]/5.
+  Its special members are the implicit trivial ones, so it is an
+  aggregate and an implicit-lifetime type.
+- **Two forms for the access judgement.** The lvalue-to-rvalue
+  conversion, what a glvalue of type `T` denoting object `o` yields, is
+  the rule the model exists to state and has both forms, `Access` and
+  `Machine.access`, with `access_iff`. The other operations are given as
+  the step function, each clause cited; the relation forms are owed and
+  logged under `spec-style`.
+- **The profile as a checker over traces.** P4222R3's rules
+  (`decisions.md#initialization-profile`) are `P4222.check`, a fold over
+  the trace with a mark per root and member path, each pointer carrying
+  what it was derived from; `P4222.accepts` is an empty violation list,
+  and `P4222.hazard` undefined or erroneous behaviour of the run.
+  `Profile.lean` keeps the definition rule alone. The theorems are
+  concrete traces in both directions, each a `decide`, and the paper's
+  own examples reproduce.
+
+### Decisions to record (`docs/decisions.md`)
+
+- `object-model` (new): the object model is the Standard side's,
+  imports the type system, and is an abstract machine over traces.
+- `object-fragment` (new): what is in, what is out.
+- `object-representation` (new): sequential layout, little-endian two's
+  complement, the `@[assumed]` on `encode`.
+- `implicit-creation` (new): the lazy construction of the angelic set.
+- `initialization-profile` (new): how the profile is stated and what
+  the theorems say.
+- `spec-style`: log entry, the step function is executable only except
+  for the access judgement.
+
+### Stages
+
+1. [object-machine](#object-machine): `Storage`, `Model`, `State`,
+   `Machine`, `Access` with `access_iff`, `Launder`, `Profile`, the
+   tests, the audits, this section and the decisions. Landed 11
+   November 2026.
+2. object-differential: constant evaluation as the oracle, with raw
+   cases for `std::launder`, `std::construct_at`, destructor calls,
+   unions and uninitialized reads, compiled by `make differential`;
+   `std::start_lifetime_as` and `reinterpret_cast` are outside constant
+   evaluation and stay stated. Landed 11 November 2026.
+3. [object-relations](#object-relations): the relation forms of
+   indirection, destruction, assignment, storage reuse and creation, with
+   agreement theorems (`Overload/Object/Relations.lean`). Landed 12
+   November 2026. The remaining clauses of `step` stay executable
+   (`decisions.md#spec-style`).
+4. [object-construction](#object-construction): the period of
+   construction and constructor bodies: `Life.constructing`, `CtorDef`
+   with `MemInit`, `Machine.construct` initializing elements in
+   declaration order and then running the body with `this`, the
+   checker's `ctorViolations`, and `Overload/Object/Construction.lean`.
+   Landed 12 November 2026. The period of destruction, delegating
+   constructors, constructors with parameters and exceptions stay out
+   (`decisions.md#construction-period`).
+5. [p4222](#p4222): P4222R3's rule set as a checker over traces,
+   `Overload/Object/P4222.lean`, the paper's own examples reproduced,
+   and the table of accepted-and-undefined and rejected-and-defined
+   traces; `now_init` as an operation of the machine; three emitted
+   cases for the accepted traces. Landed 11 November 2026, out of order,
+   when the author supplied the paper.
+6. [p4416](#p4416): P4416R0, the proposed wording, as `P4222.Rules.wording`
+   and `Overload/Object/P4416.lean`: the wording's examples reproduced,
+   the five rule differences as switches, and the table restated under
+   the wording. Landed 11 November 2026.
+7. [object-functions](#object-functions): functions with bodies as
+   traces (`FunDef`, `Op.call`, `Machine.exec` with fuel), the
+   checker's call-site rules and body obligations (`FunSig`,
+   `functionViolations`), and `Overload/Object/Functions.lean`: the
+   attributes as specified, and what locality loses across a call.
+   Landed 11 November 2026. Constructor bodies (§5.1,
+   [profiles.init.class]/1) stay with stage 4, since they need the
+   period of construction.
+
+### Risks, recorded so the stages can watch for them
+
+The implicit-creation construction is sound by design but not complete:
+a program the Standard gives defined behaviour by a set of objects the
+lazy rule never constructs would be undefined under the model. None of
+the traces here is one, and the rule's conditions are the places to
+look when a compiler disagrees. The machine's theorems are proved by
+`decide`, so a definition that is not kernel-reducible, well-founded
+recursion in particular, breaks every proof at once; `integerSize` was
+one and is now a case split. `State.subobjectsOf` is quadratic in the
+number of objects and `nestedWithin` is fuelled by their count; the
+traces are small, and a larger one would want the parent index.
+
 ## Open areas, to be picked up next
 
 Written 26 October 2026, after phase 15 closed, as the list to open the
-next planning session with. The target has moved: beman.transpose is
+next planning session with; phase 16, the object model, was opened on
+11 November 2026 from outside this list, for the two questions its
+section states. The target has moved: beman.transpose is
 now part of [beman.typeclass](https://github.com/bemanproject/typeclass),
 and the encoding under study there carries Applicative and Monad beside
 Functor, with sender/receiver of `std::execution` as an instance type

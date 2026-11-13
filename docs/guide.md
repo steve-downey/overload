@@ -16,6 +16,9 @@ The Lean sources are one library, `Overload`, in two layers.
   definition, and theorems about those rules alone. Nothing here is about
   typeclasses. The examples use neutral names: a variable template is
   `trait<T>`, a class is `X`.
+  `Overload/Object/*.lean`, namespace `Overload.Object`, is the Standard
+  side's object model: storage, lifetime and initialization as an
+  abstract machine over the type system's classes.
 - **The typeclass side**, `Overload/Typeclass/*.lean`, namespace
   `Overload.Typeclass`. The encoding of beman.transpose, defined as
   programs and function templates of the Standard side's syntax, and the
@@ -1239,6 +1242,148 @@ residue of `decisions.md#trait-residue` closed.
 `argument_reference_deletes`: `cell<int&>` has its copy assignment
 deleted and `cell<int>` has not; value nature is the specialization's,
 decided by the argument ([class.copy.assign]/7).
+
+### Object
+
+`Overload/Object/*.lean`, namespace `Overload.Object`, is the object
+model: storage, objects, lifetime, initialization and destruction as an
+abstract machine over the type system's classes. It is on the Standard
+side and imports `Aggregate` and `Traits` for what a class is; the
+typeclass side does not use it yet. Phase 16 of `plan.md` is its
+charter, and the decisions are `object-model`, `object-fragment`,
+`object-representation`, `implicit-creation` and
+`initialization-profile`.
+
+- `Storage`: `Duration`, the four storage durations; `Byte`,
+  indeterminate, erroneous or a value ([basic.indet]/1); `Value`, what
+  a scalar's bytes decode to; `Why`, the model's reasons, one per rule;
+  `Behavior`, the outcome type with `defined`, `erroneous` carrying the
+  next state, `undefined` and `illFormed`, and a `Monad` instance whose
+  bind keeps the first erroneous reason; `encode` and `decode`, the
+  object representation of an integer under `object-representation`.
+- `Model`: the program with the object model's additions, unions by
+  name and `ctorInits`, what a user-provided default constructor writes;
+  `elements`, `layout`, `leaves`, `sizeOf`; the type-system judgements
+  the lifetime rules consult, `implicitLifetime`, `aggregate`,
+  `triviallyCopyable`, `trivialDefaultCtor`, `nontrivialDtor`,
+  `standardLayout`.
+- `State`: `Region` with its bytes and the ranges an operation
+  implicitly created objects in; `Obj` with its type, storage, `Life`,
+  parent, base and union-member flags, replacement link and last use;
+  `Loc` and `Ptr`, the Standard's four pointer values with a static type;
+  the machine `State`; and the queries of [intro.object] and
+  [basic.life]: `resolve`, `providesStorage`, `nestedWithin`,
+  `completeObject`, `transparentlyReplaceable`, `typeAccessible`,
+  `pointerInterconvertible`, `liveObjectAt`.
+- `Syntax`: `Init`, the four initializers; `Op`, the operations, with
+  `Op.call` and `Op.nowInit`; `Trace`; `FunDef`, a function as a trace
+  with pointer parameters and an optional returned pointer.
+- `Machine`: `step` for every operation but a call; `call`, which binds
+  the parameters to the arguments' pointer values, runs the body in its
+  own block with its own names on the caller's objects, and reads the
+  returned pointer after that block ends; `exec`, the fuelled run; `run`. Read it by its three rules: creation
+  reuses storage (`reuse`, `createObject`, `linkReplacements`), an
+  access needs a live type-accessible object (`deref`, `readThrough`,
+  `writeThrough`), and some storage implicitly creates objects
+  (`implicitlyCreatable`, `pointAt`). `defaultInit` and `applyInit` are
+  [dcl.init.general]/5 to /8 on bytes; `activate`, `activateAlone` and
+  `unionActivation` are the union rules; `release` and `endBlock` end
+  durations.
+- `Access`: the lvalue-to-rvalue conversion as a relation, one cited
+  constructor per sentence, and `access_iff`, its agreement with
+  `Machine.access`; `readThrough_eq` says a read is indirection then
+  access.
+- `Relations`: the relation forms of the machine's rules, per
+  `decisions.md#spec-style`. `Deref` is indirection ([expr.unary.op]/1,
+  [basic.life]/7, [basic.compound]/6) and `Destroy` destruction through a
+  pointer ([class.dtor]/16, /18); `WriteTail` and `Write` are assignment,
+  with the union rule of [class.union.general]/5 as `Write.activated`;
+  `Reuse` is what creating an object does to the objects whose storage it
+  overlaps ([basic.life]/2, /12); `CreateAfter` and `CreateObject` are
+  creation. Each has a `_agrees` theorem against the function it
+  transcribes (`destroyThrough`, `writeThrough`, `reuse`, `createObject`),
+  and `deref_shape` and `reuse_shape` say which outcomes are possible.
+  The leaves are the executable parts that are definitions and not rules:
+  `pointAt`, `unionActivation`, `reuseState`, `applyInit`.
+- `Launder`: the theorems about `std::launder` and
+  `std::start_lifetime_as`, each a trace run by `decide`.
+  `ptr_launder_6_a`, `_b`, `_c` are [ptr.launder]/6: `b` is undefined
+  because a const complete object is not transparently replaceable, `c`
+  is 5. `basic_life_10_follows` and `_name` are [basic.life]/10: the
+  non-const `C` is replaced and the pointer and the name follow;
+  `launder_identity_when_replaceable` says `std::launder` changes
+  nothing then. `base_not_replaced` and `base_laundered` are the base
+  subobject case of [ptr.launder]/5. `reinterpret_without_lifetime`,
+  `start_lifetime_as_reads_bytes` and `start_lifetime_as_ends_old` are
+  an `int` reinterpreted as a `Pair`; `buffer_first_use`,
+  `buffer_reuse_undefined`, `buffer_reuse_start_lifetime_as` and
+  `buffer_reuse_memcpy` are the byte buffer, where the first type read
+  is implicitly created, the second is not until `start_lifetime_as`,
+  and `memcpy` makes the call unnecessary; `malloc_implicitly_creates`
+  is [intro.object]/15.
+- `Profile`: the initialization profile as `accepts` on operations and
+  `acceptsTrace`, the hazard as `hazard` and `uninitializedRead` on the
+  run, and the theorems: `not_sound` with the six `acceptedHazards`,
+  `not_complete` with the three `rejectedSafe`,
+  `vacuous_initialization_begins_lifetime`,
+  `vacuous_initialization_erroneous_value` and
+  `determinate_outside_lifetime`.
+- `P4222`: Stroustrup's initialization profile, P4222R3, as a checker
+  over traces. `Annotations` carries the `[[uninit]]` marks and the
+  `Rules`, the switches for the points where the design paper and the
+  wording differ; `check` folds the paper's rules
+  over a trace with a `Mark` per root and member path and a `Ref` per
+  pointer, `accepts` is an empty violation list, `classViolations` is
+  §5.1, and `hazard` is the run's. The paper's examples are theorems
+  (`loc_rejected` to `construct_twice_rejected`); `acceptedHazards` and
+  `rejectedSafe` are the table of disagreements with the object model,
+  `guarantee_fails` the headline, `now_init_identity` the statement
+  that the attributes change no execution.
+- `P4416`: the proposed wording, P4416R0, as `P4222.Rules.wording`.
+  The wording's examples from [profiles.init.decl], [profiles.init.use],
+  [profiles.init.life] and [profiles.init.ref] are theorems, one of them
+  (`ref8_now_init_after_construct_at`) ill-formed by the wording's own
+  rules; `start_lifetime_as_malloc_rejected`,
+  `start_lifetime_as_ends_old`, `destroy_then_delete`, `memcpy_init`,
+  `byte_fill` and `uninit_scope_exit` are what the wording changes; the
+  table is `acceptedHazards` and `rejectedSafe` again.
+- `Construction`: constructor bodies and the period of construction.
+  `W() : a(b), b(1)` reads `b` before it is initialized
+  (`w_reads_member_before_init`), the list's order is the declaration
+  order (`mem_init_order_is_declaration_order`), the object is alive when
+  the constructor returns (`alive_after_constructor`); under the profile
+  `w_accepted_undefined` is the trace the wording does not see, and
+  `q_read_outside_rejected` the marked member that stays uninitialized.
+  `Syntax` has `MemInit` and `CtorDef`; `Machine.construct` is the two
+  phases and `Life.constructing` the state in between.
+- `Functions`: the profile across calls. The model's functions include
+  `destroy(C* p)` with a plain parameter, `init(int* p [[must_init]])`,
+  `read_fn [[now_init]]`, `alloc [[ref_to_uninit]]()`, and `reset` and
+  `local`; `bodies` is what the body check says of them,
+  `must_init_works` and `ref_to_uninit_result` the attributes as
+  specified, `callee_destroys_then_destroy`, `callee_destroys_then_read`
+  and `callee_resets` what the caller is not told, `now_init_hole` the
+  declared hole, `dangling_return` the invalidation profile's case.
+- `Emit`: the differential cases, with constant evaluation as the
+  oracle. An `ObjectCase` is a trace, the model, and the `Case` the
+  harness compiles: a `constexpr` function that spells the trace and a
+  `static_assert` on it, expected well-formed exactly when `run` gives
+  the trace defined behaviour with no erroneous behaviour
+  ([expr.const.core]/2). `harnessCases` joins the emitter's lists in
+  `Tools/Emit.lean`.
+
+In C++ terms: `std::launder` is needed exactly when the old object was
+not transparently replaceable by the new one, a const complete object or
+a base class subobject; `std::start_lifetime_as` is needed when the
+bytes of a `T` sit where no operation created a `T`, which `malloc`,
+the creation of a byte buffer and `memcpy` do and a byte-by-byte store
+does not; and P4222R3's mark, "initialized memory", neither implies nor is
+implied by the absence of undefined behaviour, because the Standard's
+two notions are an object's lifetime and the state of its bytes, and
+the mark is neither: it survives the death of a const or base-subobject
+object, it covers a union whole where the Standard has one active
+member, and it is cleared by the member assignment that gives an
+aggregate or a union its value.
 
 ### Emit
 

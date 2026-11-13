@@ -164,6 +164,54 @@ and described here as they arrive.
   `differential/known-disagreements.txt` for GCC 15 until that libstdc++
   has it.
 
+- **Constant evaluation does not model transparent replaceability for a
+  base class subobject** (11 November 2026, rerun 12 November on GCC 15
+  and Clang 24). A base subobject of a `D` is destroyed and a complete
+  `B` created in its storage, then the old base pointer is read
+  (`object_base_subobject_not_replaced`, [ptr.launder]/5;
+  `object_base_destroyed_replaced_complete`, the same with the profile's
+  `destroy_at` and then a read of the complete object's own member,
+  [basic.life]/2). The model has both undefined, since the pointer
+  refers to the dead base subobject ([basic.life]/9, /10), and expects
+  the `static_assert` to fail. GCC 13, Clang 18, GCC 15 and Clang 24 all
+  accept. The laundered twin, `object_launder_base_subobject`, agrees on
+  all four. The evaluators track storage where [basic.life]/10 tracks
+  objects; the Standard's text is the model's. The profile's
+  implementations, which P4222R3 says live in these compilers, have no
+  evaluator to disagree with the profile on this trace. Listed in
+  `differential/known-disagreements.txt` for the versioned and
+  unversioned names.
+
+- **The const complete cases cannot be run on libstdc++ 15 or later**
+  (12 November 2026). The three cases that create a const complete `X`,
+  `launderConstComplete` in both forms and
+  `constCompleteDestroyedNotReplaced` ([ptr.launder]/6, [basic.life]/9),
+  spell the creation as `std::construct_at(static_cast<const X*>(s), 3)`.
+  libstdc++ 15 and 16 reject that call (`const void*` to `void*` inside
+  `construct_at`), so every compiler on them rejects all three, which
+  agrees with the model's ill-formed expectation for two of them for the
+  wrong reason and disagrees on the third. GCC 13 and Clang 18, whose
+  library accepted the call, evaluated the old pointer's read as the
+  new object's value, which is what the first version of this finding
+  reported for const objects. Constant evaluation has no other way to
+  create a const complete object, so the cases are no longer emitted
+  (`Overload.Object.Emit.constCases`, the model's expectation still
+  checked against the machine) and the const claim rests on the GCC 13
+  and Clang 18 run alone. The model's theorems for it are unchanged.
+
+- **GCC 13's constant evaluator does not end a lifetime at
+  `std::destroy_at`** (11 November 2026; GCC 15 does, 12 November). Four
+  cases: a read after `std::destroy_at` (`object_destroy_then_read`,
+  [basic.life]/8), a second `std::destroy_at` (`object_double_destroy`,
+  [class.dtor]/18), block exit after `std::destroy_at` of an object with
+  a constexpr destructor (`object_implicit_destructor`,
+  [basic.life]/11), and a read of the inactive member after `U u{}`
+  (`object_union_inactive_read`, [class.union.general]/2). GCC 13 accepts
+  all four; Clang 18, GCC 15 and Clang 24 reject all four, agreeing with
+  the model, as they do on the same destruction inside a called function
+  (`object_callee_destroys`). Listed in
+  `differential/known-disagreements.txt` for GCC 13 only.
+
 ## About the model
 
 - **The operation object's oracle assumed an accurate member, and the
@@ -880,6 +928,191 @@ and described here as they arrive.
   a derived instance to the base (`value_route_slices`), which is leak 4
   as a theorem; the reference parameters the library uses keep the
   object's identity (`pin_keeps_identity`).
+
+## About the object model and P4222R3
+
+- **P4222R3's guarantee does not hold against the object model** (11
+  November 2026). The initialization profile (P4222R3, §8.2) guarantees
+  "no use of uninitialized objects" by marking memory initialized or
+  not; `Overload/Object/P4222.lean` transcribes its rules as a checker
+  and runs the traces. Six traces the profile accepts have undefined
+  behaviour: the [ptr.launder]/6 example with the `destroy_at` the
+  profile requires before the storage is reused, read through the old
+  pointer (`launderExample`, [basic.life]/9); a base class subobject
+  destroyed and recreated as a complete object, then the complete
+  object's own member read (`baseReplaced`, [basic.life]/2); an
+  initialized union's inactive member read (`unionInactive`,
+  [class.union.general]/2); an `int` read as a `Pair` through a cast
+  (`typePun`, [basic.lval]/11); a byte buffer read as a second type
+  after bytes were stored over the first (`bufferReuse`,
+  [intro.object]/13); `start_lifetime_as` over `malloc`'s storage
+  (`startLifetimeAsIndeterminate`, [basic.indet]/1). Four traces it
+  rejects are defined: member assignment into an `[[uninit]]` aggregate
+  (`pointAssigned`, §5.4) and union (`unionAssigned`, §5.6, the
+  assignment [class.union.general]/5 makes begin the member's
+  lifetime); `construct_at` over a live object (`constructOverLive`,
+  [basic.life]/6, /10); and `start_lifetime_as` on an `int`'s bytes
+  under the `[[ref_to_uninit]]` reading (`startLifetimeAsDefined`). The
+  paper mentions neither `std::launder`, `std::start_lifetime_as`,
+  implicit object creation nor the active member of a union, and its
+  mark is a third state beside the Standard's lifetime and value state.
+  The paper leaves casts to another profile (§4.3) and `now_init` is its
+  declared hole (§4.4); `typePun` and `bufferReuse` are listed as what
+  the initialization guarantee alone does not cover, the other four are
+  not covered by any companion the paper names.
+
+- **P4416R0's wording closes two of the design paper's holes and opens
+  three** (11 November 2026). The wording (`Overload/Object/P4416.lean`,
+  `P4222.Rules.wording`) makes every unannotated function's pointer
+  parameter require initialized arguments ([profiles.init.ref]/4), so
+  `std::start_lifetime_as` can no longer be applied to storage from
+  `malloc` (`start_lifetime_as_malloc_rejected`) and its primary use on
+  initialized bytes is accepted and defined
+  (`start_lifetime_as_defined_accepted`): the design paper's dilemma is
+  gone. What remains: `start_lifetime_as<Pair>(&x)` ends the lifetime of
+  `x` and the profile keeps `x` initialized, so a read of `x` afterwards
+  is accepted and undefined (`start_lifetime_as_ends_old`). A
+  delete-expression is not a destruction ([profiles.init.terms]/5), so
+  `std::destroy_at(p); delete p;` is accepted and G2 does not see the
+  second destructor call (`destroy_then_delete`, [class.dtor]/18). And
+  two defined programs the design paper relies on are rejected: a byte
+  buffer filled byte by byte (`byteFill`, the wording's own example
+  `buf[0] = std::byte{0}; // error` against P4222R3 §4.8's "assigning to
+  an uninitialized std::byte … is allowed"), and `memcpy` into an
+  `[[uninit]]` scalar (`memcpyInit`, the drafting note under
+  [profiles.init.terms]/4 records the choice). The accepted-and-undefined
+  traces of the design paper that do not use byte stores stand under the
+  wording (`P4416.accepted_hazards`): the [ptr.launder]/6 example with
+  its destructor call, the recreated base subobject, the inactive union
+  member, the cast.
+
+- **One of P4416R0's examples is ill-formed by its own rules** (11
+  November 2026). [profiles.init.ref]/8 has `std::construct_at(s, 1);
+  // OK` followed by `int* t = std::now_init(s); // OK: t refers to
+  initialized objects`. By [profiles.init.terms]/(4.5) a call to
+  `now_init` is an initialization of the object `s` designates, and by
+  [profiles.init.life]/1 an initialization shall not be applied to an
+  object that is initialized, which `*s` is after the `construct_at`
+  (`ref8_now_init_after_construct_at`). The intent is to convert the
+  pointer's marking, which the terms treat as a property of the pointer
+  ([profiles.init.terms]/6) and the example treats as changed by
+  `now_init`; the text needs `now_init` out of (4.5), or exempted in
+  [profiles.init.life]/1 as it is in [profiles.init.analysis]/4. The
+  same two paragraphs also leave `*p` after `construct_at(p)` with two
+  states, uninitialized by [profiles.init.ref]/1 since `p` still refers
+  to uninitialized objects, initialized by [profiles.init.terms]/4; the
+  `k()` example of [profiles.init.life]/4 takes the second, and the
+  checker follows the example.
+
+- **The wording's rule for G4 alone rejects a defined program** (11
+  November 2026). `E e [[uninit]];` with a user-provided destructor and
+  nothing else is rejected by [profiles.init.life]/2 and defined: `E e;`
+  is vacuous initialization ([basic.life]/2) and the destructor runs on
+  an object within its lifetime (`uninit_scope_exit`). The wording's own
+  consistency table marks this rule as serving only locality, and this
+  is the trace that shows the price.
+
+- **Locality has no attribute for destruction, so G1 and G2 fail
+  across a call** (11 November 2026). Both papers make a call affect
+  the caller's view of an argument only through the callee's attributes
+  (P4222R3 §1.5, P4416R0 [profiles.init.analysis]/1 note), and the
+  attributes say that a parameter refers to uninitialized objects or
+  that the callee initializes it; none says that the callee destroys
+  it, and the wording's drafting note under [dcl.attr.nowinit] says
+  "there is no now_uninit". So `void destroy(C* p) { std::destroy_at(p);
+  }` passes its own body check, its parameter plain and initialized, and
+  `C c{1}; destroy(&c); std::destroy_at(&c);` is accepted with the
+  second destructor call undefined ([class.dtor]/18), as is `destroy(&c);
+  auto v = c.i;` ([basic.life]/8) and the [ptr.launder]/6 example split
+  into a callee that destroys and recreates behind a `const X*`
+  (`Overload/Object/Functions.lean`, `callee_destroys_then_destroy`,
+  `callee_destroys_then_read`, `callee_resets`). `[[must_init]]` and a
+  `[[ref_to_uninit]]` result behave as specified (`must_init_works`,
+  `ref_to_uninit_result`), and `[[now_init]]` is the hole both papers
+  declare (`now_init_hole`). A `[[ref_to_uninit]]` parameter is a
+  precondition and `[[must_init]]` a postcondition; the symmetric
+  postcondition, that the callee leaves the referent uninitialized, is
+  what G2 needs and the design does not have.
+
+- **Neither paper has a rule for the order of mem-initializers** (12
+  November 2026). `struct W { int a; int b; W() : a(b), b(1) {} };`
+  initializes every member, so P4416R0 [profiles.init.decl]/1 is
+  satisfied and [profiles.init.class]/1 holds, and the constructor is
+  undefined: the elements are initialized in declaration order whatever
+  the list says ([class.base.init]/15), so `a(b)` reads `b` before its
+  lifetime has begun ([basic.life]/8). The profile accepts the trace and
+  the machine says undefined (`Construction.w_accepted_undefined`); GCC
+  13, GCC 15 and Clang 24 reject it in constant evaluation
+  (`object_ctor_reads_later_member`), and `Z() : a(1), b(a)` is accepted
+  by both (`z_accepted_defined`). The wording's "initialized at the
+  start of the constructor's compound-statement" is true of the body and
+  not of the list. G1 fails inside a constructor that initializes every
+  member.
+
+- **A marked member stays uninitialized after the constructor
+  initialized it** (12 November 2026). P4416R0 [profiles.init.class]/2
+  keeps a member marked `[[uninit]]` uninitialized outside the
+  constructors, and its own example rejects `int* get() { return p; }`.
+  `Q() : x(7) { p = 5; }` with `p` marked passes the constructor check,
+  and `Q q; auto v = q.p;` is rejected and defined, reading 5
+  (`Construction.q_read_outside_rejected`). The wording's remedy is
+  `now_init` or a placeholder initializer, which defeats the marking.
+  Within the constructor the rules agree with the machine: reading a
+  marked member before assigning it is rejected and erroneous
+  (`r_body_read_agree`).
+
+- **P4222R3 §1.4 misstates two cases** (11 November 2026). "If X is a
+  class without a default constructor, x is uninitialized, so the
+  assignment is UB in older compilers and erroneous behavior in C++26":
+  `X x;` for a class with no default constructor is ill-formed
+  ([dcl.init.general]/6, no constructor is selected), and erroneous
+  behaviour applies to a scalar's value ([basic.indet]/2), not to a
+  class assignment. The sentence reads as if it meant a class with a
+  trivial default constructor, which is the case the model has
+  (`vacuous_initialization_erroneous_value` for the scalar; a class's
+  members are read one at a time). Also §4.6, "Reading an uninitialized
+  object … is UB": erroneous for automatic storage since C++26
+  ([basic.indet]/1, /2), undefined for dynamic storage.
+
+- **The definition rule and its hazard are about different things** (11
+  November 2026). The rule, every variable initialized at its
+  definition, is a predicate on definitions; the hazard, a read of an
+  indeterminate or erroneous value, is a predicate on objects and bytes.
+  `Overload/Object/Profile.lean` has six traces the rule accepts that
+  have the hazard and three it rejects that do not; the full rule set
+  of P4222R3 closes some of each and is the finding above.
+
+- **A class with a user-provided default constructor can be an
+  implicit-lifetime type** (11 November 2026). `struct T { T() {} int
+  x; };` has a trivial copy constructor and a trivial destructor, so
+  [class.prop]/8's second clause makes it an implicit-lifetime class,
+  and `std::start_lifetime_as<T>` is permitted for it: an object of `T`
+  comes into being without any constructor of `T` running. The model's
+  own test expected otherwise and was corrected
+  (`OverloadTest/Object.lean`). For the initialization profile this is
+  one more object that is no variable and runs no initializer.
+
+- **Vacuous initialization over reused storage keeps the old bytes** (11
+  November 2026). [basic.indet]/1 gives bytes their indeterminate or
+  erroneous value "when storage for an object with automatic or dynamic
+  storage duration is obtained", and a placement `new` obtains none, so
+  under the model `int x = 5; new (&x) int;` leaves an `int` whose value
+  is 5. Whether the compilers' constant evaluators read it so is for the
+  differential stage; constexpr placement `new` is C++26 and GCC 13 and
+  Clang 18 have no part of it. To probe.
+
+- **`std::start_lifetime` and the subobjects of what it starts** (11
+  November 2026). [obj.lifetime]/2's note says no subobject of the
+  object has its lifetime started, and [class.union.general]/5 begins a
+  member's lifetime on assignment only when the member is nominated
+  through a union member whose modification would be undefined. For
+  `union U { S s; int k; }` with `struct S { int a; }`, after
+  `std::start_lifetime(u.s)` the model has `u.s` within its lifetime and
+  `u.s.a` not, and `u.s.a = 1` finds `S(u.s.a)` holding `u.s` alone,
+  which is alive, so nothing is created and the assignment is undefined
+  under [basic.life]/8. The model transcribes the text as read; whether
+  the text means that is a question for the authors of P3074, not a
+  claim. Not yet a test: the question is recorded here first.
 
 ## Design note
 

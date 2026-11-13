@@ -61,8 +61,16 @@ private def traitsAgree (cs : List Case) : Bool :=
 #guard lookupsAgree Typeclass.Emit.cases
 
 -- Names are unique across both lists, so the emitted files do not collide.
-#guard ((cases ++ Typeclass.Emit.cases).map (·.name)).eraseDups.length ==
-  (cases ++ Typeclass.Emit.cases).length
+#guard ((cases ++ Typeclass.Emit.cases ++ Object.Emit.harnessCases).map (·.name)).eraseDups.length ==
+  (cases ++ Typeclass.Emit.cases ++ Object.Emit.harnessCases).length
+
+-- The object model's cases: the emitted expectation is the machine's.
+#guard Object.Emit.cases.all fun oc =>
+  oc.case.wellFormed == ((Object.Machine.run oc.model oc.trace) matches .defined _)
+#guard Object.Emit.cases.length == 22
+-- The const cases are not emitted but their expectations still match the machine.
+#guard Object.Emit.constCases.all fun oc =>
+  oc.case.wellFormed == ((Object.Machine.run oc.model oc.trace) matches .defined _)
 
 -- The first line carries the expectation the harness reads.
 #guard (render draftDeductCall3_rvalue).startsWith "// expect: well-formed\n"

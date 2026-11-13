@@ -4,49 +4,59 @@ The state of the work at the last session's end, for the next session to
 read after `plan.md`. Rewritten when a phase closes; the dated line says
 which.
 
-## Where things stand, 26 October 2026
+## Where things stand, 11 November 2026
 
-Fifteen phases are closed, through phase 15, class templates and their
-members. `main` is at `2bf5e73` plus this note, pushed to `origin`.
-Every check passes: `lake build`, `lake test`, `make citations` (661
-citations, two in-scope paragraphs uncovered, both definitional),
-`make drift-check-current` (six known editorial drifts), `make
-differential PROBE_COMPILERS="g++ clang++-24"` (all cases agree with
-GCC 15 and Clang 24), `make lint`.
-
-The model covers deduction, substitution outcomes, constraints, partial
-ordering, overload resolution with user-defined conversions, declarations
-and lookup, template argument conversion, the type categories, special
-members, traits, requires-expressions, semantic requirements, virtual
-functions, exception specifications, aggregates, and class templates with
-bases and members. The typeclass side declares the encoding of
-beman.transpose, now part of beman.typeclass, through Functor: lookup,
-the explicit-instance routes, superclass retrieval, the derivation base
-as a class template, and the operation object's constraint as a resolved
-member call.
+Phase 16, the object model, is open with stages 1 to 7 landed on
+the branch `claude/cpp-object-model-lean-gec6xk`. Fifteen phases are closed
+before it. `Overload/Object/*.lean` is the object model: storage,
+bytes, objects and their lifetime, pointers, the abstract machine of
+nineteen operations, the access judgement in both forms with
+`access_iff`, the `std::launder` and `std::start_lifetime_as` theorems,
+the definition rule of the initialization profile with `not_sound` and
+`not_complete`, and P4222R3's full rule set as a checker
+(`Overload/Object/P4222.lean`) with the paper's examples reproduced and
+the table of traces on which it and the object model disagree, and the
+proposed wording P4416R0 as a rule set of the same checker
+(`Overload/Object/P4416.lean`), its examples reproduced and its changes
+to the table proved, and functions with bodies as traces, so that the
+call-site attributes are checked and the callee run
+(`Overload/Object/Functions.lean`), and constructor bodies with the
+period of construction (`Overload/Object/Construction.lean`).
+`OverloadTest/Object.lean` holds the guards. Every theorem is a
+`decide`. `Overload/Object/Emit.lean` has twenty-two differential cases
+with constant evaluation as the oracle, run on GCC 13 and Clang 18 (in the
+earlier cloud session; on the author's machine Clang 18 selects
+libstdc++ 16, which it cannot parse, so only GCC 15 and Clang 24 run
+there) and on GCC 15 and Clang 24; the disagreements are filed in `findings.md`
+and `differential/known-disagreements.txt`. Three const complete cases
+are kept but not emitted, since libstdc++ 15 rejects `construct_at` on
+a const pointer.
 
 ## What is owed
 
-Recorded in `plan.md`'s theorem table and the phase status entries:
+Recorded in `plan.md`, phase 16, stages 2 to 4, and the status entry:
 
-- The general member-template-arguments theorem; shown on one program.
-- The inertness of the implicit object parameter for a class whose call
-  operators are all `const`.
-- Erasure assumes no class template declares a base.
-- The abstract oracle `memberAtomics` stays as the specification the
-  early theorems are about; the resolved constraint is the header's.
+- The relation forms of the machine's remaining clauses: casts,
+  `launder`, `start_lifetime_as`, `memcpy`, the block operations,
+  `activate` and `construct` (`decisions.md#spec-style`).
+- The period of destruction, delegating constructors, constructors with
+  parameters, exceptions in constructors, and members of class type
+  with constructor bodies of their own (`decisions.md#construction-period`).
+- The author's reading of `decisions.md#initialization-profile`: the
+  four readings the checker fixes where P4222R3 leaves room, aliasing
+  above all.
+- Constructor bodies (P4222R3 §5.1, P4416R0 [profiles.init.class]/1),
+  which need the period of construction: stage 4.
 
-Residue: conversion functions declared in a base class
-(`decisions.md#trait-residue`).
+The owed items of phase 15 stand as `plan.md` records them.
 
 ## What comes next
 
-`plan.md`, section "Open areas, to be picked up next": the list of what
-the fragment lacks, ordered by weight, with the order to take it in.
-The target is Applicative and Monad, then sender/receiver of
-`std::execution`. Those need parameter packs first and a typed
-expression fragment with computed return types second; translation
-units are the area that changes what is already proved.
+The author's reading of the profile entry and
+the findings' open question about `std::start_lifetime`. The open areas
+list of `plan.md` is unchanged: Applicative and Monad need parameter
+packs and the expression fragment; the object model is now the place a
+typed expression fragment would get its lvalues from.
 
 ## How the work runs
 

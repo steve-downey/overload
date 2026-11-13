@@ -27,5 +27,6 @@ import OverloadTest.Exceptions
 import OverloadTest.Aggregate
 import OverloadTest.DependentCandidate
 import OverloadTest.Units
+import OverloadTest.Object
 import OverloadTest.Typeclass
 import OverloadTest.Emit
