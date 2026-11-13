@@ -41,7 +41,14 @@ structure Model where
   ctorInits : List (Ty × List (Nat × Int)) := []
   /-- The functions a trace may call. -/
   functions : List FunDef := []
+  /-- Constructors with bodies. A class with an entry is constructed in
+  two phases (`Machine.construct`); a class without one is handled by
+  `ctorInits`, as before. -/
+  ctors : List CtorDef := []
   deriving Inhabited
+
+/-- The constructor with a body of a class, if it has one. -/
+def Model.ctorOf? (m : Model) (t : Ty) : Option CtorDef := m.ctors.find? (·.cls == t.stripConst)
 
 /-- The function of the model with a name. -/
 def Model.function? (m : Model) (f : String) : Option FunDef := m.functions.find? (·.name == f)

@@ -1335,6 +1335,15 @@ charter, and the decisions are `object-model`, `object-fragment`,
   `start_lifetime_as_ends_old`, `destroy_then_delete`, `memcpy_init`,
   `byte_fill` and `uninit_scope_exit` are what the wording changes; the
   table is `acceptedHazards` and `rejectedSafe` again.
+- `Construction`: constructor bodies and the period of construction.
+  `W() : a(b), b(1)` reads `b` before it is initialized
+  (`w_reads_member_before_init`), the list's order is the declaration
+  order (`mem_init_order_is_declaration_order`), the object is alive when
+  the constructor returns (`alive_after_constructor`); under the profile
+  `w_accepted_undefined` is the trace the wording does not see, and
+  `q_read_outside_rejected` the marked member that stays uninitialized.
+  `Syntax` has `MemInit` and `CtorDef`; `Machine.construct` is the two
+  phases and `Life.constructing` the state in between.
 - `Functions`: the profile across calls. The model's functions include
   `destroy(C* p)` with a plain parameter, `init(int* p [[must_init]])`,
   `read_fn [[now_init]]`, `alloc [[ref_to_uninit]]()`, and `reset` and

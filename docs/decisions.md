@@ -1542,3 +1542,50 @@ and the paper the author supplied.
   ([profiles.init.ref]/5, /6), and an unannotated function is plain
   throughout ([profiles.init.general]/5). Constructor bodies are not
   functions of the model yet; they need the period of construction.
+
+---
+
+## construction-period
+
+**Question:** How does the object model represent an object whose
+constructor is running, and what does a constructor with a body do?
+**Status:** DECIDED 12 November 2026.
+**Decision:** A class with a constructor body (`CtorDef`, held in
+`Model.ctors`) is created under construction: the object has
+`Life.constructing` and its elements `Life.notStarted`
+([class.cdtor]/3). `Machine.construct` then initializes the elements in
+declaration order whatever order the mem-initializer list is written in
+([class.base.init]/15), each from its mem-initializer (`MemInit.value`
+with an `Init`, or `MemInit.fromMember`, a copy of another element's
+value, as `a(b)` does) or by default-initialization, the element's
+lifetime beginning when its initialization completes ([basic.life]/2);
+a `fromMember` read of an element that has not begun is a read outside
+its lifetime ([basic.life]/8). The body is a trace run in a block of its
+own with `this` bound to the object, a pointer to a member of a
+constructing object may be formed, and the object's lifetime begins when
+the constructor returns ([class.base.init]/11). A class without an entry
+keeps `ctorInits`. A mem-initializer overrides a default member
+initializer ([class.base.init]/12). Out: delegating and inherited
+constructors, virtual bases, constructors with parameters, exceptions
+thrown by a constructor, member subobjects of class type that have
+constructor bodies of their own, virtual calls during construction, and
+the period of destruction.
+**Why:** The profile's rule for members, P4416R0
+[profiles.init.class]/1, is stated of the start of the body, and the
+rule it relies on for the list, that members are initialized in
+declaration order, is where a mem-initializer reads an element that is
+not yet there. Neither paper nor the wording has a rule for the order of
+the list, so the profile cannot see it. The object model had to make
+the interval between "storage obtained" and "initialization complete"
+observable to state that. One state for the whole object, constructing,
+with the per-element lifetimes carrying the rest, is the least that
+does it. The checker's constructor rules (`P4222.ctorViolations`) are
+the wording's: a member the list and its default initializer leave
+uninitialized must be marked `[[uninit]]`, a marked member must not be
+named in the list, and a marked member stays uninitialized outside the
+constructors even when the body assigned it.
+**Decided by:** the session, on the author's request of 12 November
+2026 to start stage 4.
+**Log:**
+
+- 2026-11-12 — Decided; stage object-construction landed.

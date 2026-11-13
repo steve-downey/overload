@@ -997,6 +997,16 @@ Status, 15 October 2026:
   destructor call or read is undefined; the [ptr.launder]/6 example
   split across a call; `[[now_init]]` as the declared hole; a dangling
   return. One emitted case, `object_callee_destroys`.
+  Stage 4, object-construction, landed 12 November 2026: constructor
+  bodies as `CtorDef`s, an object under construction with its elements
+  starting one at a time, the mem-initializer order of
+  [class.base.init]/15 observable, and the checker's constructor rules.
+  The theorems are in `Overload/Object/Construction.lean`: a
+  mem-initializer reading a later member is undefined and accepted
+  (`w_accepted_undefined`), the list's order is irrelevant, a member
+  marked `[[uninit]]` stays uninitialized outside the constructor that
+  assigned it (`q_read_outside_rejected`). Four emitted cases agree on
+  GCC 13, GCC 15 and Clang 24.
 
 ## Target theorems
 
@@ -2904,10 +2914,14 @@ operations.
    evaluation and stay stated. Landed 11 November 2026.
 3. object-relations: the relation forms of creation, destruction and
    assignment, with agreement theorems.
-4. object-construction: the periods of construction and destruction
-   ([class.cdtor]), with the ordering of subobject initialization
-   ([class.base.init]), which is where the initialization profile meets
-   constructors that read members.
+4. [object-construction](#object-construction): the period of
+   construction and constructor bodies: `Life.constructing`, `CtorDef`
+   with `MemInit`, `Machine.construct` initializing elements in
+   declaration order and then running the body with `this`, the
+   checker's `ctorViolations`, and `Overload/Object/Construction.lean`.
+   Landed 12 November 2026. The period of destruction, delegating
+   constructors, constructors with parameters and exceptions stay out
+   (`decisions.md#construction-period`).
 5. [p4222](#p4222): P4222R3's rule set as a checker over traces,
    `Overload/Object/P4222.lean`, the paper's own examples reproduced,
    and the table of accepted-and-undefined and rejected-and-defined

@@ -1034,6 +1034,33 @@ and described here as they arrive.
   postcondition, that the callee leaves the referent uninitialized, is
   what G2 needs and the design does not have.
 
+- **Neither paper has a rule for the order of mem-initializers** (12
+  November 2026). `struct W { int a; int b; W() : a(b), b(1) {} };`
+  initializes every member, so P4416R0 [profiles.init.decl]/1 is
+  satisfied and [profiles.init.class]/1 holds, and the constructor is
+  undefined: the elements are initialized in declaration order whatever
+  the list says ([class.base.init]/15), so `a(b)` reads `b` before its
+  lifetime has begun ([basic.life]/8). The profile accepts the trace and
+  the machine says undefined (`Construction.w_accepted_undefined`); GCC
+  13, GCC 15 and Clang 24 reject it in constant evaluation
+  (`object_ctor_reads_later_member`), and `Z() : a(1), b(a)` is accepted
+  by both (`z_accepted_defined`). The wording's "initialized at the
+  start of the constructor's compound-statement" is true of the body and
+  not of the list. G1 fails inside a constructor that initializes every
+  member.
+
+- **A marked member stays uninitialized after the constructor
+  initialized it** (12 November 2026). P4416R0 [profiles.init.class]/2
+  keeps a member marked `[[uninit]]` uninitialized outside the
+  constructors, and its own example rejects `int* get() { return p; }`.
+  `Q() : x(7) { p = 5; }` with `p` marked passes the constructor check,
+  and `Q q; auto v = q.p;` is rejected and defined, reading 5
+  (`Construction.q_read_outside_rejected`). The wording's remedy is
+  `now_init` or a placeholder initializer, which defeats the marking.
+  Within the constructor the rules agree with the machine: reading a
+  marked member before assigning it is rejected and erroneous
+  (`r_body_read_agree`).
+
 - **P4222R3 §1.4 misstates two cases** (11 November 2026). "If X is a
   class without a default constructor, x is uninitialized, so the
   assignment is UB in older compilers and erroneous behavior in C++26":

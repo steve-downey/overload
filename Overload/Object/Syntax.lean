@@ -135,4 +135,27 @@ structure FunDef where
   deriving Repr, DecidableEq, Inhabited
 
 
+/-- What a mem-initializer gives an element: an initializer with
+constants, or the value of another element of the same object, as `a(b)`
+does ([class.base.init]/17). -/
+inductive MemInit where
+  | value (v : Init)
+  | fromMember (j : Nat)
+  deriving Repr, DecidableEq, Inhabited
+
+attribute [std rule "class.base.init#12" "dcl.init.general#15"] MemInit.value
+attribute [std rule "class.base.init#17" "basic.life#8"] MemInit.fromMember
+
+/-- A user-provided default constructor with a body: the mem-initializers
+by element index, bases then members, and the body as a trace in which
+the pointer variable `this` points to the object under construction. The
+elements are initialized in declaration order whatever order the list is
+written in ([class.base.init]/15), each from its mem-initializer, else by
+default-initialization; then the body runs. -/
+structure CtorDef where
+  cls : Ty
+  memInits : List (Nat × MemInit) := []
+  body : Trace := []
+  deriving Repr, DecidableEq, Inhabited
+
 end Overload.Object

@@ -287,6 +287,14 @@ is the map.
 #audit Overload.Object.Functions.callee_resets
 #audit Overload.Object.Functions.now_init_hole
 #audit Overload.Object.Functions.accepted_hazards
+#audit Overload.Object.Construction.w_reads_member_before_init
+#audit Overload.Object.Construction.mem_init_order_is_declaration_order
+#audit Overload.Object.Construction.alive_after_constructor
+#audit Overload.Object.Construction.r_body_reads_unset_member
+#audit Overload.Object.Construction.w_accepted_undefined
+#audit Overload.Object.Construction.q_read_outside_rejected
+#audit Overload.Object.Construction.marked_member_named
+#audit Overload.Object.Construction.accepted_hazards
 
 -- Erasing derivation, Mandates, SFINAE, dispatch, access.
 #audit Overload.inheritance_erasure

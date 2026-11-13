@@ -89,6 +89,7 @@ def createWithin (m : Model) : Nat → State → Ty → Nat → RegionId → Nat
         let childLife :=
           if union then .notStarted
           else if implicitOnly && !m.implicitLifetime e then .notStarted
+          else if life == .constructing then .notStarted
           else life
         (createWithin m fuel s e 1 r (off + o) (some id) (decide (i < bases)) union childLife implicitOnly).1) s
       (s, id)
@@ -393,9 +394,13 @@ def createObject (m : Model) (s : State) (ty : Ty) (r : RegionId) (off : Nat) (i
   if !allocated s r off (count * m.sizeOf ty) then .undefined .lifetimePrecondition
   else
     let (s, parent) ← reuse m s ty r off
-    let (s, o) := create m s ty count r off parent .alive
+    -- A class with a constructor body is created under construction, its
+    -- elements not yet started; `construct` runs the constructor.
+    let underConstruction := count == 1 && (m.ctorOf? ty).isSome && (init == .default || init == .value)
+    let (s, o) := create m s ty count r off parent (if underConstruction then .constructing else .alive)
     let s := linkReplacements s o
-    if count != 1 then
+    if underConstruction then .defined (s, o)
+    else if count != 1 then
       -- A byte array: its lifetime beginning implicitly creates objects
       -- within it ([intro.object]/16), and value-initialization zeroes it.
       let s := s.updateRegion r fun rg =>
@@ -580,7 +585,7 @@ def step (m : Model) (s : State) : Op → Behavior State
     | none => .undefined .noObject
     | some ob =>
       if ob.ty.stripConst != p.ty.stripConst then .undefined .typeInaccessible
-      else if ob.life != .alive then .undefined .outsideLifetime
+      else if ob.life != .alive && ob.life != .constructing then .undefined .outsideLifetime
       else
         match (childrenOf s o)[i]? with
         | some c =>
@@ -677,6 +682,66 @@ def call (m : Model) (exec : State → Trace → Behavior State) (s : State) (x 
             | some _, none => .illFormed (.badCall f)
             | none, _ => .defined back
 
+/-- The object a creation operation just made under construction, if it
+is one: a definition, `new` or placement `new` of a class with a
+constructor body and a default or value initializer. -/
+def ctorTarget (m : Model) (s : State) : Op → Option ObjId
+  | .var x ty init _ count =>
+    if count == 1 && (m.ctorOf? ty).isSome && (init == .default || init == .value) then s.name? x else none
+  | .newObject x ty init | .placementNew x ty _ init =>
+    if (m.ctorOf? ty).isSome && (init == .default || init == .value) then
+      (s.ptr? x).bind fun p => match p.loc with | .object o => some o | _ => none
+    else none
+  | _ => none
+
+/-- The two phases of a constructor ([class.base.init]/15): the elements
+in declaration order, each from its mem-initializer or by
+default-initialization, its lifetime beginning when its initialization
+completes ([basic.life]/2); then the body, in a block of its own with
+`this` bound to the object under construction; the object's lifetime
+begins when the constructor returns ([class.base.init]/11). A
+mem-initializer that reads an element whose initialization has not
+completed reads an object outside its lifetime ([basic.life]/8). -/
+@[std rule "class.base.init#15" "class.base.init#11" "class.base.init#12"]
+def construct (m : Model) (exec : State → Trace → Behavior State) (s : State) (o : ObjId) : Behavior State :=
+  match s.obj? o with
+  | none => .illFormed (.unbound "this")
+  | some ob =>
+    match m.ctorOf? ob.ty with
+    | none => .defined s
+    | some cd =>
+      let kids := childrenOf s o
+      let initialized : Behavior State :=
+        (m.layout ob.ty).zipIdx.foldl (fun acc ((e, _), i) =>
+          acc >>= fun s =>
+            match kids[i]? with
+            | none => .defined s
+            | some c =>
+              match s.obj? c with
+              | none => .defined s
+              | some cb =>
+                match cd.memInits.find? (·.1 == i) with
+                | some (_, .value v) => applyInit m s c e cb.region cb.offset v >>= fun s => .defined (activate s c)
+                | some (_, .fromMember j) =>
+                  match kids[j]? with
+                  | none => .illFormed (.unbound "member")
+                  | some cj =>
+                    readThrough m s { ty := e, loc := .object cj } >>= fun (s, _) =>
+                      match s.obj? cj with
+                      | some cjb =>
+                        let s := writeBytes s cb.region cb.offset (bytesAt s cjb.region cjb.offset (m.sizeOf e))
+                        .defined (activate s c)
+                      | none => .defined s
+                | none => applyInit m s c e cb.region cb.offset .default >>= fun s => .defined (activate s c))
+          (.defined s)
+      initialized >>= fun s =>
+        let callee : State :=
+          { s with names := [], ptrs := [("this", { ty := ob.ty, loc := .object o })], vals := [],
+                   blocks := [] :: s.blocks }
+        exec callee cd.body >>= fun s' =>
+          step m s' .endBlock >>= fun s'' =>
+            .defined (activateAlone { s'' with names := s.names, ptrs := s.ptrs, vals := s.vals } o)
+
 /-- Run a trace from a state, within `fuel` operations counting the
 operations of every called body. -/
 def exec (m : Model) : Nat → State → Trace → Behavior State
@@ -686,12 +751,16 @@ def exec (m : Model) : Nat → State → Trace → Behavior State
     let s := { s with clock := s.clock + 1 }
     (match op with
      | .call x f args => call m (exec m fuel) s x f args
-     | _ => step m s op) >>= fun s => exec m fuel s ops
+     | _ =>
+       step m s op >>= fun s' =>
+         match ctorTarget m s' op with
+         | some o => construct m (exec m fuel) s' o
+         | none => .defined s') >>= fun s => exec m fuel s ops
 
 /-- The fuel a trace is given: enough for every operation and for every
 body a call can run, at the model's size. -/
 def fuelFor (m : Model) (t : Trace) : Nat :=
-  (t.length + 2) * (2 + (m.functions.map (·.body.length + 2)).sum)
+  (t.length + 2) * (2 + (m.functions.map (·.body.length + 2)).sum + (m.ctors.map (·.body.length + 2)).sum)
 
 /-- Run a trace from a state. -/
 def runFrom (m : Model) (s : State) (t : Trace) : Behavior State := exec m (fuelFor m t) s t

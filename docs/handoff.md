@@ -6,7 +6,7 @@ which.
 
 ## Where things stand, 11 November 2026
 
-Phase 16, the object model, is open with stages 1, 2, 5, 6 and 7 landed on
+Phase 16, the object model, is open with stages 1, 2, 4, 5, 6 and 7 landed on
 the branch `claude/cpp-object-model-lean-gec6xk`. Fifteen phases are closed
 before it. `Overload/Object/*.lean` is the object model: storage,
 bytes, objects and their lifetime, pointers, the abstract machine of
@@ -20,9 +20,10 @@ proposed wording P4416R0 as a rule set of the same checker
 (`Overload/Object/P4416.lean`), its examples reproduced and its changes
 to the table proved, and functions with bodies as traces, so that the
 call-site attributes are checked and the callee run
-(`Overload/Object/Functions.lean`).
+(`Overload/Object/Functions.lean`), and constructor bodies with the
+period of construction (`Overload/Object/Construction.lean`).
 `OverloadTest/Object.lean` holds the guards. Every theorem is a
-`decide`. `Overload/Object/Emit.lean` has eighteen differential cases
+`decide`. `Overload/Object/Emit.lean` has twenty-two differential cases
 with constant evaluation as the oracle, run on GCC 13 and Clang 18 (in the
 earlier cloud session; on the author's machine Clang 18 selects
 libstdc++ 16, which it cannot parse, so only GCC 15 and Clang 24 run
@@ -37,8 +38,9 @@ Recorded in `plan.md`, phase 16, stages 2 to 4, and the status entry:
 
 - The relation forms of creation, destruction and assignment
   (`decisions.md#spec-style`, log of 11 November 2026).
-- The periods of construction and destruction, where the profile meets
-  constructors that read members.
+- The period of destruction, delegating constructors, constructors with
+  parameters, exceptions in constructors, and members of class type
+  with constructor bodies of their own (`decisions.md#construction-period`).
 - The author's reading of `decisions.md#initialization-profile`: the
   four readings the checker fixes where P4222R3 leaves room, aliasing
   above all.

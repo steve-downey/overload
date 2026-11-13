@@ -341,6 +341,8 @@ def inScope : List (String × Nat) :=
   , ("ptr.launder", 2), ("ptr.launder", 3), ("ptr.launder", 5)
   , ("obj.lifetime", 1), ("obj.lifetime", 2), ("obj.lifetime", 3), ("obj.lifetime", 4), ("obj.lifetime", 5)
   , ("expr.const.core", 2), ("cstring.syn", 3)
+  , ("class.base.init", 11), ("class.base.init", 12), ("class.base.init", 15), ("class.base.init", 17)
+  , ("class.cdtor", 3)
   -- Phase 15: class templates and their members (docs/plan.md, phase 15).
   , ("temp.class.general", 1), ("basic.scope.class", 1)
   , ("temp.dep.type", 1), ("temp.dep.type", 3), ("temp.decls.general", 2), ("temp.local", 1)

@@ -190,3 +190,9 @@ trait_implicit_lifetime_reference.cpp g++-15
 trait_implicit_lifetime_scalar.cpp g++-15
 trait_implicit_lifetime_user_ctor.cpp g++-15
 trait_implicit_lifetime_user_dtor.cpp g++-15
+# libstdc++ 13 has no std::is_implicit_lifetime either (findings.md).
+trait_implicit_lifetime_aggregate.cpp g++-13
+trait_implicit_lifetime_reference.cpp g++-13
+trait_implicit_lifetime_scalar.cpp g++-13
+trait_implicit_lifetime_user_ctor.cpp g++-13
+trait_implicit_lifetime_user_dtor.cpp g++-13

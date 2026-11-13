@@ -67,7 +67,7 @@ private def traitsAgree (cs : List Case) : Bool :=
 -- The object model's cases: the emitted expectation is the machine's.
 #guard Object.Emit.cases.all fun oc =>
   oc.case.wellFormed == ((Object.Machine.run oc.model oc.trace) matches .defined _)
-#guard Object.Emit.cases.length == 18
+#guard Object.Emit.cases.length == 22
 -- The const cases are not emitted but their expectations still match the machine.
 #guard Object.Emit.constCases.all fun oc =>
   oc.case.wellFormed == ((Object.Machine.run oc.model oc.trace) matches .defined _)

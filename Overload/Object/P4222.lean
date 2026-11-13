@@ -200,6 +200,12 @@ inductive Violation where
   /-- An automatic object of a type that is not trivially destructible,
   uninitialized where its scope ends (P4416R0 [profiles.init.life]/2). -/
   | uninitAtScopeExit (name : String)
+  /-- A mem-initializer naming a member marked `[[uninit]]` (P4416R0
+  [profiles.init.decl]/2). -/
+  | uninitMemberNamed (cls : Ty) (element : Nat)
+  /-- A mem-initializer that reads a member marked `[[uninit]]` and so
+  not initialized by this constructor. -/
+  | memInitReadsUninit (cls : Ty) (element : Nat)
   /-- A pointer variable the trace never bound. -/
   | unbound (name : String)
   deriving Repr, DecidableEq, Inhabited
@@ -478,7 +484,7 @@ def classViolations (m : Model) (a : Annotations) : List Violation :=
     match d with
     | .class n _ _ _ => some (Ty.named n)
     | _ => none).flatMap fun cls =>
-    if !m.userProvidedDefaultCtor cls then []
+    if !m.userProvidedDefaultCtor cls || (m.ctorOf? cls).isSome then []
     else
       let bases := m.baseCount cls
       let members := m.membersOf cls
@@ -517,10 +523,46 @@ def functionViolations (m : Model) (a : Annotations) : List Violation :=
       | none => []
     c.violations ++ obligations ++ ret
 
-/-- The violations of a trace, with those of the model's classes and
-functions. -/
+/-- A constructor with a body under the profile's rules (P4416R0
+[profiles.init.class]/1, [profiles.init.decl]/1, /2). An element is
+initialized at the start of the body if a mem-initializer, a default
+member initializer or a default-initialization that leaves nothing
+uninitialized initializes it, and uninitialized there otherwise, in
+which case it must be marked `[[uninit]]`; a marked member must not be
+named in a mem-initializer. A mem-initializer that reads a member
+marked `[[uninit]]` reads an uninitialized object. Nothing orders the
+mem-initializers among themselves: the wording says the members are
+initialized at the start of the body, not when each is. The body is
+analyzed with `this` referring to the object and each member's mark
+as that rule gives it; assignment to an uninitialized scalar member
+initializes it. -/
+def ctorViolations (m : Model) (a : Annotations) : List Violation :=
+  m.ctors.flatMap fun cd =>
+    let members := m.membersOf cd.cls
+    let bases := m.baseCount cd.cls
+    let elems := (m.elements cd.cls).zipIdx
+    let hasDmi (i : Nat) : Bool := i ≥ bases && (members[i - bases]?.any (·.init))
+    let named (i : Nat) : Bool := (cd.memInits.find? (·.1 == i)).isSome
+    let startsUninit (e : Ty) (i : Nat) : Bool := !(named i || hasDmi i || defaultInitializes m m.depth e)
+    let declViolations := elems.flatMap fun (e, i) =>
+      (if startsUninit e i && !a.uninitMembers.contains (cd.cls, i) then [Violation.constructorLeavesMember cd.cls i] else []) ++
+      (if named i && a.uninitMembers.contains (cd.cls, i) then [Violation.uninitMemberNamed cd.cls i] else [])
+    let readViolations := cd.memInits.filterMap fun (_, mi) =>
+      match mi with
+      | .fromMember j => if a.uninitMembers.contains (cd.cls, j) then some (Violation.memInitReadsUninit cd.cls j) else none
+      | _ => none
+    let c₀ : CheckState :=
+      let c : CheckState := ({} : CheckState).setRoot "*this" cd.cls .init
+      let c := elems.foldl (fun c (e, i) =>
+        if startsUninit e i then c.setPath ⟨"*this", [i]⟩ .uninit else c.setPath ⟨"*this", [i]⟩ .init) c
+      c.setPtr "this" ⟨"*this", []⟩ cd.cls
+    let c := cd.body.foldl (checkOp m a) c₀
+    declViolations ++ readViolations ++ c.violations
+
+/-- The violations of a trace, with those of the model's classes,
+constructors and functions. -/
 def check (m : Model) (a : Annotations) (t : Trace) : List Violation :=
-  classViolations m a ++ functionViolations m a ++ (t.foldl (checkOp m a) {}).violations
+  classViolations m a ++ ctorViolations m a ++ functionViolations m a ++ (t.foldl (checkOp m a) {}).violations
 
 /-- Does the profile accept the trace? -/
 def accepts (m : Model) (a : Annotations) (t : Trace) : Bool := (check m a t).isEmpty

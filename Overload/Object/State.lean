@@ -62,10 +62,16 @@ lifetime; or its lifetime ended. The periods of construction and
 destruction ([class.cdtor]) are out of the fragment. -/
 inductive Life where
   | notStarted | alive | ended
+  /-- Construction has started and the lifetime has not begun: the
+  object whose constructor is running ([class.cdtor]/3,
+  [class.base.init]/11). Its members' lifetimes begin one by one as
+  each is initialized. -/
+  | constructing
   deriving Repr, DecidableEq, Inhabited
 
 attribute [std rule "class.union.general#2"] Life.notStarted
 attribute [std rule "basic.life#2"] Life.alive Life.ended
+attribute [std rule "class.cdtor#3" "class.base.init#11"] Life.constructing
 
 /-- An object: it occupies a region of storage, has a type, and has a
 storage duration through its region ([intro.object]/1). -/

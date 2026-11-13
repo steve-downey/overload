@@ -1,6 +1,7 @@
 -- Overload/Object/Emit.lean                                          -*-lean-*-
 -- SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 import Overload.Object.Machine
+import Overload.Object.Construction
 import Overload.Emit
 
 /-!
@@ -68,7 +69,11 @@ def classes : String :=
   "struct T { constexpr T() {} int x; };\n" ++
   "union U { int i; short s; };\n" ++
   "struct B { int b; };\nstruct D : B { int d; };\n" ++
-  "constexpr void destroy(C* p) { std::destroy_at(p); }\n"
+  "constexpr void destroy(C* p) { std::destroy_at(p); }\n" ++
+  "struct W { int a; int b; constexpr W() : a(b), b(1) {} };\n" ++
+  "struct Z { int a; int b; constexpr Z() : a(1), b(a) {} };\n" ++
+  "struct Q { int p; int x; constexpr Q() : x(7) { p = 5; } };\n" ++
+  "struct R { int m; int n; constexpr R() : n(2) { int v = m; (void)v; } };\n"
 
 /-- Is the trace defined behaviour, with no erroneous behaviour: the
 condition under which its constant evaluation is a constant expression
@@ -259,6 +264,39 @@ def calleeDestroys : ObjectCase :=
     "  C c{1};\n  destroy(&c);\n  std::destroy_at(&c);\n  return 0;\n" 0
     { model with functions := [{ name := "destroy", params := [("p", cC)], body := [.destroy "p"] }] }
 
+/-! ### Constructor bodies (`Overload/Object/Construction.lean`) -/
+
+private def cW : Ty := .named "W"
+private def cZ : Ty := .named "Z"
+private def cQ : Ty := .named "Q"
+private def cR : Ty := .named "R"
+
+/-- `W() : a(b), b(1) {}` and `W w; return w.a;`: the mem-initializer
+reads `b` before its initialization has completed. -/
+def ctorReadsLaterMember : ObjectCase :=
+  mk "object_ctor_reads_later_member" "class.base.init#15"
+    [.var "o" cW, .addr "p" "o", .member "pa" "p" 0, .read "v" "pa"]
+    "  W w;\n  return w.a;\n" 0 Construction.model
+
+/-- `Z() : a(1), b(a) {}`: the read follows the initialization. -/
+def ctorReadsEarlierMember : ObjectCase :=
+  mk "object_ctor_reads_earlier_member" "class.base.init#15"
+    [.var "o" cZ, .addr "p" "o", .member "pb" "p" 1, .read "v" "pb"]
+    "  Z z;\n  return z.b;\n" 1 Construction.model
+
+/-- `Q() : x(7) { p = 5; }`: the body initializes `p`. -/
+def ctorBodyAssigns : ObjectCase :=
+  mk "object_ctor_body_assigns" "class.base.init#15"
+    [.var "o" cQ, .addr "pq" "o", .member "pp" "pq" 0, .read "a" "pp", .member "px" "pq" 1, .read "b" "px"]
+    "  Q q;\n  return q.p + q.x;\n" 12 Construction.model
+
+/-- `R() : n(2) { int v = m; }`: the body reads a member nothing
+initialized. -/
+def ctorBodyReadsUnset : ObjectCase :=
+  mk "object_ctor_body_reads_unset" "basic.indet#2"
+    [.var "o" cR]
+    "  R r;\n  return r.n;\n" 2 Construction.model
+
 /-- Every case. -/
 def cases : List ObjectCase :=
   [ uninitRead, assignedBeforeRead, valueInitZero, userCtorLeavesMember
@@ -267,7 +305,8 @@ def cases : List ObjectCase :=
   , implicitDestructor, destroyRecreateBlockExit
   , newIntUninit, newIntInit
   , launderBase true, launderBase false
-  , unionInitializedInactiveRead, baseDestroyedReplacedComplete, calleeDestroys ]
+  , unionInitializedInactiveRead, baseDestroyedReplacedComplete, calleeDestroys
+  , ctorReadsLaterMember, ctorReadsEarlierMember, ctorBodyAssigns, ctorBodyReadsUnset ]
 
 /-- The const complete object cases, `launderConstComplete` and
 `constCompleteDestroyedNotReplaced`, are not emitted. They create a
