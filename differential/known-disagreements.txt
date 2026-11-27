@@ -5,9 +5,10 @@
 # The step-order hazard: GCC does not deduce for template candidates when
 # a non-template candidate is an exact match (the P3606 behaviour), so the
 # hard error in the default template argument never happens. The model
-# transcribes the C++26 text (docs/decisions.md#p3606-mode). Both the
-# unversioned and the versioned compiler names are listed, for CI and for
-# a local run with PROBE_COMPILERS="g++-13 clang++-18".
+# transcribes the C++26 text (docs/decisions.md#p3606-mode). Entries are
+# keyed by compiler name. CI runs the versioned names it pins in
+# .github/workflows/lean.yml; the unversioned names serve a local run with
+# the default PROBE_COMPILERS, and mean whatever that machine installs.
 step_order_hazard.cpp g++
 step_order_hazard.cpp g++-13
 step_order_hazard.cpp g++-14
@@ -141,8 +142,27 @@ routes_value_sliced.cpp g++-13
 routes_value_sliced.cpp g++-14
 routes_value_sliced.cpp g++-15
 routes_value_sliced.cpp g++-16
+#
+# libstdc++ 15 has no std::is_implicit_lifetime_v, so these fail to compile
+# with GCC 15 and with any Clang that uses that library, as Clang 21 does
+# on the CI image. A library gap, not a rule (docs/findings.md).
 trait_implicit_lifetime_aggregate.cpp g++
 trait_implicit_lifetime_reference.cpp g++
 trait_implicit_lifetime_scalar.cpp g++
 trait_implicit_lifetime_user_ctor.cpp g++
 trait_implicit_lifetime_user_dtor.cpp g++
+trait_implicit_lifetime_aggregate.cpp g++-15
+trait_implicit_lifetime_reference.cpp g++-15
+trait_implicit_lifetime_scalar.cpp g++-15
+trait_implicit_lifetime_user_ctor.cpp g++-15
+trait_implicit_lifetime_user_dtor.cpp g++-15
+trait_implicit_lifetime_aggregate.cpp clang++
+trait_implicit_lifetime_reference.cpp clang++
+trait_implicit_lifetime_scalar.cpp clang++
+trait_implicit_lifetime_user_ctor.cpp clang++
+trait_implicit_lifetime_user_dtor.cpp clang++
+trait_implicit_lifetime_aggregate.cpp clang++-21
+trait_implicit_lifetime_reference.cpp clang++-21
+trait_implicit_lifetime_scalar.cpp clang++-21
+trait_implicit_lifetime_user_ctor.cpp clang++-21
+trait_implicit_lifetime_user_dtor.cpp clang++-21
