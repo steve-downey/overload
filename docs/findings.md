@@ -163,6 +163,9 @@ and described here as they arrive.
   libc++ does. A library gap, not a disagreement about a rule; listed in
   `differential/known-disagreements.txt` for GCC 15 until that libstdc++
   has it.
+  Clang has the same gap wherever it uses libstdc++ 15: Clang 21 on the
+  Ubuntu 26.04 CI image fails all five with the same error, and passes
+  them against libstdc++ 16 (26 November 2026). Listed for Clang 21 too.
 
 ## About the model
 
